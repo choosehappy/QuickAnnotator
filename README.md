@@ -109,19 +109,4 @@ Manuscript available [here]()
 See [FAQ](http://hawking.case.edu:3030/deeplearning/quick_annotator/blob/master/wiki.md#frequently-asked-questions)
 
 
-#------------------------ AJ
-[//Some notes//]
-
-
-# need to ensure nvidia runtimes are installed
-
-how to confirm?
-
-point to right resource to learn how to install
-
-#-- QA specific work
-docker build -t quick_annotator .
-docker run --gpus all -it -p 5555:5555 quick_annotator 
-[//I am sure how to address this//]
-
 
