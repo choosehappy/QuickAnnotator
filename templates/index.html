@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>QA - Project Selection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-dialog.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/jquery-ui.css') }}">
+    <script src="{{ url_for('static', filename='js/angular.min.js') }}"></script>
+    {#    Jquery need to be laoded before bootstrap, other wise it will cause error#}
+    <script src="{{ url_for('static', filename='js/jquery-3.5.0.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap-dialog.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/qa-utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/jquery-ui.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/projects.js') }}"></script>
+    <style>
+        tr:nth-of-type(odd){background-color:#eee;}
+        tr:hover td{background:#ccc;}
+        tr td:nth-of-type(2){cursor:pointer;}
+    </style>
+</head>
+<body onload='init();'>
+<div id="main" class="container" style="display: block">
+    <div style="display: block; width:100%; float:right">
+        <div style="float:right"><h5><a href="https://ccipd.case.edu" target="_blank">CCIPD</a></h5></div>
+    </div>
+    <div style="display: block; width:100%; float:right">
+        <div style="float:right">
+            <h1><a style="color:#007bff" href="{{ url_for('html.index') }}" title="Go to Home Page (Update the statistics)" >Quick Annotator</a></h1>
+        </div>
+        <div>
+            <h1><b>Projects</b></h1>
+        </div>
+    </div>
+    <div ng-app="myApp" ng-controller="myCtrl">
+        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addNewProj">Add Project</button>
+        <div id="addNewProj" class="modal fade">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form name="myForm">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal"><span
+                                    aria-hidden="true">&times;</span><span class="sr-only">Close</span>
+                            </button>
+                            <h3 class="modal-title">Add new project</h3>
+                        </div>
+                        <div class="modal-body" id="formBody">
+                            <div class="form-group">
+                                <label for="recipient-name" class="control-label" >Project Name</label>
+                                <input type="text" class="form-control" id="project_name_input" name="name" ng-model="formData.name" required
+                                       pattern="[A-Za-z0-9_ -]{1,}"
+                                       placeholder="Project name can only contain numbers, letters, hyphen, underline, and space"
+                                       title="Please enter a valid project name"
+                                       autocomplete="off"  >
+                            </div>
+                            <div class="form-group">
+                                <label for="message-text" class="control-label">Description</label>
+                                <textarea type="text" class="form-control" name="description"
+                                          ng-model="formData.description" autocomplete="off"></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" id= "addProjectButton" ng-click="addProject()" class="btn btn-primary" data-dismiss="modal">
+                                Add
+                            </button>
+                            <button type="button" ng-click="cancelAdd()" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <br>
+        <br>
+        <table id="projects-table" class="table table-hover">
+            <thead>
+            <th></th>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Creation date&time</th>
+            <th># of images</th>
+            <th>Model iteration #</th>
+            <th>Object #</th>
+            </thead>
+            <tbody id="projects-body">
+            {% for project in projects %}
+                <tr id = "projectRow_{{project.id}}">
+                    <td>
+                        <button onclick="deleteProject('{{  project.id }}','{{  project.name}}')">Delete</button>
+                    </td>
+                    <td><a href="{{project.name}}\images">{{project.name}}</a></td>
+                    <td>{{ project.description }}</td>
+                    <td>{{ project.date }}</td>
+                    <td>{{ project.nImages }}</td>
+                    <td>{{ project.iteration }}</td>
+                    <td>{{ project.nObjects }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</body>
+</html>

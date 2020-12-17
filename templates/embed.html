@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="{{ url_for('static', filename='js/d3.v3.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/qa-utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/angular.min.js') }}"></script>
+    {#    Jquery need to be laoded before bootstrap, other wise it will cause error#}
+    <script src="{{ url_for('static', filename='js/jquery-3.5.0.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap-dialog.min.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/logs.css') }}">
+
+
+    <style type="text/css">
+        body {
+            margin: 0;
+            font-family: sans-serif;
+            font-size: 11px;
+        }
+        .axis path, .axis line {
+            fill: none;
+            stroke: black;
+            shape-rendering: crispEdges;  /* Round any decimal pixels so it'll render nicely */
+        }
+
+        .titleflex {
+            display: flex;
+            border: 0px solid orange;
+            flex-direction: row;
+            justify-content: stretch;
+            align-items: top;
+        }
+
+        .controlsflex {
+            border: 0px solid white;
+            background: #FFFFFFAA;
+            flex-shrink: 1;
+        }
+
+        .logflex {
+            border: 0px solid black;
+            flex-grow: 1;
+        }
+
+        .panel-body table, th, td {
+            border: 1px solid black;
+            text-align: center;
+            border-collapse:separate;
+            border-spacing: 1px;
+            padding: auto;
+        }
+
+    </style>
+</head>
+{#I thought of using onload = "", but this does nothing good but unstablize the code, since we are using graphdata before insitalization and we donot know what is parse from teh backend #}
+{#<body onload="loadData(graphData)">#}
+<body >
+
+
+    <div class="titleflex">
+        <div class="controlsflex">
+
+            <ul id="info">
+                <div class="panel-body">
+
+                    <table>
+                        <tr>
+                            <th>Embed Slider</th>
+                            <th title="The number of patches when running make_embed for the project '{{project_name}}'">Patch Number</th>
+                            <th title="Latest DL Model ID for the project '{{ project_name }}'">Latest ID</th>
+                            <th title="Current DL Model ID for the project '{{ project_name }}'">Current ID</th>
+                            <th title="Selected DL Model ID for the project '{{ project_name }}'">Selected ID</th>
+                            <td>
+                                <a>
+                                    <button type="button" title="Re embed the latest model with selected patches number" onclick="make_embed()">Re_embed</button>
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('html.get_imagelist',project_name=project_name) }}">
+                                    <button type="button" title="Go to Image List for '{{ project_name }}'">Image List</button>
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><input class="slider" id="patchnumberSlider" type="range" min="5" max="9" value="9">
+                            </td>
+                            <td><span id="patchnumberValue">all</span></td>
+                            <td>
+                                {{ project_iteration }}
+                            </td>
+                            <td>
+                                <span id="currentModelId">{{ current_modelId }}</span>
+                            </td>
+                            <td>
+                                 <input type="number" id="embedID" name="lname" value="{{ project_iteration }}" min="0" max = "{{ project_iteration }}" aligm = "mid" >
+                            </td>
+                            <td>
+                                <a id = "viewEmbed_url" >
+                                    <button id = "viewEmbed" type="button" title="Please Re-embed before viewing embed"  onclick="reloadChartData()">View Embedding</button>
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('html.index') }}" >
+                                    <button type="button" title="Go to Home Page">Home Page</button>
+                                </a>
+                            </td>
+                        </tr>
+                    </table>
+
+
+                </div>
+            </ul>
+        </div>
+        <div class="logflex">
+            <textarea id="notifications" class="logbase notification"
+                      readonly>Notifications will appear here.</textarea>
+        </div>
+    </div>
+
+</body>
+
+<script src="{{ url_for('html.embed_main' , project_name=project_name) }}"></script>
+
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>QA - {{ project.name }}/{{ image.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-dialog.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/annotator.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/logs.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/jquery-ui.css') }}">
+    <script>
+
+        let startX = "{{ startX }}";
+        let startY = "{{ startY }}";
+        let graph;
+        {#The flag here to check whether the ready to upload state is ready#}
+
+        {#We are going to change the name of the variable here since we have are actually image#}
+        let projTrainingROIs = parseInt("{{ image.trainingROIs }}");
+        let projROIs = parseInt("{{ image.ROIs }}");
+
+    </script>
+    <script src="{{ url_for('static', filename='js/jquery-3.5.0.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/jquery-ui.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/shortcut.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap-dialog.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/imageFilter.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/graphNode.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/qa-utils.js') }}"></script>
+    <style>
+        .dropbtn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 16px;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+            z-index: 1;
+        }
+
+        .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #f1f1f1
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        .dropdown:hover .dropbtn {
+            background-color: #3e8e41;
+        }
+
+        .closeX {
+            cursor: pointer;
+        }
+
+        {#Below classes are used for toggling#}
+
+        .show {
+            display: block;
+        }
+
+        .logmessagebgtoggle {
+            background-color: #DDDDDD;
+        }
+
+    </style>
+
+</head>
+
+<body onload="init();">
+
+<div id=title>
+	<div class="titleflex">
+		<div class="controlsflex">
+			<ul>
+				{#            This is the psrt if we want a drop down toggleable window#}
+				{#            <li class="dropdown">#}
+				{#                <a id="logButn" onclick="logWindowButtonToggle()" href="#" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">&#128269; Log Message <span class="caret"></span></a>#}
+				{#                <div  class="dropdown-content" id="windowLog" >#}
+				{#                    <div id="windowLogMessage"> </div>#}
+				{#                </div>#}
+				{#            </li>#}
+
+                <li class="dropdown">
+					<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">&#9881; Retrain DL <span class="caret"></span></a>
+					<ul class="dropdown-menu">
+						<li><a onclick="retrain_deep_learning(0)" style="font-size:18px">From base</a></li>
+						<li><a onclick="retrain_deep_learning(-1)" style="font-size:18px">From last</a></li>
+					</ul>
+				</li>
+
+				<li class="dropdown">
+					<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">&#9921; Download <span class="caret"></span></a>
+					<ul class="dropdown-menu">
+						<li><a href="{{ url_for('api.get_model', project_name=project.name) }}" download>Trained DL</a></li>
+						<li><a href="{{ url_for('api.get_prediction', project_name=project.name, image_name=image.name) }}" download>DL Result Image</a></li>
+						<li><a href="{{ url_for('api.get_mask', project_name=project.name, image_name=image.name) }}" download>Human Annotation Image</a></li>
+					</ul>
+                </li>
+                <li><a onclick="prevnext('previous')">&#8617; Previous image</a></li>
+                <li><a onclick="prevnext('next')">&#8618; Next image</a></li>
+            </ul>
+            <ul>
+                <div class="traffic-category">
+                    <li>
+                        <a onclick="imageInformationToggle()" style="font-size:18px">
+                            <div class="traffic-button">
+                                <div id="Image-Information-dot" class="dot-off"></div>
+                                <div>Image Information (I)</div>
+                            </div>
+                        </a>
+                    </li>
+                    <li>
+                        <a onclick="annotationDotToggle()" style="font-size:18px">
+                            <div class="traffic-button">
+                                <span id="Annotation-dot" class="dot-off"></span>
+                                <div>Annotation (Q)</div>
+                            </div>
+                        </a>
+                    </li>
+                    <li>
+                        <a onclick="predictionDotToggle()" style="font-size:18px">
+                            <div class="traffic-button">
+                                <span id="Prediction-dot" class="dot-off"></span>
+                                <div>Prediction (W)</div>
+                            </div>
+                        </a>
+                    </li>
+                    <div class="left-vertical" style="display: inline-block">
+                        <li >
+                            <div style="font-size:18px">
+                                <div class="traffic-button">
+                                    <span id="model-dot" class="dot-off"></span>
+                                    <div>Model</div>
+                                </div>
+                            </div>
+                        </li>
+                        <li >
+                            <div style="font-size:18px;position:center">
+                                <div class="traffic-button">
+                                    <span id="superpixel-dot" class="dot-off"></span>
+                                    <div>Superpixel</div>
+                                </div>
+                            </div>
+                        </li>
+                        <li >
+                            <div style="font-size:18px">
+                                <div class="traffic-button">
+                                    <span id="prediction-dot" class="dot-off"></span>
+                                    <div>Prediction</div>
+                                </div>
+                            </div>
+                        </li>
+                    </div>
+                </div>
+
+            </ul>
+        </div>
+        <div class="logflex">
+            <textarea id="notifications" class="logbase notification"
+                      readonly>Notifications will appear here.</textarea>
+        </div>
+	</div>
+</div>
+
+<ul id="info">
+    <div id="infohandle">
+        <a class="closeX" onclick="showOrHideImageInformation('hidden')">X</a>
+    </div>
+    <div class="panel-body">
+        <dl class="dl-horizontal">
+            <dt>Project name</dt>
+            <a href="{{ url_for('html.get_imagelist',project_name=project.name) }}">
+                <dd id="project_name" title="Go to Image List for '{{ project.name }}'"><i>{{ project.name }}</i></dd>
+            </a>
+            <dt>Image name</dt>
+            <dd id="image_name">{{ image.name }}</dd>
+            <dt>Image size</dt>
+            <dd id="dim"></dd>
+            <dt>Crop size</dt>
+            <dd>
+                <span id="cropsizeValue">64</span>
+                <input class="slider" id="cropsizeSlider" type="range" min="5" max="11" value="6">
+            </dd>
+            <dt>Zoom factor</dt>
+            <dd>
+                <span id="zoomFactorValue">1</span>
+                <input class="slider" id="zoomFactorSlider" type="range" min="0.3" max="2.5" value="1" step="0.05">
+            </dd>
+            <dt title="the number of patches annotated"># of patches annotated</dt>
+            <dd id="patches">{{ image.nROIs }}</dd>
+            <dt title="the number of patches annotated in training set"># of patches in training set</dt>
+            <dd id="training_patches">{{ image.nTrainingROIs }}</dd>
+            <dt title="the number of objects annotated"># of objects annotated</dt>
+            <dd id="annotated_objects">{{ image.nobjects }}</dd>
+            <dt>image complete</dt>
+            <dd id="annotated_percentage">{{ image.pixelsAnnotated }}</dd>
+        </dl>
+    </div>
+</ul>
+<div id="canvas" class="to_hide">
+    <canvas id="canvas_bg" width="512" height="512"
+            style="z-index: 1; position:absolute; left:0px; top:0px; margin: 2% 1% 1% 1%; solid #BFBFBF; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);"></canvas>
+    <canvas id="canvas_mask" width="512" height="512"
+            style="z-index: 3; position:absolute; left:0px; top:0px;  top:0px; margin: 2% 1% 1% 1%; border: 1px solid #BFBFBF; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);"></canvas>
+    <canvas id="canvas_result" width="512" height="512"
+            style="z-index: 2; position:absolute; left:0px; top:0px;  top:0px; margin: 2% 1% 1% 1%; border: 1px solid #BFBFBF; box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);"></canvas>
+</div>
+<div id="annotator" class="to_hide">
+    <div id="toolbox">
+        <div class="btn btn-default" style="width: 100%">
+            <button class="btn btn-default" id="btnFreehand" title="Freehand(A)" onclick="setFreeHand()"><img
+                    src="/static/images/pencil.png" height="30" width="30"/></button>
+            <button class="btn btn-default" id="btnSuperPixel" title="Superpixel(S)" onclick="setSuperPixel()"><img
+                    src="/static/images/magicwand.png" height="30" width="30"/></button>
+            <button class="btn btn-default" id="btnRemove" title="Flood fill (D)" onclick="setFlood()"><img
+                    src="/static/images/flood.png" height="30" width="30"/></button>
+
+            &nbsp; &nbsp; &nbsp;
+
+            <div class="dropdown">
+                <button class="btn btn-default" id="btnEraser" title="Eraser (F)"><img src="/static/images/eraser.png"
+                                                                                      height="30" width="30"/></button>
+                <div class="dropdown-content">
+                    <button class="btn btn-default" title="Eraser(extrasmall)" id="btnEraser_extrasmall" onclick="setEraser('extrasmall')"><img
+                            src="/static/images/eraser_extrasmall.png" height="30" width="30"/></button>
+                    <button class="btn btn-default" title="Eraser(small)" id="btnEraser_small" onclick="setEraser('small')"><img
+                            src="/static/images/eraser_small.png" height="30" width="30"/></button>
+                    <button class="btn btn-default" title="Eraser(medium)" id="btnEraser_medium" onclick="setEraser('medium')"><img
+                            src="/static/images/eraser_medium.png" height="30" width="30"/></button>
+                    <button class="btn btn-default" title="Eraser(large)" id="btnEraser_large" onclick="setEraser('large')"><img
+                            src="/static/images/eraser_large.png" height="30" width="30"/></button>
+                </div>
+            </div>
+            <button class="btn btn-default" id="btnImport" title="Import DL result into annotator (G)" onclick="importPrediction()"><img
+                    src="/static/images/import.png" height="30" width="30"/></button>
+            <button class="btn btn-default" id="btnUpload" title="Upload completed annotation (H)" onclick="prepareForUpload()"><img
+                    src="/static/images/upload.png" height="30" width="30"/></button>
+
+        </div>
+        <div class="btn btn-default" style="width: 100%">
+            <button class="btn btn-default" id="btnPositive" title="Annotate positive regions (Z)"
+                    onclick="setToPositive()"><img src="/static/images/positive.png" height="30" width="30"/></button>
+            <button class="btn btn-default" id="btnNegative" title="Annotate negative regions (X)"
+                    onclick="setToNegative()"><img src="/static/images/negative.png" height="30" width="30"/></button>
+            <button class="btn btn-default" id="btnUnknown" title="Annotate unknown regions (C)"
+                    onclick="setToUnknown()"><img src="/static/images/unknown.png" height="30" width="30"/></button>
+
+            &nbsp; &nbsp; &nbsp;
+
+            <button class="btn btn-default" id="btnUndo" title="Undo (V)" onclick="undo()"><img
+                    src="/static/images/undo.png" height="30" width="30"/></button>
+            <button class="btn btn-default" id="btnRedo" title="Redo (B)" onclick="redo()"><img
+                    src="/static/images/redo.png" height="30" width="30"/></button>
+            <button class="btn btn-default" id="btnClear" title="Reset (N)" onclick="clearArea()"><img
+                    src="/static/images/reset.png" height="30" width="30"/></button>
+
+        </div>
+    </div>
+    <div>
+        <div id="cropped_canvas" style="position:relative">
+            <canvas id="canvas_cropped_bg"     class="annotator" style="z-index: 3;"></canvas>
+            <canvas id="canvas_cropped_result" class="annotator" style="z-index: 4;"></canvas>
+            <canvas id="canvas_cropped_mask"   class="annotator" style="z-index: 5;"></canvas>
+        </div>
+    </div>
+
+    <div id="upload_dialog" style="display:none;">
+        <div id="bg_fill_dialog">
+            Warning: This patch is not fully annotated.
+            It has some blank/unknown regions.
+            Please decide how to marked all un-annotated pixels:
+            <br>
+            <br>
+            <input type="radio" name="bg_fill" id="radio_negative" value="fill_negative"/>
+            <label for="radio_negative">&nbsp;Fill with negative</label>
+            <br>
+            <input type="radio" name="bg_fill" id="radio_unknown" value="fill_unknown"/>
+            <label for="radio_unknown">&nbsp;Fill with unknown</label>
+            <hr>
+        </div>
+        Do you want to add this annotation to the training dataset or testing dataset?
+    </div>
+
+</div>
+</body>
+
+<!-- The scripts for running the annotator system: -->
+<script src="{{ url_for('static', filename='js/annotation-vars.js') }}"></script>
+<script src="{{ url_for('html.annotation_utils', project_name=project.name, image_name=image.name) }}"></script>
+<script src="{{ url_for('html.annotation_tool' , project_name=project.name, image_name=image.name) }}"></script>
+<script src="{{ url_for('html.annotation_main' , project_name=project.name, image_name=image.name) }}"></script>
+
+</html>

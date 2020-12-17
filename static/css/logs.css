@@ -1,0 +1,79 @@
+/* Style the tab */
+.tab {
+  overflow: hidden;
+  border: 1px solid Gray;
+  background-color: LightGray;
+}
+
+/* Style the buttons that are used to open the tab content */
+.tab button {
+  background-color: inherit;
+  float: left;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 5px 20px;
+  transition: 0.3s;
+}
+
+/* Change background color of buttons on hover */
+.tab button:hover {
+  background-color: Snow;
+}
+
+/* Create an active/current tablink class */
+.tab button.active {
+  background-color: White;
+  color: Navy;
+}
+
+/* Style the tab content */
+.tabcontent {
+  display: none;
+  padding: 2px 3px;
+  border: 1px solid #ccc;
+  border-top: none;
+}
+
+/* Styles for log*/
+div.logs{
+  height: 100%;
+  border: 0px solid yellow;
+}
+div.log{
+  border: 0px solid green;
+  width: 100%;
+  height: 90%;
+  display: flex;
+  flex-direction: col;
+  align-items: stretch;
+  padding-left: 3px;
+  padding-right: 3px;
+  padding-bottom: 20px;
+}
+.logtitle{
+  font-family: Lucida Console;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+textarea.logbase{
+  resize: none;
+  background-color: #FFFFFFAA;
+  color: Navy;
+  border: 0px ridge navy;
+  font-family: Lucida Console;
+  font-size: 11px;
+  font-weight: 100;
+}
+textarea.logstream{
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+}
+textarea.notification{
+  width: 100%;
+  height: 100%;
+  min-height: 60px;
+  border: 1px ridge navy;
+}
