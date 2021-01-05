@@ -25,23 +25,25 @@ import sklearn.feature_extraction.image
 import random
 import argparse
 import glob
+import traceback
+import sys
+import json
 
 headers = {'Content-Type': 'application/json'}
 
 parser = argparse.ArgumentParser(description='Import existing images with annotations into quick annotator. Note: Masks are expected to be in a subdirectory called "masks" ')
-parser.add_argument('-s', '--server', help="host with port, default http://localhost:5555", default="http://localhost:5555", type=str)
+parser.add_argument('-s', '--server', help="host with port, default http://127.0.0.1:5555 ", default="http://127.0.0.1:5555", type=str)
 parser.add_argument('-n', '--projname', help="project to create/add to", required=True, type=str)
 parser.add_argument('-p', '--patchsize', help="Patchsize, default 256", default=256, type=int)
-parser.add_argument('-r', '--stride', help="stride between ROIs, default 256", default=256, type=int)
+parser.add_argument('-r', '--stride', help="stride between ROIs, default 256", default=128, type=int)
 parser.add_argument('-t', '--trainpercent', help="Percet of ROIs to use for training, default .8", default=.8 ,type=float)
 parser.add_argument('-b', '--bgremove', help="Don't create ROI if patch is mostly white", action="store_true")
 parser.add_argument('input_pattern', help="Input filename pattern (try: *.png)", nargs="*")
 
-args = parser.parse_args()
-# Following commands are used for testing
-# args = parser.parse_args(["-nnuclei",r"C:\temp\qa_testsets\nuclei\*.png"])
-# args = parser.parse_args(["-ntubules",r"C:\temp\qa_testsets\tubules\*.png"])
-# args = parser.parse_args(["-n12345678", r"E:\Study\Research\QA\Andrew Test Data\qa_testsets\qa_testsets\epi\*.png"])
+#args = parser.parse_args()
+#args = parser.parse_args(["-nnuclei",r"C:\temp\qa_testsets\nuclei\*.png"])
+#args = parser.parse_args(["-ntubules",r"C:\temp\qa_testsets\tubules\*.png"])
+args = parser.parse_args(["-nepi",r"C:\temp\qa_testsets\epi\*.png"])
 
 
 base_url=args.server
@@ -50,9 +52,7 @@ patch_size = args.patchsize
 train_percent = args.trainpercent
 stride = args.stride
 
-img_fname = []
-
-test1 = args.input_pattern
+img_fname = [] 
 if len(args.input_pattern) > 1:  # bash has sent us a list of files
     img_fnames = args.input_pattern
 elif args.input_pattern[0].endswith("txt"):  # user sent us an input file
@@ -65,7 +65,7 @@ else:  # user sent us a wildcard, need to use glob to find files
 
 
 # +
-# img_fnames=img_fnames[1:2] #--- Limit here for testing...here this is limited to 1 image
+img_fnames=img_fnames[1:2] #--- Limit here for testing...here this is limited to 1 image
 
 print(f"Input pattern has resulted in {len(img_fnames)} images for uploading")
 
@@ -126,58 +126,51 @@ for img_fname in img_fnames:
 for img_fname in img_fnames:
     
     # load mask
-    img_fname_base = os.path.basename(img_fname)
     mask_fname = f'{os.path.dirname(img_fname)}{os.sep}masks{os.sep}{img_fname_base.replace(".png","_mask.png")}'#nuclei 
     mask=cv2.imread(mask_fname)
     
-    if mask is None:
-        print(f"Mask of '{img_fname_base}' doesn't exist!",end="")
-    else:
-        #--- Negative class: [255,0,255], Positive class: [255,255,255], seen but unknown [0,0,255]
-        [nrow,ncol,ndim]=mask.shape
-        toupload = np.zeros((nrow,ncol,3),dtype=np.uint8)
-        toupload[:,:,2]=255
-        toupload[:,:,0]=(mask[:,:,0]==False)*255
-        toupload[:,:,1]=(mask[:,:,0]>0)*255
-        #make pseudo image containing x,y coordinates
-        idxs=np.asarray(range(toupload.shape[0]*toupload.shape[1])).reshape(toupload.shape[0:2])
+    
+    #--- Negative class: [255,0,255], Positive class: [255,255,255], seen but unknown [0,0,255]
+    [nrow,ncol,ndim]=mask.shape
+    toupload = np.zeros((nrow,ncol,3),dtype=np.uint8)
+    toupload[:,:,2]=255
+    toupload[:,:,0]=(mask[:,:,0]==False)*255
+    toupload[:,:,1]=(mask[:,:,0]>0)*255    
+    #make pseudo image containing x,y coordinates
+    idxs=np.asarray(range(toupload.shape[0]*toupload.shape[1])).reshape(toupload.shape[0:2])
 
-        #break image into ROIs
-        patch_out = sklearn.feature_extraction.image.extract_patches(toupload,(patch_size,patch_size,3),stride)
-        patch_out = patch_out.reshape(-1,patch_size,patch_size,3)
+    #break image into ROIs
+    patch_out = sklearn.feature_extraction.image.extract_patches(toupload,(patch_size,patch_size,3),stride)
+    patch_out = patch_out.reshape(-1,patch_size,patch_size,3)
 
-        #do similar to psuedo image and reshape
-        idx_out = sklearn.feature_extraction.image.extract_patches(idxs,(patch_size,patch_size),stride)
-        idx_out=idx_out[:,:,0,0]
-        idx_out=idx_out.reshape(-1)
-        rs,cs=np.unravel_index(idx_out,idxs.shape)
+    #do similar to psuedo image and reshape
+    idx_out = sklearn.feature_extraction.image.extract_patches(idxs,(patch_size,patch_size),stride)
+    idx_out=idx_out[:,:,0,0]
+    idx_out=idx_out.reshape(-1)
+    rs,cs=np.unravel_index(idx_out,idxs.shape)
+    
+    #now for each ROI and its assocaited r,c coordinate we can upload
+    for r,c,patch in zip(rs,cs,patch_out):
+    
+        #encode as png
+        success, encoded_image = cv2.imencode('.png', cv2.cvtColor(patch, cv2.COLOR_RGB2BGR))
 
-        #now for each ROI and its assocaited r,c coordinate we can upload
-        for r,c,patch in zip(rs,cs,patch_out):
+        #convert to base64
+        data64 = b''.join(base64.encodebytes(encoded_image.tobytes()).splitlines())
+        data64 = data64.decode('utf-8')
+        data64 =u'data:image/png;base64,%s' % (data64)
 
-            #encode as png
-            success, encoded_image = cv2.imencode('.png', cv2.cvtColor(patch, cv2.COLOR_RGB2BGR))
+        #set up request data to contain x,y location and image data
+        form_data = {'roimask': data64,'pointx': c,'pointy': r}
+        final_url=f"{base_url}/api/{projname}/image/{img_fname_base}/roimask"
 
-            #convert to base64
-            data64 = b''.join(base64.encodebytes(encoded_image.tobytes()).splitlines())
-            data64 = data64.decode('utf-8')
-            data64 =u'data:image/png;base64,%s' % (data64)
-
-            #set up request data to contain x,y location and image data
-            form_data = {'roimask': data64,'pointx': c,'pointy': r}
-            final_url=f"{base_url}/api/{projname}/image/{img_fname_base}/roimask?force=True"
-            print(final_url,"wo shi sha bi")
-
-            #upload
-            print(f"Adding roi '{img_fname} {c}_{r}'...",end="")
-            response = requests.post(final_url, data=form_data)
-            if(response.status_code==201):
-                print("done!")
-            else:
-                print(response.text)
-
-
-
+        #upload
+        print(f"Adding roi '{img_fname} {c}_{r}'...",end="")
+        response = requests.post(final_url, data=form_data)
+        if(response.status_code==201):
+            print("done!") 
+        else:
+            print(response.text)    
 
 # +
 #--- Finally assign ROIs to training or testing set
@@ -196,12 +189,11 @@ for imgobj in response["objects"]:
         roinames.append(roi["name"])
 # -
 
-# select 3 images for testing
-# roinames=random.sample(roinames,3)
+roinames=random.sample(roinames,3)
 
 #--- random assign to training or testing
 nrois=len(roinames)
-indices = random.sample(range(nrois), int(nrois*train_percent))
+indices = random.sample(range(nrois),int(nrois*train_percent))
 
 #-- update server with designation
 for ii,roiname in enumerate(roinames):
@@ -215,64 +207,68 @@ for ii,roiname in enumerate(roinames):
     else:
         print(response.text) 
 
-
-# More advanced use below
-# #---- make patches
-# final_url = f'{base_url}/api/{projname}/make_patches'
-# response = requests.get(final_url)
-# make_patches_jobid=response.json()['job']['id']
+#---- make patches
+final_url = f'{base_url}/api/{projname}/make_patches'
+response = requests.get(final_url)
+make_patches_jobid=response.json()['job']['id']
 
 # +
 #--- train 
 # -
 
-# #---- train AE
-# final_url = f'{base_url}/api/{projname}/train_autoencoder'
-# response = requests.get(final_url)
-# train_ae_jobid=response.json()['job']['id']
+#---- train AE
+final_url = f'{base_url}/api/{projname}/train_autoencoder'
+response = requests.get(final_url)
+train_ae_jobid=response.json()['job']['id']
 
 # +
-# filters = [dict(name='id', op='eq', val=train_ae_jobid)]
-# params = dict(q=json.dumps(dict(filters=filters)))
-#
-# final_url = f'{base_url}/api/db/job'
-# response = requests.get(final_url, params=params, headers=headers)
-# response=response.json()
-# print(f"train AE status: {response['objects'][0]['status']}")
-#
-# # +
-# #---- train TL
-#
-# final_url = f'{base_url}/api/{projname}/retrain_dl'
-# response = requests.get(final_url)
-# retrain_dl_jobid=response.json()['job']['id']
-#
-# # -
-#
-#
-# retrain_dl_jobid
-#
-# # +
-# filters = [dict(name='id', op='eq', val=retrain_dl_jobid)]
-# params = dict(q=json.dumps(dict(filters=filters)))
-#
-# final_url = f'{base_url}/api/db/job'
-# response = requests.get(final_url, params=params, headers=headers)
-# response=response.json()
-# print(f"retrain_dl  status: {response['objects'][0]['status']}")
-#
-# # + endofcell="--"
-# #--- prediction image
-# final_url = f'{base_url}/api/{projname}/image/10285_00007.png/prediction'
-# response = requests.get(final_url)
-#
-#
-# # -
-#
-# import matplotlib.pyplot as plt
-# img =cv2.imdecode(np.frombuffer(response.content, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
-# plt.imshow(img)
-#
-# # --
-#
+filters = [dict(name='id', op='eq', val=train_ae_jobid)]
+params = dict(q=json.dumps(dict(filters=filters)))
+
+final_url = f'{base_url}/api/db/job'
+response = requests.get(final_url, params=params, headers=headers)
+response=response.json()
+print(f"train AE status: {response['objects'][0]['status']}")
+
+# +
+#---- train TL
+
+final_url = f'{base_url}/api/{projname}/retrain_dl'
+response = requests.get(final_url)
+retrain_dl_jobid=response.json()['job']['id']
+
+# -
+
+
+retrain_dl_jobid
+
+# +
+filters = [dict(name='id', op='eq', val=retrain_dl_jobid)]
+params = dict(q=json.dumps(dict(filters=filters)))
+
+final_url = f'{base_url}/api/db/job'
+response = requests.get(final_url, params=params, headers=headers)
+response=response.json()
+print(f"retrain_dl  status: {response['objects'][0]['status']}")
+
+# + endofcell="--"
+#--- prediction image
+final_url = f'{base_url}/api/{projname}/image/10285_00007.png/prediction'
+response = requests.get(final_url)
+
+
+# -
+
+import matplotlib.pyplot as plt
+img =cv2.imdecode(np.frombuffer(response.content, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
+plt.imshow(img)
+
+# --
+
+
+
+
+
+
+
 
