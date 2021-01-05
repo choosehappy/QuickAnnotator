@@ -25,9 +25,6 @@ import sklearn.feature_extraction.image
 import random
 import argparse
 import glob
-import traceback
-import sys
-import json
 
 headers = {'Content-Type': 'application/json'}
 
