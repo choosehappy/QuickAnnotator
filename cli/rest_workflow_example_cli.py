@@ -25,6 +25,8 @@ import sklearn.feature_extraction.image
 import random
 import argparse
 import glob
+import traceback
+import sys
 
 headers = {'Content-Type': 'application/json'}
 
@@ -214,71 +216,4 @@ for ii,roiname in enumerate(roinames):
         print("done!") 
     else:
         print(response.text) 
-
-
-# More advanced use below
-# #---- make patches
-# final_url = f'{base_url}/api/{projname}/make_patches'
-# response = requests.get(final_url)
-# make_patches_jobid=response.json()['job']['id']
-
-# +
-#--- train 
-# -
-
-# #---- train AE
-# final_url = f'{base_url}/api/{projname}/train_autoencoder'
-# response = requests.get(final_url)
-# train_ae_jobid=response.json()['job']['id']
-
-# +
-# filters = [dict(name='id', op='eq', val=train_ae_jobid)]
-# params = dict(q=json.dumps(dict(filters=filters)))
-#
-# final_url = f'{base_url}/api/db/job'
-# response = requests.get(final_url, params=params, headers=headers)
-# response=response.json()
-# print(f"train AE status: {response['objects'][0]['status']}")
-#
-# # +
-# #---- train TL
-#
-# final_url = f'{base_url}/api/{projname}/retrain_dl'
-# response = requests.get(final_url)
-# retrain_dl_jobid=response.json()['job']['id']
-#
-# # -
-#
-#
-# retrain_dl_jobid
-#
-# # +
-# filters = [dict(name='id', op='eq', val=retrain_dl_jobid)]
-# params = dict(q=json.dumps(dict(filters=filters)))
-#
-# final_url = f'{base_url}/api/db/job'
-# response = requests.get(final_url, params=params, headers=headers)
-# response=response.json()
-# print(f"retrain_dl  status: {response['objects'][0]['status']}")
-#
-# # + endofcell="--"
-# #--- prediction image
-# final_url = f'{base_url}/api/{projname}/image/10285_00007.png/prediction'
-# response = requests.get(final_url)
-#
-#
-# # -
-#
-# import matplotlib.pyplot as plt
-# img =cv2.imdecode(np.frombuffer(response.content, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
-# plt.imshow(img)
-#
-# # --
-#
-
-
-
-
-
-
 
