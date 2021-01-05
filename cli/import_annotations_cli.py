@@ -166,7 +166,7 @@ for img_fname in img_fnames:
             data64 =u'data:image/png;base64,%s' % (data64)
 
             #set up request data to contain x,y location and image data
-            form_data = {'roimask': data64,'pointx': c,'pointy': r}
+            form_data = {'roimask': data64, 'pointx': c, 'pointy': r, 'force': True}
             final_url=f"{base_url}/api/{projname}/image/{img_fname_base}/roimask?force=True"
             print(final_url,"wo shi sha bi")
 
