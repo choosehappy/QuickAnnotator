@@ -2,7 +2,7 @@
 ---
 Quick Annotator is an open-source digital pathology annotation tool.
 
-![QA user interface screenshot](https://github.com/choosehappy/QuickAnnotator/wiki/images/Project_Page_UI.png)
+![QA user interface screenshot](https://github.com/choosehappy/QuickAnnotator/wiki/images/Annotation_Page_LayerSwitch.gif)
 
 # Purpose
 ---
