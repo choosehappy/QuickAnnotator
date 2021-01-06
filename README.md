@@ -69,7 +69,7 @@ see [UserManual](https://github.com/choosehappy/QuickAnnotator/wiki/User-Manual)
 ```
  E:\Study\Research\QA\qqqqq\test1\quick_annotator>python QA.py
 ```
-By default, it will start up on localhost:5555
+By default, it will start up on *localhost:5555*
 
 *Warning*: virtualenv will not work with paths that have spaces in them, so make sure the entire path to `env/` is free of spaces.
 ### Config Sections
@@ -97,9 +97,7 @@ See [wiki](https://github.com/choosehappy/QuickAnnotator/wiki)
 ---
 If you find this software useful, please drop me a line and/or consider citing it:
 
-"Quick Annotator"
-
-Manuscript available [here]()
+"Quick Annotator" Manuscript available [here]()
 
 # Frequently Asked Questions
 See [FAQ](https://github.com/choosehappy/QuickAnnotator/wiki/Frequently-Asked-Questions)
