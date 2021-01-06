@@ -64,7 +64,7 @@ The general guides for installing Pytorch can be summarized as following:
 
 # Basic Usage
 ---
-see [UserManual](http://hawking.case.edu:3030/deeplearning/quick_annotator/blob/master/wiki.md#user-manual) for a demo
+see [UserManual](https://github.com/choosehappy/QuickAnnotator/wiki/User-Manual) for a demo
 ### Run
 ```
  E:\Study\Research\QA\qqqqq\test1\quick_annotator>python QA.py
@@ -91,11 +91,7 @@ be set in the *config.ini* file
 
 # Advanced Usage
 ---
-See [wiki](http://hawking.case.edu:18080/deeplearning/quick_annotator/blob/master/wiki.md)
-# Notes
----
-Information from Quick Annotator users appears below:
-1. QA current does not support WSI. All the images tiles will be converted to png file when uploading to QA.
+See [wiki](https://github.com/choosehappy/QuickAnnotator/wiki)
 
 # Citation
 ---
@@ -106,7 +102,8 @@ If you find this software useful, please drop me a line and/or consider citing i
 Manuscript available [here]()
 
 # Frequently Asked Questions
-See [FAQ](http://hawking.case.edu:3030/deeplearning/quick_annotator/blob/master/wiki.md#frequently-asked-questions)
+See [FAQ](https://github.com/choosehappy/QuickAnnotator/wiki/Frequently-Asked-Questions)
+
 
 
 
