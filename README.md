@@ -1,4 +1,4 @@
-# QuickAnnotator
+# [QuickAnnotator](https://arxiv.org/abs/2101.02183)
 ---
 Quick Annotator is an open-source digital pathology annotation tool.
 
@@ -95,10 +95,19 @@ See [wiki](https://github.com/choosehappy/QuickAnnotator/wiki)
 
 # Citation
 ---
-If you find this software useful, please drop me a line and/or consider citing it:
+"Quick Annotator" manuscript available [here](https://arxiv.org/ftp/arxiv/papers/2101/2101.02183.pdf)
 
-"Quick Annotator" Manuscript available [here](https://arxiv.org/ftp/arxiv/papers/2101/2101.02183.pdf)
-
+Please use below to cite this paper if you find this repository useful or if you use the software shared here in your research.
+```
+  @misc{miao2021quick,
+      title={Quick Annotator: an open-source digital pathology based rapid image annotation tool}, 
+      author={Runtian Miao and Robert Toth and Yu Zhou and Anant Madabhushi and Andrew Janowczyk},
+      year={2021},
+      eprint={2101.02183},
+      archivePrefix={arXiv},
+      primaryClass={eess.IV}
+  }
+```
 # Frequently Asked Questions
 See [FAQ](https://github.com/choosehappy/QuickAnnotator/wiki/Frequently-Asked-Questions)
 
