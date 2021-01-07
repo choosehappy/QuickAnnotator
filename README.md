@@ -97,7 +97,7 @@ See [wiki](https://github.com/choosehappy/QuickAnnotator/wiki)
 ---
 If you find this software useful, please drop me a line and/or consider citing it:
 
-"Quick Annotator" Manuscript available [here]()
+"Quick Annotator" Manuscript available [here](https://arxiv.org/ftp/arxiv/papers/2101/2101.02183.pdf)
 
 # Frequently Asked Questions
 See [FAQ](https://github.com/choosehappy/QuickAnnotator/wiki/Frequently-Asked-Questions)
