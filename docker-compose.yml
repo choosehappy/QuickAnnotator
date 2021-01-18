@@ -1,0 +1,17 @@
+version: '3'
+
+services:
+  quickannot:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    image: quickannot:latest
+    container_name: quickannot
+    runtime: nvidia
+    network_mode: bridge # because 100 nets are annoying.
+    ports:
+      - "5555:5555"
+    restart: always
+    volumes:
+      - ./config:/opt/quick_annotator/config
+      - ./projects:/opt/quick_annotator/projects

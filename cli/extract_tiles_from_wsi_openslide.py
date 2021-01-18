@@ -25,18 +25,13 @@ import sklearn.feature_extraction.image
 from pathlib import Path
 from tqdm.autonotebook import tqdm
 
-
-# +
-os.environ['PATH'] = 'C:\\research\\openslide\\bin' + ';' + os.environ['PATH'] #can either specify openslide bin path in PATH, or add it dynamically
-
 import openslide
-
 
 # +
 parser = argparse.ArgumentParser(description='Convert image and mask into non-overlapping patches')
-parser.add_argument('-p', '--patchsize', help="Patchsize, default 256", default=256, type=int)
+parser.add_argument('-p', '--patchsize', help="Patchsize, default 1000", default=1000, type=int)
 parser.add_argument('-l', '--openslidelevel', help="openslide level to use", default=0, type=int)
-parser.add_argument('-o', '--outdir', help="Target output directory", default="./", type=str)
+parser.add_argument('-o', '--outdir', help="Target output directory", default="./output", type=str)
 parser.add_argument('-b', '--bgremoved',  action="store_true", help="Don't save patches which are considered background, useful for TMAs")
 parser.add_argument('input_pattern', help="Input filename pattern (try: *.png), or txt  file containing list of files", nargs="*")
 
@@ -94,7 +89,7 @@ for ii,fname in tqdm(enumerate(fnames),leave=False):
 
         
             patch=cv2.cvtColor(patch,cv2.COLOR_RGB2BGR)
-            cv2.imwrite(f"{fnamebase}_{level}_{y}_{x}.png",patch)
+            cv2.imwrite(f"{outdir}{fnamebase}_{level}_{y}_{x}.png", patch)
 
     osh.close()
 
@@ -103,5 +98,3 @@ print(f"Done making patches!")
 
 
 # -
-
-

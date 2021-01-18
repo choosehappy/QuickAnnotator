@@ -137,11 +137,11 @@ for img_fname in img_fnames:
     idxs=np.asarray(range(toupload.shape[0]*toupload.shape[1])).reshape(toupload.shape[0:2])
 
     #break image into ROIs
-    patch_out = sklearn.feature_extraction.image.extract_patches(toupload,(patch_size,patch_size,3),stride)
+    patch_out = sklearn.feature_extraction.image._extract_patches(toupload,(patch_size,patch_size,3),stride)
     patch_out = patch_out.reshape(-1,patch_size,patch_size,3)
 
     #do similar to psuedo image and reshape
-    idx_out = sklearn.feature_extraction.image.extract_patches(idxs,(patch_size,patch_size),stride)
+    idx_out = sklearn.feature_extraction.image._extract_patches(idxs,(patch_size,patch_size),stride)
     idx_out=idx_out[:,:,0,0]
     idx_out=idx_out.reshape(-1)
     rs,cs=np.unravel_index(idx_out,idxs.shape)

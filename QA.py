@@ -79,7 +79,7 @@ APP_ROOT = os.path.dirname(os.path.abspath('__file__'))
 if __name__ == '__main__': #This seems like the correct place to do this
 
     # load logging config
-    logging.config.fileConfig('logging.ini')
+    logging.config.fileConfig('./config/logging.ini')
     
     app.logger.info('Initializing database')
     
