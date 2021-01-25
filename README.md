@@ -71,9 +71,9 @@ Requires:
 3. Nvidia-docker https://github.com/NVIDIA/nvidia-docker
 4. docker-compose >= 1.27 https://github.com/docker/compose
 
-To start the server, run `docker-compose up --build`
+To start the server, run `docker-compose up --build` under *QuickAnnotator* folder
 
-When docker is built, run `docker run -p 5555:5555 quickannot`
+When docker is built, open CMD/Terminal and run `docker run -p 5555:5555 quickannot`
 
 # Basic Usage
 ---
