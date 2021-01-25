@@ -21,7 +21,7 @@ COPY ./requirements.txt /opt/quick_annotator/requirements.txt
 
 WORKDIR /opt/quick_annotator
 
-RUN pip3 install numpy==1.17.3 && pip3 install -r requirements.txt
+RUN pip3 install -r requirements.txt
 
 ADD . /opt/quick_annotator
 
