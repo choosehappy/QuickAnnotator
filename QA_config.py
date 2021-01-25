@@ -10,4 +10,4 @@ config.read("./config/config.ini")
 print(f'Config sections = {config.sections()}')
 
 def get_database_uri():
-  return config.get('sqlalchemy', 'database_uri', fallback='sqlite:///projects/data.db')
+  return config.get('sqlalchemy', 'database_uri', fallback='sqlite:///data.db')
