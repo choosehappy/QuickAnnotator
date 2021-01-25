@@ -95,11 +95,11 @@ try:
 
         idxs=np.asarray(range(image.shape[0]*image.shape[1])).reshape(image.shape[0:2])
 
-        patch_out = sklearn.feature_extraction.image.extract_patches(image,(patch_size,patch_size,3),patch_size)
+        patch_out = sklearn.feature_extraction.image._extract_patches(image,(patch_size,patch_size,3),patch_size)
         patch_out = patch_out.reshape(-1,patch_size,patch_size,3)
 
 
-        idx_out = sklearn.feature_extraction.image.extract_patches(idxs,(patch_size,patch_size),patch_size)
+        idx_out = sklearn.feature_extraction.image._extract_patches(idxs,(patch_size,patch_size),patch_size)
         idx_out=idx_out[:,:,0,0]
         idx_out=idx_out.reshape(-1)
         rs,cs=np.unravel_index(idx_out,idxs.shape)

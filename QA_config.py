@@ -4,7 +4,7 @@ import configparser
 config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
 
 # read the options from disk:
-config.read("config.ini")
+config.read("./config/config.ini")
 
 # display:
 print(f'Config sections = {config.sections()}')

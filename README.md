@@ -61,6 +61,17 @@ The general guides for installing Pytorch can be summarized as following:
 2. Download CUDA Toolkit @ *https://developer.nvidia.com/cuda-downloads* 
 3. Install PyTorch command can be found @ *https://pytorch.org/get-started/locally/* 
 
+## Docker requirements
+Optional: required if you want to run in docker. 
+
+Requires:
+
+1. nvidia driver supporting cuda 11
+2. docker
+3. nvidia-docker https://github.com/NVIDIA/nvidia-docker
+4. docker-compose >= 1.27 https://github.com/docker/compose
+
+To start the server, run `docker-compose up --build`
 
 # Basic Usage
 ---
