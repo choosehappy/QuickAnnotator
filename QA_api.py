@@ -635,7 +635,7 @@ def post_roimask(project_name, image_name):
         return jsonify(error=f"project {project_name} doesn't exist"), 400
 
     current_app.logger.info(f'Project id = {str(proj.id)}')
-    force = request.args.get('force', False, type=bool)
+    force = request.form.get('force', False, type=bool)
 
     selected_image = db.session.query(Image).filter_by(projId=proj.id,
                                                        name=image_name).first()
