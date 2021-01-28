@@ -62,18 +62,20 @@ The general guides for installing Pytorch can be summarized as following:
 3. Install PyTorch command can be found @ *https://pytorch.org/get-started/locally/* 
 
 ### Docker requirements
-Optional: required if you want to run in docker. 
+Docker is a set of platform as a service products that use OS-level virtualization to deliver software in packages called containers. Containers are isolated from one another and bundle their own software, libraries and configuration files.
 
-Requires:
-
-1. Nvidia driver supporting cuda 11
-2. [Docker Desktop](https://github.com/choosehappy/QuickAnnotator/wiki/Frequently-Asked-Questions#how-to-install-docker-desktop)
+In order to use Docker version of QA, user needs:
+1. Nvidia driver supporting cuda. See documentation, [here](https://docs.nvidia.com/deploy/cuda-compatibility/index.html).
+2. Docker Engine. See documentation, [here](https://docs.docker.com/engine/install/)
 3. Nvidia-docker https://github.com/NVIDIA/nvidia-docker
-4. docker-compose >= 1.27 https://github.com/docker/compose
 
-To start the server, run `docker-compose up --build` under *QuickAnnotator* folder
+PS: [Docker Desktop](https://github.com/choosehappy/QuickAnnotator/wiki/Frequently-Asked-Questions#how-to-install-docker-desktop) is an easy-to-install application for your Mac or Windows environment that enables you to build and share containerized applications and microservices. Docker Desktop includes Docker Engine, Docker CLI client, Docker Compose, Notary, Kubernetes, and Credential Helper.
 
-When docker is built, open CMD/Terminal and run `docker run -p 5555:5555 quickannot`
+Depending on your cuda version, we provide Dockerfiles for *cuda_10* and *cuda_11*.
+
+To start the server, run `docker build -t quick_annotator -f cuda_10/Dockerfile .` or `docker build -t quick_annotator -f cuda_11/Dockerfile .` under *QuickAnnotator* folder.
+
+When docker is built, open CMD/Terminal and run `docker run --gpus all -p 5017:5017 quick_annotator`
 
 # Basic Usage
 ---
