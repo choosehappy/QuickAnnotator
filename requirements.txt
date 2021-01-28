@@ -1,7 +1,7 @@
 Flask_SQLAlchemy==2.4.4
 numpy==1.17.3
 scikit_image==0.18.1
-scikit_learn==0.24.0
+scikit_learn==0.21.3
 opencv_contrib_python_headless==4.5.1.48
 scipy==1.6.0
 requests==2.25.1
