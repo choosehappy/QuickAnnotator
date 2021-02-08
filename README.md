@@ -77,6 +77,8 @@ To start the server, run `docker build -t quick_annotator -f cuda_10/Dockerfile 
 
 When docker is built, open CMD/Terminal and run `docker run --gpus all -p 5555:5555 quick_annotator`
 
+*Note:* 5555:5555 in the above commend is of the form of {port_number}:{port_number}, where the {port_number} is set in the [config.ini](https://github.com/choosehappy/QuickAnnotator/blob/main/config/config.ini#L6). Port number 5555 is usually pre-occupied already by other users on a host. Probabbly user could chave an unusual {port number}, e.g., *5017* before building the image.
+
 # Basic Usage
 ---
 see [UserManual](https://github.com/choosehappy/QuickAnnotator/wiki/User-Manual) for a demo
