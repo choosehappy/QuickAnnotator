@@ -75,7 +75,7 @@ Depending on your cuda version, we provide Dockerfiles for *cuda_10* and *cuda_1
 
 To start the server, run `docker build -t quick_annotator -f cuda_10/Dockerfile .` or `docker build -t quick_annotator -f cuda_11/Dockerfile .` under *QuickAnnotator* folder.
 
-When docker is built, open CMD/Terminal and run `docker run --gpus all -p 5017:5017 quick_annotator`
+When docker is built, open CMD/Terminal and run `docker run --gpus all -p 5555:5555 quick_annotator`
 
 # Basic Usage
 ---
