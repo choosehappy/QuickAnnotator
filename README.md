@@ -73,11 +73,18 @@ PS: [Docker Desktop](https://github.com/choosehappy/QuickAnnotator/wiki/Frequent
 
 Depending on your cuda version, we provide Dockerfiles for *cuda_10* and *cuda_11*.
 
-To start the server, run `docker build -t quick_annotator -f cuda_10/Dockerfile .` or `docker build -t quick_annotator -f cuda_11/Dockerfile .` under *QuickAnnotator* folder.
+To start the server, run either:
+`docker build -t quick_annotator -f cuda_10/Dockerfile .` 
+or 
+`docker build -t quick_annotator -f cuda_11/Dockerfile .` 
 
-When docker is built, open CMD/Terminal and run `docker run --gpus all -p 5555:5555 quick_annotator`
+from the *QuickAnnotator* folder.
 
-*Note:* 5555:5555 in the above commend is of the form of {port_number}:{port_number}, where the {port_number} is set in the [config.ini](https://github.com/choosehappy/QuickAnnotator/blob/main/config/config.ini#L6). Port number 5555 is usually pre-occupied already by other users on a host. Probably user could have an unusual {port number}, e.g., *5017* before building the image.
+When the docker image is done building, it can be run by typing:
+
+`docker run --gpus all -p 5555:5555 quick_annotator`
+
+*Note:* This command will forward port 5555 from the computer to port 5555 of the container, where our flask server is running as specificied in the [config.ini](https://github.com/choosehappy/QuickAnnotator/blob/main/config/config.ini#L6). It is critical that these numbers match in 3 places (2 on the command line and one in the config.ini). If this port is occupied on your machine, for example by another user or process, you will need to change both the value in the config.ini, rebuild the docker container, and then use the same value in the docker run command.
 
 # Basic Usage
 ---
@@ -86,7 +93,7 @@ see [UserManual](https://github.com/choosehappy/QuickAnnotator/wiki/User-Manual)
 ```
  E:\Study\Research\QA\qqqqq\test1\quick_annotator>python QA.py
 ```
-By default, it will start up on *localhost:5555*. *5555* is the port number setting in [config.ini](https://github.com/choosehappy/QuickAnnotator/blob/main/config/config.ini#L6) and user should confirm {port number} is not pre-occupied by other users on the host. 
+By default, it will start up on *localhost:5555*. Note that *5555* is the port number setting in [config.ini](https://github.com/choosehappy/QuickAnnotator/blob/main/config/config.ini#L6) and user should confirm {port number} is not pre-occupied by other users on the host. 
 
 *Warning*: virtualenv will not work with paths that have spaces in them, so make sure the entire path to `env/` is free of spaces.
 ### Config Sections
