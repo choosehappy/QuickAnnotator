@@ -14,6 +14,7 @@ Flask_Restless==0.17.0
 Flask==1.1.2
 umap_learn==0.3.10
 Pillow==8.1.0
+tensorboardX==1.9
 ttach==0.0.2
 albumentations==0.4.3
 config==0.4.2
