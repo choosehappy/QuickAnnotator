@@ -41,7 +41,7 @@ And the following additional python package:
 12. Flask
 13. umap_learn
 14. Pillow
-15. tensorboardX
+15. tensorboard
 16. ttach
 17. albumentations
 18. config
@@ -50,6 +50,8 @@ You can likely install the python requirements using something like (note python
 ```
 pip3 install -r requirements.txt
 ```
+*Note:* The *requirements.txt* under root directory of cuda version 11.
+
 The library versions have been pegged to the current validated ones. 
 Later versions are likely to work but may not allow for cross-site/version reproducibility
 
@@ -60,6 +62,14 @@ The general guides for installing Pytorch can be summarized as following:
 1. Check your NVIDIA GPU Compute Capability @ *https://developer.nvidia.com/cuda-gpus* 
 2. Download CUDA Toolkit @ *https://developer.nvidia.com/cuda-downloads* 
 3. Install PyTorch command can be found @ *https://pytorch.org/get-started/locally/* 
+
+# Docker & Singularity
+### Docker v.s. Singularity 
+Singularity is a container runtime, like Docker, but it starts from a very different place. It favors integration rather than isolation, while still preserving security restrictions on the container, and providing reproducible images.
+
+Therefore, singularity container is more likely to be an environment where is set up to run QA. However, docker container is more like to be an application where an isolated Quick Annotator is built inside. 
+
+It is very common that user could specify a port number preallocated by other users and need to change the port number connecting to QA. When using Docker container, user needs to rebuild the image and start the container. When using Singularity container, user needs to change the port number in the config foler.
 
 ### Docker requirements
 Docker is a set of platform as a service products that use OS-level virtualization to deliver software in packages called containers. Containers are isolated from one another and bundle their own software, libraries and configuration files.
@@ -76,15 +86,53 @@ Depending on your cuda version, we provide Dockerfiles for *cuda_10* and *cuda_1
 To start the server, run either:
 `docker build -t quick_annotator -f cuda_10/Dockerfile .` 
 or 
-`docker build -t quick_annotator -f cuda_11/Dockerfile .` 
-
+`docker build -t quick_annotator -f cuda_11/Dockerfile .`
 from the *QuickAnnotator* folder.
 
 When the docker image is done building, it can be run by typing:
 
-`docker run --gpus all -p 5555:5555 quick_annotator`
+`docker run --gpus all -v /data/$CaseID/QuickAnnotator:/opt/QuickAnnotator -p 5555:5555 quick_annotator`
 
-*Note:* This command will forward port 5555 from the computer to port 5555 of the container, where our flask server is running as specificied in the [config.ini](https://github.com/choosehappy/QuickAnnotator/blob/main/config/config.ini#L6). It is critical that these numbers match in 3 places (2 on the command line and one in the config.ini). If this port is occupied on your machine, for example by another user or process, you will need to change both the value in the config.ini, rebuild the docker container, and then use the same value in the docker run command.
+In the above command, `-v /data/$CaseID/QuickAnnotator:/opt/QuickAnnotator` mounts the QA on host file system to the QA inside the container. `/data/$CaseID/QuickAnnotator` should be the QA path on your host file system, `/opt/quick_annotator` is the QA path inside the container, which is specified in the *Dockerfile*.
+
+*Note:* This command will forward port 5555 from the computer to port 5555 of the container, where our flask server is running as specified in the [config.ini](https://github.com/choosehappy/QuickAnnotator/blob/main/config/config.ini#L6). The port number should match the config of running QA on host file system.
+### Singularity requirements
+Singularity provides a single universal on-ramp from developers’ workstations to local resources, the cloud, and all the way to edge.
+
+In order to use Singulariy version of QA, user needs:
+- Nvidia driver supporting cuda. See documentation, [here](https://docs.nvidia.com/deploy/cuda-compatibility/index.html)
+- Install Singularity, [here](https://sylabs.io/guides/3.7/user-guide/quick_start.html)
+
+Depending on your cuda version, we provide Singularity Recipe files for *cuda_10* and *cuda_11*.
+
+To build the Singularity Image Format (SIF) of QA, users need to ask for *--fakeroot* privilege from the administrator.
+1. Users need to set environment variable (the environment variables should be set to different locations according to use cases)
+```
+   export SINGULARITY_TMPDIR=/mnt/data/home/$CaseID/sing_cache 
+   export SINGULARITY_CACHEDIR=/mnt/data/home/$CaseID/sing_cache 
+```
+Note: The location for temporary directories defaults to */tmp*. The temporary directory used during a build must be on a filesystem that has enough space to hold the entire container image, uncompressed, including any temporary files that are created and later removed during the build. You may need to set *SINGULARITY_TMPDIR* when building a large container on a system which has a small */tmp* filesystem.
+
+2. To build SIF of QA, run either: `singularity build --fakeroot --force /mnt/data/home/$CaseID/QATestSin10.sif cuda_10/Singularity10` 
+   or
+   `singularity build --fakeroot --force /mnt/data/home/$CaseID/singularityQA11.sif cuda_11/Singularity11` from the *QuickAnnotator* folder.
+   
+   (*Note:* */mnt/data/home/$CaseID/singularityQA10.sif* is the output directory, which could be modified based on users' preference. We recommend users to build the SIF files under data or scratch folder under the assumption that users run Singularity in a server.)
+   
+
+3. When the SIF is done build, it can be run by: 
+`singularity run --bind /data/rxm723/QuickAnnotator:/opt/QuickAnnotator --nv /mnt/data/home/$CaseID/singularity10.sif`, where the *--nv* enables GPU usage.
+  
+In the above command, `--bind /data/rxm723/QuickAnnotator:/opt/QuickAnnotator` mounts the QA on host file system to the QA inside the container. `/data/$CaseID/QuickAnnotator` should be the QA path on your host file system. 
+
+*Note:* This command will forward you to port 5555 by default, where is specified in the [config.ini](https://github.com/choosehappy/QuickAnnotator/blob/main/config/config.ini#L6). If this port is occupied on your machine, for example by another user or process, you will need to change in the *config.ini* of your QuickAnnotator.
+ 
+*Note:* We recommend users to confirm that Nvidia support is successfully enabled before running a singularity container: user should use *nvidia-smi* command inside the container.
+```
+singularity shell --nv /mnt/data/home/$CaseID/singularity10.sif
+Nvidia-smi
+```
+It is not necessary to specify bind path when checking Nvidia enabling when using *singularity shell*.
 
 # Basic Usage
 ---
