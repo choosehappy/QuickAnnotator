@@ -38,7 +38,7 @@ import cv2
 import numpy as np
 import glob
 
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 
 import time
@@ -213,7 +213,7 @@ try:
 
     # +
     start_time = time.time()
-    writer = SummaryWriter(logdir=f"{args.outdir}/{datetime.now().strftime('%b%d_%H-%M-%S')}") 
+    writer = SummaryWriter(log_dir=f"{args.outdir}/{datetime.now().strftime('%b%d_%H-%M-%S')}")
     criterion = nn.MSELoss() 
     best_loss = np.infty
     best_epoch = -1

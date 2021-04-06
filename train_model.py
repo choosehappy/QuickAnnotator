@@ -13,7 +13,7 @@ import scipy.ndimage
 import sys
 import torch
 from torch.utils.data import DataLoader
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 
 from albumentations import *
 from albumentations.pytorch import ToTensor
@@ -263,7 +263,7 @@ try:
 
     phases = ["train", "val"]
     validation_phases = ["train", "val"]
-    writer = SummaryWriter(logdir=f"{newmodeldir}/{datetime.now().strftime('%b%d_%H-%M-%S')}")
+    writer = SummaryWriter(log_dir=f"{newmodeldir}/{datetime.now().strftime('%b%d_%H-%M-%S')}")
     for epoch in range(num_epochs):
         print(f'Starting epoch {epoch}/{num_epochs}.', flush=True)
 
