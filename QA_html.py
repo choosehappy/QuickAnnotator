@@ -39,6 +39,10 @@ def get_imagelist(project_name):
     if not project:
         return render_template("error.html")
 
+    images = get_imagetable(project)
+    return render_template("images.html", project=project, images=images)
+
+def get_imagetable(project):
     images = db.session.query(Image.id, Image.projId, Image.name, Image.path, Image.height, Image.width, Image.date,
                               Image.rois, Image.make_patches_time, Image.npixel, Image.ppixel, Image.nobjects,
                               db.func.count(Roi.id).label('ROIs'),
@@ -46,8 +50,7 @@ def get_imagelist(project_name):
                               .label('trainingROIs')). \
         outerjoin(Roi, Roi.imageId == Image.id). \
         filter(Image.projId == project.id).group_by(Image.id).all()
-    return render_template("images.html", project=project, images=images)
-
+    return images
 
 @html.route('/<project_name>/images/images-main', methods=['GET'])
 def images_main(project_name):
