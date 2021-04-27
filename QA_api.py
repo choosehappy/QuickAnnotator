@@ -9,7 +9,7 @@ import PIL.Image
 import cv2
 import numpy as np
 from skimage.measure import label
-from flask import Blueprint, send_from_directory, jsonify
+from flask import render_template, Blueprint, send_from_directory, jsonify
 from flask import current_app, url_for, request, make_response
 
 import sqlalchemy
@@ -22,6 +22,7 @@ from QA_utils import get_file_tail
 
 api = Blueprint("api", __name__)
 jobs_logger = logging.getLogger('jobs')
+
 
 # This will get the last few lines from the log file
 @api.route("/api/logs/<file_stem>", methods=["GET"])
@@ -410,6 +411,36 @@ def get_model(project_name):
     return send_from_directory(model_path, "best_model.pth", as_attachment=True)
 
 
+@api.route("/api/<project_name>/annotation_stat", methods=["GET"])
+def get_annotation_stat(project_name):
+    generate_annotation_stat(project_name)
+    annotation_stat_path = f"./projects/{project_name}/"
+    return send_from_directory(annotation_stat_path, "annotation_statistics.csv", as_attachment=True)
+
+
+def generate_annotation_stat(project_name):
+    project = Project.query.filter_by(name=project_name).first()
+
+    if not project:
+        return render_template("error.html")
+
+    images = db.session.query(Image.name, Image.path, Image.height, Image.width, Image.date,
+                              Image.make_patches_time, Image.npixel, Image.ppixel, Image.nobjects,
+                              db.func.count(Roi.id).label('ROIs'),
+                              (db.func.count(Roi.id) - db.func.ifnull(db.func.sum(Roi.testingROI), 0))
+                              .label('trainingROIs'),
+                              db.func.ifnull(db.func.sum(Roi.testingROI), 0).label('testingROIs')). \
+        outerjoin(Roi, Roi.imageId == Image.id). \
+        filter(Image.projId == project.id).group_by(Image.id).all()
+    header = "ImageName,ImagePath,ImageHeight,ImageWidth,ImageDate,MakePatchesTime,NegativePixel,PositivePixel,AnnotatedObjects,ROIs,TrainingROIs,TestingROIs"
+    np.savetxt(f"./projects/{project_name}/annotation_statistics.csv",
+               images,
+               delimiter=", ",
+               header=header,
+               fmt='% s')
+    return
+
+
 @api.route('/api/<project_name>/dataset/<traintype>', methods=["GET"])
 def get_traintest_images(project_name, traintype):
     # List all training and testing patches for the current project
@@ -599,7 +630,6 @@ def upload_image(project_name):
     return jsonify(success=True, image=newImage.as_dict()), 201
 
 
-
 @api.route("/api/<project_name>/roi/<roi_name>/mask", methods=["GET"])
 def get_roimask(project_name, roi_name):
     mask_folder = f"projects/{project_name}/mask/"
@@ -671,8 +701,6 @@ def post_roimask(project_name, image_name):
     if y + h > img.shape[0] or x + w > img.shape[1] or y < 0 or x < 0:
         return jsonify(f"ROI not within image, roi xy ({x} ,{y}) vs image size ({img.shape[0]}, {img.shape[1]})"), 400
 
-
-
     mask_name = f"projects/{project_name}/mask/{image_name.replace('.png', '_mask.png')}"
     if not os.path.isfile(mask_name):
         mask = np.zeros(img.shape, dtype=np.uint8)
@@ -698,8 +726,8 @@ def post_roimask(project_name, image_name):
 
     selected_image.ppixel = np.count_nonzero(mask[:, :, 1] == 255)
     selected_image.npixel = np.count_nonzero(mask[:, :, 0] == 255)
-    
-# -- determine number of new objects from this roi, will need for statistics later
+
+    # -- determine number of new objects from this roi, will need for statistics later
     nobjects_roi = get_number_of_objects(roimask)
     selected_image.nobjects = get_number_of_objects(mask)
 
@@ -708,7 +736,7 @@ def post_roimask(project_name, image_name):
     current_app.logger.info('Storing roi to database:')
 
     newRoi = Roi(name=roi_base_name, path=roi_name, imageId=parent_image.id,
-                 width=w, height=h, x=x, y=y, nobjects = nobjects_roi,
+                 width=w, height=h, x=x, y=y, nobjects=nobjects_roi,
                  date=datetime.now())
     db.session.add(newRoi)
     db.session.commit()
@@ -947,8 +975,7 @@ def get_number_of_objects(img):
     _, nobjects = label(img[:, :, 1], return_num=True)
     return nobjects
 
-
-#----- to remove code below
+# ----- to remove code below
 # @api.route("/api/<project_name>/image/<image_name>/mask", methods=["POST"])
 # def upload_mask(project_name, image_name):
 #     proj = Project.query.filter_by(name=project_name).first()
