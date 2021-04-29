@@ -1,7 +1,9 @@
 import torch
 from QA_config import config
+from flask_sqlalchemy import SQLAlchemy
 
-
+from QA_db import Image, Roi
+db = SQLAlchemy()
 ################################################################################
 # Output either True or False if cuda is available for deep learning computations.
 def has_cuda():
@@ -54,3 +56,17 @@ def get_file_tail(file_path, lines=20):
         block_number -= 1
     all_read_text = b''.join(reversed(blocks))
     return b'\n'.join(all_read_text.splitlines()[-total_lines_wanted:])
+
+################################################################################
+
+
+################################################################################
+def get_imagetable(project):
+    images = db.session.query(Image.id, Image.projId, Image.name, Image.path, Image.height, Image.width, Image.date,
+                              Image.rois, Image.make_patches_time, Image.npixel, Image.ppixel, Image.nobjects,
+                              db.func.count(Roi.id).label('ROIs'),
+                              (db.func.count(Roi.id) - db.func.ifnull(db.func.sum(Roi.testingROI), 0))
+                              .label('trainingROIs')). \
+        outerjoin(Roi, Roi.imageId == Image.id). \
+        filter(Image.projId == project.id).group_by(Image.id).all()
+    return images

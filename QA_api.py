@@ -18,8 +18,8 @@ import json
 from QA_config import config, get_database_uri
 from QA_db import Image, Project, Roi, db, Job, get_latest_modelid
 from QA_pool import pool_get_image, pool_run_script, update_completed_job_status
-from QA_utils import get_file_tail
-from QA_html import get_imagetable
+from QA_utils import get_file_tail, get_imagetable
+
 
 api = Blueprint("api", __name__)
 jobs_logger = logging.getLogger('jobs')
@@ -412,24 +412,18 @@ def get_model(project_name):
     return send_from_directory(model_path, "best_model.pth", as_attachment=True)
 
 
-@api.route("/api/<project_name>/annotation_stat", methods=["GET"])
-def get_annotation_stat(project_name):
+@api.route("/api/<project_name>/annotation_stats", methods=["GET"])
+def get_annotation_stats(project_name):
     project = Project.query.filter_by(name=project_name).first()
-    if not project:
-        return render_template("error.html")
-
     images = get_imagetable(project)
-    if len(images) < 1:
-        return render_template("error.html")
-
-    header = ','.join(str(s) for s in images[0]._fields)
+    header = '  '.join(str(s) for s in images[0]._fields)
     annotation_stat_path = f"./projects/{project_name}/"
-    np.savetxt(annotation_stat_path+"annotation_statistics.csv",
+    np.savetxt(annotation_stat_path+f"{project_name}_annotation_statistics.tsv",
                images,
-               delimiter=",",
+               delimiter="  ",
                header=header,
                fmt='% s')
-    return send_from_directory(annotation_stat_path, "annotation_statistics.csv", as_attachment=True)
+    return send_from_directory(annotation_stat_path, f"{project_name}_annotation_statistics.tsv", as_attachment=True)
 
 
 @api.route('/api/<project_name>/dataset/<traintype>', methods=["GET"])

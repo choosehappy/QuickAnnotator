@@ -5,7 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 import QA_api
 from QA_config import config
 from QA_db import Image, Project, Job, Roi, get_latest_modelid
-
+from QA_utils import get_imagetable
 html = Blueprint("html", __name__, static_folder="static", template_folder="templates")
 
 db = SQLAlchemy()
@@ -42,15 +42,6 @@ def get_imagelist(project_name):
     images = get_imagetable(project)
     return render_template("images.html", project=project, images=images)
 
-def get_imagetable(project):
-    images = db.session.query(Image.id, Image.projId, Image.name, Image.path, Image.height, Image.width, Image.date,
-                              Image.rois, Image.make_patches_time, Image.npixel, Image.ppixel, Image.nobjects,
-                              db.func.count(Roi.id).label('ROIs'),
-                              (db.func.count(Roi.id) - db.func.ifnull(db.func.sum(Roi.testingROI), 0))
-                              .label('trainingROIs')). \
-        outerjoin(Roi, Roi.imageId == Image.id). \
-        filter(Image.projId == project.id).group_by(Image.id).all()
-    return images
 
 @html.route('/<project_name>/images/images-main', methods=['GET'])
 def images_main(project_name):
