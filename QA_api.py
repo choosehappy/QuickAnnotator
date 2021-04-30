@@ -409,13 +409,23 @@ def make_embed_callback(result):
 def get_model(project_name):
     modelid = request.args.get('model', get_latest_modelid(project_name), type=int)
     model_path = f"./projects/{project_name}/models/{modelid}/"
+    if not (os.path.exists(model_path+"best_model.pth")):
+        return jsonify(error=f"Deep learning model file doesn't exist"), 400
+
     return send_from_directory(model_path, "best_model.pth", as_attachment=True)
 
 
 @api.route("/api/<project_name>/annotation_stats", methods=["GET"])
 def get_annotation_stats(project_name):
     project = Project.query.filter_by(name=project_name).first()
+
+    if not project:
+        return jsonify(error=f"The project {project_name} does not exist"), 400
+
     images = get_imagetable(project)
+    if len(images) < 1:
+        return jsonify(error=f"There are no images in the project {project_name}"), 400
+
     header = '  '.join(str(s) for s in images[0]._fields)
     annotation_stat_path = f"./projects/{project_name}/"
     np.savetxt(annotation_stat_path+f"{project_name}_annotation_statistics.tsv",
@@ -471,7 +481,11 @@ def add_roi_to_traintest(project_name, traintype, roiname):
 @api.route("/api/<project_name>/image/<image_name>", methods=["GET"])
 def get_image(project_name, image_name):
     current_app.logger.info(f"Outputting file {image_name}")
-    return send_from_directory(f"./projects/{project_name}", image_name)
+
+    if not (os.path.exists(f"./projects/{project_name}/" + image_name)):
+        return jsonify(error=f"Deep learning model file doesn't exist"), 400
+
+    return send_from_directory(f"./projects/{project_name}/", image_name)
 
 @api.route("/api/<project_name>/image/<image_name>/thumbnail", methods=["GET"])
 def get_image_thumb(project_name, image_name):
@@ -741,6 +755,10 @@ def get_roi(project_name, roi_name):
 
 @api.route("/api/<project_name>/image/<image_name>/mask", methods=["GET"])
 def get_mask(project_name, image_name):
+
+    if not (os.path.exists(f"./projects/{project_name}/mask/"+image_name.replace(".png", "_mask.png"))):
+        return jsonify(error=f"Human annotation mask file doesn't exist"), 400
+
     response = send_from_directory(f"./projects/{project_name}/mask",
                                    image_name.replace(".png", "_mask.png"))
 
@@ -769,6 +787,10 @@ def get_prediction(project_name, image_name):
     upload_folder = f"./projects/{project_name}/pred/{modelid}"
     fname = image_name.replace(".png", "_pred.png")
     full_fname = f"{upload_folder}/{fname}"
+
+    if not (os.path.exists(full_fname)):
+        return jsonify(error=f"DL prediction mask file doesn't exist"), 400
+
     current_app.logger.info('Full filename for prediction = ' + full_fname)
 
     print('Generating new prediction image:')

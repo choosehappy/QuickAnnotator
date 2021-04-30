@@ -115,11 +115,10 @@
 				<li class="dropdown">
 					<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">&#9921; Download <span class="caret"></span></a>
 					<ul class="dropdown-menu">
-						<li><a href="{{ url_for('api.get_model', project_name=project.name) }}" download>Trained DL</a></li>
-						<li><a href="{{ url_for('api.get_prediction', project_name=project.name, image_name=image.name) }}" download>DL Result Image</a></li>
-						<li><a href="{{ url_for('api.get_mask', project_name=project.name, image_name=image.name) }}" download>Human Annotation Image</a></li>
-                        {# Remove the download attribute for the annotation statistics otherwise, it could possibly download the forwarded error page                       #}
-                        <li><a href="{{ url_for('api.get_annotation_stats', project_name=project.name) }}" >Annotation Statistics</a></li>
+						<li><a onclick="download_model()">Trained DL</a></li>
+						<li><a onclick="download_prediction()">DL Result Image</a></li>
+						<li><a onclick="download_mask()">Human Annotation Image</a></li>
+                        <li><a onclick="download_annotation_stats()">Annotation Statistics</a></li>
 					</ul>
                 </li>
                 <li><a onclick="prevnext('previous')">&#8617; Previous image</a></li>
