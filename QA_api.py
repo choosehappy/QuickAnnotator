@@ -788,9 +788,6 @@ def get_prediction(project_name, image_name):
     fname = image_name.replace(".png", "_pred.png")
     full_fname = f"{upload_folder}/{fname}"
 
-    if not (os.path.exists(full_fname)):
-        return jsonify(error=f"DL prediction mask file doesn't exist"), 400
-
     current_app.logger.info('Full filename for prediction = ' + full_fname)
 
     print('Generating new prediction image:')
