@@ -417,46 +417,6 @@ function loadImageAndRetry(url, context, image_loaded_callback, ignore_error=fal
 }; // loadImageAndRetry
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-/**
- * This is the similar as loadObjectAndRetry except
- * the url is assumed to download a file, and when it's
- * ready it will call completed_callback_function()
- */
-function downloadObject(url,completed_callback_function=function(){}, ignoreError=false) {
-    const downloader = new XMLHttpRequest();
-    downloader.addEventListener('load', function() {
-
-        let json_output;
-        try {
-            json_output = JSON.parse(downloader.responseText);
-        }
-        catch(e) {}
-
-        const status_code = downloader.status
-        switch (status_code){
-            case 202:
-            case 200:
-                let link = document.createElement('a');
-                link.href = downloader.responseURL;
-                link.download="";
-                link.click();
-                break;
-
-            case 400:
-                if (!ignoreError) {
-                    showWindowMessage('ERROR 400: ' + json_output.error, 'HTML Error');
-                }
-                break;
-        }
-    })
-
-    const async = true;
-    downloader.open("GET", url, async);
-    downloader.send();
-
-}
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**

@@ -4,8 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 # from QA_api import get_traintest_images
 import QA_api
 from QA_config import config
-from QA_db import Image, Project, Job, Roi, get_latest_modelid
-from QA_utils import get_imagetable
+from QA_db import Image, Project, Job, Roi, get_latest_modelid, get_imagetable
+
 html = Blueprint("html", __name__, static_folder="static", template_folder="templates")
 
 db = SQLAlchemy()

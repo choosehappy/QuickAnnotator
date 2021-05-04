@@ -219,33 +219,6 @@ function retrain_deep_learning(frommodelid){
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-
-////////////////// Export QA's result from the backend
-////////////////////////////////////////////////////////////////////////////////////////////////////
-function download_annotation_stats(){
-    addNotification("Download the annotation statistics");
-    let run_url = new URL("{{ url_for('api.get_annotation_stats', project_name=project.name) }}", window.location.origin);
-    return downloadObject(run_url)
-}
-
-function download_model() {
-    addNotification("Download the latest model");
-    let run_url = new URL("{{ url_for('api.get_model', project_name=project.name) }}", window.location.origin);
-    return downloadObject(run_url)
-}
-
-function download_prediction() {
-    addNotification("Download the latest prediction result");
-    let run_url = new URL("{{ url_for('api.get_prediction', project_name=project.name, image_name=image.name) }}", window.location.origin);
-    return downloadObject(run_url)
-}
-
-function download_mask() {
-    addNotification("Download the latest annotation result");
-    let run_url = new URL("{{ url_for('api.get_mask', project_name=project.name, image_name=image.name) }}", window.location.origin);
-    return downloadObject(run_url)
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Functions controlling which layers to show/hide:
 
