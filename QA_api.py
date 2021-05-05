@@ -16,12 +16,14 @@ import sqlalchemy
 import json
 
 from QA_config import config, get_database_uri
-from QA_db import Image, Project, Roi, db, Job, get_latest_modelid
+from QA_db import Image, Project, Roi, db, Job, get_latest_modelid, get_imagetable
 from QA_pool import pool_get_image, pool_run_script, update_completed_job_status
 from QA_utils import get_file_tail
 
+
 api = Blueprint("api", __name__)
 jobs_logger = logging.getLogger('jobs')
+
 
 # This will get the last few lines from the log file
 @api.route("/api/logs/<file_stem>", methods=["GET"])
@@ -41,7 +43,7 @@ def get_embed(project_name, image_name):
 def train_autoencoder(project_name):
     proj = db.session.query(Project).filter_by(name=project_name).first()
     if proj is None:
-        return jsonify(error=f"project {project_name} doesn't exist"), 400
+        return jsonify(error=f"project {project_name} doesn't exist"), 404
     current_app.logger.info(f'Training autoencoder for project {project_name}:')
 
     # get the config options:
@@ -132,7 +134,7 @@ def populate_training_files(project_name, train_file_path, test_file_path):
 def retrain_dl(project_name):
     proj = Project.query.filter_by(name=project_name).first()
     if proj is None:
-        return jsonify(error=f"project {project_name} doesn't exist"), 400
+        return jsonify(error=f"project {project_name} doesn't exist"), 404
     current_app.logger.info(f'About to train a new transfer model for {project_name}')
 
     frommodelid = request.args.get('frommodelid', default=0, type=int)
@@ -142,7 +144,7 @@ def retrain_dl(project_name):
 
     if frommodelid > proj.iteration or not os.path.exists(f"./projects/{project_name}/models/{frommodelid}/best_model.pth"):
         return jsonify(
-            error=f"Deep learning model {frommodelid} doesn't exist"), 400
+            error=f"Deep learning model {frommodelid} doesn't exist"), 404
 
     if proj.train_ae_time is None and frommodelid == 0:
         error_message = f'The base model 0 of project {project_name} was overwritten when Retrain Model 0 started.\n ' \
@@ -244,8 +246,8 @@ def make_patches(project_name):
     current_app.logger.info(f'Getting project info from database for project {project_name}.')
     project = db.session.query(Project).filter_by(name=project_name).first()
     if project is None:
-        current_app.logger.warn(f'Unable to find {project_name} in database. Returning HTML response code 400.')
-        return jsonify(error=f"Project {project_name} does not exist"), 400
+        current_app.logger.warn(f'Unable to find {project_name} in database. Returning HTML response code 404.')
+        return jsonify(error=f"Project {project_name} does not exist"), 404
 
     target_files = []
     current_app.logger.info('Looping through images.')
@@ -336,7 +338,7 @@ def make_patches_callback(result):
 def make_embed(project_name):
     proj = db.session.query(Project).filter_by(name=project_name).first()
     if proj is None:
-        return jsonify(error=f"project {project_name} doesn't exist"), 400
+        return jsonify(error=f"project {project_name} doesn't exist"), 404
 
     model0ExistOrNot = os.path.exists(f"./projects/{project_name}/models/0/best_model.pth")
     current_app.logger.info(f'Model 0 (autoencoder) exists = {model0ExistOrNot}')
@@ -407,7 +409,31 @@ def make_embed_callback(result):
 def get_model(project_name):
     modelid = request.args.get('model', get_latest_modelid(project_name), type=int)
     model_path = f"./projects/{project_name}/models/{modelid}/"
+    if not (os.path.exists(model_path+"best_model.pth")):
+        return jsonify(error=f"Deep learning model file doesn't exist"), 404
+
     return send_from_directory(model_path, "best_model.pth", as_attachment=True)
+
+
+@api.route("/api/<project_name>/annotation_stats", methods=["GET"])
+def get_annotation_stats(project_name):
+    project = Project.query.filter_by(name=project_name).first()
+
+    if not project:
+        return jsonify(error=f"The project {project_name} does not exist"), 404
+
+    images = get_imagetable(project)
+    if len(images) < 1:
+        return jsonify(error=f"There are no images in the project {project_name}"), 400
+
+    header = f'\t'.join(str(s) for s in images[0]._fields)
+    annotation_stat_path = f"./projects/{project_name}/"
+    np.savetxt(annotation_stat_path+f"{project_name}_annotation_statistics.tsv",
+               images,
+               delimiter=f"\t",
+               header=header,
+               fmt='% s')
+    return send_from_directory(annotation_stat_path, f"{project_name}_annotation_statistics.tsv", as_attachment=True)
 
 
 @api.route('/api/<project_name>/dataset/<traintype>', methods=["GET"])
@@ -438,7 +464,7 @@ def add_roi_to_traintest(project_name, traintype, roiname):
 
     roi = db.session.query(Roi).filter_by(name=os.path.basename(roiname.strip())).first()
     if roi is None:
-        return jsonify(error=f"{roiname} not found in project {project_name}"), 400
+        return jsonify(error=f"{roiname} not found in project {project_name}"), 404
     current_app.logger.info('Roi found = ' + str(roi.id))
 
     if traintype == "train":
@@ -455,7 +481,11 @@ def add_roi_to_traintest(project_name, traintype, roiname):
 @api.route("/api/<project_name>/image/<image_name>", methods=["GET"])
 def get_image(project_name, image_name):
     current_app.logger.info(f"Outputting file {image_name}")
-    return send_from_directory(f"./projects/{project_name}", image_name)
+
+    if not (os.path.exists(f"./projects/{project_name}/" + image_name)):
+        return jsonify(error=f"Deep learning model file doesn't exist"), 404
+
+    return send_from_directory(f"./projects/{project_name}/", image_name)
 
 @api.route("/api/<project_name>/image/<image_name>/thumbnail", methods=["GET"])
 def get_image_thumb(project_name, image_name):
@@ -481,7 +511,7 @@ def get_image_thumb(project_name, image_name):
 def delete_image(project_name, image_name):
     proj = Project.query.filter_by(name=project_name).first()
     if proj is None:
-        return jsonify(error=f"project {project_name} doesn't exist"), 400
+        return jsonify(error=f"project {project_name} doesn't exist"), 404
 
     # Remove the image from database
     selected_image = db.session.query(Image).filter_by(projId=proj.id, name=image_name).first()
@@ -551,7 +581,7 @@ def upload_image(project_name):
     # ---- check project exists first!
     proj = Project.query.filter_by(name=project_name).first()
     if proj is None:
-        return jsonify(error=f"project {project_name} doesn't exist"), 400
+        return jsonify(error=f"project {project_name} doesn't exist"), 404
     current_app.logger.info(f'Project = {str(proj.id)}')
 
     file = request.files.get('file')
@@ -610,7 +640,7 @@ def get_roimask(project_name, roi_name):
 
     roi = cv2.imread(f"./projects/{project_name}/roi/{roi_name}")
     if roi is None:
-        jsonify(error=f"ROI file {roi_name} does not exist"), 400
+        jsonify(error=f"ROI file {roi_name} does not exist"), 404
 
     h = roi.shape[0]
     w = roi.shape[1]
@@ -632,7 +662,7 @@ def post_roimask(project_name, image_name):
     current_app.logger.info(f'Uploading roi mask for project {project_name} and image {image_name}:')
     proj = Project.query.filter_by(name=project_name).first()
     if proj is None:
-        return jsonify(error=f"project {project_name} doesn't exist"), 400
+        return jsonify(error=f"project {project_name} doesn't exist"), 404
 
     current_app.logger.info(f'Project id = {str(proj.id)}')
     force = request.form.get('force', False, type=bool)
@@ -640,7 +670,7 @@ def post_roimask(project_name, image_name):
     selected_image = db.session.query(Image).filter_by(projId=proj.id,
                                                        name=image_name).first()
     if selected_image is None:
-        return jsonify(error=f"{selected_image} inside of project {project_name} doesn't exist"), 400
+        return jsonify(error=f"{selected_image} inside of project {project_name} doesn't exist"), 404
 
     roimask_url = request.form.get('roimask', None)
 
@@ -698,8 +728,8 @@ def post_roimask(project_name, image_name):
 
     selected_image.ppixel = np.count_nonzero(mask[:, :, 1] == 255)
     selected_image.npixel = np.count_nonzero(mask[:, :, 0] == 255)
-    
-# -- determine number of new objects from this roi, will need for statistics later
+
+    # -- determine number of new objects from this roi, will need for statistics later
     nobjects_roi = get_number_of_objects(roimask)
     selected_image.nobjects = get_number_of_objects(mask)
 
@@ -708,7 +738,7 @@ def post_roimask(project_name, image_name):
     current_app.logger.info('Storing roi to database:')
 
     newRoi = Roi(name=roi_base_name, path=roi_name, imageId=parent_image.id,
-                 width=w, height=h, x=x, y=y, nobjects = nobjects_roi,
+                 width=w, height=h, x=x, y=y, nobjects=nobjects_roi,
                  date=datetime.now())
     db.session.add(newRoi)
     db.session.commit()
@@ -728,6 +758,10 @@ def get_roi(project_name, roi_name):
 
 @api.route("/api/<project_name>/image/<image_name>/mask", methods=["GET"])
 def get_mask(project_name, image_name):
+
+    if not (os.path.exists(f"./projects/{project_name}/mask/"+image_name.replace(".png", "_mask.png"))):
+        return jsonify(error=f"Human annotation mask file doesn't exist"), 404
+
     response = send_from_directory(f"./projects/{project_name}/mask",
                                    image_name.replace(".png", "_mask.png"))
 
@@ -744,7 +778,7 @@ def get_prediction(project_name, image_name):
     project = Project.query.filter_by(name=project_name).first()
     curr_image = Image.query.filter_by(projId=project.id, name=image_name).first()
     if curr_image is None:
-        jsonify(error=f"Image {image_name} does not exist"), 400
+        jsonify(error=f"Image {image_name} does not exist"), 404
 
     modelid = request.args.get('model', get_latest_modelid(project_name), type=int)
     current_app.logger.info(f'Model id = {str(modelid)}')
@@ -756,6 +790,7 @@ def get_prediction(project_name, image_name):
     upload_folder = f"./projects/{project_name}/pred/{modelid}"
     fname = image_name.replace(".png", "_pred.png")
     full_fname = f"{upload_folder}/{fname}"
+    
     current_app.logger.info('Full filename for prediction = ' + full_fname)
 
     print('Generating new prediction image:')
@@ -896,7 +931,7 @@ def prevnext_image(project_name, image_name, direction):
 
     if image is None:
         errorMessage = "There is no " + direction + " image"
-        return jsonify(error=errorMessage), 400
+        return jsonify(error=errorMessage), 404
     else:
         return jsonify(url=url_for('html.annotation', project_name=project_name, image_name=image.name)), 200
 
@@ -947,8 +982,7 @@ def get_number_of_objects(img):
     _, nobjects = label(img[:, :, 1], return_num=True)
     return nobjects
 
-
-#----- to remove code below
+# ----- to remove code below
 # @api.route("/api/<project_name>/image/<image_name>/mask", methods=["POST"])
 # def upload_mask(project_name, image_name):
 #     proj = Project.query.filter_by(name=project_name).first()

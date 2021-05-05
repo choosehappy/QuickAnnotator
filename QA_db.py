@@ -121,3 +121,15 @@ def get_latest_modelid(project_name):
     # output the id
     return iteration
 
+
+
+################################################################################
+def get_imagetable(project):
+    images = db.session.query(Image.id, Image.projId, Image.name, Image.path, Image.height, Image.width, Image.date,
+                              Image.rois, Image.make_patches_time, Image.npixel, Image.ppixel, Image.nobjects,
+                              db.func.count(Roi.id).label('ROIs'),
+                              (db.func.count(Roi.id) - db.func.ifnull(db.func.sum(Roi.testingROI), 0))
+                              .label('trainingROIs')). \
+        outerjoin(Roi, Roi.imageId == Image.id). \
+        filter(Image.projId == project.id).group_by(Image.id).all()
+    return images
