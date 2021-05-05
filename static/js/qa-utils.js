@@ -318,7 +318,7 @@ function loadRunningJobsForProject(project_id, completed_callback_function = fun
  *   loadObjectAndRetry(api_image_url, runThisOnceRead.bind(null, url));
  *
  */
-function loadObjectAndRetry(url, completed_callback_function=function(){}, ignoreError=false, indicationTarget="",download=false) {
+function loadObjectAndRetry(url, completed_callback_function=function(){}, ignoreError=false, indicationTarget="") {
 
     const requester = new XMLHttpRequest();
     requester.addEventListener('load', function() {
@@ -348,12 +348,6 @@ function loadObjectAndRetry(url, completed_callback_function=function(){}, ignor
 
             case 200:
                 completed_callback_function();
-                if (download) {
-                    let link = document.createElement('a');
-                    link.href = requester.responseURL;
-                    link.download="";
-                    link.click();
-                }
                 try {
                     updateTrafficLight(indicationTarget,colorAVAILABLE)
                 }
@@ -361,7 +355,6 @@ function loadObjectAndRetry(url, completed_callback_function=function(){}, ignor
                 break;
 
             case 400:
-            case 404:
                 if (!ignoreError) {
                     showWindowMessage('ERROR 400: ' + json_output.error, 'HTML Error');
                 }
