@@ -167,7 +167,7 @@ See [wiki](https://github.com/choosehappy/QuickAnnotator/wiki)
 
 # Citation
 ---
-Read the related paper on arXiv: [Quick Annotator: an open-source digital pathology based rapid image annotation tool](https://onlinelibrary.wiley.com/doi/full/10.1002/cjp2.229)
+Read the related paper in Journal of Pathology - Clinical Research: [Quick Annotator: an open-source digital pathology based rapid image annotation tool](https://onlinelibrary.wiley.com/doi/full/10.1002/cjp2.229)
 
 
 Please use below to cite this paper if you find this repository useful or if you use the software shared here in your research.
