@@ -20,7 +20,7 @@ prediction.
 
 # Requirements
 ---
-Tested with Python 3.8
+Tested with Python 3.8 and *Chrome* (errors have been reported with Firefox which are being addressed currently)
 
 Requires:
 1. Python 
