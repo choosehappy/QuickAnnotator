@@ -135,12 +135,13 @@ for img_fname in img_fnames:
     if mask is None:
         print(f"Mask of '{img_fname_base}' doesn't exist!",end="")
     else:
-        #--- Negative class: [255,0,255], Positive class: [255,255,255], seen but unknown [0,0,255]
+        #--- Negative class: [255,0,255], Positive class: [0,255,255], seen but unknown [0,0,255]
         [nrow,ncol,ndim]=mask.shape
         toupload = np.zeros((nrow,ncol,3),dtype=np.uint8)
         toupload[:,:,2]=255
-        toupload[:,:,0]=(mask[:,:,0]==False)*255
-        toupload[:,:,1]=(mask[:,:,0]>0)*255
+        ## opencv is BGR format
+        toupload[:,:,0]=(mask[:,:,2]>0)*255
+        toupload[:,:,1]=(mask[:,:,1]>0)*255
         #make pseudo image containing x,y coordinates
         idxs=np.asarray(range(toupload.shape[0]*toupload.shape[1])).reshape(toupload.shape[0:2])
 
@@ -168,7 +169,7 @@ for img_fname in img_fnames:
             #set up request data to contain x,y location and image data
             form_data = {'roimask': data64, 'pointx': c, 'pointy': r, 'force': True}
             final_url=f"{base_url}/api/{projname}/image/{img_fname_base}/roimask?force=True"
-            print(final_url,"wo shi sha bi")
+            print(final_url," final url")
 
             #upload
             print(f"Adding roi '{img_fname} {c}_{r}'...",end="")
