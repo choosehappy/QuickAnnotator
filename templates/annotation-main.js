@@ -13,6 +13,7 @@ var updateCropSize = function() {
 
 cropsize_slider.oninput = updateCropSize;
 zoom_factor_slider.oninput = updateZoomFactor;
+annotator_size_slider.oninput = updateAnnotatorSize;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -156,6 +157,31 @@ function loadRunningJobTimers() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+function resetAnnotatorSize() {
+    const annotation_canvases = document.getElementsByClassName("annotator");
+    for (let i = 0; i < annotation_canvases.length; i++) {
+        annotation_canvases.item(i).height = annotatorSize;
+        annotation_canvases.item(i).width = annotatorSize;
+    }
+    disableSmoothing()
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+function disableSmoothing() {
+    // imageSmoothingEnabled property need to be set again after each canvas resizing
+    ctx_mask.imageSmoothingEnabled = false;
+    ctx_cropped_mask.imageSmoothingEnabled = false;
+    ctx_cropped_result.imageSmoothingEnabled = false;
+    ctx_bg_ori.imageSmoothingEnabled = false;
+    ctx_mask_ori.imageSmoothingEnabled = false;
+    ctx_result_ori.imageSmoothingEnabled = false;
+    ctx_superpixel_boundary_ori.imageSmoothingEnabled = false;
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 function init() {
@@ -164,11 +190,7 @@ function init() {
     loadRunningJobTimers();
 
     // set the annotation tool canvas sizes
-    let annotation_canvases = document.getElementsByClassName("annotator");
-    for (let i = 0; i < annotation_canvases.length; i++) {
-        annotation_canvases.item(i).height = annotatorSize;
-        annotation_canvases.item(i).width = annotatorSize;
-    }
+    resetAnnotatorSize();
 
     // Register an event listener to call the resizeCanvas() function each time the window is resized
     //window.addEventListener('resize', resizeCanvas, false);
@@ -297,14 +319,8 @@ function init() {
         // prepare for annotating
         redrawCroppedTool();
 
-        // imageSmoothingEnabled property need to be set again after each canvas resizing
-        ctx_mask.imageSmoothingEnabled = false;
-        ctx_cropped_mask.imageSmoothingEnabled = false;
-        ctx_cropped_result.imageSmoothingEnabled = false;
-        ctx_bg_ori.imageSmoothingEnabled = false;
-        ctx_mask_ori.imageSmoothingEnabled = false;
-        ctx_result_ori.imageSmoothingEnabled = false;
-        ctx_superpixel_boundary_ori.imageSmoothingEnabled = false;
+        // must re-disable smoothing every resize
+        disableSmoothing()
 
         // start with the annotation image
         showAnnotation();

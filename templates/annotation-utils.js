@@ -409,6 +409,21 @@ let updateZoomFactor = function() {
     redrawPrediction();
 }
 
+let updateAnnotatorSize = function() {
+
+    // pull it
+    annotatorSize = Number(annotator_size_slider.value)
+
+    // update the displayed value
+    annotator_size_value.innerHTML = annotatorSize
+
+    // update the widget
+    resetAnnotatorSize()
+    resetClassButtonBackgrounds()
+    redrawCroppedTool()
+
+}
+
 // Reset the zoom to fit the entire image in the window
 function resetZoom() {
     const browser_width = window.innerWidth;
