@@ -201,16 +201,19 @@
             <dd id="image_name">{{ image.name }}</dd>
             <dt>Image size</dt>
             <dd id="dim"></dd>
+            <hr>
             <dt>Crop size</dt>
             <dd>
                 <span id="cropsizeValue">64</span>
                 <input class="slider" id="cropsizeSlider" type="range" min="5" max="11" value="6">
             </dd>
+            <hr>
             <dt>Zoom factor</dt>
             <dd>
                 <span id="zoomFactorValue">1</span>
                 <input class="slider" id="zoomFactorSlider" type="range" min="0.3" max="2.5" value="1" step="0.05">
             </dd>
+            <hr>
             <dt title="the number of patches annotated"># of patches annotated</dt>
             <dd id="patches">{{ image.nROIs }}</dd>
             <dt title="the number of patches annotated in training set"># of patches in training set</dt>
@@ -279,6 +282,12 @@
             <button class="btn btn-default" id="btnClear" title="Reset (N)" onclick="clearArea()"><img
                     src="/static/images/reset.png" height="30" width="30"/></button>
 
+        </div>
+        <div class="btn btn-default" style="width: 100%">
+            <dt style="font-size: large;">Annotator Size <span id="annotatorSizeValue">448</span></dt>
+            <dd>
+                <input class="slider" id="annotatorSizeSlider" type="range" min="448" max="1200" value="448" step="1">
+            </dd>
         </div>
     </div>
     <div>

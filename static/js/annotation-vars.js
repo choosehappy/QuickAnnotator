@@ -75,7 +75,7 @@ let canvas_cropped_mask = document.getElementById("canvas_cropped_mask");
 let ctx_cropped_mask = canvas_cropped_mask.getContext("2d");
 let canvas_cropped_result = document.getElementById("canvas_cropped_result");
 let ctx_cropped_result = canvas_cropped_result.getContext("2d");
-const annotatorSize = 448;
+let annotatorSize = 448;
 var added_window_mouse_listeners = false;
 var outside_annotation_canvas = true;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -139,8 +139,10 @@ let show_superpixel_boundary = false;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 let cropsize_slider = document.getElementById("cropsizeSlider");
 let cropsize_value = document.getElementById("cropsizeValue");
-let zoom_factor_slider = document.getElementById('zoomFactorSlider');
-let zoom_factor_value = document.getElementById('zoomFactorValue')
+const zoom_factor_slider = document.getElementById('zoomFactorSlider');
+const zoom_factor_value = document.getElementById('zoomFactorValue')
+const annotator_size_slider = document.getElementById('annotatorSizeSlider')
+const annotator_size_value = document.getElementById('annotatorSizeValue')
 let previous_zoom_factor = 1.0;
 let zoom_factor;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
