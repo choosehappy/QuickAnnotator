@@ -317,7 +317,9 @@ function uploadMaskToServer(dataset) {
         url_add_to_traintest = url_add_to_traintest.replace(escape("#####"),dataset)
 
         xhr_add_to_traintest.open('PUT', url_add_to_traintest , true);
-        xhr_add_to_traintest.onload = function(){};
+        xhr_add_to_traintest.onload = function(){
+            redrawMask()    
+        };
         xhr_add_to_traintest.send();
 
         // Update statistics
