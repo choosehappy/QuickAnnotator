@@ -166,14 +166,72 @@ function restoreSelection(){
 // Update the annotation mask on the main window to reflect ctx_mask_ori
 function redrawMask() {
 
-    // draw it from the canvas_mask_ori data
-    ctx_mask.clearRect(0, 0, canvasWidth, canvasHeight);
-    ctx_mask.drawImage(canvas_mask_ori, 0, 0, canvasWidth, canvasHeight);
+    const url = "{{ url_for('api.get_rois_for_image', project_name=project.name, image_name=image.name)}}"
+    fetch(url)
+        .then(
+            response => response.json()
+        )
+        .then(rois => {
+            // draw it from the canvas_mask_ori data
+            ctx_mask.clearRect(0, 0, canvasWidth, canvasHeight);
+            ctx_mask.drawImage(canvas_mask_ori, 0, 0, canvasWidth, canvasHeight);
 
-    // give it some alpha blending
-    setAlphaChannel(ctx_mask, 127, 0);
+            // give it some alpha blending
+            setAlphaChannel(ctx_mask, 127, 0);
+
+            drawMaskBorders(rois)
+        })
 
 } // redrawMask
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+function drawMaskBorders(rois) {
+    for (const roi of rois) {
+
+        const image_width = parseInt("{{image.width}}")
+        const image_height = parseInt("{{image.height}}")
+
+        const scale_x = canvasWidth / image_width
+        const scale_y = canvasHeight / image_height
+        
+        const x = roi.x * scale_x
+        const y = roi.y * scale_y
+        const w = roi.width * scale_x
+        const h = roi.height * scale_y
+
+        const in_testing = roi.testingROI == 1
+        const in_training = roi.testingROI == 0
+
+        let stroke_color;
+        let alpha = 0.50
+        alpha = alpha.toString()
+        
+        if (in_testing) {
+            stroke_color = 'rgba(0,255,0,' + alpha + ')'
+        }
+        else if (in_training) {
+            stroke_color = 'rgba(255,255,0,' + alpha + ')'
+        }
+        else {
+            stroke_color = 'rgba(0,0,0,' + alpha + ')'
+        }
+
+        context = ctx_mask
+
+        context.strokeStyle = stroke_color
+        context.lineWidth = 8
+        context.strokeRect(x, y, w, h)
+
+        context.strokeStyle = 'white'
+        context.lineWidth = 1
+        context.strokeRect(x, y, w, h)
+
+        ctx_bg.stroke()
+    
+    }
+}
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -542,5 +600,5 @@ function updateViewMode() {
         if (showPredictionDot) {showDLFusedAnnotation()} else {showAnnotation()}
     } else if (showPredictionDot) {showDLResult()} else {showOriginal()}
 }
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+

@@ -457,6 +457,25 @@ def remove_image_from_traintest(project_name, traintype, roiname):
     return jsonify(success=True, roi=roi.as_dict())
 
 
+@api.route('/api/<project_name>/<image_name>/rois', methods=['GET'])
+def get_rois_for_image(project_name, image_name):
+
+    proj = Project.query.filter_by(name=project_name).first()
+    if proj is None:
+        return jsonify(error=f"project {project_name} doesn't exist"), 400
+    project_id = proj.id
+
+    rois = db.session.query(Roi).with_entities(
+        Roi.x,
+        Roi.y,
+        Roi.width,
+        Roi.height,
+        Roi.testingROI
+    ).filter(Roi.image.has(Image.projId == project_id)).filter(Roi.image.has(Image.name == image_name)).all()
+    
+    return jsonify([roi._asdict() for roi in rois])
+
+
 @api.route('/api/<project_name>/dataset/<traintype>/<roiname>', methods=["PUT"])
 def add_roi_to_traintest(project_name, traintype, roiname):
     current_app.logger.info(
