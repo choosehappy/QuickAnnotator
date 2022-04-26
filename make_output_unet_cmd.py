@@ -99,7 +99,11 @@ try:
     for ii,fname in enumerate(files):
         print(f"PROGRESS: {ii}/{nfiles}")
         fname = fname.strip()
-        newfname_class = "%s/%s_pred.png" % (OUTPUT_DIR, os.path.basename(fname)[0:-4])
+        
+        # change file extension to png
+        newfname_class = '.'.join(os.path.basename(fname).split('.')[:-1]) + '_pred.png'
+        # combine with outdir
+        newfname_class = os.path.join(OUTPUT_DIR, newfname_class)
 
         print(f"working on file: \t {fname}", flush=True)
         print(f"saving to : \t {newfname_class}", flush=True)
