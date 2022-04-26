@@ -100,8 +100,10 @@ try:
         print(f"PROGRESS: {ii}/{nfiles}")
         fname = fname.strip()
         
-        # change file extension to png
-        newfname_class = '.'.join(os.path.basename(fname).split('.')[:-1]) + '_pred.png'
+        # remove input directory from filepath string
+        newfname_class = os.path.split(fname)[-1]
+        # change file extension to '_pred.png'
+        newfname_class = os.path.splitext(newfname_class)[0] + '_pred.png'
         # combine with outdir
         newfname_class = os.path.join(OUTPUT_DIR, newfname_class)
 
