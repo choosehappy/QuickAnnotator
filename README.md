@@ -91,7 +91,7 @@ from the *QuickAnnotator* folder.
 
 When the docker image is done building, it can be run by typing:
 
-`docker run --gpus all -v /data/$CaseID/QuickAnnotator:/opt/QuickAnnotator -p 5555:5555 quick_annotator`
+`docker run --gpus all -v /data/$CaseID/QuickAnnotator:/opt/QuickAnnotator -p 5555:5555 --shm-size=8G quick_annotator`
 
 In the above command, `-v /data/$CaseID/QuickAnnotator:/opt/QuickAnnotator` mounts the QA on host file system to the QA inside the container. `/data/$CaseID/QuickAnnotator` should be the QA path on your host file system, `/opt/quick_annotator` is the QA path inside the container, which is specified in the *Dockerfile*.
 

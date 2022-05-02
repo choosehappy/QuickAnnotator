@@ -15,11 +15,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
          libsqlite3-dev\
 		 gcc gfortran libopenblas-dev liblapack-dev cython
 
-COPY ./cuda_10/requirements.txt /opt/quick_annotator/requirements.txt
-WORKDIR /opt/quick_annotator
+COPY ./cuda_10/requirements.txt /opt/QuickAnnotator/requirements.txt
+WORKDIR /opt/QuickAnnotator
 RUN pip3 install -U pip
 RUN pip3 install -r requirements.txt
-COPY . /opt/quick_annotator
+COPY . /opt/QuickAnnotator
 
-ADD . /opt/quick_annotator
+ADD . /opt/QuickAnnotator
 CMD ["python3", "QA.py"]
