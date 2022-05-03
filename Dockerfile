@@ -17,12 +17,12 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
          libsqlite3-dev
 
 # selective copy before ADD: don't rebuild pip-packages for any .py source change
-COPY ./requirements.txt /opt/quick_annotator/requirements.txt
+COPY ./requirements.txt /opt/QuickAnnotator/requirements.txt
 
-WORKDIR /opt/quick_annotator
+WORKDIR /opt/QuickAnnotator
 
 RUN pip3 install -r requirements.txt
 
-ADD . /opt/quick_annotator
+ADD . /opt/QuickAnnotator
 
 CMD ["python3", "QA.py"]

@@ -17,10 +17,10 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
          sqlite3 \
          libsqlite3-dev
 
-COPY ./cuda_11/requirements.txt /opt/quick_annotator/requirements.txt
-WORKDIR /opt/quick_annotator
+COPY ./cuda_11/requirements.txt /opt/QuickAnnotator/requirements.txt
+WORKDIR /opt/QuickAnnotator
 RUN pip3 install -r requirements.txt
-COPY . /opt/quick_annotator
+COPY . /opt/QuickAnnotator
 
-ADD . /opt/quick_annotator
+ADD . /opt/QuickAnnotator
 CMD ["python3", "QA.py"]
