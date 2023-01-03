@@ -163,9 +163,10 @@ try:
     os.makedirs(newmodeldir, exist_ok=True)
 
     # ---- get model setup
-    checkpoint = torch.load(args.model)
-
+    # retrieve device from config.ini file
     device = get_torch_device(args.gpuid)
+    # map baseline model to desired device
+    checkpoint = torch.load(args.model, map_location = device)
 
     # +
     model = UNet(n_classes=checkpoint["n_classes"], in_channels=checkpoint["in_channels"],
