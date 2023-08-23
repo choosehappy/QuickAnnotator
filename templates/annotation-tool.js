@@ -528,6 +528,7 @@ function prepareToolMouseListeners(which_canvas){
 
         window.addEventListener('mousemove', function(event) {
             if (event.button != 0) return; // Make sure it is left clicked
+
             if (annotatorEnabled && mousePressed && mode == 'freehand') {
                 x = event.clientX - cropped_canvas_left_offset;
                 y = event.clientY - cropped_canvas_top_offset;
@@ -548,6 +549,32 @@ function prepareToolMouseListeners(which_canvas){
                 }
             }
         });
+        
+        window.addEventListener('touchmove', function(event) {
+            event.preventDefault();
+            if (event.touches.length != 1) return; // Make sure there is one touch.
+
+            if (annotatorEnabled && touchPressed && mode == 'freehand') {
+                const touch = event.touches[0];
+                x = touch.clientX - cropped_canvas_left_offset;
+                y = touch.clientY - cropped_canvas_top_offset;
+                annotateData.push({"x": x, "y": y});
+                fillRegion(alsoStroke=true);
+                if (outside_annotation_canvas) {
+                    const x1 = x;
+                    const y1 = y;
+                    const x2 = annotateData[0].x;
+                    const y2 = annotateData[0].y;
+                    const intersection = getIntersectionWithAnnotator(x1, y1, x2, y2);
+                    const drawing_radius = 10;
+                    const context = ctx_cropped_mask;
+                    context.beginPath();
+                    context.arc(intersection.x, intersection.y, drawing_radius, 0, 2 * Math.PI);
+                    context.strokeStyle = 'white';
+                    context.stroke();
+                }
+            }
+        }, {passive: false});
 
         window.addEventListener('mouseup', function(event) {
             if (!annotatorEnabled) return;
@@ -569,12 +596,34 @@ function prepareToolMouseListeners(which_canvas){
 //                addNotification('Annotation history updated.');
             }
         });
+
+        window.addEventListener('touchend', function(event) {
+            if (!annotatorEnabled) return;
+            // if (event.touches.length != 1) console.log("not touching"); // Make sure it is left clicked
+            bgImageEnabler = true;
+            if (touchPressed) {
+                touchPressed = false;
+                if (mode == "freehand") {
+                    fillRegion(alsoStroke=false);
+                }
+                else if (mode == "flood") {
+                    floodFill();
+                }
+                resetCroppedMaskAlpha();
+                annotateData = [];
+                lastX = 0;
+                lastY = 0;
+                saveAnnotationHistory();
+    //                addNotification('Annotation history updated.');
+            }
+        });
     }
 
     which_canvas.addEventListener('mousedown', function(event) {
         if (!canAnnotate()) return;
 
         if (event.button == 2) { // right button
+            
             // we dont want to painting superpixels when moving mouse whe right clicking#}
             mousePressed = false;
 
@@ -619,8 +668,34 @@ function prepareToolMouseListeners(which_canvas){
         }
     });
 
+    which_canvas.addEventListener('touchstart', function(event) {
+        if (!canAnnotate()) return;
+
+        if (event.touches.length != 1) return; // Make sure there is one touch.
+        const touch = event.touches[0];
+
+        // annotatorEnabled = true;
+        bgImageEnabler = false;
+
+        pre_freehand_data = ctx_cropped_mask.getImageData(0, 0, annotatorSize, annotatorSize);
+
+        cropped_canvas_left_offset = document.getElementById("annotator").offsetLeft + document.getElementById("cropped_canvas").offsetLeft;
+        cropped_canvas_top_offset = document.getElementById("annotator").offsetTop + document.getElementById("cropped_canvas").offsetTop;
+        touchPressed = true;
+        alreadyMakingAnnotation = true;
+        x = touch.clientX - cropped_canvas_left_offset;
+        y = touch.clientY - cropped_canvas_top_offset;
+        if (mode == 'superpixel') {
+            paintSuperpixel(x, y);
+        } else {
+            annotateData.push({'x': x, 'y': y});
+            if (mode == 'eraser') eraseSpot(x, y);
+        }
+    });
+
     which_canvas.addEventListener('mousemove', function(event) {
         if (event.button != 0) return; // Make sure it is left clicked
+
         if (annotatorEnabled && mousePressed) {
             const x = event.clientX - cropped_canvas_left_offset;
             const y = event.clientY - cropped_canvas_top_offset;
@@ -634,7 +709,27 @@ function prepareToolMouseListeners(which_canvas){
         }
     });
 
+    which_canvas.addEventListener('touchmove', function(event) {
+        if (event.touches.length != 1) return; // Make sure there is one touch.
+        const touch = event.touches[0];
+        if (annotatorEnabled && touchPressed) {
+            const x = touch.clientX - cropped_canvas_left_offset;
+            const y = touch.clientY - cropped_canvas_top_offset;
+            if (mode == 'superpixel') {
+                paintSuperpixel(x, y);
+            }
+            else if (mode == 'eraser') {
+                annotateData.push({'x': x, 'y': y});
+                eraseSpot(x, y);
+            }
+        }
+    });
+
     which_canvas.addEventListener('mouseup', function(){
+        annotatorEnabled = true;
+    });
+
+    which_canvas.addEventListener('touchend', function(){
         annotatorEnabled = true;
     });
     which_canvas.addEventListener('mouseout', function() {
@@ -839,6 +934,7 @@ function paintSuperpixel(curX, curY){
     // first check if the superpixels are ready
     if (!superpixels_loaded) {
         mousePressed = false;
+        touchPressed = false;
         annotatorEnabled = true;
         addNotification('Superpixels Warning: Superpixels are not ready yet.');
         return;
