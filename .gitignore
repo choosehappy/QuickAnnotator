@@ -1,0 +1,13 @@
+# Ignore specific files
+QA.log
+data.db
+data.db-shm
+data.db-wal
+flask.log
+jobs.log
+
+# Ignore a directory and its contents
+projects/
+
+# Ignore Python bytecode cache directories
+__pycache__/
