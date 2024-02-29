@@ -1,8 +1,8 @@
-FROM ubuntu:20.04
+FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu20.04
+CMD nvidia-smi
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" --no-install-recommends \
          build-essential \
-         libtinfo5 \
          cmake \
          ca-certificates \
          libglib2.0-0 \
@@ -17,13 +17,10 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
          sqlite3 \
          libsqlite3-dev
 
-# selective copy before ADD: don't rebuild pip-packages for any .py source change
-COPY ./requirements_cpuonly.txt /opt/QuickAnnotator/requirements_cpuonly.txt
-
+COPY ./cuda_12/requirements.txt /opt/QuickAnnotator/requirements.txt
 WORKDIR /opt/QuickAnnotator
-
-RUN pip3 install -r requirements_cpuonly.txt
+RUN pip3 install -r requirements.txt
+COPY . /opt/QuickAnnotator
 
 ADD . /opt/QuickAnnotator
-
 CMD ["python3", "QA.py"]
