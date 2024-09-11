@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools >= 64", "setuptools_scm >= 8"]
+build-backend = "setuptools.build_meta"
+
+# ----------------------------------------------------------------------------------
+[project]
+name = "quickannotator"
+license = {file = "LICENSE.txt"}
+authors = [{name = "Andrew Janowczyk"}]
+maintainers = [{name = "Jackson Jacobs"}, {name = "Nan Li"}]
+description = "Quick Annotator is an open-source digital pathology annotation tool."
+readme = {file = "README.md", content-type = "text/markdown"}
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Scientific/Engineering :: Digital Pathology",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Utilities",
+    "Operating System :: Unix"
+]
+
+requires-python = ">=3.8"
+dependencies = []
+dynamic = ["version"]
+
+# ----------------------------------------------------------------------------------
+[project.urls]
+Homepage = "https://github.com/choosehappy/QuickAnnotator"
+
+# ----------------------------------------------------------------------------------
+[project.scripts]
+run_module = "quickannotator.__main__:main"
+
+# ----------------------------------------------------------------------------------
+[tool.setuptools_scm]
+version_file = "quickannotator/_version.py"
+
+# ----------------------------------------------------------------------------------
+[tool.pytest.ini_options]
+addopts = "-v"
+
+# ----------------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["quickannotator"]
+
+# ----------------------------------------------------------------------------------
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "raise NotImplementedError",
+  "if TYPE_CHECKING:",
+  "if MYPY:",
+  "except ImportError:",
+]
