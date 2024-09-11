@@ -7,3 +7,5 @@ projects/
 *.db*
 launch.json
 data/
+_version.py
+build/
