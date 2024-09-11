@@ -1,6 +1,7 @@
 sample_data/
 venv/
 projects/
+__pycache__/
 
 *.log
 *.pyc
@@ -8,4 +9,3 @@ projects/
 launch.json
 data/
 _version.py
-build/
