@@ -9,3 +9,6 @@ __pycache__/
 launch.json
 data/
 _version.py
+
+build/
+*.egg-info/
