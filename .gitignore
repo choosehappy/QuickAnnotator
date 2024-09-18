@@ -2,6 +2,7 @@ sample_data/
 venv/
 projects/
 __pycache__/
+.idea/
 
 *.log
 *.pyc
