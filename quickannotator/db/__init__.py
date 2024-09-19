@@ -1,8 +1,10 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Text, Column, Integer, DateTime, ForeignKey, JSON, Boolean
 from geoalchemy2 import Geometry
+from flask_caching import Cache
 
 db = SQLAlchemy()
+SearchCache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
 
 
 class Project(db.Model):
@@ -35,11 +37,6 @@ class Image(db.Model):
     date = Column(DateTime, server_default=db.func.now())
     n_objects = Column(JSON)
 
-    # relationships
-    ground_truth_annotations = db.relationship('GroundTruthAnnotation', backref='image', lazy=True)
-    predicted_annotations = db.relationship('PredictedAnnotation', backref='image', lazy=True)
-    tiles = db.relationship('Tile', backref='image', lazy=True)
-
 
 class AnnotationClass(db.Model):
     # primary & foreign keys
@@ -56,7 +53,6 @@ class AnnotationClass(db.Model):
 class GroundTruthAnnotation(db.Model):
     # primary & foreign keys
     id = Column(Integer, primary_key=True)
-    image_id = Column(Integer, ForeignKey('image.id'), nullable=False)
     annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=False)
 
     # columns
@@ -64,12 +60,12 @@ class GroundTruthAnnotation(db.Model):
     centroid_y = Column(Integer)
     area = Column(Integer)
     polygon = Column(Geometry('MULTIPOLYGON'))
+    custom_metrics = Column(JSON)
 
 
 class PredictedAnnotation(db.Model):
     # primary & foreign keys
     id = Column(Integer, primary_key=True)
-    image_id = Column(Integer, ForeignKey('image.id'), nullable=False)
     annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=False)
 
     # columns
@@ -77,12 +73,12 @@ class PredictedAnnotation(db.Model):
     centroid_y = Column(Integer)
     area = Column(Integer)
     polygon = Column(Geometry('MULTIPOLYGON'))
+    custom_metrics = Column(JSON)
 
 
 class Tile(db.Model):
     # primary & foreign keys
     id = Column(Integer, primary_key=True)
-    image_id = Column(Integer, ForeignKey(''))
     annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=False)
 
     # columns
@@ -91,7 +87,7 @@ class Tile(db.Model):
     seen = Column(Integer, nullable=False, default=0)
 
 
-class Notifications(db.Model):
+class Notification(db.Model):
     # primary & foreign keys
     id = Column(Integer, primary_key=True)
 

@@ -2,7 +2,7 @@ from flask import Blueprint
 from flask_restx import Api
 
 from quickannotator.api.v1.annotation import api_ns_annotation
-from quickannotator.api.v1.object_class import api_ns_class
+from quickannotator.api.v1.object_class import api_ns_object_class
 from quickannotator.api.v1.image import api_ns_image
 from quickannotator.api.v1.settings import api_ns_settings
 from quickannotator.api.v1.ray import api_ns_ray
