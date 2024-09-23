@@ -29,9 +29,23 @@ image_model = api_ns_image.model('Image', {
 class Image(Resource):
     @api_ns_image.doc(params={'project_id': 'Which project?', 'image_id': 'Which image?'})
     @api_ns_image.marshal_with(image_model)
-    def get(self, project_id, image_id):
+    def get(self, project_id):
         """     returns an Image/ImageList     """
+        id = request.args.get('image_id')
+        if id:
+            data = {
+                'id': "",
+                'name': "",
+                'path': "",
+                'height': "",
+                'width': "",
+                'date': ""
+
+
+            }
         return 201
+
+#################################################################################
 
 
 #################################################################################

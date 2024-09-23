@@ -47,7 +47,7 @@ class AnnotationClass(db.Model):
     name = Column(Text, nullable=False, unique=True)
     color = Column(Text, nullable=False)
     magnification = Column(Integer, nullable=False)
-    dl_model_path = Column(Text)
+    dl_model_objectref = Column(Text)
 
 
 class GroundTruthAnnotation(db.Model):

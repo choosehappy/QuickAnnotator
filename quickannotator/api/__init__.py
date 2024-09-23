@@ -20,7 +20,7 @@ api = Api(
 )
 
 api.add_namespace(api_ns_annotation)
-api.add_namespace(api_ns_class)
+api.add_namespace(api_ns_object_class)
 api.add_namespace(api_ns_image)
 api.add_namespace(api_ns_settings)
 api.add_namespace(api_ns_ray)
