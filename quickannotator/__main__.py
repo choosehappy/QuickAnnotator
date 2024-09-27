@@ -30,7 +30,7 @@ if __name__ == '__main__':
     app = Flask(__name__)
     app.register_blueprint(api_blueprint)
     app.config['RESTX_MASK_SWAGGER'] = False
-    app.config['SWAGGER_UI_DOC_EXPANSION'] = 'list'
+    # app.config['SWAGGER_UI_DOC_EXPANSION'] = 'list'
     app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
     app.config['CACHE_TYPE'] = "SimpleCache"
     SearchCache.init_app(app)
