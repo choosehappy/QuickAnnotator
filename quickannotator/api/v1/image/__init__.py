@@ -23,6 +23,7 @@ image_model = api_ns_image.model('Image', {
 
 ## GET Image parser
 get_image_parser = api_ns_image.parser()
+get_image_parser.add_argument('project_id', location='args', type=int, required=False)
 get_image_parser.add_argument('image_id', location='args', type=int, required=False)
 
 ## POST Image parser
@@ -40,7 +41,7 @@ post_file_parser = api_ns_image.parser()
 post_file_parser.add_argument('file', location='files',type=FileStorage, required=True)
 
 # ------------------------ ROUTES ------------------------
-@api_ns_image.route('/<int:project_id>')
+@api_ns_image.route('/')
 class Image(Resource):
     @api_ns_image.expect(get_image_parser)
     @api_ns_image.marshal_with(image_model)
@@ -85,7 +86,7 @@ class Image(Resource):
 
 
 #################################################################################
-@api_ns_image.route('/<int:project_id>/<int:image_id>/image_file', endpoint="image")
+@api_ns_image.route('/<int:image_id>/image_file', endpoint="image")
 class ImageFile(Resource):
     def get(self, project_id, image_id):
         """     returns an Image file   """
@@ -95,7 +96,7 @@ class ImageFile(Resource):
 
 #################################################################################
 
-@api_ns_image.route('/<int:project_id>/<int:image_id>/thumbnail', endpoint="thumbnail_file")
+@api_ns_image.route('/<int:image_id>/thumbnail', endpoint="thumbnail_file")
 class ThumbnailFile(Resource):
     def get(self, project_id, image_id):
         """     returns a thumbnail file   """
@@ -114,7 +115,7 @@ class ThumbnailFile(Resource):
 
 #################################################################################
 
-@api_ns_image.route('/<int:project_id>/<int:image_id>/tissue_mask', endpoint="tissue_mask_file")
+@api_ns_image.route('/<int:image_id>/tissue_mask', endpoint="tissue_mask_file")
 class TissueMaskFile(Resource):
     def get(self, project_id, image_id):
         """     returns a thumbnail file   """
@@ -133,7 +134,7 @@ class TissueMaskFile(Resource):
 
 #################################################################################
 
-@api_ns_image.route('/<int:project_id>/<int:image_id>/patch_file/<int:level>/<int:col>_<int:row>.<int:format>', endpoint="patch")
+@api_ns_image.route('/<int:image_id>/patch_file/<int:level>/<int:col>_<int:row>.<int:format>', endpoint="patch")
 class PatchFile(Resource):
     def get(self, project_id, image_id, level, col, row, format):
         """     returns a patch file   """

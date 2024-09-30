@@ -8,6 +8,7 @@ from quickannotator.api.v1.setting import api_ns_setting
 from quickannotator.api.v1.ray import api_ns_ray
 from quickannotator.api.v1.project import api_ns_project
 from quickannotator.api.v1.tile import api_ns_tile
+from quickannotator.api.v1.notification import api_ns_notification
 
 
 
@@ -28,3 +29,4 @@ api.add_namespace(api_ns_setting)
 api.add_namespace(api_ns_ray)
 api.add_namespace(api_ns_project)
 api.add_namespace(api_ns_tile)
+api.add_namespace(api_ns_notification)

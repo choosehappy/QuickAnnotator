@@ -1,34 +1,31 @@
 from flask_restx import Namespace, Resource
-from sqlalchemy.sql.coercions import expect
 
 api_ns_annotation = Namespace('annotation', description='Annotation related operations')
 
 # ------------------------ MODELS ------------------------
 
 # ------------------------ REQUEST PARSERS ------------------------
+base_parser = api_ns_annotation.parser()
+base_parser.add_argument('project_id', location='args', type=int)
+base_parser.add_argument('image_id', location='args', type=int)
+base_parser.add_argument('gt_or_pred', location='args', type=str, choices=['gt', 'pred'])
+base_parser.add_argument('annotation_class_id', location='args', type=int)
+
+
 ## GET Annotation parser
-get_annotation_parser = api_ns_annotation.parser()
-get_annotation_parser.add_argument('project_id', location='args', type=int, required=True)
-get_annotation_parser.add_argument('image_id', location='args', type=int, required=True)
-get_annotation_parser.add_argument('annotation_class_id', location='args', type=int, required=True)
-get_annotation_parser.add_argument('gt_or_pred', location='args', type=str, required=True, choices=['gt', 'pred'])
+get_annotation_parser = base_parser.copy()
 get_annotation_parser.add_argument('annotation_id', location='args', type=int, required=False)
-get_annotation_parser.add_argument('upper_left_coord', location='args', type=bytes, required=False)
+
+## GET Annotation search parser
+get_annotation_search_parser = base_parser.copy()
+get_annotation_search_parser.add_argument('bbox_polygon', location='args', type=bytes, required=False)
 
 ## POST Annotation parser
-post_annotation_parser = api_ns_annotation.parser()
-post_annotation_parser.add_argument('project_id', location='args', type=int, required=True)
-post_annotation_parser.add_argument('image_id', location='args', type=int, required=True)
-post_annotation_parser.add_argument('annotation_class_id', location='args', type=int, required=True)
-post_annotation_parser.add_argument('gt_or_pred', location='args', type=str, required=True, choices=['gt', 'pred'])
+post_annotation_parser = base_parser.copy()
 post_annotation_parser.add_argument('polygon', location='args', type=bytes, required=True)
 
 ## PUT Annotation parser
-put_annotation_parser = api_ns_annotation.parser()
-put_annotation_parser.add_argument('project_id', location='args', type=int, required=True)
-put_annotation_parser.add_argument('image_id', location='args', type=int, required=True)
-put_annotation_parser.add_argument('annotation_class_id', location='args', type=int, required=True)
-put_annotation_parser.add_argument('gt_or_pred', location='args', type=str, required=True, choices=['gt', 'pred'])
+put_annotation_parser = base_parser.copy()
 put_annotation_parser.add_argument('annotation_id', location='args', type=int, required=False)
 put_annotation_parser.add_argument('centroid', location='args', type=bytes, required=False)
 put_annotation_parser.add_argument('area', location='args', type=str, required=False)
@@ -36,11 +33,17 @@ put_annotation_parser.add_argument('polygon', location='args', type=bytes, requi
 put_annotation_parser.add_argument('custom_metrics', location='args', type=dict, required=False)
 
 ## DELETE Annotation parser
-delete_annotation_parser = api_ns_annotation.parser()
+delete_annotation_parser = base_parser.copy()
 delete_annotation_parser.add_argument('annotation_id', location='args', type=int, required=True)
+
+## POST Annotation Dry Run parser
+post_dryrun_parser = post_annotation_parser.copy()
+post_dryrun_parser.remove_argument('image_id')
+
+
 # ------------------------ ROUTES ------------------------
 
-@api_ns_annotation.route('/')
+@api_ns_annotation.route('/<int:project_id>/<int:image_id>/<string:gt_or_pred>/<int:annotation_class_id>')
 class Annotation(Resource):
     @api_ns_annotation.expect(get_annotation_parser)
     def get(self):
@@ -75,3 +78,23 @@ class Annotation(Resource):
         """
 
         return 204
+
+@api_ns_annotation.route('/search')
+class AnnotationSearch(Resource):
+    @api_ns_annotation.expect(get_annotation_search_parser)
+    def get(self):
+        """     search for annotations
+
+        """
+
+        return 200
+
+@api_ns_annotation.route('/dryrun')
+class AnnotationDryRun(Resource):
+    @api_ns_annotation.expect(post_dryrun_parser)
+    def post(self):
+        """     perform a dry run for the given annotation
+
+        """
+
+        return 200
