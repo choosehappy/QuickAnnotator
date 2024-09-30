@@ -45,7 +45,7 @@ post_file_parser.add_argument('file', location='files',type=FileStorage, require
 class Image(Resource):
     @api_ns_image.expect(get_image_parser)
     @api_ns_image.marshal_with(image_model)
-    def get(self, project_id):
+    def get(self):
         """     returns an Image or list of Images
         Swagger docstrings support Markdown formatting:
         # Implementation details:
@@ -73,14 +73,14 @@ class Image(Resource):
             return data, 200
 
     @api_ns_image.expect(post_image_parser, validate=True)
-    def post(self, project_id):
+    def post(self):
         """     upload an Image   """
 
 
         return 200
 
     @api_ns_image.expect(delete_image_parser, validate=True)
-    def delete(self, project_id):
+    def delete(self):
         """     delete an Image   """
         return 204
 
@@ -88,7 +88,7 @@ class Image(Resource):
 #################################################################################
 @api_ns_image.route('/<int:image_id>/image_file', endpoint="image")
 class ImageFile(Resource):
-    def get(self, project_id, image_id):
+    def get(self, image_id):
         """     returns an Image file   """
 
         return 200
@@ -98,18 +98,18 @@ class ImageFile(Resource):
 
 @api_ns_image.route('/<int:image_id>/thumbnail', endpoint="thumbnail_file")
 class ThumbnailFile(Resource):
-    def get(self, project_id, image_id):
+    def get(self, image_id):
         """     returns a thumbnail file   """
         return 200
 
 
     @api_ns_image.expect(post_file_parser, validate=True)
-    def put(self, project_id, image_id):
+    def put(self, image_id):
         """    upload a Thumbnail file   """
         return 201
 
 
-    def delete(self, project_id):
+    def delete(self):
         """    delete a Thumbnail file   """
         return 204
 
@@ -117,17 +117,17 @@ class ThumbnailFile(Resource):
 
 @api_ns_image.route('/<int:image_id>/tissue_mask', endpoint="tissue_mask_file")
 class TissueMaskFile(Resource):
-    def get(self, project_id, image_id):
+    def get(self, image_id):
         """     returns a thumbnail file   """
         return 200
 
 
     @api_ns_image.expect(post_file_parser, validate=True)
-    def put(self, project_id, image_id):
+    def put(self, image_id):
         """    upload a Thumbnail file   """
         return 201
 
-    def delete(self, project_id, image_id):
+    def delete(self, image_id):
         """    delete a Thumbnail file   """
         return 204
 
@@ -136,6 +136,6 @@ class TissueMaskFile(Resource):
 
 @api_ns_image.route('/<int:image_id>/patch_file/<int:level>/<int:col>_<int:row>.<int:format>', endpoint="patch")
 class PatchFile(Resource):
-    def get(self, project_id, image_id, level, col, row, format):
+    def get(self, image_id, level, col, row, format):
         """     returns a patch file   """
         return 200
