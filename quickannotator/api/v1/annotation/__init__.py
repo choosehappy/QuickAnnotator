@@ -8,7 +8,7 @@ api_ns_annotation = Namespace('annotation', description='Annotation related oper
 base_parser = api_ns_annotation.parser()
 base_parser.add_argument('project_id', location='args', type=int)
 base_parser.add_argument('image_id', location='args', type=int)
-base_parser.add_argument('gt_or_pred', location='args', type=str, choices=['gt', 'pred'])
+base_parser.add_argument('is_gt', location='args', type=bool)
 base_parser.add_argument('annotation_class_id', location='args', type=int)
 
 

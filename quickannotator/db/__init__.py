@@ -8,6 +8,9 @@ SearchCache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
 
 
 class Project(db.Model):
+    """
+    The projects table will store all the projects created by the user.
+    """
     # primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
 
@@ -36,7 +39,8 @@ class Image(db.Model):
     height = Column(Integer)
     width = Column(Integer)
     embedding_coord = Geometry('POINT')
-
+    group_id = Column(Integer)
+    split = Column(Integer)
     date = Column(DateTime, server_default=db.func.now())
 
     # relationships
@@ -58,6 +62,7 @@ class AnnotationClass(db.Model):
     patchsize = Column(Integer, nullable=False)
     patches_per_tile = Column(Integer, nullable=False)
     dl_model_objectref = Column(Text)
+    date = Column(DateTime, server_default=db.func.now())
 
     # relationships
     db.relationship("Tile", backref='annotation_class', lazy=True)
@@ -68,7 +73,6 @@ class Tile(db.Model):
     id = Column(Integer, primary_key=True)
 
     # foreign keys
-    project_id = Column(Integer, ForeignKey('project.id'), nullable=False)
     image_id = Column(Integer, ForeignKey('image.id'), nullable=False)
     annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=False)
 
@@ -77,16 +81,12 @@ class Tile(db.Model):
     upper_left_coord = Geometry('POINT')
     seen = Column(Integer, nullable=False, default=0)
 
-    # relationships
-    annotations = db.relationship("Annotation", backref='tile', lazy=True)
-
 
 class Annotation(db.Model):
+    """Each table will follow this naming convention: {image_id}_{annotation_class_id}_{gt/pred}"""
+
     # primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
-
-    # foreign keys
-    tile_id = Column(Integer, ForeignKey('tile.id'), nullable=False)
 
     # columns
     centroid = Geometry('POINT')
@@ -101,31 +101,31 @@ class Notification(db.Model):
     id = Column(Integer, primary_key=True)
 
     # foreign keys
-    image_id = Column(Integer, ForeignKey('image.id'), nullable=False)
-    project_id = Column(Integer, ForeignKey('project.id'), nullable=False)
+    project_id = Column(Integer, ForeignKey('project.id'), nullable=True)
+    image_id = Column(Integer, ForeignKey('image.id'), nullable=True)
 
     # columns
     message_type = Column(Integer, nullable=False)
     is_read = Column(Boolean, nullable=False)
-    date = Column(DateTime, server_default=db.func.now())
     message = Column(Text, nullable=False)
+    date = Column(DateTime, server_default=db.func.now())
 
 class Setting(db.Model):
+    """
+    The settings table will store all project-level and application-level settings.
+    """
+
     # primary key
     id = Column(Integer, primary_key=True)
 
     # foreign keys
-    project_id = Column(Integer, ForeignKey('project.id'), nullable=False)
+    project_id = Column(Integer, ForeignKey('project.id'), nullable=True)
 
     # columns
     name = Column(Text, nullable=False)
     value = Column(Text)
     description = Column(Text)
     default_value = Column(Text)
-
-
-
-
 
 
 
