@@ -2,7 +2,7 @@ from flask_restx import Namespace, Resource, fields
 
 api_ns_setting = Namespace('setting', description='Settings related operations')
 
-# ------------------------ MODELS ------------------------
+# ------------------------ RESPONSE MODELS ------------------------
 
 setting_model = api_ns_setting.model('Setting', {
     "id": fields.Integer(),

@@ -4,7 +4,7 @@ from sqlalchemy.sql.coercions import expect
 
 api_ns_annotation_class = Namespace('annotation_class', description='Object class related operations')
 
-# ------------------------ MODELS ------------------------
+# ------------------------ RESPONSE MODELS ------------------------
 annotation_class_model = api_ns_annotation_class.model("AnnotationClass", {
     'id': fields.Integer(),
     'name': fields.String(),

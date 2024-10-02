@@ -2,7 +2,7 @@ from flask_restx import Namespace, Resource
 
 api_ns_notification = Namespace('notification', description='Notification related operations')
 
-# ------------------------ MODELS ------------------------
+# ------------------------ RESPONSE MODELS ------------------------
 
 # ------------------------ REQUEST PARSERS ------------------------
 get_notification_parser = api_ns_notification.parser()

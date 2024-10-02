@@ -2,7 +2,7 @@ from flask_restx import Namespace, Resource, fields
 
 api_ns_annotation = Namespace('annotation', description='Annotation related operations')
 
-# ------------------------ MODELS ------------------------
+# ------------------------ RESPONSE MODELS ------------------------
 annotation_model = api_ns_annotation.model('Annotation', {
     'id': fields.Integer(description='Annotation ID'),
     'centroid': fields.String(description="the annotation centroid in WKB"),
@@ -22,7 +22,7 @@ get_annotation_parser.add_argument('annotation_id', location='args', type=int, r
 
 ## GET Annotation search parser
 get_annotation_search_parser = base_parser.copy()
-get_annotation_search_parser.add_argument('bbox_polygon', location='args', type=bytes, required=False)
+get_annotation_search_parser.add_argument('bbox_polygon', location='args', type=bytes, required=True)
 
 ## POST Annotation parser
 post_annotation_parser = base_parser.copy()
@@ -66,7 +66,7 @@ class Annotation(Resource):
     @api_ns_annotation.expect(put_annotation_parser)
     @api_ns_annotation.response(201, "Annotation  created/updated")
     def put(self):
-        """     create or update an annotation directly in the database
+        """     create or update an annotation directly in the db
 
         """
 

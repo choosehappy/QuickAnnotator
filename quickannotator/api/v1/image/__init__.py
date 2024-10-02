@@ -7,7 +7,7 @@ from datetime import datetime
 config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
 api_ns_image = Namespace('image', description='Image related operations')
 
-# ------------------------ MODELS ------------------------
+# ------------------------ RESPONSE MODELS ------------------------
 
 
 image_model = api_ns_image.model('Image', {

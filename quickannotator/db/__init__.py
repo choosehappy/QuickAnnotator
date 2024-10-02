@@ -1,10 +1,11 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Text, Column, Integer, DateTime, ForeignKey, JSON, Boolean, Float
-from geoalchemy2 import Geometry
+from sqlalchemy import Text, Column, Integer, DateTime, ForeignKey, JSON, Boolean, Float, event
+from geoalchemy2 import Geometry, load_spatialite
 from flask_caching import Cache
 
 db = SQLAlchemy()
 SearchCache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
+
 
 
 class Project(db.Model):
@@ -16,13 +17,15 @@ class Project(db.Model):
 
     # columns
     name = Column(Text, nullable=False, unique=True)
+
     description = Column(Text, default="")
+    is_dataset_large = Column(Boolean, default=False)
     date = Column(DateTime, server_default=db.func.now())
 
     # relationships
     images = db.relationship('Image', backref='project', lazy=True)
     annotation_classes = db.relationship('AnnotationClass', backref='project', lazy=True)
-    settings = db.relationship("Settings", backref='project', lazy=True)
+    settings = db.relationship("Setting", backref='project', lazy=True)
     notifications = db.relationship("Notification", backref='project', lazy=True)
 
 

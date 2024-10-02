@@ -3,8 +3,11 @@ from quickannotator.api import api_blueprint
 import argparse
 from waitress import serve
 from quickannotator.config import config
-from quickannotator.db import db, Project, Image, AnnotationClass, Notification, SearchCache
+from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation, SearchCache
 from quickannotator.config import get_database_uri
+from geoalchemy2 import load_spatialite
+from sqlalchemy import event
+import os
 
 
 def serve_quickannotator(app):
@@ -26,21 +29,20 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--port', type=int, default=config.getint('flask', 'port', fallback=5000))
     parser.add_argument('--factory_reset', action='store_true', default=False,
         help="Restore QuickAnnotator to its factory state. WARNING: all projects and respective data will be deleted.")
-
     app = Flask(__name__)
     app.register_blueprint(api_blueprint)
     app.config['RESTX_MASK_SWAGGER'] = False
     # app.config['SWAGGER_UI_DOC_EXPANSION'] = 'list'
     app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
     app.config['CACHE_TYPE'] = "SimpleCache"
+    os.environ['SPATIALITE_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu/mod_spatialite.so'   # TODO: set with a function
     SearchCache.init_app(app)
 
-    models = [
-        Project, Image, AnnotationClass, Notification
-    ]
+    models = [Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation]
     db.app = app
     db.init_app(app)
     with app.app_context():
+        event.listen(db.engine, 'connect', load_spatialite)
         db.metadata.create_all(bind=db.engine, tables=[item.__table__ for item in models])
     # serve_quickannotator(app)
     serve_quickannotator_dev(app)
