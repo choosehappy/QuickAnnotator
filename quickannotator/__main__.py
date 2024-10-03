@@ -1,5 +1,5 @@
 from flask import Flask
-from quickannotator.api import api_blueprint
+from flask_smorest import Api, Blueprint
 import argparse
 from waitress import serve
 from quickannotator.config import config
@@ -8,6 +8,7 @@ from quickannotator.config import get_database_uri
 from geoalchemy2 import load_spatialite
 from sqlalchemy import event
 import os
+from quickannotator.api.v1 import annotation, project, image, annotation_class, notification, tile, setting
 
 
 def serve_quickannotator(app):
@@ -29,20 +30,33 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--port', type=int, default=config.getint('flask', 'port', fallback=5000))
     parser.add_argument('--factory_reset', action='store_true', default=False,
         help="Restore QuickAnnotator to its factory state. WARNING: all projects and respective data will be deleted.")
-    app = Flask(__name__)
-    app.register_blueprint(api_blueprint)
-    app.config['RESTX_MASK_SWAGGER'] = False
-    # app.config['SWAGGER_UI_DOC_EXPANSION'] = 'list'
-    app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
-    app.config['CACHE_TYPE'] = "SimpleCache"
-    os.environ['SPATIALITE_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu/mod_spatialite.so'   # TODO: set with a function
-    SearchCache.init_app(app)
+    args = parser.parse_args()
+    os.environ['SPATIALITE_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu/mod_spatialite.so'  # TODO: set with a function
 
+    #
+
+    # ------------------------ APP SETUP ------------------------
+    app = Flask(__name__)
+    SearchCache.init_app(app)
+    app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
+
+    # ------------------------ DB SETUP ------------------------
     models = [Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation]
     db.app = app
     db.init_app(app)
     with app.app_context():
         event.listen(db.engine, 'connect', load_spatialite)
         db.metadata.create_all(bind=db.engine, tables=[item.__table__ for item in models])
+
+    # ------------------------ API SETUP ------------------------
+    app.config["V1_API_TITLE"] = "QuickAnnotator_API"
+    app.config["V1_API_VERSION"] = "v1"
+    app.config["V1_OPENAPI_VERSION"] = "3.0.2"
+    app.config["V1_OPENAPI_URL_PREFIX"] = "/api/v1"
+    app.config["V1_OPENAPI_SWAGGER_UI_PATH"] = ""
+    app.config["V1_OPENAPI_SWAGGER_UI_URL"] = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.24.2/"
+    api = Api(app, config_prefix="V1_", )
+    api.register_blueprint(annotation.bp, url_prefix=app.config["V1_OPENAPI_URL_PREFIX"] + "/annotation")
+
     # serve_quickannotator(app)
     serve_quickannotator_dev(app)

@@ -4,3 +4,6 @@ SQLAlchemy~=2.0.35
 GeoAlchemy2~=0.15.2
 Werkzeug~=3.0.4
 waitress~=3.0.0
+Flask-Caching~=2.3.0
+quickannotator~=0.1.dev95+g62223d0
+marshmallow~=3.22.0

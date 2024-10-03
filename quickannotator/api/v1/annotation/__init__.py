@@ -1,80 +1,86 @@
-from flask_restx import Namespace, Resource, fields
+from flask_smorest import Blueprint
+from marshmallow import fields, Schema
+from flask.views import MethodView
 
-api_ns_annotation = Namespace('annotation', description='Annotation related operations')
+bp = Blueprint('annotation', __name__, description='Annotation operations')
 
-# ------------------------ RESPONSE MODELS ------------------------
-annotation_model = api_ns_annotation.model('Annotation', {
-    'id': fields.Integer(description='Annotation ID'),
-    'centroid': fields.String(description="the annotation centroid in WKB"),
-    'area': fields.Float(description="the annotation area"),
-    'polygon': fields.String(description="the annotation polygon in WKB"),
-    'custom_metrics': fields.Raw(description="the annotation custom metrics"),
-    'date': fields.DateTime(description="the date of last modification")
-})
 
-# ------------------------ REQUEST PARSERS ------------------------
-base_parser = api_ns_annotation.parser()
-base_parser.add_argument('is_gt', location='args', type=bool, required=True)
+# ------------------------ MODELS ------------------------
+class AnnRespSchema(Schema):
+    """     Annotation response schema      """
+    id = fields.Int()
+    centroid = fields.String()
+    area = fields.Float()
+    polygon = fields.String()
+    custom_metrics = fields.Raw()
+    datetime = fields.DateTime()
 
-## GET Annotation parser
-get_annotation_parser = base_parser.copy()
-get_annotation_parser.add_argument('annotation_id', location='args', type=int, required=True)
+class GetAnnArgsSchema(Schema):
+    is_gt = fields.Bool(required=True)
+    annotation_id = fields.Int()
 
-## GET Annotation search parser
-get_annotation_search_parser = base_parser.copy()
-get_annotation_search_parser.add_argument('bbox_polygon', location='args', type=bytes, required=True)
+class GetAnnSearchArgsSchema(Schema):
+    is_gt = fields.Bool(required=True)
+    bbox_polygon = fields.String(required=True)
 
-## POST Annotation parser
-post_annotation_parser = base_parser.copy()
-post_annotation_parser.add_argument('polygon', location='args', type=bytes, required=True)
+class PostAnnArgsSchema(Schema):
+    is_gt = fields.Bool(required=True)
+    polygon = fields.String(required=True)
 
-## PUT Annotation parser
-put_annotation_parser = base_parser.copy()
-put_annotation_parser.add_argument('centroid', location='args', type=bytes, required=False)
-put_annotation_parser.add_argument('area', location='args', type=str, required=False)
-put_annotation_parser.add_argument('polygon', location='args', type=bytes, required=False)
-put_annotation_parser.add_argument('custom_metrics', location='args', type=dict, required=False)
+class PutAnnArgsSchema(Schema):
+    is_gt = fields.Bool(required=True)
+    annotation_id = fields.Int()
+    centroid = fields.String()
+    area = fields.Str()
+    polygon = fields.String()
+    custom_metrics = fields.Dict()
 
-## DELETE Annotation parser
-delete_annotation_parser = get_annotation_parser.copy()
+class DeleteAnnArgsSchema(GetAnnArgsSchema):
+    pass
 
-## POST Annotation Dry Run parser
-post_dryrun_parser = post_annotation_parser.copy()
-post_dryrun_parser.add_argument('script', location='args', type=str, required=True)
-
+class PostDryRunArgsSchema(Schema):
+    is_gt = fields.Bool(required=True)
+    polygon = fields.String(required=True)
+    script = fields.Str(required=True)
 
 # ------------------------ ROUTES ------------------------
 
-@api_ns_annotation.route('/<int:image_id>/<int:annotation_class_id>')
-class Annotation(Resource):
-    @api_ns_annotation.expect(get_annotation_parser)
-    @api_ns_annotation.marshal_with(annotation_model)
-    def get(self):
+@bp.route('/')
+def get():
+    """     returns a list of Annotations
+    """
+
+    return "hello world", 200
+
+# @bp.route('/<int:image_id>/<int:annotation_class_id>')
+@bp.route('/<int:image_id>/<int:annotation_class_id>')
+class Annotation(MethodView):
+    @bp.arguments(GetAnnArgsSchema, location='query')
+    @bp.response(200, AnnRespSchema)
+    def get(self, args):
         """     returns an Annotation
         """
 
         return 200
 
-    @api_ns_annotation.expect(post_annotation_parser)
-    def post(self):
+    @bp.arguments(PostAnnArgsSchema, location='json')
+    def post(self, args):
         """     process a new annotation
 
         """
 
         return 200
 
-    @api_ns_annotation.expect(put_annotation_parser)
-    @api_ns_annotation.response(201, "Annotation  created/updated")
-    def put(self):
+    @bp.arguments(PutAnnArgsSchema, location='json')
+    def put(self, args):
         """     create or update an annotation directly in the db
 
         """
 
         return 201
 
-    @api_ns_annotation.expect(delete_annotation_parser)
-    @api_ns_annotation.response(204, "Annotation  deleted")
-    def delete(self):
+    @bp.arguments(DeleteAnnArgsSchema, location='query')
+    def delete(self, args):
         """     delete an annotation
 
         """
@@ -82,34 +88,35 @@ class Annotation(Resource):
         return {}, 204
 
 #################################################################################
-@api_ns_annotation.route('/<int:image_id>/<int:annotation_class_id>/search')
-class SearchAnnotations(Resource):
-    @api_ns_annotation.expect(get_annotation_search_parser)
-    @api_ns_annotation.marshal_with(annotation_model, as_list=True)
-    def get(self):
-        """     search for annotations
-            # Implementation
-            # Questions
-            1. What is the appropriate response format? A list of Annotations (each includes a geojson polygon), or a pure geojson response?
+@bp.route('/<int:image_id>/<int:annotation_class_id>/search')
+class SearchAnnotations(MethodView):
+    @bp.arguments(GetAnnSearchArgsSchema, location='query')
+    @bp.response(200, AnnRespSchema(many=True))
+    def get(self, args, image_id, annotation_class_id):
+        """Search for annotations
+
+        # Implementation
+        - Will need to determine the return type. Should it be pure geojson?
         """
+
+        return {}, 200
+
+#################################################################################
+@bp.route('/<int:image_id>/<int:annotation_class_id>/predict')
+class PredictAnnotations(MethodView):
+    """     request new DL model predictions
+    """
+    @bp.arguments(PostAnnArgsSchema, location='json')
+    @bp.response(201, AnnRespSchema(many=True))
+    def post(self, args, image_id, annotation_class_id):
 
         return 200
 
 #################################################################################
-@api_ns_annotation.route('/<int:image_id>/<int:annotation_class_id>/predict')
-class PredictAnnotations(Resource):
-    """     request new DL model predictions
-    """
-    @api_ns_annotation.expect(get_annotation_search_parser)
-    @api_ns_annotation.marshal_with(annotation_model, as_list=True)
-    def post(self, image_id, annotation_class_id):
-        return {}, 200
-
-#################################################################################
-@api_ns_annotation.route('/<int:annotation_class>/dryrun')
-class AnnotationDryRun(Resource):
-    @api_ns_annotation.expect(post_dryrun_parser)
-    def post(self):
+@bp.route('/<int:annotation_class_id>/dryrun')
+class AnnotationDryRun(MethodView):
+    @bp.arguments(PostDryRunArgsSchema, location='json')
+    def post(self, args, annotation_class_id):
         """     perform a dry run for the given annotation
 
         """
