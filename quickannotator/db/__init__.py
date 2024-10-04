@@ -56,15 +56,15 @@ class AnnotationClass(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     # foreign keys
-    proj_id = Column(Integer, ForeignKey('project.id'), nullable=False)
+    proj_id = Column(Integer, ForeignKey('project.id'), nullable=True)
 
     # columns
     name = Column(Text, nullable=False, unique=True)
     color = Column(Text, nullable=False)
-    magnification = Column(Integer, nullable=False)
-    patchsize = Column(Integer, nullable=False)
-    tilesize = Column(Integer, nullable=False)
-    dl_model_objectref = Column(Text)
+    magnification = Column(Integer, nullable=True)
+    patchsize = Column(Integer, nullable=True)
+    tilesize = Column(Integer, nullable=True)
+    dl_model_objectref = Column(Text, nullable=True)
     datetime = Column(DateTime, server_default=db.func.now())
 
     # relationships

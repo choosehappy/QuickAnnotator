@@ -41,7 +41,7 @@ if __name__ == '__main__':
     app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
 
     # ------------------------ DB SETUP ------------------------
-    models = [Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation]
+    models = [Project, Image, AnnotationClass, Notification, Tile, Setting]
     db.app = app
     db.init_app(app)
     with app.app_context():
@@ -60,6 +60,7 @@ if __name__ == '__main__':
     api.register_blueprint(annotation.bp, url_prefix=prefix + "/annotation")
     api.register_blueprint(annotation_class.bp, url_prefix=prefix + "/class")
     api.register_blueprint(project.bp, url_prefix=prefix + "/project")
+    api.register_blueprint(image.bp, url_prefix=prefix + "/image")
 
     # serve_quickannotator(app)
     serve_quickannotator_dev(app)

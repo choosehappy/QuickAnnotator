@@ -45,7 +45,7 @@ class AnnotationClass(MethodView):
     def get(self, args):
         """     returns an AnnotationClass      """
 
-        result = db.session.query(qadb.AnnotationClass).filter(id=args['annotation_class_id']).first()
+        result = db.session.query(qadb.AnnotationClass).filter(qadb.AnnotationClass.id == args['annotation_class_id']).first()
         if result is not None:
             return result, 200
         else:
@@ -67,7 +67,7 @@ class AnnotationClass(MethodView):
                                           )
         db.session.add(annotation)
         db.session.commit()
-        return 200
+        return {'annotation_class_id':annotation.id}, 200
 
 
     @bp.arguments(PutAnnClassArgsSchema, location='json')

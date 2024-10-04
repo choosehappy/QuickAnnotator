@@ -50,8 +50,11 @@ class Image(MethodView):
     def get(self, args):
         """     returns an Image
         """
-        result = db.session.query(qadb.Image).filter(id=args['image_id']).first()
-        return result, 200
+        result = db.session.query(qadb.Image).filter(qadb.Image.id == args['image_id']).first()
+        if result is not None:
+            return result, 200
+        else:
+            abort(404, message="Image not found")
 
 
     @bp.arguments(PostImageArgsSchema, location='query')
@@ -80,7 +83,7 @@ class ImageSearch(MethodView):
     def get(self, args, project_id):
         """     returns a list of Images
         """
-        result = db.session.query(qadb.Image).filter(proj_id=project_id).all()
+        result = db.session.query(qadb.Image).filter(qadb.Image.proj_id == project_id).all()
         return result, 200
 
 #################################################################################
@@ -88,7 +91,7 @@ class ImageSearch(MethodView):
 class ImageFile(MethodView):
     def get(self, image_id, file_type):
         """     returns an Image file   """
-        result = db.session.query(qadb.Image).filter(id=image_id).first()
+        result = db.session.query(qadb.Image).filter(qadb.Image.id == image_id).first()
 
         if file_type == 1:  # image file
             return send_from_directory(result['path'], result['name'])
@@ -108,7 +111,7 @@ class ImageFile(MethodView):
     def delete(self, image_id, file_type):
         """     delete an Image file   """
 
-        result = db.session.query(qadb.Image).filter(id=image_id).first()
+        result = db.session.query(qadb.Image).filter(qadb.Image.id == image_id).first()
 
         if file_type == 1:  # image file
             # TODO implement image file deletion
@@ -125,7 +128,7 @@ class PatchFile(MethodView):
     def get(self, image_id, level, col, row, file_format):
         """     returns a patch file   """
 
-        result = db.session.query(qadb.Image).filter(id=image_id).first()
+        result = db.session.query(qadb.Image).filter(qadb.Image.id == image_id).first()
         slide = ops.OpenSlide(result['path'])
         dz = openslide.deepzoom.DeepZoomGenerator(slide)
         tile = dz.get_tile(level, (col, row))

@@ -40,10 +40,9 @@ class SearchProjectArgsSchema(Schema):
 class Project(MethodView):
     @bp.arguments(GetProjectArgsSchema, location='query')
     @bp.response(200, ProjectRespSchema)
-    def get(self):
+    def get(self, args):
         """     returns a Project
         """
-        args = get_project_parser.parse_args()
         project_id = args['project_id']
         project = db.session.query(qadb.Project).filter(qadb.Project.id == project_id).first()
         if project is not None:
