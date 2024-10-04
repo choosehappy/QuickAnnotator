@@ -56,7 +56,10 @@ if __name__ == '__main__':
     app.config["V1_OPENAPI_SWAGGER_UI_PATH"] = ""
     app.config["V1_OPENAPI_SWAGGER_UI_URL"] = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.24.2/"
     api = Api(app, config_prefix="V1_", )
-    api.register_blueprint(annotation.bp, url_prefix=app.config["V1_OPENAPI_URL_PREFIX"] + "/annotation")
+    prefix = app.config["V1_OPENAPI_URL_PREFIX"]
+    api.register_blueprint(annotation.bp, url_prefix=prefix + "/annotation")
+    api.register_blueprint(annotation_class.bp, url_prefix=prefix + "/class")
+    api.register_blueprint(project.bp, url_prefix=prefix + "/project")
 
     # serve_quickannotator(app)
     serve_quickannotator_dev(app)

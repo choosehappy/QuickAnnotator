@@ -9,9 +9,9 @@ bp = Blueprint('annotation', __name__, description='Annotation operations')
 class AnnRespSchema(Schema):
     """     Annotation response schema      """
     id = fields.Int()
-    centroid = fields.String()
+    centroid = fields.Str()
     area = fields.Float()
-    polygon = fields.String()
+    polygon = fields.Str()
     custom_metrics = fields.Raw()
     datetime = fields.DateTime()
 

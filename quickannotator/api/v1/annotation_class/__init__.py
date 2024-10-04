@@ -1,55 +1,107 @@
-from flask_restx import Namespace, Resource, fields
-from flask import current_app, request
-from sqlalchemy.sql.coercions import expect
+from flask_smorest import Blueprint, abort
+from marshmallow import fields, Schema
+from flask.views import MethodView
+import quickannotator.db as qadb
+from quickannotator.db import db
 
-api_ns_annotation_class = Namespace('annotation_class', description='Object class related operations')
+bp = Blueprint('annotation_class', __name__, description='AnnotationClass operations')
 
 # ------------------------ RESPONSE MODELS ------------------------
-annotation_class_model = api_ns_annotation_class.model("AnnotationClass", {
-    'id': fields.Integer(),
-    'name': fields.String(),
-    'color': fields.String(),
-    'magnification': fields.Integer(description='DL model parameter for working magnification.'),
-    'patchsize': fields.Integer(description='DL model parameter for working patchsize.'),
-    'tilesize': fields.Integer(description='DL model parameter for tilesize. Will be a multiple of the patchsize.'),
-    'date': fields.DateTime(description='The date of class creation.')
-})
-# ------------------------ REQUEST PARSERS ------------------------
-get_annotation_class_parser = api_ns_annotation_class.parser()
-get_annotation_class_parser.add_argument('annotation_class_id', location='args', type=int, required=False)
-get_annotation_class_parser.add_argument('project_id', location='args', type=int, required=False)
-get_annotation_class_parser.add_argument('name', location='args', type=str, required=False)
+class AnnClassRespSchema(Schema):
+    """     AnnotationClass response schema      """
+    id = fields.Int()
+    name = fields.Str()
+    color = fields.Str()
+    magnification = fields.Int()
+    patchsize = fields.Int()
+    tilesize = fields.Int()
+    dl_model_objectref = fields.Str()
+    datetime = fields.DateTime()
+
+class GetAnnClassArgsSchema(Schema):
+    annotation_class_id = fields.Int(required=True)
+
+class PostAnnClassArgsSchema(Schema):
+    proj_id = fields.Int(required=True)
+    name = fields.Str(required=True)
+    color = fields.Str(required=True)
+    magnification = fields.Int(required=True)
+
+class PutAnnClassArgsSchema(Schema):
+    name = fields.Str(required=False)
+    color = fields.Str(required=False)
+
+class SearchAnnClassArgsSchema(Schema):
+    name = fields.Str(required=False)
+    project_id = fields.Int(required=False)
+
 
 # ------------------------ ROUTES ------------------------
 
-@api_ns_annotation_class.route('/')
-class AnnotationClass(Resource):
-    @api_ns_annotation_class.expect(get_annotation_class_parser)
-    @api_ns_annotation_class.marshal_with(annotation_class_model)
-    def get(self):
+@bp.route('/')
+class AnnotationClass(MethodView):
+    @bp.arguments(GetAnnClassArgsSchema, location='query')
+    @bp.response(200, AnnClassRespSchema)
+    def get(self, args):
         """     returns an AnnotationClass      """
 
+        # return qadb.AnnotationClass.query.filter_by(id=args['annotation_class_id']), 200
+        result = db.session.query(qadb.AnnotationClass).filter(qadb.AnnotationClass.id == args['annotation_class_id']).first()
+        if result is not None:
+            return result, 200
+        else:
+            abort(404, message="AnnotationClass not found")
 
-        return {}, 200
 
+    @bp.arguments(PostAnnClassArgsSchema, location='query')
+    @bp.response(200, description="AnnotationClass created")
+    def post(self, args):
+        """     create a new AnnotationClass and instantiate a DL model    """
 
-    def post(self):
-        """     create a new ObjectClass and instantiate a DL model    """
+        annotation = qadb.AnnotationClass(proj_id=args['proj_id'],
+                                          name=args['name'],
+                                          color=args['color'],
+                                          magnification=args['magnification'],
+                                          patchsize=256,
+                                          tilesize=2048,
+                                          dl_model_objectref=None
+                                          )
+        db.session.add(annotation)
+        db.session.commit()
         return 200
 
-    @api_ns_annotation_class.response(201, "AnnotationClass  created/updated")
-    def put(self):
+
+    @bp.arguments(PutAnnClassArgsSchema, location='json')
+    @bp.response(201, description="AnnotationClass updated")
+    def put(self, args):
         """     update an existing ObjectClass      """
         return 201
 
-    @api_ns_annotation_class.response(201, "AnnotationClass  deleted")
-    def delete(self):
+    @bp.arguments(GetAnnClassArgsSchema, location='query')
+    @bp.response(204, description="AnnotationClass deleted")
+    def delete(self, args):
         """     delete an ObjectClass      """
-        return 204
+        return db.session.query(qadb.AnnotationClass).filter(qadb.AnnotationClass.id == args['annotation_class_id']).delete(), 204
 
 ####################################################################################################
-@api_ns_annotation_class.route('/<int:annotation_class_id>/model')
-class DLModel(Resource):
+
+@bp.route('/search')
+class SearchAnnotationClass(MethodView):
+    @bp.arguments(SearchAnnClassArgsSchema, location='query')
+    @bp.response(200, AnnClassRespSchema(many=True))
+    def get(self, args):
+        """     search for an AnnotationClass by name or project_id     """
+        if 'name' in args:
+            result = db.session.query(qadb.AnnotationClass).filter(qadb.AnnotationClass.name == args['name']).all()
+        elif 'project_id' in args:
+            result = db.session.query(qadb.AnnotationClass).filter(qadb.AnnotationClass.proj_id == args['project_id']).all()
+        else:
+            result = db.session.query(qadb.AnnotationClass).all()
+        return result, 200
+
+####################################################################################################
+@bp.route('/<int:annotation_class_id>/model')
+class DLModel(MethodView):
     def get(self, annotation_class_id):
         """     get the state of the DL model service     """
         return 200

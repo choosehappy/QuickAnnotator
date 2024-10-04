@@ -20,7 +20,7 @@ class Project(db.Model):
 
     description = Column(Text, default="")
     is_dataset_large = Column(Boolean, default=False)
-    date = Column(DateTime, server_default=db.func.now())
+    datetime = Column(DateTime, server_default=db.func.now())
 
     # relationships
     images = db.relationship('Image', backref='project', lazy=True)
@@ -44,7 +44,7 @@ class Image(db.Model):
     embedding_coord = Geometry('POINT')
     group_id = Column(Integer)
     split = Column(Integer)
-    date = Column(DateTime, server_default=db.func.now())
+    datetime = Column(DateTime, server_default=db.func.now())
 
     # relationships
     notifications = db.relationship("Notification", backref='image', lazy=True)
@@ -63,9 +63,9 @@ class AnnotationClass(db.Model):
     color = Column(Text, nullable=False)
     magnification = Column(Integer, nullable=False)
     patchsize = Column(Integer, nullable=False)
-    patches_per_tile = Column(Integer, nullable=False)
+    tilesize = Column(Integer, nullable=False)
     dl_model_objectref = Column(Text)
-    date = Column(DateTime, server_default=db.func.now())
+    datetime = Column(DateTime, server_default=db.func.now())
 
     # relationships
     db.relationship("Tile", backref='annotation_class', lazy=True)
@@ -96,7 +96,7 @@ class Annotation(db.Model):
     area = Column(Float)
     polygon = Column(Geometry('MULTIPOLYGON'))
     custom_metrics = Column(JSON)
-    date = Column(DateTime, server_default=db.func.now())
+    datetime = Column(DateTime, server_default=db.func.now())
 
 
 class Notification(db.Model):
@@ -111,7 +111,7 @@ class Notification(db.Model):
     message_type = Column(Integer, nullable=False)
     is_read = Column(Boolean, nullable=False)
     message = Column(Text, nullable=False)
-    date = Column(DateTime, server_default=db.func.now())
+    datetime = Column(DateTime, server_default=db.func.now())
 
 class Setting(db.Model):
     """

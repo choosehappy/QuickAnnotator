@@ -1,36 +1,45 @@
-from flask_restx import Namespace, Resource, fields, abort
+from flask_smorest import Blueprint, abort
+from marshmallow import fields, Schema
+from flask.views import MethodView
 from quickannotator.db import db
 import quickannotator.db as qadb
 
-api_ns_project = Namespace('project', description='Project related operations')
+bp = Blueprint('project', __name__, description='Project operations')
+
 
 # ------------------------ RESPONSE MODELS ------------------------
-project_model = api_ns_project.model('Project', {
-    'id': fields.Integer(),
-    'name': fields.String(),
-    'description': fields.String(),
-    'date': fields.DateTime(),
-})
-# ------------------------ REQUEST PARSERS ------------------------
-get_project_parser = api_ns_project.parser()
-get_project_parser.add_argument('project_id', location='args', type=int, required=True)
+class ProjectRespSchema(Schema):
+    """     Project response schema      """
+    id = fields.Int()
+    name = fields.Str()
+    description = fields.Str()
+    date = fields.DateTime()
 
-post_project_parser = api_ns_project.parser()
-post_project_parser.add_argument('name', location='args', type=str, required=True)
-post_project_parser.add_argument('is_dataset_large', location='args', type=bool, required=False)
-post_project_parser.add_argument('description', location='args', type=str, required=True)
+class GetProjectArgsSchema(Schema):
+    project_id = fields.Int(required=True)
+    
+class PostProjectArgsSchema(Schema):
+    name = fields.Str(required=True)
+    is_dataset_large = fields.Bool(required=False)
+    description = fields.Str(required=True)
+    
+class PutProjectArgsSchema(Schema):
+    project_id = fields.Int(required=True)
+    name = fields.Str(required=False)
+    is_dataset_large = fields.Bool(required=False)
+    description = fields.Str(required=False)
+    
+class DeleteProjectArgsSchema(GetProjectArgsSchema):
+    pass
 
-put_project_parser = post_project_parser.copy()
-put_project_parser.add_argument('project_id', location='args', type=int, required=True)
-
-delete_project_parser = api_ns_project.parser()
-delete_project_parser.add_argument('project_id', location='args', type=int, required=True)
+class SearchProjectArgsSchema(Schema):
+    name = fields.Str(required=False)
 
 # ------------------------ ROUTES ------------------------
-@api_ns_project.route('/')
-class Project(Resource):
-    @api_ns_project.expect(get_project_parser)
-    @api_ns_project.marshal_with(project_model)
+@bp.route('/')
+class Project(MethodView):
+    @bp.arguments(GetProjectArgsSchema, location='query')
+    @bp.response(200, ProjectRespSchema)
     def get(self):
         """     returns a Project
         """
@@ -40,44 +49,44 @@ class Project(Resource):
         if project is not None:
             return project
         else:
-            abort(404, "Project not found")
+            abort(404, message="Project not found")
 
-    @api_ns_project.expect(post_project_parser)
-    @api_ns_project.response(200, 'Project created')
-    def post(self):
+    @bp.arguments(PostProjectArgsSchema, location='json')
+    @bp.response(200, description="Project created")
+    def post(self, args):
         """     create a new Project
         """
-        args = post_project_parser.parse_args()
 
         db.session.add(qadb.Project(name=args['name'], description=args['description'], is_dataset_large=args['is_dataset_large']))
         db.session.commit()
         return 200
 
 
-    @api_ns_project.expect(put_project_parser)
-    @api_ns_project.response(201, 'Project updated')
-    def put(self):
+    @bp.arguments(PutProjectArgsSchema, location='json')
+    @bp.response(201, description="Project updated")
+    def put(self, args):
         """     update a Project
 
         """
 
         return 201
 
-    @api_ns_project.expect(delete_project_parser)
-    @api_ns_project.response(204, 'Project deleted')
-    def delete(self):
+    @bp.arguments(DeleteProjectArgsSchema, location='query')
+    @bp.response(204, description="Project deleted")
+    def delete(self, args):
         """     delete a Project
 
         """
 
         return 204
 
-@api_ns_project.route('/all')
-class SearchProject(Resource):
+@bp.route('/all')
+class SearchProject(MethodView):
     """     get all Projects
 
     """
-    @api_ns_project.marshal_with(project_model, as_list=True)
-    def get(self):
+    @bp.arguments(SearchProjectArgsSchema, location='query')
+    @bp.response(200, ProjectRespSchema(many=True))
+    def get(self, args):
 
         return [{}]
