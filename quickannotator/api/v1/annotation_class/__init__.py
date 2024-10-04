@@ -45,8 +45,7 @@ class AnnotationClass(MethodView):
     def get(self, args):
         """     returns an AnnotationClass      """
 
-        # return qadb.AnnotationClass.query.filter_by(id=args['annotation_class_id']), 200
-        result = db.session.query(qadb.AnnotationClass).filter(qadb.AnnotationClass.id == args['annotation_class_id']).first()
+        result = db.session.query(qadb.AnnotationClass).filter(id=args['annotation_class_id']).first()
         if result is not None:
             return result, 200
         else:

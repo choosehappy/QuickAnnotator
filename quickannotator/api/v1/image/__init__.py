@@ -1,140 +1,132 @@
-import configparser
-from flask_restx import Resource, Api, Namespace, fields, marshal
+import openslide.deepzoom
+from flask_smorest import Blueprint, abort
+from flask_smorest.fields import Upload
+from marshmallow import fields, Schema
+from flask.views import MethodView
 from flask import current_app, request, send_from_directory
 from werkzeug.datastructures import FileStorage
 from datetime import datetime
+import quickannotator.db as qadb
+from quickannotator.db import db
+import openslide as ops
 
-config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
-api_ns_image = Namespace('image', description='Image related operations')
+
+bp = Blueprint('image', __name__, description='Image operations')
 
 # ------------------------ RESPONSE MODELS ------------------------
+class ImageRespSchema(Schema):
+    """     Image response schema      """
+    id = fields.Int()
+    name = fields.Str()
+    path = fields.Str()
+    height = fields.Int()
+    width = fields.Int()
+    datetime = fields.DateTime()
 
+class GetImageArgsSchema(Schema):
+    image_id = fields.Int(required=True)
 
-image_model = api_ns_image.model('Image', {
-    'id': fields.Integer(description="The image ID"),
-    'name': fields.String(description="The image name"),
-    'path': fields.String(description="The image path"),
-    'height': fields.Integer(description="The image height"),
-    'width': fields.Integer(description="The image width"),
-    'date': fields.DateTime(description="The datetime of upload for the image"),
-})
+class SearchImageArgsSchema(Schema):
+    pass
 
-# ------------------------ REQUEST PARSERS ------------------------
-## GET Image parser
-get_image_parser = api_ns_image.parser()
-get_image_parser.add_argument('image_id', location='args', type=int, required=True)
+class PostImageArgsSchema(Schema):
+    name = fields.Str(required=True)
+    path = fields.Str(required=True)
+    embedding_coord = fields.Str(required=False)
+    group_id = fields.Int(required=False)
+    split = fields.Int(required=False)
 
-## GET Image search parser
-get_image_search_parser = api_ns_image.parser()
-get_image_search_parser.add_argument('name', location='args', type=str, required=False)
+class DeleteImageArgsSchema(GetImageArgsSchema):
+    pass
 
-## POST Image parser
-post_image_parser = api_ns_image.parser()
-post_image_parser.add_argument('image', location='files',type=FileStorage, required=False)
-post_image_parser.add_argument('name', location='args', type=str, required=False)
-post_image_parser.add_argument('path', location='args', type=str, required=False)
-
-## DELETE Image parser
-delete_image_parser = get_image_parser.copy()
-
-## POST TissueMask and POST ThumbnailFile parser
-upload_file_parser = api_ns_image.parser()
-upload_file_parser.add_argument('file', location='files',type=FileStorage, required=True)
+class UploadFileArgsSchema(Schema):
+    file = Upload(required=True)
 
 # ------------------------ ROUTES ------------------------
-@api_ns_image.route('/', endpoint="image")
-class Image(Resource):
-    @api_ns_image.expect(get_image_parser)
-    @api_ns_image.marshal_with(image_model)
-    def get(self):
+@bp.route('/', endpoint="image")
+class Image(MethodView):
+    @bp.arguments(GetImageArgsSchema, location='query')
+    @bp.response(200, ImageRespSchema)
+    def get(self, args):
         """     returns an Image
         """
-        id = request.args.get('image_id')
-
-        datum = {}
-        return datum, 200
+        result = db.session.query(qadb.Image).filter(id=args['image_id']).first()
+        return result, 200
 
 
-    @api_ns_image.expect(post_image_parser, validate=True)
-    @api_ns_image.marshal_with(image_model)
-    def post(self):
-        """     upload an Image   """
+    @bp.arguments(PostImageArgsSchema, location='query')
+    @bp.response(200, description="Image created")
+    def post(self, args):
+        """     upload an Image
 
-        datum = {}
-        return datum, 200
+        TODO: implement image upload
+        """
 
-    @api_ns_image.expect(delete_image_parser, validate=True)
-    @api_ns_image.response(204, "Image  deleted")
-    def delete(self):
+        return 200
+
+    @bp.arguments(DeleteImageArgsSchema, location='query')
+    @bp.response(204, description="Image  deleted")
+    def delete(self, args):
         """     delete an Image   """
+
+        db.session.query(qadb.Image).filter(id=args['image_id']).delete()
         return 204
 
 #################################################################################
-@api_ns_image.route('/<int:project_id>/search', endpoint="image_search")
-class ImageSearch(Resource):
-    @api_ns_image.expect(get_image_search_parser)
-    @api_ns_image.marshal_with(image_model, as_list=True)
-    def get(self):
-        data = [{}]
-        return data, 200
+@bp.route('/<int:project_id>/search', endpoint="image_search")
+class ImageSearch(MethodView):
+    @bp.arguments(SearchImageArgsSchema, location='query')
+    @bp.response(200, ImageRespSchema(many=True))
+    def get(self, args, project_id):
+        """     returns a list of Images
+        """
+        result = db.session.query(qadb.Image).filter(proj_id=project_id).all()
+        return result, 200
 
 #################################################################################
-@api_ns_image.route('/<int:image_id>/image_file', endpoint="image_file")
-class ImageFile(Resource):
-    def get(self, image_id):
+@bp.route('/<int:image_id>/<int:file_type>/file', endpoint="file")
+class ImageFile(MethodView):
+    def get(self, image_id, file_type):
         """     returns an Image file   """
-        path = ''
-        name = 'name'
-        return send_from_directory(path, name)
+        result = db.session.query(qadb.Image).filter(id=image_id).first()
+
+        if file_type == 1:  # image file
+            return send_from_directory(result['path'], result['name'])
+        elif file_type == 2:    # thumbnail file
+            # TODO implement thumbnail file
+            pass
 
 
-#################################################################################
+    @bp.arguments(UploadFileArgsSchema, location='files')
+    def put (self, args, image_id, file_type):
+        """     upload an Image file
+        TODO: implement image file upload
+        """
 
-@api_ns_image.route('/<int:image_id>/thumbnail', endpoint="thumbnail_file")
-class ThumbnailFile(Resource):
-    def get(self, image_id):
-        """     returns a thumbnail file   """
-        path = ''
-        name = 'name'
-        return send_from_directory(path, name)
-
-
-    @api_ns_image.expect(upload_file_parser, validate=True)
-    @api_ns_image.response(201, "Thumbnail file  uploaded")
-    def put(self, image_id):
-        """    upload a Thumbnail file   """
         return 201
 
-    @api_ns_image.response(204, "Thumbnail  deleted")
-    def delete(self):
-        """    delete a Thumbnail file   """
+    def delete(self, image_id, file_type):
+        """     delete an Image file   """
+
+        result = db.session.query(qadb.Image).filter(id=image_id).first()
+
+        if file_type == 1:  # image file
+            # TODO implement image file deletion
+            pass
+        elif file_type == 2:  # thumbnail file
+            # TODO implement thumbnail file deletion
+            pass
         return 204
 
 #################################################################################
 
-@api_ns_image.route('/<int:image_id>/tissue_mask', endpoint="tissue_mask_file")
-class TissueMaskFile(Resource):
-    def get(self, image_id):
-        """     returns a thumbnail file   """
-        return 200
-
-
-    @api_ns_image.expect(upload_file_parser, validate=True)
-    @api_ns_image.response(201, "Tissue mask file  uploaded")
-    def put(self, image_id):
-        """    upload a Thumbnail file   """
-        return 201
-
-    @api_ns_image.response(204, "Tissue mask  deleted")
-    def delete(self, image_id):
-        """    delete a Thumbnail file   """
-        return 204
-
-
-#################################################################################
-
-@api_ns_image.route('/<int:image_id>/patch_file/<int:level>/<int:col>_<int:row>.<int:format>', endpoint="patch")
-class PatchFile(Resource):
-    def get(self, image_id, level, col, row, format):
+@bp.route('/<int:image_id>/patch_file/<int:level>/<int:col>_<int:row>.<int:file_format>', endpoint="patch")
+class PatchFile(MethodView):
+    def get(self, image_id, level, col, row, file_format):
         """     returns a patch file   """
-        return 200
+
+        result = db.session.query(qadb.Image).filter(id=image_id).first()
+        slide = ops.OpenSlide(result['path'])
+        dz = openslide.deepzoom.DeepZoomGenerator(slide)
+        tile = dz.get_tile(level, (col, row))
+        return tile, 200
