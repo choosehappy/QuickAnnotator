@@ -1,64 +1,61 @@
-from flask_restx import Namespace, Resource, fields
+from flask_smorest import Blueprint
+from marshmallow import fields, Schema
+from flask.views import MethodView
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+import quickannotator.db as qadb
 
-api_ns_setting = Namespace('setting', description='Settings related operations')
+bp = Blueprint('setting', __name__, description='Setting operations')
+
 
 # ------------------------ RESPONSE MODELS ------------------------
+class SettingRespSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = qadb.Setting
 
-setting_model = api_ns_setting.model('Setting', {
-    "id": fields.Integer(),
-    "name": fields.String(),
-    "value": fields.String(),
-    "description": fields.String()
-})
-# ------------------------ REQUEST PARSERS ------------------------
-base_parser = api_ns_setting.parser()
-base_parser.add_argument('setting_id', type=str, location='args', required=False)
+class GetSettingArgsSchema(Schema):
+    setting_id = fields.Integer()
 
-put_setting_parser = api_ns_setting.parser()
-put_setting_parser.add_argument('setting_value', location='args', type=str, required=True)
+class PutSettingArgsSchema(Schema):
+    setting_value = fields.Str()
 
-search_setting_parser = api_ns_setting.parser()
-search_setting_parser.add_argument('is_app_setting', type=bool, location='args', required=True)
-search_setting_parser.add_argument('project_id', type=str, location='args', required=False)
-
+class SearchSettingArgsSchema(Schema):
+    project_id = fields.Int()
 # ------------------------ ROUTES ------------------------
 
 
-@api_ns_setting.route('/<int:setting_id>')
-class Setting(Resource):
+@bp.route('/')
+class Setting(MethodView):
 
-    @api_ns_setting.marshal_with(setting_model)
-    def get(self):
+    @bp.arguments(GetSettingArgsSchema, location='query')
+    @bp.response(200, SettingRespSchema)
+    def get(self, args):
         """     returns a Setting
 
         """
 
-        return 200
+        return {}, 200
 
-    @api_ns_setting.expect(put_setting_parser)
-    @api_ns_setting.response(201, "Setting  updated.")
-    def put(self):
+    @bp.arguments(PutSettingArgsSchema, location='query')
+    def put(self, args):
         """     update a setting.
 
         """
 
         return 201
 
-@api_ns_setting.route('/search')
-class SettingSearch(Resource):
+@bp.route('/search')
+class SettingSearch(MethodView):
     """     get a list of Settings,
     e.g., get all settings for a project.
     """
-    @api_ns_setting.expect(search_setting_parser)
-    @api_ns_setting.marshal_with(setting_model, as_list=True)
-    def get(self):
-        return [{}], 200
+    @bp.arguments(SearchSettingArgsSchema, location='query')
+    @bp.response(200, SettingRespSchema(many=True))
+    def get(self, args):
+        return [], 200
 
-@api_ns_setting.route('/reset')
-class ResetSetting(Resource):
-    @api_ns_setting.expect(base_parser)
-    @api_ns_setting.response(200, "Setting(s)  reset to default.")
-    def post(self):
+@bp.route('/reset')
+class ResetSetting(MethodView):
+    def post(self, args):
         """     reset one or all Settings
 
         """

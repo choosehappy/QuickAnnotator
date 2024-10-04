@@ -1,23 +1,24 @@
 from flask_smorest import Blueprint
 from marshmallow import fields, Schema
 from flask.views import MethodView
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+import quickannotator.db as qadb
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
 
 
 # ------------------------ MODELS ------------------------
-class AnnRespSchema(Schema):
+class AnnRespSchema(SQLAlchemyAutoSchema):
     """     Annotation response schema      """
-    id = fields.Int()
-    centroid = fields.Str()
-    area = fields.Float()
-    polygon = fields.Str()
-    custom_metrics = fields.Raw()
-    datetime = fields.DateTime()
+    class Meta:
+        model = qadb.Annotation
+
+    centroid = qadb.GeometryField()
+    polygon = qadb.GeometryField()
 
 class GetAnnArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
-    annotation_id = fields.Int()
+    annotation_id = fields.Int(required=True)
 
 class GetAnnSearchArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
@@ -45,23 +46,15 @@ class PostDryRunArgsSchema(Schema):
 
 # ------------------------ ROUTES ------------------------
 
-@bp.route('/')
-def get():
-    """     returns a list of Annotations
-    """
-
-    return "hello world", 200
-
-# @bp.route('/<int:image_id>/<int:annotation_class_id>')
 @bp.route('/<int:image_id>/<int:annotation_class_id>')
 class Annotation(MethodView):
     @bp.arguments(GetAnnArgsSchema, location='query')
     @bp.response(200, AnnRespSchema)
-    def get(self, args):
+    def get(self, args, image_id, annotation_class_id):
         """     returns an Annotation
         """
 
-        return 200
+        return {}, 200
 
     @bp.arguments(PostAnnArgsSchema, location='json')
     def post(self, args):
@@ -107,7 +100,7 @@ class PredictAnnotations(MethodView):
     """     request new DL model predictions
     """
     @bp.arguments(PostAnnArgsSchema, location='json')
-    @bp.response(201, AnnRespSchema(many=True))
+    @bp.response(200, AnnRespSchema(many=True))
     def post(self, args, image_id, annotation_class_id):
 
         return 200

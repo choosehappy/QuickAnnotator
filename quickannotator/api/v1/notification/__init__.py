@@ -1,28 +1,45 @@
-from flask_restx import Namespace, Resource
+from flask_smorest import Blueprint, abort
+from marshmallow import fields, Schema
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+from flask.views import MethodView
+from quickannotator.db import db
+import quickannotator.db as qadb
 
-api_ns_notification = Namespace('notification', description='Notification related operations')
-
+bp = Blueprint('notification', __name__, description='Notification operations')
 # ------------------------ RESPONSE MODELS ------------------------
+class NotificationRespSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = qadb.Notification
 
-# ------------------------ REQUEST PARSERS ------------------------
-get_notification_parser = api_ns_notification.parser()
-get_notification_parser.add_argument('project_id', location='args', type=int, required=True)
-get_notification_parser.add_argument('image_id', location='args', type=int, required=True)
-get_notification_parser.add_argument('notification_id', location='args', type=int, required=False)
+class GetNotificationArgsSchema(Schema):
+    notification_id = fields.Int()
+
+class SearchNotificationArgsSchema(Schema):
+    project_id = fields.Int()
+    image_id = fields.Int()
+
 # ------------------------ ROUTES ------------------------
 
-@api_ns_notification.route('/')
-class Notification(Resource):
-    def get(self):
+@bp.route('/')
+class Notification(MethodView):
+    @bp.arguments(GetNotificationArgsSchema, location='query')
+    @bp.response(200, NotificationRespSchema)
+    def get(self, args):
         """     returns a Notification
 
         """
-
-        return 200
+        return {}, 200
 
     def put(self):
         """     update a Notification
 
         """
-
         return 201
+
+@bp.route('/search')
+class SearchNotification(MethodView):
+    @bp.arguments(SearchNotificationArgsSchema, location='query')
+    @bp.response(200, NotificationRespSchema(many=True))
+    def get(self, args):
+        return [], 200
+

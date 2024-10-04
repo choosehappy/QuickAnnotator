@@ -9,19 +9,15 @@ from datetime import datetime
 import quickannotator.db as qadb
 from quickannotator.db import db
 import openslide as ops
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 
 bp = Blueprint('image', __name__, description='Image operations')
 
 # ------------------------ RESPONSE MODELS ------------------------
-class ImageRespSchema(Schema):
+class ImageRespSchema(SQLAlchemyAutoSchema):
     """     Image response schema      """
-    id = fields.Int()
-    name = fields.Str()
-    path = fields.Str()
-    height = fields.Int()
-    width = fields.Int()
-    datetime = fields.DateTime()
+    model = qadb.Image
 
 class GetImageArgsSchema(Schema):
     image_id = fields.Int(required=True)
@@ -83,7 +79,7 @@ class ImageSearch(MethodView):
     def get(self, args, project_id):
         """     returns a list of Images
         """
-        result = db.session.query(qadb.Image).filter(qadb.Image.proj_id == project_id).all()
+        result = db.session.query(qadb.Image).filter(qadb.Image.project_id == project_id).all()
         return result, 200
 
 #################################################################################

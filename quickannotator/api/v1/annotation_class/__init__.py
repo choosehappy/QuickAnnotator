@@ -3,26 +3,21 @@ from marshmallow import fields, Schema
 from flask.views import MethodView
 import quickannotator.db as qadb
 from quickannotator.db import db
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 bp = Blueprint('annotation_class', __name__, description='AnnotationClass operations')
 
 # ------------------------ RESPONSE MODELS ------------------------
-class AnnClassRespSchema(Schema):
-    """     AnnotationClass response schema      """
-    id = fields.Int()
-    name = fields.Str()
-    color = fields.Str()
-    magnification = fields.Int()
-    patchsize = fields.Int()
-    tilesize = fields.Int()
-    dl_model_objectref = fields.Str()
-    datetime = fields.DateTime()
+class AnnClassRespSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = qadb.AnnotationClass
+
 
 class GetAnnClassArgsSchema(Schema):
     annotation_class_id = fields.Int(required=True)
 
 class PostAnnClassArgsSchema(Schema):
-    proj_id = fields.Int(required=True)
+    project_id = fields.Int(required=True)
     name = fields.Str(required=True)
     color = fields.Str(required=True)
     magnification = fields.Int(required=True)
@@ -57,7 +52,7 @@ class AnnotationClass(MethodView):
     def post(self, args):
         """     create a new AnnotationClass and instantiate a DL model    """
 
-        annotation = qadb.AnnotationClass(proj_id=args['proj_id'],
+        annotation = qadb.AnnotationClass(project_id=args['project_id'],
                                           name=args['name'],
                                           color=args['color'],
                                           magnification=args['magnification'],
@@ -93,7 +88,7 @@ class SearchAnnotationClass(MethodView):
         if 'name' in args:
             result = db.session.query(qadb.AnnotationClass).filter(qadb.AnnotationClass.name == args['name']).all()
         elif 'project_id' in args:
-            result = db.session.query(qadb.AnnotationClass).filter(qadb.AnnotationClass.proj_id == args['project_id']).all()
+            result = db.session.query(qadb.AnnotationClass).filter(qadb.AnnotationClass.project_id == args['project_id']).all()
         else:
             result = db.session.query(qadb.AnnotationClass).all()
         return result, 200

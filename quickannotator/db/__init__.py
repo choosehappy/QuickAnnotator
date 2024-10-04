@@ -2,6 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Text, Column, Integer, DateTime, ForeignKey, JSON, Boolean, Float, event
 from geoalchemy2 import Geometry, load_spatialite
 from flask_caching import Cache
+from marshmallow import fields
 
 db = SQLAlchemy()
 SearchCache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
@@ -34,7 +35,7 @@ class Image(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     # foreign keys
-    proj_id = Column(Integer, ForeignKey('project.id'), nullable=False)
+    project_id = Column(Integer, ForeignKey('project.id'), nullable=False)
 
     # columns
     name = Column(Text, nullable=False)
@@ -56,7 +57,7 @@ class AnnotationClass(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     # foreign keys
-    proj_id = Column(Integer, ForeignKey('project.id'), nullable=True)
+    project_id = Column(Integer, ForeignKey('project.id'), nullable=True)
 
     # columns
     name = Column(Text, nullable=False, unique=True)
@@ -130,58 +131,23 @@ class Setting(db.Model):
     description = Column(Text)
     default_value = Column(Text)
 
+class GeometryField(fields.Field):
+    def __init__(self, *args, **kwargs):
+        # Pass metadata information to describe the field for Swagger
+        kwargs["metadata"] = {
+            "type": "string",  # You can also specify "object" if it's GeoJSON
+            "description": "A geometry field. Can be WKT or GeoJSON."
+        }
+        super().__init__(*args, **kwargs)
 
+    def _serialize(self, value, attr, obj, **kwargs):
+        if value is None:
+            return None
+        # Assuming value is a WKT string or a GeoJSON-like dictionary
+        return value
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def _deserialize(self, value, attr, data, **kwargs):
+        if value is None:
+            return None
+        # Convert the input into the appropriate geometry type here (WKT, GeoJSON)
+        return value

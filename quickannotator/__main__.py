@@ -61,6 +61,8 @@ if __name__ == '__main__':
     api.register_blueprint(annotation_class.bp, url_prefix=prefix + "/class")
     api.register_blueprint(project.bp, url_prefix=prefix + "/project")
     api.register_blueprint(image.bp, url_prefix=prefix + "/image")
+    api.register_blueprint(notification.bp, url_prefix=prefix + "/notification")
+    api.register_blueprint(setting.bp, url_prefix=prefix + "/setting")
 
     # serve_quickannotator(app)
     serve_quickannotator_dev(app)

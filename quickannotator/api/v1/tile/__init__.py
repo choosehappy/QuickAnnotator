@@ -1,42 +1,59 @@
-from flask_restx import Namespace, Resource, fields
+from flask_smorest import Blueprint
+from marshmallow import fields, Schema
+from flask.views import MethodView
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+import quickannotator.db as qadb
 
-api_ns_tile = Namespace('tile', description='Tile related operations')
+bp = Blueprint('tile', __name__, description="Tile operations")
 
 # ------------------------ RESPONSE MODELS ------------------------
-tile_model = api_ns_tile.model('Tile', {
-    'id': fields.Integer(),
-    'image_id': fields.Integer(),
-    'annotation_class_id': fields.Integer(),
-    'upper_left_coord': fields.Raw(),
-    'seen': fields.Integer(description='0: not seen by model, 1: predictions pending, 2: seen by model')
-})
+class TileRespSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = qadb.Tile
+
+    upper_left_coord = qadb.GeometryField()
+
 
 # ------------------------ REQUEST PARSERS ------------------------
+class GetTileArgsSchema(Schema):
+    tile_id = fields.Str()
 
-get_tile_parser = api_ns_tile.parser()
-get_tile_parser.add_argument('tile_id', location='args', type=int, required=True)
+class PutTileArgsSchema(Schema):
+    seen = fields.Int()
 
-search_tile_parser = api_ns_tile.parser()
-search_tile_parser.add_argument('image_id', location='args', type=int, required=True)
-search_tile_parser.add_argument('annotation_class_id', location='args', type=int, required=True)
-search_tile_parser.add_argument('bbox_polygon', location='args', type=bytes, required=True)
+class PostTileArgsSchema(Schema):
+    image_id = fields.Int(required=True)
+    annotation_class_id = fields.Int(required=True)
+
+class SearchTileArgsSchema(Schema):
+    image_id = fields.Int()
+    annotation_class_id = fields.Int()
+    bbox_polygon = fields.String()
 
 
 # ------------------------ ROUTES ------------------------
 
-@api_ns_tile.route('/')
-class Tile(Resource):
-    @api_ns_tile.expect(get_tile_parser)
-    @api_ns_tile.marshal_with(tile_model)
-    def get(self):
+@bp.route('/')
+class Tile(MethodView):
+    @bp.arguments(GetTileArgsSchema, location='query')
+    @bp.response(200, TileRespSchema)
+    def get(self, args):
         """     returns a Tile
         """
 
 
+        return {}, 200
+
+    @bp.arguments(PostTileArgsSchema, location='query')
+    @bp.response(200, description="Successfully computed tiles")
+    def post(self, args):
+        """     compute all tiles for a given image & class     """
         return 200
 
+    @bp.arguments(PutTileArgsSchema, location='query')
+    @bp.response(201, description="Successfully updated tile.")
     def put(self):
-        """     create or update a Tile
+        """     update a Tile
 
         """
 
@@ -49,11 +66,11 @@ class Tile(Resource):
 
         return 204
 
-@api_ns_tile.route('/search')
-class TileSearch(Resource):
-    @api_ns_tile.expect(search_tile_parser)
-    @api_ns_tile.marshal_with(tile_model, as_list=True)
-    def get(self):
+@bp.route('/search')
+class TileSearch(MethodView):
+    @bp.arguments(SearchTileArgsSchema, location='query')
+    @bp.response(200, TileRespSchema(many=True))
+    def get(self, args):
         """     get all Tiles within a bounding box
         """
 
