@@ -87,5 +87,5 @@ class SearchProject(MethodView):
     @bp.arguments(SearchProjectArgsSchema, location='query')
     @bp.response(200, ProjectRespSchema(many=True))
     def get(self, args):
-
-        return [{}]
+        result = db.session.query(qadb.Project).all()
+        return result
