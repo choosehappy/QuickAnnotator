@@ -8,7 +8,7 @@ from quickannotator.config import get_database_uri
 from geoalchemy2 import load_spatialite
 from sqlalchemy import event
 import os
-from quickannotator.api.v1 import annotation, project, image, annotation_class, notification, tile, setting
+from quickannotator.api.v1 import annotation, project, image, annotation_class, notification, tile, setting, ray
 
 
 def serve_quickannotator(app):
@@ -63,6 +63,8 @@ if __name__ == '__main__':
     api.register_blueprint(image.bp, url_prefix=prefix + "/image")
     api.register_blueprint(notification.bp, url_prefix=prefix + "/notification")
     api.register_blueprint(setting.bp, url_prefix=prefix + "/setting")
+    api.register_blueprint(tile.bp, url_prefix=prefix + "/tile")
+    api.register_blueprint(ray.bp, url_prefix=prefix + "/ray")
 
     # serve_quickannotator(app)
     serve_quickannotator_dev(app)
