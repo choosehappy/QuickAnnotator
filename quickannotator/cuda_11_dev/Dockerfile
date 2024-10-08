@@ -5,7 +5,6 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
          build-essential \
          cmake \
          ca-certificates \
-         python3.10 \
          python3-venv \
          python3-wheel \
          python3-dev \
@@ -29,7 +28,7 @@ COPY . /opt/QuickAnnotator
 ENV PATH="/opt/QuickAnnotator/venv/bin:$PATH"
 
 
-RUN python3.10 -m venv venv \
+RUN python3 -m venv venv \
     && pip install .
 
 CMD ["python3", "-m", "quickannotator"]
