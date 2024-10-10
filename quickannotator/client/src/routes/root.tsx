@@ -1,22 +1,18 @@
-import { Link, Outlet } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { useState } from 'react';
-import Project from '../interfaces';
+import Navigation from '../components/navigation.tsx';
+import Project, {initialProject} from '../types/project.ts';
+import Image, {initialImage} from '../types/image.ts';
 
 export default function Root() {
 
 
-    const [currentProject, setCurrentProject] = useState<Project>();
+    const [currentProject, setCurrentProject] = useState<Project | null>(initialProject);
+    const [currentImage, setCurrentImage] = useState<Image | null>(initialImage);
     return (
         <>
-            <div>This will be the navbar</div>
-            <div>Current Project: {currentProject?.name}</div>
-            <ul>
-                <li><Link to={'/'}>Home</Link></li>
-                <li><Link to={'/annotate'}>Annotation Page</Link></li>
-                <li></li>
-
-            </ul>
-            <Outlet context={{currentProject, setCurrentProject}}/>
+            <Navigation {...{currentProject, setCurrentProject, currentImage, setCurrentImage}}/>
+            <Outlet context={{currentProject, setCurrentProject, currentImage, setCurrentImage}}/>
         </>
     )
 }
