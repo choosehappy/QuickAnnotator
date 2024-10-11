@@ -5,7 +5,8 @@ import {Link} from "react-router-dom";
 import Navbar from 'react-bootstrap/Navbar';
 import Nav from 'react-bootstrap/Nav';
 import NavItem from 'react-bootstrap/NavItem';
-import { ReactNode } from "react";
+import Container from "react-bootstrap/Container";
+import ProgressBar from "react-bootstrap/ProgressBar"
 
 
 interface NavbarProps {
@@ -20,7 +21,7 @@ const Item = ({ children }) => {
     return (
         <>
             <NavItem style={{alignItems: "center", display: "flex"}}>
-                <i className="bi bi-caret-right-fill"></i>
+                <i className="bi bi-caret-right-fill text-white"></i>
             </NavItem>
             {children}
         </>
@@ -31,15 +32,25 @@ const Item = ({ children }) => {
 const Navigation = (props: NavbarProps) => {
     return (
         <>
-            <span>
-                <Navbar expand='lg' className='bg-body-secondary'>
-                    <Nav className='me-auto'>
+            <Navbar bg="dark" data-bs-theme="dark">
+                <Container fluid>
+                    <Nav>
                         <Navbar.Brand as={Link} to="/home">Quick Annotator</Navbar.Brand>
                         {props.currentProject && <Item><Nav.Link as={Link} to="/project">{props.currentProject?.name}</Nav.Link></Item>}
                         {props.currentImage && <Item><Nav.Link as={Link} to="/annotate" >{props.currentImage?.name}</Nav.Link></Item>}
                     </Nav>
-                </Navbar>
-            </span>
+                    <Nav>
+                        {props.currentImage && <Nav.Link>Previous Image</Nav.Link>}
+                        {props.currentImage && <Nav.Link>Next Image</Nav.Link>}
+                        {props.currentImage && <Nav.Item className="d-flex align-items-center"><ProgressBar now={60} label={`${60}%`} style={{ width: '150px', height: '10px' }} /></Nav.Item>}
+                    </Nav>
+                    <Nav className="justify-content-end">
+                        <Nav.Link>Metrics</Nav.Link>
+                        <Nav.Link>Notifications</Nav.Link>
+                        <Nav.Link>Settings</Nav.Link>
+                    </Nav>
+                </Container>
+            </Navbar>
         </>
     )
 }

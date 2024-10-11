@@ -10,9 +10,9 @@ export default function Root() {
     const [currentProject, setCurrentProject] = useState<Project | null>(initialProject);
     const [currentImage, setCurrentImage] = useState<Image | null>(initialImage);
     return (
-        <>
+        <div className="d-flex flex-column" style={{height: '100vh'}}>
             <Navigation {...{currentProject, setCurrentProject, currentImage, setCurrentImage}}/>
             <Outlet context={{currentProject, setCurrentProject, currentImage, setCurrentImage}}/>
-        </>
+        </div>
     )
 }
