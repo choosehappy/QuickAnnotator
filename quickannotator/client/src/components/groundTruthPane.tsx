@@ -3,11 +3,12 @@ import AnnotationList from "./annotationList.tsx";
 
 
 const GroundTruthPane = () => {
+    const id = 'gt'; // hardcoded ids should ideally not be used.
     return (
         <Card>
             <Card.Header as={'h5'}>Ground Truths</Card.Header>
-            <Card.Body style={{overflow: 'hidden'}}>
-                <AnnotationList />
+            <Card.Body id={id}>
+                <AnnotationList containerId={id}/>
             </Card.Body>
         </Card>
     )

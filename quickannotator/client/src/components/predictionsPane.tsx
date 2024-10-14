@@ -3,11 +3,12 @@ import AnnotationList from "./annotationList.tsx";
 
 
 const PredictionsPane = () => {
+    const id = 'id'
     return (
         <Card>
             <Card.Header as={'h5'}>Predictions</Card.Header>
-            <Card.Body style={{overflow: 'hidden'}}>
-                <AnnotationList />
+            <Card.Body id={id}>
+                <AnnotationList containerId={id}/>
             </Card.Body>
         </Card>
     )
