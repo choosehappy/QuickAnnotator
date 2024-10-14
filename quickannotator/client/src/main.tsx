@@ -8,13 +8,13 @@ import './index.css'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import Root from './routes/root.tsx'
-import AnnotationPage from './routes/AnnotationPage.tsx'
-import ProjectPage from './routes/ProjectPage.tsx'
-import LandingPage from './routes/LandingPage.tsx'
+import AnnotationPage from './routes/annotationPage.tsx'
+import ProjectPage from './routes/projectPage.tsx'
+import LandingPage from './routes/landingPage.tsx'
 
 const router = createBrowserRouter([
     {path: "/", element: <Root />, children: [
-        {path: "home", element:<LandingPage />},
+        {path: "/home", element:<LandingPage />},
         {path: "project", element:<ProjectPage />},
         {path: "annotate", element:<AnnotationPage />}
     ]

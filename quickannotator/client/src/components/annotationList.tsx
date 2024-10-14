@@ -1,45 +1,63 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
-
 
 import {
     SlickgridReactInstance,
-    Column,
     FieldType,
     Formatter,
-    Formatters,
     GridOption,
+    Column,
+    Formatters,
     SlickgridReact,
 } from 'slickgrid-react';
 
+
 const AnnotationList = () => {
-    const gridOptions = {
-        gridWidth: 400,
-        gridHeight: 400,
-        enableAutoResize: false
-    };
 
-    const columnDefinitions = [
-        { id: 'title', name: 'Title', field: 'title', sortable: true, minWidth: 100 },
-        { id: 'duration', name: 'Duration (days)', field: 'duration', sortable: true, minWidth: 100 },
-        { id: '%', name: '% Complete', field: 'percentComplete', sortable: true, minWidth: 100 },
-        { id: 'start', name: 'Start', field: 'start', minWidth: 100 },
-        { id: 'finish', name: 'Finish', field: 'finish', minWidth: 100 },
-        { id: 'effort-driven', name: 'Effort Driven', field: 'effortDriven', sortable: true, minWidth: 100 }
-    ];
 
-    const data = [{
-        id: 1,
-        title: 'Title',
-        duration: '1',
-        percentComplete: '1',
-        start: 'none',
-        finish: 'none',
-        effortDriven: 'none'
-    }]
+    const [gridOptions, setGridOptions] = useState<GridOption | undefined>(undefined);
+    const [dataset, setDataset] = useState([]);
+    const [columnDefs, setColumnDefs] = useState<Column[]>([]);
+
+
+
+    useEffect(() => {
+        const initialGridOptions = {
+            enableAutoResize: false,
+            autoHeight: true,
+        };
+
+        setGridOptions(initialGridOptions);
+
+        const initialData = [{
+            id: 1,
+            thumbnail: "placeholder",
+            area: 1,
+            centroid: "placeholder",
+            class: "placeholder",
+        }]
+
+        setDataset(initialData);
+
+        const columnDefinitions = [
+            { id: 'thumbnail', name: 'Thumbnail', field: 'thumbnail', sortable: true, maxWidth: 100 },
+            { id: 'area', name: 'Area', field: 'area', sortable: true, maxWidth: 100 },
+            { id: 'centroid', name: 'Centroid', field: 'centroid', sortable: true, maxWidth: 100 },
+            { id: 'class', name: 'Class', field: 'class', sortable: true, maxWidth: 100 },
+        ];
+
+        setColumnDefs(columnDefinitions);
+
+    }, []);
 
     return (
-        <SlickgridReact gridId={"grid1"} columnDefinitions={columnDefinitions} dataset={data} gridOptions={gridOptions} />
+        <div style={{height:'100px'}}>
+            <SlickgridReact gridId={"grid1"}
+                            columnDefinitions={columnDefs}
+                            dataset={dataset}
+                            gridOptions={gridOptions}/>
+        </div>
+
     )
 }
 
