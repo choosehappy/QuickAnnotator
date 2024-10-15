@@ -65,10 +65,10 @@ class AnnotationClass(MethodView):
         return {'annotation_class_id':annotation.id}, 200
 
 
-    @bp.arguments(PutAnnClassArgsSchema, location='json')
+    @bp.arguments(PutAnnClassArgsSchema, location='query')
     @bp.response(201, description="AnnotationClass updated")
     def put(self, args):
-        """     update an existing ObjectClass      """
+        """     update an existing AnnotationClass      """
         return 201
 
     @bp.arguments(GetAnnClassArgsSchema, location='query')

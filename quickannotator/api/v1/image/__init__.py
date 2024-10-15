@@ -17,7 +17,10 @@ bp = Blueprint('image', __name__, description='Image operations')
 # ------------------------ RESPONSE MODELS ------------------------
 class ImageRespSchema(SQLAlchemyAutoSchema):
     """     Image response schema      """
-    model = qadb.Image
+    class Meta:
+        model = qadb.Image
+
+    embedding_coord = qadb.GeometryField()
 
 class GetImageArgsSchema(Schema):
     image_id = fields.Int(required=True)
@@ -39,7 +42,7 @@ class UploadFileArgsSchema(Schema):
     file = Upload(required=True)
 
 # ------------------------ ROUTES ------------------------
-@bp.route('/', endpoint="image")
+@bp.route('', endpoint="image")
 class Image(MethodView):
     @bp.arguments(GetImageArgsSchema, location='query')
     @bp.response(200, ImageRespSchema)

@@ -5,6 +5,7 @@ export default interface Image {
     path: string;
     height: number;
     width: number;
+    dz_tilesize: number;
     embeddingCoord: string;
     group_id: number;
     split: number;
@@ -18,6 +19,7 @@ export const initialImage: Image = {
     path: "path/to/image",
     height: 100,
     width: 100,
+    dz_tilesize: 0,
     embeddingCoord: "0,0",
     group_id: 0,
     split: 0,

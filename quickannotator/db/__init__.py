@@ -3,6 +3,9 @@ from sqlalchemy import Text, Column, Integer, DateTime, ForeignKey, JSON, Boolea
 from geoalchemy2 import Geometry, load_spatialite
 from flask_caching import Cache
 from marshmallow import fields
+import geojson
+from shapely.geometry import mapping
+import shapely.wkb as wkb
 
 db = SQLAlchemy()
 SearchCache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
@@ -42,7 +45,8 @@ class Image(db.Model):
     path = Column(Text)
     height = Column(Integer)
     width = Column(Integer)
-    embedding_coord = Geometry('POINT')
+    dz_tilesize = Column(Integer)
+    embedding_coord = Column(Geometry('POINT'))
     group_id = Column(Integer)
     split = Column(Integer)
     datetime = Column(DateTime, server_default=db.func.now())
@@ -82,7 +86,7 @@ class Tile(db.Model):
 
 
     # columns
-    upper_left_coord = Geometry('POINT')
+    upper_left_coord = Column(Geometry('POINT'))
     seen = Column(Integer, nullable=False, default=0)
 
 
@@ -93,7 +97,7 @@ class Annotation(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     # columns
-    centroid = Geometry('POINT')
+    centroid = Column(Geometry('POINT'))
     area = Column(Float)
     polygon = Column(Geometry('MULTIPOLYGON'))
     custom_metrics = Column(JSON)
@@ -143,8 +147,9 @@ class GeometryField(fields.Field):
     def _serialize(self, value, attr, obj, **kwargs):
         if value is None:
             return None
-        # Assuming value is a WKT string or a GeoJSON-like dictionary
-        return value
+        # Assuming value is a WKB string
+        result = geojson.Feature(geometry=mapping(wkb.loads(str(value.data))))
+        return geojson.dumps(result)
 
     def _deserialize(self, value, attr, data, **kwargs):
         if value is None:

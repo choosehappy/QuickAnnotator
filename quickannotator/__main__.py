@@ -33,8 +33,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     os.environ['SPATIALITE_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu/mod_spatialite.so'  # TODO: set with a function
 
-    #
-
     # ------------------------ APP SETUP ------------------------
     app = Flask(__name__)
     SearchCache.init_app(app)
@@ -47,6 +45,7 @@ if __name__ == '__main__':
     with app.app_context():
         event.listen(db.engine, 'connect', load_spatialite)
         db.metadata.create_all(bind=db.engine, tables=[item.__table__ for item in models])
+
 
     # ------------------------ API SETUP ------------------------
     app.config["V1_API_TITLE"] = "QuickAnnotator_API"
