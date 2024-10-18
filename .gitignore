@@ -4,7 +4,7 @@ projects/
 __pycache__/
 .idea/
 instance/
-
+.ipynb_checkpoints/
 *.log
 *.pyc
 *.db*

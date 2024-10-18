@@ -5,6 +5,6 @@ export default interface Annotation {
     polygon: MultiPolygon;
     centroid: Point;
     area: number;
-    customMetrics: { [key: string]: unknown }
+    custom_metrics: { [key: string]: unknown }
 }
 

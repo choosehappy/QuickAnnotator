@@ -4,10 +4,11 @@ import geo from "geojs"
 import Annotation from "../types/annotations.ts";
 import Image from "../types/image.ts";
 import AnnotationClass from "../types/annotationClass.ts";
+import {ButtonToolbar, ButtonGroup, Button} from "react-bootstrap";
 
 interface Props {
     currentImage: Image | null;
-    selectedClass: AnnotationClass | null;
+    currentClass: AnnotationClass | null;
     gts: Annotation[];
     preds: Annotation[];
 }
@@ -63,6 +64,29 @@ const ViewportPane = (props: Props) => {
 
     return (
         <Card className="flex-grow-1">
+            <Card.Header style={{
+                position: "absolute",
+                top: 10,
+                left: "50%",
+                transform: "translate(-50%, 0%)",
+                backgroundColor: "rgba(255, 255, 255, 0.6)",
+                borderColor: "rgba(0, 0, 0, 0.8)",
+                borderRadius: 6,
+                zIndex: 10,
+            }}>
+                <ButtonToolbar aria-label="Toolbar with button groups">
+                    <ButtonGroup className="me-2" aria-label="First group">
+                        <Button>1</Button> <Button>2</Button> <Button>3</Button>{' '}
+                        <Button>4</Button>
+                    </ButtonGroup>
+                    <ButtonGroup className="me-2" aria-label="Second group">
+                        <Button>5</Button> <Button>6</Button> <Button>7</Button>
+                    </ButtonGroup>
+                    <ButtonGroup aria-label="Third group">
+                        <Button>8</Button>
+                    </ButtonGroup>
+                </ButtonToolbar>
+            </Card.Header>
             <Card.Body style={{padding: "0px"}}>
                 <div ref={viewRef} style={
                     {

@@ -1,10 +1,16 @@
 import * as React from 'react';
 import {Column, GridOption, SlickgridReactInstance, SlickgridReact} from "slickgrid-react";
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
+import Annotation from "../types/annotations.ts";
+import Image from "../types/image.ts";
 
+interface Props {
+    annotations: Annotation[];
+    containerId: string;
+}
 
 export default class AnnotationList extends React.Component {
-    constructor(public props: any){
+    constructor(public props: Props){
         super(props);
 
         this.state = {
@@ -18,6 +24,15 @@ export default class AnnotationList extends React.Component {
     componentDidMount() {
         // define the grid options & columns and then create the grid itself
         this.defineGrid();
+    }
+
+    componentDidUpdate(prevProps: Props) {
+        if (prevProps.annotations !== this.props.annotations) {
+            this.setState(() => ({
+                ...this.state,
+                dataset: this.getData(this.props.annotations),
+            }));
+        }
     }
 
     reactGridReady(reactGrid: SlickgridReactInstance) {
@@ -42,23 +57,28 @@ export default class AnnotationList extends React.Component {
 
         };
 
+
+
         this.setState(() => ({
             ...this.state,
             columnDefinitions: columns,
             gridOptions,
-            dataset: this.getData(),
+            dataset: [],
         }));
 
     }
 
-    getData() {
-        return [{
-            id: 1,
-            thumbnail: "placeholder",
-            area: 1,
-            centroid: "placeholder",
-            class: "placeholder",
-        }];
+    getData(anns: Annotation[]) {
+        const mappedData = anns.map((ann) => {
+            return {
+                id: ann.id,
+                thumbnail: ann.custom_metrics.toString(),
+                area: ann.area,
+                centroid: ann.centroid.toString()
+            };
+        });
+
+        return mappedData;
     }
 
     render() {

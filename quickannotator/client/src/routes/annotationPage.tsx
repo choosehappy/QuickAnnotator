@@ -11,7 +11,7 @@ import { useOutletContext, useParams } from 'react-router-dom';
 import Image from "../types/image.ts";
 import AnnotationClass from "../types/annotationClass.ts";
 import Annotation from "../types/annotations.ts";
-import {fetchImage, fetchProject} from "../helpers/helpers.ts";
+import {fetchImage, fetchProject, fetchAnnotations, fetchAnnotationClass} from "../helpers/helpers.ts";
 import {OutletContextType} from "../types/outlet.ts";
 
 
@@ -19,7 +19,7 @@ const AnnotationPage = () => {
     const { projectid, imageid } = useParams();
     const { currentImage, setCurrentImage, setCurrentProject } = useOutletContext<OutletContextType>();
 
-    const [selectedClass, setSelectedClass] = useState<AnnotationClass | null>(null);
+    const [currentClass, setCurrentClass] = useState<AnnotationClass | null>(null);
     const [gts, setGts] = useState<Annotation[]>([]);
     const [preds, setPreds] = useState<Annotation[]>([]);
 
@@ -27,10 +27,27 @@ const AnnotationPage = () => {
         fetchProject(parseInt(projectid)).then((resp) => {
             setCurrentProject(resp);
         });
+
         fetchImage(parseInt(imageid)).then((resp) => {
             setCurrentImage(resp);
-        })
+        });
+
+        fetchAnnotationClass(1).then((resp) => {
+            setCurrentClass(resp);
+        });
     }, [])
+
+    useEffect(() => {
+        if (currentImage && currentClass) {
+            fetchAnnotations(currentImage.id, currentClass.id, true).then((resp) => {
+                setGts(resp);
+            })
+
+            fetchAnnotations(currentImage.id, 1, false).then((resp) => {
+                setPreds(resp);
+            })
+        }
+    }, [currentImage, currentClass])
 
     if (currentImage) {
         return (
@@ -39,12 +56,12 @@ const AnnotationPage = () => {
                     <Row className="d-flex flex-grow-1">
                         <Col className="d-flex flex-grow-1">
                             <ViewportPane
-                                {...{currentImage, selectedClass, gts, preds}}
+                                {...{currentImage, currentClass, gts, preds}}
                             /></Col>
                         <Col xs={3}>
                             <Stack gap={3}>
                                 <ClassesPane
-                                    {...{selectedClass, setSelectedClass}}
+                                    {...{currentClass, setCurrentClass}}
                                 />
                                 <GroundTruthPane
                                     {...{gts, setGts}}

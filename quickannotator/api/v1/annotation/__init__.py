@@ -2,6 +2,8 @@ from flask_smorest import Blueprint
 from marshmallow import fields, Schema
 from flask.views import MethodView
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+from sqlalchemy import Table
+
 import quickannotator.db as qadb
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
@@ -22,7 +24,7 @@ class GetAnnArgsSchema(Schema):
 
 class GetAnnSearchArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
-    bbox_polygon = fields.String(required=True)
+    bbox_polygon = fields.String(required=False)
 
 class PostAnnArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
@@ -91,8 +93,17 @@ class SearchAnnotations(MethodView):
         # Implementation
         - Will need to determine the return type. Should it be pure geojson?
         """
-
-        return {}, 200
+        gtpred = 'gt' if args['is_gt'] else 'pred'
+        table_name = f"{image_id}_{annotation_class_id}_{gtpred}_annotation"
+        table = Table(table_name, qadb.db.metadata, autoload_with=qadb.db.engine)
+        if "bbox_polygon" in args:
+            # search for annotations within the bounding box
+            pass
+        else:
+            # return all annotations
+            stmt = table.select()
+            result = qadb.db.session.execute(stmt).fetchall()
+            return result, 200
 
 #################################################################################
 @bp.route('/<int:image_id>/<int:annotation_class_id>/predict')
