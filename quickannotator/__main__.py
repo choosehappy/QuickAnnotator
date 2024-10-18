@@ -23,7 +23,7 @@ def serve_quickannotator(app):
         print("QA application terminated by user")
 
 def serve_quickannotator_dev(app):
-    app.run(debug=True, host='0.0.0.0', port=config.getint('flask', 'port', fallback=5000))
+    app.run(debug=True, host='0.0.0.0', port=config.getint('flask', 'port', fallback=5000), threaded=True)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

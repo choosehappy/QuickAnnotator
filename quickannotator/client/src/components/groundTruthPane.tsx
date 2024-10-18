@@ -1,8 +1,12 @@
 import Card from 'react-bootstrap/Card';
 import AnnotationList from "./annotationList.tsx";
+import Annotation from "../types/annotations.ts";
 
-
-const GroundTruthPane = () => {
+interface Props {
+    gts: Annotation[];
+    setGts: (gts: Annotation[]) => void;
+}
+const GroundTruthPane = (props: Props) => {
     const id = 'gt'; // hardcoded ids should ideally not be used.
     return (
         <Card>

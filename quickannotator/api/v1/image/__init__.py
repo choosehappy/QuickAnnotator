@@ -1,15 +1,19 @@
-import openslide.deepzoom
 from flask_smorest import Blueprint, abort
 from flask_smorest.fields import Upload
 from marshmallow import fields, Schema
 from flask.views import MethodView
-from flask import current_app, request, send_from_directory
+from flask import current_app, request, send_from_directory, send_file
 from werkzeug.datastructures import FileStorage
 from datetime import datetime
 import quickannotator.db as qadb
 from quickannotator.db import db
 import openslide as ops
+import openslide.deepzoom as deepzoom
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+import large_image
+import os
+import io
+from .helper import getTile
 
 
 bp = Blueprint('image', __name__, description='Image operations')
@@ -122,13 +126,42 @@ class ImageFile(MethodView):
 
 #################################################################################
 
-@bp.route('/<int:image_id>/patch_file/<int:level>/<int:col>_<int:row>.<int:file_format>', endpoint="patch")
+@bp.route('/<int:image_id>/patch_file/<int:level>/<int:col>_<int:row>.<string:file_format>', endpoint="patch")
 class PatchFile(MethodView):
     def get(self, image_id, level, col, row, file_format):
         """     returns a patch file   """
 
-        result = db.session.query(qadb.Image).filter(qadb.Image.id == image_id).first()
-        slide = ops.OpenSlide(result['path'])
-        dz = openslide.deepzoom.DeepZoomGenerator(slide)
-        tile = dz.get_tile(level, (col, row))
-        return tile, 200
+        path = qadb.Image.query.get(image_id).path
+        full_path = os.path.join(current_app.root_path, path)
+        img = large_image.open(full_path)
+
+        # Get the image patch
+        patch = img.getTile(col, row, level, pilImageAllowed=True)
+
+        # Create an in-memory bytes buffer
+        img_bytes = io.BytesIO()
+        patch.save(img_bytes, 'PNG')
+        img_bytes.seek(0)
+
+        # Return the image as a PNG file
+        return send_file(img_bytes, mimetype='image/png')
+
+# @bp.route('/<int:image_id>/patch_file/<int:level>/<int:col>_<int:row>.<string:file_format>', endpoint="patch")
+# class PatchFile(MethodView):
+#     def get(self, image_id, level, col, row, file_format):
+#         """     returns a patch file   """
+#
+#         path = '/home/jackson/code/research/histotools/QuickAnnotator/quickannotator/data/example_project/example_image/example_image.svs'
+#
+#         # Open the image
+#         slide = ops.OpenSlide(path)
+#         patch = getTile(col, row, level, slide, 240, 240)
+#
+#
+#         # Create an in-memory bytes buffer
+#         img_bytes = io.BytesIO()
+#         patch.save(img_bytes, 'PNG')
+#         img_bytes.seek(0)
+#
+#         # Return the image as a PNG file
+#         return send_file(img_bytes, mimetype='image/png')

@@ -7,7 +7,7 @@ import Nav from 'react-bootstrap/Nav';
 import NavItem from 'react-bootstrap/NavItem';
 import Container from "react-bootstrap/Container";
 import ProgressBar from "react-bootstrap/ProgressBar"
-
+import {useQuery} from "../helpers/helpers.ts";
 
 interface NavbarProps {
     currentProject: Project | null;
@@ -35,9 +35,9 @@ const Navigation = (props: NavbarProps) => {
             <Navbar bg="dark" data-bs-theme="dark">
                 <Container fluid>
                     <Nav>
-                        <Navbar.Brand as={Link} to="/home">Quick Annotator</Navbar.Brand>
-                        {props.currentProject && <Item><Nav.Link as={Link} to="/project">{props.currentProject?.name}</Nav.Link></Item>}
-                        {props.currentImage && <Item><Nav.Link as={Link} to="/annotate" >{props.currentImage?.name}</Nav.Link></Item>}
+                        <Navbar.Brand as={Link} to="/">Quick Annotator</Navbar.Brand>
+                        {props.currentProject && <Item><Nav.Link as={Link} to={`/project/${props.currentProject.id}`}>{props.currentProject.name}</Nav.Link></Item>}
+                        {props.currentProject && props.currentImage && <Item><Nav.Link as={Link} to={`/project/${props.currentProject.id}/annotate/${props.currentImage.id}`} >{props.currentImage.name}</Nav.Link></Item>}
                     </Nav>
                     <Nav>
                         {props.currentImage && <Nav.Link>Previous Image</Nav.Link>}

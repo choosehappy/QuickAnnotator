@@ -7,13 +7,15 @@ import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Card from "react-bootstrap/Card";
+import Project from "../types/project.ts";
 
 const LandingPage = () => {
-    const {setCurrentImage, setCurrentProject} = useOutletContext<OutletContextType>();
+    const { setCurrentImage, setCurrentProject } = useOutletContext<OutletContextType>();
+    const project_id = 1;
     useEffect(() => {
+        setCurrentProject(null)
         setCurrentImage(null);
-        setCurrentProject(null);
-    });
+    }, []);
 
     return (
         <>
@@ -21,7 +23,7 @@ const LandingPage = () => {
                 <Row className="d-flex flex-grow-1">
                     <Col className="d-flex flex-grow-1"><Card className="flex-grow-1">
                         <Card.Body>
-                            <Nav.Link as={Link} to={'/project'} onClick={() => setCurrentProject(initialProject)}>Enter Project</Nav.Link>
+                            <Nav.Link as={Link} to={`/project/${project_id}`}>Enter Project</Nav.Link>
                         </Card.Body>
                     </Card></Col>
                 </Row>

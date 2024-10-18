@@ -3,50 +3,75 @@ import React, { useEffect, useState, useRef } from 'react';
 import geo from "geojs"
 import Annotation from "../types/annotations.ts";
 import Image from "../types/image.ts";
+import AnnotationClass from "../types/annotationClass.ts";
 
-const ViewportPane = () => {
+interface Props {
+    currentImage: Image | null;
+    selectedClass: AnnotationClass | null;
+    gts: Annotation[];
+    preds: Annotation[];
+}
+
+const ViewportPane = (props: Props) => {
     const viewRef = useRef(null);
-    const [annotations, setAnnotations] = useState<Annotation[]>([]);
-    const [map, setMap] = useState<geo.map | null>(null)
-    const [image, setImage] = useState<Image | null>(null)
+    const [tileQueue, setTileQueue] = useState(null);
 
-    async function getImage(image_id: number) {
-        const queryString = new URLSearchParams({"image_id": image_id.toString()})
-        return fetch(`/api/v1/image?${queryString}`,{
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        }).then(res => {
-            res.json()
-        });
+
+
+
+    async function populateTileQueue(annotationClassId: number, imageId: number) {
+        /*  Fetch all tiles within the viewport and set the tileQueue.  */
+        return
+    }
+
+    async function getTileStatus(tileId: number) {
+        /*  Check if a tile is seen.
+        *   1. Check if tile is seen
+        *       a. 0: tile not seen. Call /compute
+        *       b. 1: tile currently being processed. Add tile id to polling queue.
+        *       c. 2: tile seen.
+        *   2.
+        * */
+    }
+
+    async function getTileAnnotations(tileId: number)
+
+    function handleMouseUp() {
+
     }
 
     useEffect(() => {
-        const initializeMap = async () => {
-            await getImage(1).then((resp) => {
-                setImage(resp)
-            })
+        const img = props.currentImage;
+        console.log("Viewport detected image update.")
+        if (props.currentImage) {
             const params = geo.util.pixelCoordinateParams(
-                viewRef.current, image?.width, image?.height, image?.dz_tilesize, image?.dz_tilesize);
-            const map = geo.map(params.map);
-            setMap(map);
-            params.layer.url = `/image/tile/{z}/{x}/{y}`;
-            map.createLayer('osm', params.layer)
-            map.geoOn(geo.event.mousemove, function (evt: any) {
+                viewRef.current, img.width, img.height, img.dz_tilesize, img.dz_tilesize);
+            const geojs_map = geo.map(params.map);
+
+            params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
+            geojs_map.createLayer('osm', params.layer)
+            geojs_map.geoOn(geo.event.mousemove, function (evt: any) {
                 console.log(evt.geo.x.toFixed(6), evt.geo.y.toFixed(6));
             });
-            return null;
-        };
+            geojs_map.geoOn(geo.event.mouseup, function (evt: any) {
 
-        initializeMap().then(r => console.log('Map initialized'));
-    }, []);
+            })
+
+            console.log('Map initialized')
+        }
+    }, [props.currentImage])
 
     return (
         <Card className="flex-grow-1">
-            <Card.Body>
-                <div ref={viewRef}>
-
+            <Card.Body style={{padding: "0px"}}>
+                <div ref={viewRef} style={
+                    {
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: 'white',
+                        borderRadius: 6
+                    }
+                }>
                 </div>
             </Card.Body>
         </Card>

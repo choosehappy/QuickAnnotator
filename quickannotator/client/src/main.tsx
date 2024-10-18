@@ -14,11 +14,11 @@ import LandingPage from './routes/landingPage.tsx'
 
 const router = createBrowserRouter([
     {path: "/", element: <Root />, children: [
-        {path: "/home", element:<LandingPage />},
-        {path: "project", element:<ProjectPage />},
-        {path: "annotate", element:<AnnotationPage />}
-    ]
-    }
+        {path: "/", element:<LandingPage />},
+        {path: "/project/:projectid", element:<ProjectPage />},
+        {path: "/project/:projectid/annotate/:imageid", element:<AnnotationPage />}
+
+    ]}
 ])
 
 createRoot(document.getElementById('root')!).render(

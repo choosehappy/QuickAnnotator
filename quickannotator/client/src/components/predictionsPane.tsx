@@ -2,7 +2,7 @@ import Card from 'react-bootstrap/Card';
 import AnnotationList from "./annotationList.tsx";
 
 
-const PredictionsPane = () => {
+const PredictionsPane = ({preds, setPreds}) => {
     const id = 'id'
     return (
         <Card>

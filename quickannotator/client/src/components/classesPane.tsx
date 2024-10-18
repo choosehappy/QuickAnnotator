@@ -1,7 +1,7 @@
 import Card from 'react-bootstrap/Card';
 
 
-const ClassesPane = () => {
+const ClassesPane = ({selectedClass, setSelectedClass}) => {
     return (
         <Card>
             <Card.Header as={'h5'}>Classes</Card.Header>
