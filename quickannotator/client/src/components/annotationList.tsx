@@ -1,8 +1,7 @@
 import * as React from 'react';
 import {Column, GridOption, SlickgridReactInstance, SlickgridReact} from "slickgrid-react";
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
-import Annotation from "../types/annotations.ts";
-import Image from "../types/image.ts";
+import { Annotation } from "../types.ts";
 
 interface Props {
     annotations: Annotation[];

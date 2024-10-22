@@ -1,6 +1,6 @@
 import Card from 'react-bootstrap/Card';
 import AnnotationList from "./annotationList.tsx";
-import Annotation from "../types/annotations.ts";
+import { Annotation } from "../types.ts"
 
 interface Props {
     gts: Annotation[];

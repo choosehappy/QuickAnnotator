@@ -1,13 +1,13 @@
 import Nav from 'react-bootstrap/Nav';
-import {Link, useOutletContext, useParams} from "react-router-dom";
-import {useEffect, useState} from 'react';
+import { Link, useOutletContext, useParams } from "react-router-dom";
+import { useEffect } from 'react';
 import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Card from "react-bootstrap/Card";
-import {useQuery, fetchProject} from "../helpers/helpers.ts";
-import Project from "../types/project.ts";
-import {OutletContextType} from "../types/outlet.ts";
+
+import { fetchProject } from "../helpers/api.ts"
+import { OutletContextType } from "../types.ts";
 
 const ProjectPage = () => {
     const { currentProject, setCurrentProject, currentImage, setCurrentImage } = useOutletContext<OutletContextType>();

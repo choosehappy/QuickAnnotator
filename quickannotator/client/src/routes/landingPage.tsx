@@ -1,13 +1,11 @@
 import {Link, useOutletContext} from 'react-router-dom';
 import {useEffect} from "react";
-import {OutletContextType} from "../types/outlet.ts";
-import {initialProject} from "../types/project.ts";
 import Nav from "react-bootstrap/Nav";
 import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Card from "react-bootstrap/Card";
-import Project from "../types/project.ts";
+import { OutletContextType } from "../types.ts";
 
 const LandingPage = () => {
     const { setCurrentImage, setCurrentProject } = useOutletContext<OutletContextType>();

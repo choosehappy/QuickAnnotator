@@ -6,13 +6,11 @@ import ClassesPane from "../components/classesPane.tsx";
 import GroundTruthPane from "../components/groundTruthPane.tsx";
 import PredictionsPane from "../components/predictionsPane.tsx";
 import ViewportPane from "../components/viewportPane.tsx";
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
-import Image from "../types/image.ts";
-import AnnotationClass from "../types/annotationClass.ts";
-import Annotation from "../types/annotations.ts";
-import {fetchImage, fetchProject, fetchAnnotations, fetchAnnotationClass} from "../helpers/helpers.ts";
-import {OutletContextType} from "../types/outlet.ts";
+
+import { fetchImage, fetchProject, fetchAnnotations } from "../helpers/api.ts";
+import { Annotation, AnnotationClass, OutletContextType} from "../types.ts";
 
 
 const AnnotationPage = () => {
@@ -30,10 +28,6 @@ const AnnotationPage = () => {
 
         fetchImage(parseInt(imageid)).then((resp) => {
             setCurrentImage(resp);
-        });
-
-        fetchAnnotationClass(1).then((resp) => {
-            setCurrentClass(resp);
         });
     }, [])
 

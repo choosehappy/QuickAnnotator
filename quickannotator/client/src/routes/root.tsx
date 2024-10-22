@@ -1,11 +1,9 @@
-import { Outlet, useParams } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { Outlet } from 'react-router-dom';
+import { useState } from 'react';
 import Navigation from '../components/navigation.tsx';
-import Project, { initialProject } from '../types/project.ts';
-import Image, { initialImage } from '../types/image.ts';
+import { Project, Image } from '../types.ts';
 
 export default function Root() {
-    const { projectid, imageid } = useParams(); // Extract URL params
     const [currentProject, setCurrentProject] = useState<Project | null>(null);
     const [currentImage, setCurrentImage] = useState<Image | null>(null);
 

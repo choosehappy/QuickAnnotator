@@ -1,5 +1,4 @@
-import Project from '../types/project.ts';
-import Image from '../types/image.ts';
+import { Image, Project } from "../types.ts"
 import {Link} from "react-router-dom";
 // import BreadCrumb from 'react-bootstrap/Breadcrumb';
 import Navbar from 'react-bootstrap/Navbar';
@@ -7,7 +6,6 @@ import Nav from 'react-bootstrap/Nav';
 import NavItem from 'react-bootstrap/NavItem';
 import Container from "react-bootstrap/Container";
 import ProgressBar from "react-bootstrap/ProgressBar"
-import {useQuery} from "../helpers/helpers.ts";
 
 interface NavbarProps {
     currentProject: Project | null;

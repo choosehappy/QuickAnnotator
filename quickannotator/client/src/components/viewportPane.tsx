@@ -1,11 +1,8 @@
 import Card from 'react-bootstrap/Card';
 import React, { useEffect, useState, useRef } from 'react';
 import geo from "geojs"
-import Annotation from "../types/annotations.ts";
-import Image from "../types/image.ts";
-import AnnotationClass from "../types/annotationClass.ts";
+import { Annotation, Image, AnnotationClass } from "../types.ts"
 import {ButtonToolbar, ButtonGroup, Button} from "react-bootstrap";
-
 interface Props {
     currentImage: Image | null;
     currentClass: AnnotationClass | null;
@@ -17,25 +14,40 @@ const ViewportPane = (props: Props) => {
     const viewRef = useRef(null);
     const [tileQueue, setTileQueue] = useState(null);
 
+    /*  Option 1: sequential
+    *   1. Get all tiles and insert into queue
+    *   2. For each item in the queue, get the status
+    *       0: If unseen, call /compute and push the item to the end of the queue.
+    *       1: If processing, do nothing and push to the end of the queue.
+    *       2: If seen, fetch annotations and remove tile from queue.
+    *  */
 
+    /*  Option 2: parallel
+    *   1. Get all
+    * */
 
 
     async function populateTileQueue(annotationClassId: number, imageId: number) {
-        /*  Fetch all tiles within the viewport and set the tileQueue.  */
+        /*  Fetch all tiles within the viewport and set the tileQueue.
+        *     */
+
+
         return
     }
 
     async function getTileStatus(tileId: number) {
         /*  Check if a tile is seen.
         *   1. Check if tile is seen
-        *       a. 0: tile not seen. Call /compute
-        *       b. 1: tile currently being processed. Add tile id to polling queue.
-        *       c. 2: tile seen.
+        *       a. 0: tile not seen. Call /compute, push tile idx to end of queue
+        *       b. 1: tile currently being processed. Push tile to end of queue.
+        *       c. 2: tile seen. Remove tile from queue and
         *   2.
         * */
     }
 
-    async function getTileAnnotations(tileId: number)
+    async function getTileAnnotations(tileId: number) {
+
+    }
 
     function handleMouseUp() {
 

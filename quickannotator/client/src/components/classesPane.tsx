@@ -1,8 +1,8 @@
 import Card from 'react-bootstrap/Card';
-import AnnotationClass from "../types/annotationClass.ts";
-import {useEffect, useState} from "react";
-import {fetchAnnotationClass} from "../helpers/helpers.ts";
-import {ListGroup} from "react-bootstrap";
+import { useEffect, useState } from "react";
+import { ListGroup } from "react-bootstrap";
+import { AnnotationClass } from "../types.ts";
+import { fetchAnnotationClasses, fetchAnnotationClassById } from "../helpers/api.ts";
 
 interface Props {
     currentClass: AnnotationClass | null;
@@ -11,14 +11,12 @@ interface Props {
 const ClassesPane = (props: Props) => {
     const [classes, setClasses] = useState<AnnotationClass[]>([]);
     useEffect(() => {
-        fetchAnnotationClass().then((resp) => {
+        fetchAnnotationClasses().then((resp) => {
             setClasses(resp);
         })
-        fetchAnnotationClass(1).then((resp) => {
+        fetchAnnotationClassById(1).then((resp) => {
             props.setCurrentClass(resp);
         });
-
-
     }, []);
 
     return (
