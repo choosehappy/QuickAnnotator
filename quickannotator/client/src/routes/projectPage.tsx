@@ -28,7 +28,7 @@ const ProjectPage = () => {
                     <Row className="d-flex flex-grow-1">
                         <Col className="d-flex flex-grow-1"><Card className="flex-grow-1">
                             <Card.Body>
-                                <Nav.Link as={Link} to={`/project/${currentProject.id}/annotate/${imageid}`}>Begin annotation</Nav.Link>
+                                <Nav.Link as={Link} to={`/project/${currentProject.id}/annotate/${imageid}`}>Image 1</Nav.Link>
                             </Card.Body>
                         </Card></Col>
                     </Row>

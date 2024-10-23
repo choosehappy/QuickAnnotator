@@ -46,7 +46,7 @@ class UploadFileArgsSchema(Schema):
     file = Upload(required=True)
 
 # ------------------------ ROUTES ------------------------
-@bp.route('', endpoint="image")
+@bp.route('/', endpoint="image")
 class Image(MethodView):
     @bp.arguments(GetImageArgsSchema, location='query')
     @bp.response(200, ImageRespSchema)

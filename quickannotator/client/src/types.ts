@@ -1,4 +1,4 @@
-import {MultiPolygon, Point} from "geojson"
+import {MultiPolygon, Point, Polygon} from "geojson"
 
 export interface AnnotationClass {
     id: number;
@@ -39,6 +39,14 @@ export interface Project {
     name: string;
     description: string;
     date: Date;
+}
+
+export interface Tile {
+    id: number;
+    image_id: number;
+    annotation_class_id: number;
+    geom: Polygon;
+    seen: number;
 }
 
 export type OutletContextType = {

@@ -81,7 +81,7 @@ export default class AnnotationList extends React.Component {
     }
 
     render() {
-        return !this.state.gridOptions ? '' : (
+        return !this.state.gridOptions ? '/' : (
             <SlickgridReact gridId={this.props.containerId + '-grid'}
                             columnDefinitions={this.state.columnDefinitions}
                             gridOptions={this.state.gridOptions}

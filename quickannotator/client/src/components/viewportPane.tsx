@@ -1,8 +1,10 @@
 import Card from 'react-bootstrap/Card';
 import React, { useEffect, useState, useRef } from 'react';
 import geo from "geojs"
-import { Annotation, Image, AnnotationClass } from "../types.ts"
-import {ButtonToolbar, ButtonGroup, Button} from "react-bootstrap";
+import { Annotation, Image, AnnotationClass, Tile } from "../types.ts"
+import { ButtonToolbar, ButtonGroup, Button } from "react-bootstrap";
+import { searchTiles } from "../helpers/api.ts";
+
 interface Props {
     currentImage: Image | null;
     currentClass: AnnotationClass | null;
@@ -12,66 +14,52 @@ interface Props {
 
 const ViewportPane = (props: Props) => {
     const viewRef = useRef(null);
-    const [tileQueue, setTileQueue] = useState(null);
+    const [tileQueue, setTileQueue] = useState<Tile[] | null>(null);
+    const geojs_map: geo.map | null = useRef(null);
+    let zoomPanTimeout = null;
 
-    /*  Option 1: sequential
-    *   1. Get all tiles and insert into queue
-    *   2. For each item in the queue, get the status
-    *       0: If unseen, call /compute and push the item to the end of the queue.
-    *       1: If processing, do nothing and push to the end of the queue.
-    *       2: If seen, fetch annotations and remove tile from queue.
-    *  */
-
-    /*  Option 2: parallel
-    *   1. Get all
-    * */
-
-
-    async function populateTileQueue(annotationClassId: number, imageId: number) {
-        /*  Fetch all tiles within the viewport and set the tileQueue.
-        *     */
-
-
-        return
+    function updateTileQueue(x1: number, y1: number, x2: number, y2: number) {
+        if (!props.currentImage || !props.currentClass) return;
+        searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2).then((tiles) => {
+            // setTileQueue(tiles);
+            console.log(tiles);
+        });
     }
 
-    async function getTileStatus(tileId: number) {
-        /*  Check if a tile is seen.
-        *   1. Check if tile is seen
-        *       a. 0: tile not seen. Call /compute, push tile idx to end of queue
-        *       b. 1: tile currently being processed. Push tile to end of queue.
-        *       c. 2: tile seen. Remove tile from queue and
-        *   2.
-        * */
-    }
+    const handleZoomPan = () => {
+        console.log('Zooming or Panning...');
+        // Clear the previous timeout if the zoom continues
+        if (zoomPanTimeout) clearTimeout(zoomPanTimeout);
 
-    async function getTileAnnotations(tileId: number) {
-
-    }
-
-    function handleMouseUp() {
-
-    }
+        // Set a new timeout to detect when zooming has stopped
+        zoomPanTimeout = setTimeout(() => {
+            console.log('Zooming or Panning stopped.');
+            const bounds = geojs_map.current.bounds();
+            updateTileQueue(bounds.left, bounds.bottom, bounds.right, bounds.top);
+        }, 100); // Adjust this timeout duration as needed
+    };
 
     useEffect(() => {
         const img = props.currentImage;
         console.log("Viewport detected image update.")
-        if (props.currentImage) {
+        if (img) {
             const params = geo.util.pixelCoordinateParams(
                 viewRef.current, img.width, img.height, img.dz_tilesize, img.dz_tilesize);
-            const geojs_map = geo.map(params.map);
-
+            geojs_map.current = geo.map(params.map);
             params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
-            geojs_map.createLayer('osm', params.layer)
-            geojs_map.geoOn(geo.event.mousemove, function (evt: any) {
-                console.log(evt.geo.x.toFixed(6), evt.geo.y.toFixed(6));
-            });
-            geojs_map.geoOn(geo.event.mouseup, function (evt: any) {
 
-            })
-
-            console.log('Map initialized')
+            if (geojs_map.current) {
+                geojs_map.current.createLayer('osm', params.layer)
+                geojs_map.current.geoOn(geo.event.mousemove, function (evt: any) {
+                    console.log("mouse moved");
+                });
+                geojs_map.current.geoOn(geo.event.zoom, handleZoomPan)
+                geojs_map.current.geoOn(geo.event.pan, handleZoomPan)
+                console.log('Map initialized')
+            }
         }
+
+
     }, [props.currentImage])
 
     return (

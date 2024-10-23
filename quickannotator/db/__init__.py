@@ -86,7 +86,7 @@ class Tile(db.Model):
 
 
     # columns
-    upper_left_coord = Column(Geometry('POINT'))
+    geom = Column(Geometry('POLYGON'))
     seen = Column(Integer, nullable=False, default=0)
 
 

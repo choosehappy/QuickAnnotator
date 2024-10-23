@@ -9,7 +9,7 @@ import ViewportPane from "../components/viewportPane.tsx";
 import { useState, useEffect } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
-import { fetchImage, fetchProject, fetchAnnotations } from "../helpers/api.ts";
+import { fetchImage, fetchProject, fetchAllAnnotations } from "../helpers/api.ts";
 import { Annotation, AnnotationClass, OutletContextType} from "../types.ts";
 
 
@@ -33,11 +33,11 @@ const AnnotationPage = () => {
 
     useEffect(() => {
         if (currentImage && currentClass) {
-            fetchAnnotations(currentImage.id, currentClass.id, true).then((resp) => {
+            fetchAllAnnotations(currentImage.id, currentClass.id, true).then((resp) => {
                 setGts(resp);
             })
 
-            fetchAnnotations(currentImage.id, 1, false).then((resp) => {
+            fetchAllAnnotations(currentImage.id, currentClass.id, false).then((resp) => {
                 setPreds(resp);
             })
         }
