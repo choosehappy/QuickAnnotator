@@ -90,6 +90,17 @@ export const fetchAllAnnotations = async (image_id: number, annotation_class_id:
     return await get<Annotation[]>(`/annotation/${image_id}/${annotation_class_id}/search?is_gt=${is_gt}`);
 }
 
+export const searchAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean, x1: number, y1: number, x2: number, y2: number) => {
+    const query = new URLSearchParams({
+        is_gt: is_gt.toString(),
+        x1: x1.toString(),
+        y1: y1.toString(),
+        x2: x2.toString(),
+        y2: y2.toString(),
+    });
+    return await get<Annotation[]>(`/annotation/${image_id}/${annotation_class_id}/search?${query}`);
+}
+
 // Fetch annotation by ID
 export const fetchAnnotationClasses = async () => {
     return await get<AnnotationClass[]>('/class/search');
@@ -104,10 +115,18 @@ export const fetchAnnotationClassById = async (annotation_class_id: number) => {
 // Fetch annotation by ID
 export const searchTiles = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number) => {
     const query = new URLSearchParams({
+        image_id: image_id.toString(),
+        annotation_class_id: annotation_class_id.toString(),
         x1: x1.toString(),
         y1: y1.toString(),
         x2: x2.toString(),
         y2: y2.toString(),
     });
-    return await get<Tile[]>(`/tile/${image_id}/${annotation_class_id}/search/?${query}`);
+    return await get<Tile[]>(`/tile/search?${query}`);
+}
+
+// Fetch tile by ID
+export const fetchTile = async (tile_id: number) => {
+    const query = new URLSearchParams({ tile_id: tile_id.toString() });
+    return await get<Tile>(`/tile?${query}`);
 }

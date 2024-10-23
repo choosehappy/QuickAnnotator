@@ -6,7 +6,7 @@ from pkg_resources import require
 
 import quickannotator.db as qadb
 from quickannotator.db import db
-from .helpers import tiles_within_bbox
+from .helper import tiles_within_bbox
 
 bp = Blueprint('tile', __name__, description="Tile operations")
 
@@ -40,7 +40,7 @@ class SearchTileArgsSchema(Schema):
 
 # ------------------------ ROUTES ------------------------
 
-@bp.route('/')
+@bp.route('')
 class Tile(MethodView):
     @bp.arguments(GetTileArgsSchema, location='query')
     @bp.response(200, TileRespSchema)

@@ -5,6 +5,7 @@ from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from sqlalchemy import Table
 
 import quickannotator.db as qadb
+from .helper import annotations_within_bbox
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
 
@@ -24,7 +25,11 @@ class GetAnnArgsSchema(Schema):
 
 class GetAnnSearchArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
-    bbox_polygon = fields.String(required=False)
+    x1 = fields.Int(required=False)
+    y1 = fields.Int(required=False)
+    x2 = fields.Int(required=False)
+    y2 = fields.Int(required=False)
+    polygon = qadb.GeometryField(required=False)
 
 class PostAnnArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
@@ -96,11 +101,14 @@ class SearchAnnotations(MethodView):
         gtpred = 'gt' if args['is_gt'] else 'pred'
         table_name = f"{image_id}_{annotation_class_id}_{gtpred}_annotation"
         table = Table(table_name, qadb.db.metadata, autoload_with=qadb.db.engine)
-        if "bbox_polygon" in args:
+
+        if "polygon" in args:
             # search for annotations within the bounding box
             pass
-        else:
+        elif "x1" in args and "y1" in args and "x2" in args and "y2" in args:
             # return all annotations
+            return annotations_within_bbox(table, args['x1'], args['y1'], args['x2'], args['y2']), 200
+        else:
             stmt = table.select()
             result = qadb.db.session.execute(stmt).fetchall()
             return result, 200

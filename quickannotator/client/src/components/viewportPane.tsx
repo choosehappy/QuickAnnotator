@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile } from "../types.ts"
 import { ButtonToolbar, ButtonGroup, Button } from "react-bootstrap";
-import { searchTiles } from "../helpers/api.ts";
+import { fetchTile, searchTiles, searchAnnotations } from "../helpers/api.ts";
 
 interface Props {
     currentImage: Image | null;
@@ -14,15 +14,58 @@ interface Props {
 
 const ViewportPane = (props: Props) => {
     const viewRef = useRef(null);
-    const [tileQueue, setTileQueue] = useState<Tile[] | null>(null);
+    const [dlTileQueue, setDlTileQueue] = useState<Tile[] | null>(null);
     const geojs_map: geo.map | null = useRef(null);
     let zoomPanTimeout = null;
 
-    function updateTileQueue(x1: number, y1: number, x2: number, y2: number) {
+    function renderAnnotations(x1: number, y1: number, x2: number, y2: number) {
         if (!props.currentImage || !props.currentClass) return;
         searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2).then((tiles) => {
-            // setTileQueue(tiles);
-            console.log(tiles);
+            tiles.forEach((tile) => {
+                processTile(tile);
+            });
+        });
+    }
+
+    const processTile = async (tile: Tile) => {
+        const t = await fetchTile(tile.id);
+        const geom = JSON.parse(t.geom);    // for some reason the geom is stringified
+        const tileState = t.seen;
+
+        const x1 = geom.coordinates[0][0][0];
+        const y1 = geom.coordinates[0][0][1];
+        const x2 = geom.coordinates[0][2][0];
+        const y2 = geom.coordinates[0][2][1];
+
+
+        switch (tileState) {
+            case 0:
+                console.log("Tile not seen");
+                /*  Tile not seen. Perform the following:
+                *   1. Call compute endpoint
+                *   2. Update tile state to 1
+                *   3. Update Queue with tile
+                * */
+                break;
+            case 1:
+                console.log("Tile processing");
+                /*  Tile processing. Perform the following:
+                *   1. Push tile to end of queue
+                 */
+                break;
+            case 2:
+                console.log("Tile processed");
+                searchAnnotations(t.image_id, t.annotation_class_id, false, x1, y1, x2, y2).then((annotations) => {
+                    console.log("Predictions")
+                    console.log(annotations);
+                });
+                break;
+
+        }
+
+        searchAnnotations(t.image_id, t.annotation_class_id, true, x1, y1, x2, y2).then((annotations) => {
+            console.log("Ground Truth Annotations")
+            console.log(annotations);
         });
     }
 
@@ -35,14 +78,14 @@ const ViewportPane = (props: Props) => {
         zoomPanTimeout = setTimeout(() => {
             console.log('Zooming or Panning stopped.');
             const bounds = geojs_map.current.bounds();
-            updateTileQueue(bounds.left, bounds.bottom, bounds.right, bounds.top);
+            renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top);
         }, 100); // Adjust this timeout duration as needed
     };
 
     useEffect(() => {
         const img = props.currentImage;
         console.log("Viewport detected image update.")
-        if (img) {
+        if (img && props.currentClass) {
             const params = geo.util.pixelCoordinateParams(
                 viewRef.current, img.width, img.height, img.dz_tilesize, img.dz_tilesize);
             geojs_map.current = geo.map(params.map);
@@ -60,7 +103,8 @@ const ViewportPane = (props: Props) => {
         }
 
 
-    }, [props.currentImage])
+    }, [props.currentImage, props.currentClass])
+
 
     return (
         <Card className="flex-grow-1">

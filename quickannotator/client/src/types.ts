@@ -1,4 +1,4 @@
-import {MultiPolygon, Point, Polygon} from "geojson"
+import {MultiPolygon, Point, Polygon, Feature} from "geojson"
 
 export interface AnnotationClass {
     id: number;
@@ -45,7 +45,7 @@ export interface Tile {
     id: number;
     image_id: number;
     annotation_class_id: number;
-    geom: Polygon;
+    geom: Feature;
     seen: number;
 }
 

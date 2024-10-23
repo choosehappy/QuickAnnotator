@@ -14,7 +14,7 @@ const ClassesPane = (props: Props) => {
         fetchAnnotationClasses().then((resp) => {
             setClasses(resp);
         })
-        fetchAnnotationClassById(1).then((resp) => {
+        fetchAnnotationClassById(2).then((resp) => {
             props.setCurrentClass(resp);
         });
     }, []);
