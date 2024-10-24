@@ -99,7 +99,7 @@ class Annotation(db.Model):
     # columns
     centroid = Column(Geometry('POINT'))
     area = Column(Float)
-    polygon = Column(Geometry('MULTIPOLYGON'))
+    polygon = Column(Geometry('POLYGON'))
     custom_metrics = Column(JSON)
     datetime = Column(DateTime, server_default=db.func.now())
 

@@ -18,7 +18,7 @@ const ViewportPane = (props: Props) => {
     const geojs_map: geo.map | null = useRef(null);
     let zoomPanTimeout = null;
 
-    function renderAnnotations(x1: number, y1: number, x2: number, y2: number) {
+    async function renderAnnotations(x1: number, y1: number, x2: number, y2: number) {
         if (!props.currentImage || !props.currentClass) return;
         searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2).then((tiles) => {
             tiles.forEach((tile) => {
@@ -32,36 +32,36 @@ const ViewportPane = (props: Props) => {
         const geom = JSON.parse(t.geom);    // for some reason the geom is stringified
         const tileState = t.seen;
 
-        const x1 = geom.coordinates[0][0][0];
-        const y1 = geom.coordinates[0][0][1];
-        const x2 = geom.coordinates[0][2][0];
-        const y2 = geom.coordinates[0][2][1];
+        const x1 = geom.geometry.coordinates[0][0][0];
+        const y1 = geom.geometry.coordinates[0][0][1];
+        const x2 = geom.geometry.coordinates[0][2][0];
+        const y2 = geom.geometry.coordinates[0][2][1];
 
 
-        switch (tileState) {
-            case 0:
-                console.log("Tile not seen");
-                /*  Tile not seen. Perform the following:
-                *   1. Call compute endpoint
-                *   2. Update tile state to 1
-                *   3. Update Queue with tile
-                * */
-                break;
-            case 1:
-                console.log("Tile processing");
-                /*  Tile processing. Perform the following:
-                *   1. Push tile to end of queue
-                 */
-                break;
-            case 2:
-                console.log("Tile processed");
-                searchAnnotations(t.image_id, t.annotation_class_id, false, x1, y1, x2, y2).then((annotations) => {
-                    console.log("Predictions")
-                    console.log(annotations);
-                });
-                break;
-
-        }
+        // switch (tileState) {
+        //     case 0:
+        //         console.log("Tile not seen");
+        //         /*  Tile not seen. Perform the following:
+        //         *   1. Call compute endpoint
+        //         *   2. Update tile state to 1
+        //         *   3. Update Queue with tile
+        //         * */
+        //         break;
+        //     case 1:
+        //         console.log("Tile processing");
+        //         /*  Tile processing. Perform the following:
+        //         *   1. Push tile to end of queue
+        //          */
+        //         break;
+        //     case 2:
+        //         console.log("Tile processed");
+        //         searchAnnotations(t.image_id, t.annotation_class_id, false, x1, y1, x2, y2).then((annotations) => {
+        //             console.log("Predictions")
+        //             console.log(annotations);
+        //         });
+        //         break;
+        //
+        // }
 
         searchAnnotations(t.image_id, t.annotation_class_id, true, x1, y1, x2, y2).then((annotations) => {
             console.log("Ground Truth Annotations")
