@@ -60,8 +60,12 @@ class Annotation(MethodView):
     def get(self, args, image_id, annotation_class_id):
         """     returns an Annotation
         """
-
-        return {}, 200
+        gtpred = 'gt' if args['is_gt'] else 'pred'
+        table_name = f"{image_id}_{annotation_class_id}_{gtpred}_annotation"
+        table = Table(table_name, qadb.db.metadata, autoload_with=qadb.db.engine)
+        stmt = table.select().where(table.c.id == args['annotation_id'])
+        result = qadb.db.session.execute(stmt).first()
+        return result, 200
 
     @bp.arguments(PostAnnArgsSchema, location='json')
     def post(self, args):

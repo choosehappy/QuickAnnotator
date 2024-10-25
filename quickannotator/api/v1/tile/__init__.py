@@ -14,6 +14,7 @@ bp = Blueprint('tile', __name__, description="Tile operations")
 class TileRespSchema(SQLAlchemyAutoSchema):
     class Meta:
         model = qadb.Tile
+        include_fk = True
 
     geom = qadb.GeometryField()
 

@@ -50,7 +50,7 @@ const AnnotationPage = () => {
                     <Row className="d-flex flex-grow-1">
                         <Col className="d-flex flex-grow-1">
                             <ViewportPane
-                                {...{currentImage, currentClass, gts, preds}}
+                                {...{currentImage, currentClass, gts, setGts, preds, setPreds }}
                             /></Col>
                         <Col xs={3}>
                             <Stack gap={3}>

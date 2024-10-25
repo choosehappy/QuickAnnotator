@@ -9,22 +9,41 @@ interface Props {
     currentImage: Image | null;
     currentClass: AnnotationClass | null;
     gts: Annotation[];
+    setGts: (gts: Annotation[]) => void;
     preds: Annotation[];
+    setPreds: (preds: Annotation[]) => void;
 }
 
 const ViewportPane = (props: Props) => {
     const viewRef = useRef(null);
     const [dlTileQueue, setDlTileQueue] = useState<Tile[] | null>(null);
-    const geojs_map: geo.map | null = useRef(null);
+    const [geojs_map, setGeojsMap] = useState<geo.map | null>(null);
     let zoomPanTimeout = null;
+
+
+    const handleZoomPan = () => {
+        console.log('Zooming or Panning...');
+        // Clear the previous timeout if the zoom continues
+        if (zoomPanTimeout) clearTimeout(zoomPanTimeout);
+
+        // Set a new timeout to detect when zooming has stopped
+        zoomPanTimeout = setTimeout(() => {
+            console.log('Zooming or Panning stopped.');
+            const bounds = geojs_map.bounds();
+            // renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top);
+        }, 100); // Adjust this timeout duration as needed
+    };
 
     async function renderAnnotations(x1: number, y1: number, x2: number, y2: number) {
         if (!props.currentImage || !props.currentClass) return;
-        searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2).then((tiles) => {
-            tiles.forEach((tile) => {
-                processTile(tile);
-            });
-        });
+        const tiles = await searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2)
+        let anns = [];
+        for (const tile of tiles) {
+            console.log(`Processing tile ${tile.id}`)
+            const resp = await processTile(tile);
+            anns = anns.concat(resp);
+            props.setGts(anns);
+        }
     }
 
     const processTile = async (tile: Tile) => {
@@ -36,7 +55,6 @@ const ViewportPane = (props: Props) => {
         const y1 = geom.geometry.coordinates[0][0][1];
         const x2 = geom.geometry.coordinates[0][2][0];
         const y2 = geom.geometry.coordinates[0][2][1];
-
 
         // switch (tileState) {
         //     case 0:
@@ -63,23 +81,76 @@ const ViewportPane = (props: Props) => {
         //
         // }
 
-        searchAnnotations(t.image_id, t.annotation_class_id, true, x1, y1, x2, y2).then((annotations) => {
-            console.log("Ground Truth Annotations")
-            console.log(annotations);
-        });
+        const resp = await searchAnnotations(t.image_id, t.annotation_class_id, true, x1, y1, x2, y2)
+        return resp
     }
 
-    const handleZoomPan = () => {
-        console.log('Zooming or Panning...');
-        // Clear the previous timeout if the zoom continues
-        if (zoomPanTimeout) clearTimeout(zoomPanTimeout);
+    const drawPolygons = (annotations: Annotation[]) => {
+        const polygonLayer = geojs_map.layers()[1];
+        const polygonFeature = polygonLayer.createFeature('polygon', {selectionAPI: true});
+        polygonFeature.data(annotations.map((a) => {
+            const polygon = JSON.parse(a.polygon.toString());
+            return {
+                type: polygon.geometry.type,
+                coordinates: polygon.geometry.coordinates,
+                properties: polygon.properties
+            }
+        })).style('fill', true)
+            .style('fillOpacity', 0.9)
+            .style('stroke', true)
+            .style('fillColor', () => {
+                return 'rgb(0,0,0)'//`rgb(${poly.properties.color[0]}, ${poly.properties.color[1]}, ${poly.properties.color[2]})`
+            })
+            .polygon(function (d: any) {
+                return {
+                    outer: d.coordinates[0]
+                };
+            })
+            .position((d: number[]) => {
+                return {x: d[0], y: d[1]}
+            })
+            .geoOn(geo.event.feature.mouseclick, function (evt: any) {
+                console.log(evt.data.properties.name);
 
-        // Set a new timeout to detect when zooming has stopped
-        zoomPanTimeout = setTimeout(() => {
-            console.log('Zooming or Panning stopped.');
-            const bounds = geojs_map.current.bounds();
-            renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top);
-        }, 100); // Adjust this timeout duration as needed
+            });
+        polygonFeature.draw();
+    }
+
+    const testDraw = (map: geo.map) => {
+        const polygonLayer = map.createLayer('feature', {features: ['polygon']});
+
+        const polygonFeature = polygonLayer.createFeature('polygon', {selectionAPI: true});
+        polygonFeature
+            .data([{
+                type: "Polygon",
+                coordinates: [
+                    [
+                        [0, 0],
+                        [0, 100],
+                        [100, 100],
+                        [100, 0],
+                        [0, 0]
+                    ]
+                ],
+                properties: {
+                    name: "Test Polygon"
+                }
+            }])
+            .style({
+                uniformPolygon: true,
+                fill: true,
+                fillColor: {r: 255, g: 0, b: 0},
+                fillOpacity: 0.5,
+                stroke: true,
+                strokeWidth: 100,
+                strokeColor: {r: 255, g: 0, b: 0}
+            })
+            .geoOn(geo.event.feature.hover, function (evt: any) {
+                console.log("HOVERING!");
+            })
+            .draw();
+
+        console.log("Test polygon drawn on map.");
     };
 
     useEffect(() => {
@@ -88,23 +159,34 @@ const ViewportPane = (props: Props) => {
         if (img && props.currentClass) {
             const params = geo.util.pixelCoordinateParams(
                 viewRef.current, img.width, img.height, img.dz_tilesize, img.dz_tilesize);
-            geojs_map.current = geo.map(params.map);
+            const map = geo.map(params.map);
             params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
 
-            if (geojs_map.current) {
-                geojs_map.current.createLayer('osm', params.layer)
-                geojs_map.current.geoOn(geo.event.mousemove, function (evt: any) {
-                    console.log("mouse moved");
-                });
-                geojs_map.current.geoOn(geo.event.zoom, handleZoomPan)
-                geojs_map.current.geoOn(geo.event.pan, handleZoomPan)
-                console.log('Map initialized')
-            }
+            map.createLayer('osm', params.layer)
+
+            map.geoOn(geo.event.mousemove, function (evt: any) {
+                console.log(`Mouse at x=${evt.geo.x}, y=${evt.geo.y}`);
+            });
+            map.geoOn(geo.event.zoom, handleZoomPan)
+            map.geoOn(geo.event.pan, handleZoomPan)
+            console.log('Map initialized');
+
+                // searchAnnotations(1, 2, true, 0, 0, 10000, 10000).then((annotations) => {
+                //     drawPolygons(annotations);
+                // });
+            testDraw(map);
+            setGeojsMap(map);
         }
+    }, [props.currentImage, props.currentClass]);
 
+    useEffect(() => {
+        if (props.gts.length > 0 && props.gts.length < 10000) {
+            console.log("Annotations detected update.")
+            drawPolygons(props.gts);
+            console.log(props.gts.length)
 
-    }, [props.currentImage, props.currentClass])
-
+        }
+    }, [props.gts]);
 
     return (
         <Card className="flex-grow-1">

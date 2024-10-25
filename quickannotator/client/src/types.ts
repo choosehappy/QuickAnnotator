@@ -45,7 +45,7 @@ export interface Tile {
     id: number;
     image_id: number;
     annotation_class_id: number;
-    geom: Feature;
+    geom: {};
     seen: number;
 }
 
