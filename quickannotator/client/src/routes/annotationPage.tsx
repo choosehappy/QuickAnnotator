@@ -32,15 +32,15 @@ const AnnotationPage = () => {
     }, [])
 
     useEffect(() => {
-        if (currentImage && currentClass) {
-            fetchAllAnnotations(currentImage.id, currentClass.id, true).then((resp) => {
-                setGts(resp);
-            })
-
-            fetchAllAnnotations(currentImage.id, currentClass.id, false).then((resp) => {
-                setPreds(resp);
-            })
-        }
+        // if (currentImage && currentClass) {
+        //     fetchAllAnnotations(currentImage.id, currentClass.id, true).then((resp) => {
+        //         setGts(resp);
+        //     })
+        //
+        //     fetchAllAnnotations(currentImage.id, currentClass.id, false).then((resp) => {
+        //         setPreds(resp);
+        //     })
+        // }
     }, [currentImage, currentClass])
 
     if (currentImage) {
