@@ -16,31 +16,26 @@ interface Props {
 
 const ViewportPane = (props: Props) => {
     const viewRef = useRef(null);
-    // const [dlTileQueue, setDlTileQueue] = useState<Tile[] | null>(null);
-    const geojs_map = useRef<geo.map | null>(null);
-    const activeRenderAnnotationsCall = useRef<number>(0);
+    const [dlTileQueue, setDlTileQueue] = useState<Tile[] | null>(null);
+    const [geojs_map, setGeojsMap] = useState<geo.map | null>(null);
     let zoomPanTimeout = null;
+
+
+
 
     const renderAnnotationTest = async () => {
         if (!props.currentImage || !props.currentClass) return;
-        const anns = await searchAnnotations(props.currentImage.id, props.currentClass.id, true, 40000, 20000, 45000, 25000)
+        const anns = await searchAnnotations(props.currentImage.id, props.currentClass.id, true, 0, 0, 10000, 10000)
         props.setGts(anns);
     }
 
     async function renderAnnotations(x1: number, y1: number, x2: number, y2: number) {
         if (!props.currentImage || !props.currentClass) return;
-        const currentCallToken = ++activeRenderAnnotationsCall.current;
         const tiles = await searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2)
-
         let anns = [];
         for (const tile of tiles) {
-            if (currentCallToken !== activeRenderAnnotationsCall.current) {
-                console.log("Render cancelled.")
-                return;
-            }
             console.log(`Processing tile ${tile.id}`)
             const resp = await processTile(tile);
-            drawPolygons(resp);
             anns = anns.concat(resp);
             props.setGts(anns);
         }
@@ -85,31 +80,6 @@ const ViewportPane = (props: Props) => {
         return resp
     }
 
-    const drawPolygons = (annotations: Annotation[]) => {
-        console.log("Annotations detected update.")
-        const layer = geojs_map.current.layers()[0];
-        const feature = layer.features()[0];
-        // const feature = geojs_map.current.layers()[0].createFeature('polygon', {selectionAPI: true});
-        const newData = annotations.map((a) => {
-            const polygon = JSON.parse(a.polygon.toString());
-            return polygon.geometry.coordinates[0];
-        });
-
-        feature
-            .position((d) => {return {
-                x: d[0], y: d[1]};
-            })
-            // .polygon() should return the polygon.geometry.coordinates[0];
-            .data(feature.data().concat(newData))
-            .style('fill', true)
-            .style('fillOpacity', 0.5)
-            .style('stroke', true)
-            .geoOn(geo.event.feature.mouseclick, function (evt: any) {
-                console.log(evt.data);
-
-            }).draw();
-    }
-
     useEffect(() => {
         const handleZoomPan = () => {
             console.log('Zooming or Panning...');
@@ -118,21 +88,11 @@ const ViewportPane = (props: Props) => {
             // Set a new timeout to detect when zooming has stopped
             zoomPanTimeout = setTimeout(() => {
                 console.log('Zooming or Panning stopped.');
-                const bounds = geojs_map.current.bounds();
+                const bounds = geojs_map.bounds();
                 console.log(bounds);
-                // const feature = geojs_map.current.layers()[0].features()[0];
-                // feature.data([]).draw();
-                const layer = geojs_map.current.layers()[0];
-                const oldFeature = layer.features()[0];
-                layer.deleteFeature(oldFeature);
-                layer.createFeature('polygon', {selectionAPI: true});
-
-
-                renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top).then(() => {
-                    console.log("Annotations rendered.");
-                });
-                // renderAnnotationTest();
-            }, 300); // Adjust this timeout duration as needed
+                // renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top);
+                renderAnnotationTest();
+            }, 100); // Adjust this timeout duration as needed
         };
 
         const initializeMap = async () => {
@@ -141,28 +101,54 @@ const ViewportPane = (props: Props) => {
                 const params = geo.util.pixelCoordinateParams(
                     viewRef.current, img.width, img.height, img.dz_tilesize, img.dz_tilesize);
                 const map = geo.map(params.map);
-
-                params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
+                setGeojsMap(map);
+                params.layer.url = '/api/v1/image/1/patch_file/{z}/{x}_{y}.png';
                 console.log("OSM layer loaded.")
-                const featureLayer = map.createLayer('feature', {features: ['polygon']});
-                featureLayer.createFeature('polygon', {selectionAPI: true});
+                map.createLayer('feature', {features: ['polygon']});
                 map.createLayer('osm', { ...params.layer, zIndex: 0 })
 
-                // map.geoOn(geo.event.mousemove, function (evt: any) {
-                //     console.log(`Mouse at x=${evt.geo.x}, y=${evt.geo.y}`);
-                // });
-                // map.geoOn(geo.event.zoom, handleZoomPan)
+                map.geoOn(geo.event.mousemove, function (evt: any) {
+                    console.log(`Mouse at x=${evt.geo.x}, y=${evt.geo.y}`);
+                });
+                map.geoOn(geo.event.zoom, handleZoomPan)
                 map.geoOn(geo.event.pan, handleZoomPan)
-                geojs_map.current = map;
+
                 return null;
             }
         }
         if (props.currentImage && props.currentClass) {
-            initializeMap().then(() => console.log(`Map initialized for ${geojs_map.current}`));
+            initializeMap().then(() => console.log(console.log(`Map initialized for ${geojs_map}`)));
         }
 
     }, [props.currentImage, props.currentClass]);
 
+
+    useEffect(() => {
+        const drawPolygons = async () => {
+            console.log("Annotations detected update.")
+
+            const feature = geojs_map.layers()[0].createFeature('polygon');
+
+            const data = props.gts.map((a) => {
+                const polygon = JSON.parse(a.polygon.toString());
+                return polygon.geometry.coordinates[0];
+            });
+
+            feature
+                .position((d) => {return {
+                    x: d[0], y: d[1]};
+                })
+                // .polygon() should return the polygon.geometry.coordinates[0];
+                .data(data)
+                .style('fill', true)
+                .style('fillOpacity', 0.9)
+                .style('stroke', true).draw();
+        }
+
+        if (geojs_map && props.gts.length > 0 && props.gts.length < 10000) {
+            drawPolygons().then(() => console.log("Feature layer initialized."));
+        }
+    }, [geojs_map, props.gts]);
 
     return (
         <Card className="flex-grow-1">

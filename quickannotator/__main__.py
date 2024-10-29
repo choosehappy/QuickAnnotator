@@ -1,15 +1,15 @@
+import shutil
 from flask import Flask
 from flask_smorest import Api, Blueprint
 import argparse
 from waitress import serve
 from quickannotator.config import config
 from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation, SearchCache
-from quickannotator.config import get_database_uri
+from quickannotator.config import get_database_uri, get_database_path
 from geoalchemy2 import load_spatialite
 from sqlalchemy import event
 import os
 from quickannotator.api.v1 import annotation, project, image, annotation_class, notification, tile, setting, ray
-
 
 def serve_quickannotator(app):
     # NOTE: Will need to account for reverse proxy scenarios: https://docs.pylonsproject.org/projects/waitress/en/stable/reverse-proxy.html
@@ -28,7 +28,7 @@ def serve_quickannotator_dev(app):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--port', type=int, default=config.getint('flask', 'port', fallback=5000))
-    parser.add_argument('--factory_reset', action='store_true', default=False,
+    parser.add_argument('-r', '--recreate_db',  action='store_true', default=False,
         help="Restore QuickAnnotator to its factory state. WARNING: all projects and respective data will be deleted.")
     args = parser.parse_args()
     os.environ['SPATIALITE_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu/mod_spatialite.so'  # TODO: set with a function
@@ -39,6 +39,11 @@ if __name__ == '__main__':
     app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
 
     # ------------------------ DB SETUP ------------------------
+    if args.recreate_db:
+        db_path = get_database_path()
+        if os.path.exists(db_path):
+            shutil.rmtree(db_path)
+
     models = [Project, Image, AnnotationClass, Notification, Tile, Setting]
     db.app = app
     db.init_app(app)

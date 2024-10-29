@@ -13,7 +13,7 @@ from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 import large_image
 import os
 import io
-from .helper import getTile
+# from .helper import getTile
 
 
 bp = Blueprint('image', __name__, description='Image operations')
@@ -146,22 +146,3 @@ class PatchFile(MethodView):
         # Return the image as a PNG file
         return send_file(img_bytes, mimetype='image/png')
 
-# @bp.route('/<int:image_id>/patch_file/<int:level>/<int:col>_<int:row>.<string:file_format>', endpoint="patch")
-# class PatchFile(MethodView):
-#     def get(self, image_id, level, col, row, file_format):
-#         """     returns a patch file   """
-#
-#         path = '/home/jackson/code/research/histotools/QuickAnnotator/quickannotator/data/example_project/example_image/example_image.svs'
-#
-#         # Open the image
-#         slide = ops.OpenSlide(path)
-#         patch = getTile(col, row, level, slide, 240, 240)
-#
-#
-#         # Create an in-memory bytes buffer
-#         img_bytes = io.BytesIO()
-#         patch.save(img_bytes, 'PNG')
-#         img_bytes.seek(0)
-#
-#         # Return the image as a PNG file
-#         return send_file(img_bytes, mimetype='image/png')
