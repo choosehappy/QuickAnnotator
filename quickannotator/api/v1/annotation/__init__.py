@@ -116,6 +116,7 @@ class SearchAnnotations(MethodView):
             stmt = table.select()
             result = qadb.db.session.execute(stmt).fetchall()
             return result, 200
+        
 
 #################################################################################
 @bp.route('/<int:image_id>/<int:annotation_class_id>/predict')

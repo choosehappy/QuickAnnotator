@@ -1,9 +1,7 @@
-import Card from 'react-bootstrap/Card';
 import React, { useEffect, useState, useRef } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile } from "../types.ts"
-import { ButtonToolbar, ButtonGroup, Button } from "react-bootstrap";
-import { fetchTile, searchTiles, searchAnnotations } from "../helpers/api.ts";
+import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations } from "../helpers/api.ts";
 
 interface Props {
     currentImage: Image | null;
@@ -14,18 +12,12 @@ interface Props {
     setPreds: (preds: Annotation[]) => void;
 }
 
-const ViewportPane = (props: Props) => {
+const ViewportMap = (props: Props) => {
     const viewRef = useRef(null);
     // const [dlTileQueue, setDlTileQueue] = useState<Tile[] | null>(null);
     const geojs_map = useRef<geo.map | null>(null);
     const activeRenderAnnotationsCall = useRef<number>(0);
     let zoomPanTimeout = null;
-
-    const renderAnnotationTest = async () => {
-        if (!props.currentImage || !props.currentClass) return;
-        const anns = await searchAnnotations(props.currentImage.id, props.currentClass.id, true, 40000, 20000, 45000, 25000)
-        props.setGts(anns);
-    }
 
     async function renderAnnotations(x1: number, y1: number, x2: number, y2: number) {
         if (!props.currentImage || !props.currentClass) return;
@@ -34,16 +26,28 @@ const ViewportPane = (props: Props) => {
 
         let anns = [];
         for (const tile of tiles) {
-            if (currentCallToken !== activeRenderAnnotationsCall.current) {
+            if (currentCallToken !== activeRenderAnnotationsCall.current) {     // We want to check before processing the tile to save resources
                 console.log("Render cancelled.")
                 return;
             }
             console.log(`Processing tile ${tile.id}`)
             const resp = await processTile(tile);
-            drawPolygons(resp);
+            if (currentCallToken !== activeRenderAnnotationsCall.current) {     // ... and after processing the tile to avoid the race condition
+                console.log("Render cancelled.")
+                return;
+            }
+            drawPolygons(resp, geojs_map.current);
+            // drawCentroids(resp, geojs_map.current);
             anns = anns.concat(resp);
             props.setGts(anns);
         }
+    }
+
+    async function renderTissueMask(map: geo.map) {
+        if (!props.currentImage || !props.currentClass) return;
+        const resp = await fetchAllAnnotations(props.currentImage.id, props.currentClass.id, true);
+        drawPolygons(resp, map);
+        props.setGts(resp);
     }
 
     const processTile = async (tile: Tile) => {
@@ -85,11 +89,11 @@ const ViewportPane = (props: Props) => {
         return resp
     }
 
-    const drawPolygons = (annotations: Annotation[]) => {
+    const drawPolygons = (annotations: Annotation[], map: geo.map) => {
         console.log("Annotations detected update.")
-        const layer = geojs_map.current.layers()[0];
+        const layer = map.layers()[0];
         const feature = layer.features()[0];
-        // const feature = geojs_map.current.layers()[0].createFeature('polygon', {selectionAPI: true});
+
         const newData = annotations.map((a) => {
             const polygon = JSON.parse(a.polygon.toString());
             return polygon.geometry.coordinates[0];
@@ -101,13 +105,31 @@ const ViewportPane = (props: Props) => {
             })
             // .polygon() should return the polygon.geometry.coordinates[0];
             .data(feature.data().concat(newData))
-            .style('fill', true)
+            .style('fill', 'lime')
             .style('fillOpacity', 0.5)
-            .style('stroke', true)
+            .style('stroke', false)
             .geoOn(geo.event.feature.mouseclick, function (evt: any) {
                 console.log(evt.data);
-
             }).draw();
+    }
+
+    const drawCentroids = (annotations: Annotation[], map: geo.map) => {
+        console.log("Annotations detected update.")
+        const layer = map.layers()[0];
+        const feature = layer.features()[1];
+
+        const newData = annotations.map((a) => {
+            const centroid = JSON.parse(a.centroid.toString());
+            return centroid.geometry.coordinates;
+        });
+
+        feature
+            .position((d) => {return {
+                x: d[0], y: d[1]};
+            })
+            .style('stroke', false)
+            .style('size', 1)
+            .data(feature.data().concat(newData)).draw();
     }
 
     useEffect(() => {
@@ -120,23 +142,25 @@ const ViewportPane = (props: Props) => {
                 console.log('Zooming or Panning stopped.');
                 const bounds = geojs_map.current.bounds();
                 console.log(bounds);
-                // const feature = geojs_map.current.layers()[0].features()[0];
-                // feature.data([]).draw();
                 const layer = geojs_map.current.layers()[0];
-                const oldFeature = layer.features()[0];
-                layer.deleteFeature(oldFeature);
-                layer.createFeature('polygon', {selectionAPI: true});
+                const polygonFeature = layer.features()[0];
+                const pointFeature = layer.features()[1];
 
+                layer.deleteFeature(polygonFeature);
+                layer.createFeature('polygon', {selectionAPI: true});
+                layer.deleteFeature(pointFeature);
+                layer.createFeature('point')
 
                 renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top).then(() => {
                     console.log("Annotations rendered.");
                 });
                 // renderAnnotationTest();
-            }, 300); // Adjust this timeout duration as needed
+            }, 100); // Adjust this timeout duration as needed
         };
 
         const initializeMap = async () => {
             const img = props.currentImage;
+
             if (img && props.currentClass) {
                 const params = geo.util.pixelCoordinateParams(
                     viewRef.current, img.width, img.height, img.dz_tilesize, img.dz_tilesize);
@@ -152,12 +176,19 @@ const ViewportPane = (props: Props) => {
                 //     console.log(`Mouse at x=${evt.geo.x}, y=${evt.geo.y}`);
                 // });
                 // map.geoOn(geo.event.zoom, handleZoomPan)
-                map.geoOn(geo.event.pan, handleZoomPan)
+                if (props.currentClass.id === 1) {      // Tissue mask class requires different rendering approach.
+                    renderTissueMask(map).then(() => console.log("Tissue mask rendered."));
+                } else {
+                    map.geoOn(geo.event.pan, handleZoomPan)
+                }
                 geojs_map.current = map;
                 return null;
             }
         }
         if (props.currentImage && props.currentClass) {
+            // Need code to clear the map
+            activeRenderAnnotationsCall.current = 0;
+            geojs_map.current?.exit();
             initializeMap().then(() => console.log(`Map initialized for ${geojs_map.current}`));
         }
 
@@ -165,43 +196,16 @@ const ViewportPane = (props: Props) => {
 
 
     return (
-        <Card className="flex-grow-1">
-            <Card.Header style={{
-                position: "absolute",
-                top: 10,
-                left: "50%",
-                transform: "translate(-50%, 0%)",
-                backgroundColor: "rgba(255, 255, 255, 0.6)",
-                borderColor: "rgba(0, 0, 0, 0.8)",
-                borderRadius: 6,
-                zIndex: 10,
-            }}>
-                <ButtonToolbar aria-label="Toolbar with button groups">
-                    <ButtonGroup className="me-2" aria-label="First group">
-                        <Button>1</Button> <Button>2</Button> <Button>3</Button>{' '}
-                        <Button>4</Button>
-                    </ButtonGroup>
-                    <ButtonGroup className="me-2" aria-label="Second group">
-                        <Button>5</Button> <Button>6</Button> <Button>7</Button>
-                    </ButtonGroup>
-                    <ButtonGroup aria-label="Third group">
-                        <Button>8</Button>
-                    </ButtonGroup>
-                </ButtonToolbar>
-            </Card.Header>
-            <Card.Body style={{padding: "0px"}}>
-                <div ref={viewRef} style={
-                    {
-                        width: '100%',
-                        height: '100%',
-                        backgroundColor: 'white',
-                        borderRadius: 6
-                    }
-                }>
-                </div>
-            </Card.Body>
-        </Card>
+        <div ref={viewRef} style={
+            {
+                width: '100%',
+                height: '100%',
+                backgroundColor: 'white',
+                borderRadius: 6
+            }
+        }>
+        </div>
     )
 }
 
-export default ViewportPane;
+export default ViewportMap;

@@ -5,12 +5,14 @@ import Stack from 'react-bootstrap/Stack';
 import ClassesPane from "../components/classesPane.tsx";
 import GroundTruthPane from "../components/groundTruthPane.tsx";
 import PredictionsPane from "../components/predictionsPane.tsx";
-import ViewportPane from "../components/viewportPane.tsx";
-import { useState, useEffect } from 'react';
+import ViewportMap from "../components/viewportMap.tsx";
+import React, { useState, useEffect } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
-import { fetchImage, fetchProject, fetchAllAnnotations } from "../helpers/api.ts";
+import { fetchImage, fetchProject } from "../helpers/api.ts";
 import { Annotation, AnnotationClass, OutletContextType} from "../types.ts";
+import Card from "react-bootstrap/Card";
+import Toolbar from "../components/toolbar.tsx";
 
 
 const AnnotationPage = () => {
@@ -49,9 +51,22 @@ const AnnotationPage = () => {
                 <Container fluid className="pb-3 bg-dark d-flex flex-column flex-grow-1">
                     <Row className="d-flex flex-grow-1">
                         <Col className="d-flex flex-grow-1">
-                            <ViewportPane
-                                {...{currentImage, currentClass, gts, setGts, preds, setPreds }}
-                            /></Col>
+                            <Card className="flex-grow-1">
+                                <Card.Header style={{
+                                    position: "absolute",
+                                    top: 10,
+                                    left: "50%",
+                                    transform: "translate(-50%, 0%)",
+                                    backgroundColor: "rgba(255, 255, 255, 0.6)",
+                                    borderColor: "rgba(0, 0, 0, 0.8)",
+                                    borderRadius: 6,
+                                    zIndex: 10,
+                                }}><Toolbar/></Card.Header>
+                                <Card.Body style={{padding: "0px"}}>
+                                    <ViewportMap {...{currentImage, currentClass, gts, setGts, preds, setPreds }}/>
+                                </Card.Body>
+                            </Card>
+                        </Col>
                         <Col xs={3}>
                             <Stack gap={3}>
                                 <ClassesPane
@@ -70,6 +85,6 @@ const AnnotationPage = () => {
             </>
         )
     }
-}
+};
 
 export default AnnotationPage

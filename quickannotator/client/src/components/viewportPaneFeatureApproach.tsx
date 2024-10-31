@@ -95,10 +95,10 @@ const ViewportPane = (props: Props) => {
                 .style('stroke', true).draw()
                 .geoOn(geo.event.feature.mouseclick, function (evt: any) {
                     console.log(evt.data);
-                });
+                }).draw();
         });
 
-        layer.draw();
+        // layer.draw();
     }
 
     useEffect(() => {

@@ -5,6 +5,8 @@ import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Card from "react-bootstrap/Card";
+import Button from "react-bootstrap/Button";
+import ListGroup from "react-bootstrap/ListGroup";
 
 import { fetchProject } from "../helpers/api.ts"
 import { OutletContextType } from "../types.ts";
@@ -28,7 +30,10 @@ const ProjectPage = () => {
                     <Row className="d-flex flex-grow-1">
                         <Col className="d-flex flex-grow-1"><Card className="flex-grow-1">
                             <Card.Body>
-                                <Nav.Link as={Link} to={`/project/${currentProject.id}/annotate/${imageid}`}>Image 1</Nav.Link>
+                                <ListGroup>
+                                    <Button><Nav.Link as={Link} to={`/project/${currentProject.id}/annotate/1`}>Image 1</Nav.Link></Button>
+                                    <Button><Nav.Link as={Link} to={`/project/${currentProject.id}/annotate/2`}>Image 2</Nav.Link></Button>
+                                </ListGroup>
                             </Card.Body>
                         </Card></Col>
                     </Row>
