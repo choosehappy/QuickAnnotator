@@ -140,19 +140,19 @@ class GeometryField(fields.Field):
         # Pass metadata information to describe the field for Swagger
         kwargs["metadata"] = {
             "type": "string",  # You can also specify "object" if it's GeoJSON
-            "description": "A geometry field. Can be WKT or GeoJSON."
+            "description": "A geometry field. Serialized WKB into geojson."
         }
         super().__init__(*args, **kwargs)
 
     def _serialize(self, value, attr, obj, **kwargs):
         if value is None:
             return None
-        # Assuming value is a WKB string
+        # Assuming value contains a WKB string
         result = geojson.Feature(geometry=mapping(wkb.loads(str(value.data))))
         return geojson.dumps(result)
 
     def _deserialize(self, value, attr, data, **kwargs):
         if value is None:
             return None
-        # Convert the input into the appropriate geometry type here (WKT, GeoJSON)
+        # Not currently used, but may be used to deserialize e.g., a polygon for insertion into the db.
         return value

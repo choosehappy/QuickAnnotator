@@ -1,7 +1,16 @@
-import {Button, ButtonGroup, ButtonToolbar} from "react-bootstrap";
+import ButtonGroup from 'react-bootstrap/ButtonGroup';
+import ToggleButton from 'react-bootstrap/ToggleButton';
+import {Button, ButtonToolbar} from 'react-bootstrap';
 import { Fullscreen, ArrowCounterclockwise, ArrowClockwise, Download, Cursor, Brush, Magic, Eraser, Heptagon } from 'react-bootstrap-icons';
-import React from "react";
-const Toolbar = React.memo(() => {
+import React, { useState } from "react";
+import {Annotation} from "../types.ts";
+
+interface Props {
+    currentTool: string;
+    setCurrentTool: (currentTool: string | null) => void;
+}
+
+const Toolbar = React.memo((props: Props) => {
 
     const dividerStyle = {
         width: '1px',
@@ -12,37 +21,43 @@ const Toolbar = React.memo(() => {
         alignSelf: 'center', // Centers within the toolbar if using flex
     };
 
-    const buttonClass = "btn btn-primary";
+    const buttons = [
+        { icon: <Fullscreen/>},
+        { icon: <ArrowCounterclockwise/>},
+        { icon: <ArrowClockwise/>},
+    ]
+
+    const radios = [
+        { icon: <Cursor/>},
+        { icon: <Download/>},
+        { icon: <Brush/>},
+        { icon: <Magic/>},
+        { icon: <Eraser/>},
+        { icon: <Heptagon/>},
+    ];
 
     return (
         <ButtonToolbar aria-label="Toolbar with button groups">
-            <ButtonGroup className="me-2" aria-label="First group">
-                <input type="radio" className="btn-check" name="options" id="option1" autoComplete="off" checked/>
-                <label className="btn btn-secondary" htmlFor="option1"><Fullscreen/></label>
-
-                <input type="radio" className="btn-check" name="options" id="option2" autoComplete="off"/>
-                <label className="btn btn-secondary" htmlFor="option2"><ArrowCounterclockwise/></label>
-
-                <input type="radio" className="btn-check" name="options" id="option3" autoComplete="off"/>
-                <label className="btn btn-secondary" htmlFor="option3"><ArrowClockwise/></label>
-
-                <input type="radio" className="btn-check" name="options" id="option4" autoComplete="off"/>
-                <label className="btn btn-secondary" htmlFor="option4"><Download/></label>
-
-                <input type="radio" className="btn-check" name="options" id="option5" autoComplete="off"/>
-                <label className="btn btn-secondary" htmlFor="option5"><Cursor/></label>
-
-                <input type="radio" className="btn-check" name="options" id="option6" autoComplete="off"/>
-                <label className="btn btn-secondary" htmlFor="option6"><Brush/></label>
-
-                <input type="radio" className="btn-check" name="options" id="option7" autoComplete="off"/>
-                <label className="btn btn-secondary" htmlFor="option7"><Magic/></label>
-
-                <input type="radio" className="btn-check" name="options" id="option8" autoComplete="off"/>
-                <label className="btn btn-secondary" htmlFor="option8"><Eraser/></label>
-
-                <input type="radio" className="btn-check" name="options" id="option9" autoComplete="off"/>
-                <label className="btn btn-secondary" htmlFor="option9"><Heptagon/></label>
+            <ButtonGroup className={"me-2"}>
+                {buttons.map((button, idx) => (
+                    <Button key={idx} variant="secondary" onClick={() => props.setCurrentTool(null)}>{button.icon}</Button>
+                ))}
+            </ButtonGroup>
+            <ButtonGroup className={"me-2"}>
+                {radios.map((radio, idx) => (
+                    <ToggleButton
+                        key={idx}
+                        id={`radio-${idx}`}
+                        type="radio"
+                        variant="secondary"
+                        name="radio"
+                        value={idx}
+                        checked={props.currentTool === idx.toString()}
+                        onChange={(e) => props.setCurrentTool(e.currentTarget.value)}
+                    >
+                        {radio.icon}
+                    </ToggleButton>
+                ))}
             </ButtonGroup>
         </ButtonToolbar>
     )

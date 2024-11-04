@@ -93,7 +93,7 @@ const ViewportMap = (props: Props) => {
     const drawPolygons = async (annotations: Annotation[], map: geo.map) => {
         console.log("Annotations detected update.")
         const layer = map.layers()[0];
-        const feature = layer.createFeature('polygon');
+        const feature = layer.features()[0];
 
         const newData = annotations.map((a) => {
             const polygon = JSON.parse(a.polygon.toString());
@@ -143,7 +143,6 @@ const ViewportMap = (props: Props) => {
         }
 
         polygonFeature.data(polygonList).draw()
-        polygonFeature.data(polygonList).draw()
     }
 
     // UseEffect hook to initialize the map
@@ -157,6 +156,14 @@ const ViewportMap = (props: Props) => {
                 console.log('Zooming or Panning stopped.');
                 const bounds = geojs_map.current.bounds();
                 console.log(bounds);
+                const layer = geojs_map.current.layers()[0];
+                const polygonFeature = layer.features()[0];
+                const pointFeature = layer.features()[1];
+
+                layer.deleteFeature(polygonFeature);
+                layer.createFeature('polygon', {selectionAPI: true});
+                layer.deleteFeature(pointFeature);
+                layer.createFeature('point')
 
                 renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top).then(() => {
                     console.log("Annotations rendered.");
@@ -175,7 +182,8 @@ const ViewportMap = (props: Props) => {
 
                 params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
                 console.log("OSM layer loaded.")
-                map.createLayer('feature', {features: ['polygon']});
+                const featureLayer = map.createLayer('feature', {features: ['polygon']});
+                featureLayer.createFeature('polygon', {selectionAPI: true});
                 map.createLayer('osm', { ...params.layer, zIndex: 0 })
                 const annotationLayer = map.createLayer('annotation', {active: true, zIndex: 2});
                 annotationLayer.geoOn(geo.event.annotation.mode, handleNewAnnotation)
