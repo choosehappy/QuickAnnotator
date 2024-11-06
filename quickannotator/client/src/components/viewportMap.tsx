@@ -13,6 +13,14 @@ interface Props {
     currentTool: string | null;
 }
 
+const computeTilesToRender = (oldTileIds: number[], newTileIds: number[]) => {
+    const a = new Set(oldTileIds)
+    const b = new Set(newTileIds)
+    const tilesToRemove = new Set([...a].filter(x => !b.has(x)));
+    const tilesToRender = new Set([...b].filter(x => !a.has(x)));
+    return {tilesToRemove, tilesToRender}
+}
+
 const ViewportMap = (props: Props) => {
     const viewRef = useRef(null);
     // const [dlTileQueue, setDlTileQueue] = useState<Tile[] | null>(null);
@@ -20,31 +28,54 @@ const ViewportMap = (props: Props) => {
     const activeRenderAnnotationsCall = useRef<number>(0);
     let zoomPanTimeout = null;
 
-    async function renderAnnotations(x1: number, y1: number, x2: number, y2: number) {
+    const renderAnnotations = async (x1: number, y1: number, x2: number, y2: number) => {
         if (!props.currentImage || !props.currentClass) return;
         const currentCallToken = ++activeRenderAnnotationsCall.current;
         const tiles = await searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2)
-
+        // compute the difference between tiles and tiles_in_view
+        const tilesRendered = geojs_map.current.layers()[0].features().map((f) => f.tileid);
+        const {tilesToRemove, tilesToRender} = computeTilesToRender(tilesRendered, tiles.map((t) => t.id));
         let anns = [];
-        for (const tile of tiles) {
-            if (currentCallToken !== activeRenderAnnotationsCall.current) {     // We want to check before processing the tile to save resources
-                console.log("Render cancelled.")
-                return;
+
+        // remove old tiles
+        const layer = geojs_map.current.layers()[0];
+        console.log(`Tiles to remove: ${tilesToRemove.size}`)
+        for (const tileid of tilesToRemove) {
+            const feature = layer.features().find((f) => f.tileid === tileid);
+            if (feature) {
+                // layer.removeChild(feature);
+                feature.data([]);
+                layer.removeFeature(feature).draw();
+                console.log(`Removed tile ${tileid}`)
+
             }
-            console.log(`Processing tile ${tile.id}`)
-            const resp = await processTile(tile);
-            if (currentCallToken !== activeRenderAnnotationsCall.current) {     // ... and after processing the tile to avoid the race condition
-                console.log("Render cancelled.")
-                return;
-            }
-            drawPolygons(resp, geojs_map.current);
-            // drawCentroids(resp, geojs_map.current);
-            anns = anns.concat(resp);
-            props.setGts(anns);
         }
+
+        // render new tiles
+        for (const tile of tiles) {
+            if (tilesToRender.has(tile.id)) {
+                if (currentCallToken !== activeRenderAnnotationsCall.current) {     // We want to check before processing the tile to save resources
+                    console.log("Render cancelled.")
+                    return;
+                }
+                console.log(`Processing tile ${tile.id}`)
+                const resp = await processTile(tile);
+                if (currentCallToken !== activeRenderAnnotationsCall.current) {     // ... and after processing the tile to avoid the race condition
+                    console.log("Render cancelled.")
+                    return;
+                }
+                drawPolygons(tile, resp, geojs_map.current);
+                // drawCentroids(resp, geojs_map.current);
+                anns = anns.concat(resp);
+                props.setGts(anns);
+            }
+        }
+
+
+
     }
 
-    async function renderTissueMask(map: geo.map) {
+    const renderTissueMask = async (map: geo.map) => {
         if (!props.currentImage || !props.currentClass) return;
         const resp = await fetchAllAnnotations(props.currentImage.id, props.currentClass.id, true);
         drawPolygons(resp, map);
@@ -90,7 +121,7 @@ const ViewportMap = (props: Props) => {
         return resp
     }
 
-    const drawPolygons = async (annotations: Annotation[], map: geo.map) => {
+    const drawPolygons = async (tile: Tile, annotations: Annotation[], map: geo.map) => {
         console.log("Annotations detected update.")
         const layer = map.layers()[0];
         const feature = layer.createFeature('polygon');
@@ -100,12 +131,19 @@ const ViewportMap = (props: Props) => {
             return polygon.geometry.coordinates[0];
         });
 
+        feature.tileid = tile.id;
+
         feature
-            .position((d) => {return {
+            .position((d) => {
+                const m = ""
+                return {
                 x: d[0], y: d[1]};
             })
-            // .polygon() should return the polygon.geometry.coordinates[0];
-            .data(feature.data().concat(newData))
+            .polygon((a: Annotation) => {
+                const polygon = JSON.parse(a.polygon.toString());   // shouldn't be doing json parsing here.
+                return polygon.geometry.coordinates[0];
+            }) //should return the polygon.geometry.coordinates[0];
+            .data(annotations)
             .style('fill', 'lime')
             .style('fillOpacity', 0.5)
             .style('stroke', false)
@@ -142,7 +180,6 @@ const ViewportMap = (props: Props) => {
             annotationLayer.mode('polygon')
         }
 
-        polygonFeature.data(polygonList).draw()
         polygonFeature.data(polygonList).draw()
     }
 
@@ -194,6 +231,7 @@ const ViewportMap = (props: Props) => {
                 return null;
             }
         }
+
         if (props.currentImage && props.currentClass) {
             // Need code to clear the map
             activeRenderAnnotationsCall.current = 0;
@@ -210,9 +248,7 @@ const ViewportMap = (props: Props) => {
         switch (props.currentTool) {
             case null:
                 console.log("toolbar is null")
-
                 break;
-
             case '0':   // Pointer tool
                 console.log("toolbar is 0")
                 layer?.mode(null)
