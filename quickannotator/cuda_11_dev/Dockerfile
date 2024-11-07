@@ -30,5 +30,3 @@ ENV PATH="/opt/QuickAnnotator/venv/bin:$PATH"
 
 RUN python3 -m venv venv \
     && pip install .
-
-CMD ["python3", "-m", "quickannotator"]
