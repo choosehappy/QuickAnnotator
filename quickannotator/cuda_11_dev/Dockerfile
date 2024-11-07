@@ -18,9 +18,15 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
          libsqlite3-mod-spatialite \
          libtk8.6 \
          procps \
-         git \
          libopenslide0 \
-         vim
+         curl \
+         # development tools
+         git \  
+         vim 
+
+# Install node and npm
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+RUN apt-get install -y nodejs
 
 RUN mkdir -p /opt/QuickAnnotator
 WORKDIR /opt/QuickAnnotator
@@ -30,3 +36,12 @@ ENV PATH="/opt/QuickAnnotator/venv/bin:$PATH"
 
 RUN python3 -m venv venv \
     && pip install .
+
+# Install development python dependencies
+RUN pip install tqdm
+
+# Install node dependencies
+WORKDIR /opt/QuickAnnotator/quickannotator/client
+RUN npm install .
+
+WORKDIR /opt/QuickAnnotator
