@@ -1,6 +1,0 @@
-# ignore git etc
-.git
-.projects
-!.projects/.gitkeep
-# ignore default output folder of cli extraction
-cli/output

@@ -1,13 +1,16 @@
-# Ignore specific files
-QA.log
-data.db
-data.db-shm
-data.db-wal
-flask.log
-jobs.log
-
-# Ignore a directory and its contents
+sample_data/
+venv/
 projects/
-
-# Ignore Python bytecode cache directories
 __pycache__/
+.idea/
+instance/
+.ipynb_checkpoints/
+*.log
+*.pyc
+*.db*
+launch.json
+data/
+_version.py
+*.sqlite
+build/
+*.egg-info/
