@@ -33,23 +33,23 @@ const ViewportMap = (props: Props) => {
         const currentCallToken = ++activeRenderAnnotationsCall.current;
         const tiles = await searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2)
         // compute the difference between tiles and tiles_in_view
-        const tilesRendered = geojs_map.current.layers()[0].features().map((f) => f.tileid);
+        const tilesRendered = geojs_map.current.layers()[0].features().map((f) => f.props.tileId);
         const {tilesToRemove, tilesToRender} = computeTilesToRender(tilesRendered, tiles.map((t) => t.id));
         let anns = [];
 
         // remove old tiles
         const layer = geojs_map.current.layers()[0];
         console.log(`Tiles to remove: ${tilesToRemove.size}`)
-        for (const tileid of tilesToRemove) {
-            const feature = layer.features().find((f) => f.tileid === tileid);
-            if (feature) {
-                // layer.removeChild(feature);
-                feature.data([]);
-                layer.removeFeature(feature).draw();
-                console.log(`Removed tile ${tileid}`)
 
+        tilesToRemove.forEach((tileId) => {
+            const feature = layer.features().find((f) => f.props.tileId === tileId);
+            if (feature) {
+                feature.data([]);
+                layer.removeFeature(feature);
+                feature.draw();
+                console.log(`Removed tile ${tileId}`)
             }
-        }
+        });
 
         // render new tiles
         for (const tile of tiles) {
@@ -64,7 +64,10 @@ const ViewportMap = (props: Props) => {
                     console.log("Render cancelled.")
                     return;
                 }
-                drawPolygons(tile, resp, geojs_map.current);
+                const featureProps = {
+                    tileId: tile.id
+                }
+                drawPolygons(featureProps, resp, geojs_map.current);
                 // drawCentroids(resp, geojs_map.current);
                 anns = anns.concat(resp);
                 props.setGts(anns);
@@ -78,7 +81,7 @@ const ViewportMap = (props: Props) => {
     const renderTissueMask = async (map: geo.map) => {
         if (!props.currentImage || !props.currentClass) return;
         const resp = await fetchAllAnnotations(props.currentImage.id, props.currentClass.id, true);
-        drawPolygons(resp, map);
+        drawPolygons({}, resp, map);
         props.setGts(resp);
     }
 
@@ -121,17 +124,15 @@ const ViewportMap = (props: Props) => {
         return resp
     }
 
-    const drawPolygons = async (tile: Tile, annotations: Annotation[], map: geo.map) => {
+    const drawPolygons = async (featureProps, annotations: Annotation[], map: geo.map) => {
         console.log("Annotations detected update.")
         const layer = map.layers()[0];
         const feature = layer.createFeature('polygon');
-
+        feature.props = featureProps;
         const newData = annotations.map((a) => {
             const polygon = JSON.parse(a.polygon.toString());
             return polygon.geometry.coordinates[0];
         });
-
-        feature.tileid = tile.id;
 
         feature
             .position((d) => {
@@ -208,7 +209,9 @@ const ViewportMap = (props: Props) => {
             if (img && props.currentClass) {
                 const params = geo.util.pixelCoordinateParams(
                     viewRef.current, img.width, img.height, img.dz_tilesize, img.dz_tilesize);
-                const map = geo.map(params.map);
+                const interactor = geo.mapInteractor({alwaysTouch: true})
+                const map = geo.map({...params.map, interactor: interactor});
+                // map.interactor(geo.mapInteractor({alwaysTouch: true}))
 
                 params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
                 console.log("OSM layer loaded.")
