@@ -21,7 +21,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
          libopenslide0 \
          curl \
          # development tools
-         git \  
+         git \
          vim 
 
 # Install node and npm
@@ -31,6 +31,7 @@ RUN apt-get install -y nodejs
 RUN mkdir -p /opt/QuickAnnotator
 WORKDIR /opt/QuickAnnotator
 COPY . /opt/QuickAnnotator
+RUN ls -al /opt/QuickAnnotator
 ENV PATH="/opt/QuickAnnotator/venv/bin:$PATH"
 
 

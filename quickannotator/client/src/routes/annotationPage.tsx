@@ -10,7 +10,7 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
 import { fetchImage, fetchProject } from "../helpers/api.ts";
-import { Annotation, AnnotationClass, OutletContextType} from "../types.ts";
+import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation} from "../types.ts";
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
 
@@ -23,6 +23,7 @@ const AnnotationPage = () => {
     const [gts, setGts] = useState<Annotation[]>([]);
     const [preds, setPreds] = useState<Annotation[]>([]);
     const [currentTool, setCurrentTool] = useState<string | null>('0');
+    const [currentAnnotation, setCurrentAnnotation] = useState<CurrentAnnotation | null>(null);
 
     useEffect(() => {
         fetchProject(parseInt(projectid)).then((resp) => {
@@ -52,7 +53,7 @@ const AnnotationPage = () => {
                                     zIndex: 10,
                                 }}><Toolbar {...{currentTool, setCurrentTool}} /></Card.Header>
                                 <Card.Body style={{padding: "0px"}}>
-                                    <ViewportMap {...{currentImage, currentClass, gts, setGts, preds, setPreds, currentTool }}/>
+                                    <ViewportMap {...{currentImage, currentClass, gts, setGts, preds, setPreds, currentTool, currentAnnotation, setCurrentAnnotation }}/>
                                 </Card.Body>
                             </Card>
                         </Col>

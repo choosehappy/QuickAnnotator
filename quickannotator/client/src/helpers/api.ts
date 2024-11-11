@@ -101,12 +101,17 @@ export const searchAnnotations = async (image_id: number, annotation_class_id: n
     return await get<Annotation[]>(`/annotation/${image_id}/${annotation_class_id}/search?${query}`);
 }
 
-// Fetch annotation by ID
+// Post annotation
+export const postAnnotation = async (data: Annotation) => {
+    return await post<Annotation, Annotation>('/annotation/', data);
+}
+
+// Fetch annotation classes
 export const fetchAnnotationClasses = async () => {
     return await get<AnnotationClass[]>('/class/search');
 }
 
-// Fetch annotation by ID
+// Fetch annotation class by ID
 export const fetchAnnotationClassById = async (annotation_class_id: number) => {
     const query = new URLSearchParams({ annotation_class_id: annotation_class_id.toString() });
     return await get<AnnotationClass>(`/class/?${query}`);

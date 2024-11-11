@@ -55,3 +55,9 @@ export type OutletContextType = {
     currentImage: Image;
     setCurrentImage: (image: Image | null) => void;
 }
+
+export interface CurrentAnnotation {
+    id: number;
+    undoStack: Annotation[];
+    redoStack: Annotation[];
+}

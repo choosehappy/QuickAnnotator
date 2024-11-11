@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import geo from "geojs"
-import { Annotation, Image, AnnotationClass, Tile } from "../types.ts"
+import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation } from "../types.ts"
 import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations } from "../helpers/api.ts";
 
 interface Props {
     currentImage: Image | null;
     currentClass: AnnotationClass | null;
+    currentAnnotation: CurrentAnnotation | null;
     gts: Annotation[];
     setGts: (gts: Annotation[]) => void;
     preds: Annotation[];
@@ -147,7 +148,7 @@ const ViewportMap = (props: Props) => {
             .data(annotations)
             .style('fill', 'lime')
             .style('fillOpacity', 0.5)
-            .style('stroke', false)
+            .style('stroke', false)  // for some reason we get a tileid error when stroke is true
             .geoOn(geo.event.feature.mouseclick, function (evt: any) {
                 console.log(evt.data);
             }).draw();
@@ -176,9 +177,11 @@ const ViewportMap = (props: Props) => {
         const polygonLayer = geojs_map.current.layers()[0]
         const annotationLayer = geojs_map.current.layers()[2]
         const polygonList = annotationLayer.toPolygonList()
-        const polygonFeature = polygonLayer.features()[0]
-        if (!evt.mode && evt.oldMode == 'polygon') {
-            annotationLayer.mode('polygon')
+
+        if (polygonList.length > 0) {
+            const polygon = polygonList[0]
+            // 1. Commit the polygon to the database
+            // 2. Re-render the tile where the polygon is drawn.
         }
 
         polygonFeature.data(polygonList).draw()

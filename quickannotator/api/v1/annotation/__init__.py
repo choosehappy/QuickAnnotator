@@ -33,7 +33,7 @@ class GetAnnSearchArgsSchema(Schema):
 
 class PostAnnArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
-    polygon = fields.String(required=True)
+    polygon = qadb.GeometryField(required=True)
 
 class PutAnnArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
