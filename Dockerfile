@@ -36,7 +36,7 @@ ENV PATH="/opt/QuickAnnotator/venv/bin:$PATH"
 
 
 RUN python3 -m venv venv \
-    && pip install .
+    && pip install -e .
 
 # Install development python dependencies
 RUN pip install tqdm
