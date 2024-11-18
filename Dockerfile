@@ -31,7 +31,7 @@ RUN apt-get install -y nodejs
 RUN mkdir -p /opt/QuickAnnotator
 WORKDIR /opt/QuickAnnotator
 COPY . /opt/QuickAnnotator
-RUN ls -al /opt/QuickAnnotator
+
 ENV PATH="/opt/QuickAnnotator/venv/bin:$PATH"
 
 
@@ -39,7 +39,8 @@ RUN python3 -m venv venv \
     && pip install -e .
 
 # Install development python dependencies
-RUN pip install tqdm
+RUN pip install tqdm \
+                ipykernel
 
 # Install node dependencies
 WORKDIR /opt/QuickAnnotator/quickannotator/client
