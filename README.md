@@ -7,33 +7,72 @@ Machine learning approaches for segmentation of histologic primitives (e.g., cel
 QuickAnnotator leverages active learning to suggest annotations which the user may accept as they annotate.
 
 # Installation
-## Using Docker (Recommended)
-Docker is now the recommended method for installing and running QuickAnnotator. Containerized runtimes like docker are more portable and avoid issues with python environment management, and ensure reproducible application behavior. Docker is available for Windows, MacOS, and Linux.
+## For Developers
+### Development Environment
+- VS Code with the following extensions:
+    - `ms-azuretools.vscode-docker`
+    - `ms-vscode-remote.remote-containers`
+- Docker
+- Access to example data.
 
->**Note**: These instructions assume you have docker engine installed on your system. If you do not have docker installed, please see the [docker installation instructions](https://docs.docker.com/engine/install/).
+### Volumes
+Create docker volumes to store your data persistently:
+```bash
+docker volume create qadb_data  # Will store the database
+docker volume create qa_data    # Will store example WSIs
+```
 
-1. Begin by pulling the [official QuickAnnotator docker image](https://hub.docker.com/r/histotools/quickannotator/tags) from docker hub. This repository contains the latest stable version of QuickAnnotator and is guaranteed up-to-date.
+
+### Container
+1. Clone the QuickAnnotator repository and checkout the v2.0 branch:
     ```bash
-    docker pull histotools/quickannotator:master
+    git clone https://github.com/choosehappy/QuickAnnotator.git
+    cd QuickAnnotator
+    git checkout v2.0
     ```
 
-1. Next, run the docker image with a few options to mount your data directory and expose the web interface on your host machine.
+2. Within VS Code, open the cloned repository and click on the "Reopen in Container" button to build the devcontainer. This will create a docker container with all the necessary dependencies to run QuickAnnotator.
+![alt text](images/reopen_in_container.png)
 
-    ```bash
-    docker run -v <local-path>:/data --name <container-name> -p <local-port>:5000 -it histotools/quickannotator:master /bin/bash
-    # Example:
-    # docker run -v /local/datadir:/data --name my_container -p 5000:5000 -it histotools/quickannotator:master /bin/bash
+
+### Usage
+1. Once the devcontainer is built, you can run the following command to start the QuickAnnotator server:
+    ```
+    (venv) root@e4392ecdd8ef:/opt/QuickAnnotator# python3 -m quickannotator
+    * Serving Flask app '__main__'
+    * Debug mode: on
+    WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+    * Running on all addresses (0.0.0.0)
+    * Running on http://127.0.0.1:5000
+    * Running on http://172.17.0.2:5000
+    Press CTRL+C to quit
+    * Restarting with stat
+    * Debugger is active!
+    * Debugger PIN: 581-630-257
+    ``` 
+
+2. **(Optional)** Upload example data to QuickAnnotator
+    1. Download the `test_ndpi` folder (request access from jackson.jacobs@emory.edu) and copy it to the `qa_data` volume.
+    1. Run the `populate_db.ipynb` notebook.
+
+
+3. Then in a second terminal, run the QuickAnnotator client:
+    ```
+    (venv) root@e4392ecdd8ef:/opt/QuickAnnotator# cd quickannotator/client
+    (venv) root@e4392ecdd8ef:/opt/QuickAnnotator/quickannotator/client# npm run dev -- --host 0.0.0.0
+
+    > client@0.0.0 dev
+    > vite --host 0.0.0.0
+
+
+    VITE v5.4.8  ready in 595 ms
+
+    ➜  Local:   http://localhost:5173/
+    ➜  Network: http://172.17.0.2:5173/
+    ➜  press h + enter to show help
     ```
 
-1. A terminal session will open inside the docker container. You can now run QuickAnnotator as you would on a local machine. 
+4. Use the following URLs:
+    1. OpenAPI 3.0 documentation: [http://172.17.0.2:5000/api/v1]()
+    2. Client: [http://172.17.0.2:5173/]()
 
-1. If you exit the shell, the container will stop running but no data/configuration will be lost. You can restart the container and resume your work with the following command:
-
-    ```bash
-    docker start -i <container-name>
-    # Example:
-    # docker start -i my_container
-    ```
-
-## Using PyPI
-QuickAnnotator has not yet been released on PyPI.

@@ -11,9 +11,11 @@
 		
 	},
 
+	"forwardPorts": [5000, 5173],
+
 	// Add -v tag to mount a data directory
 	"mounts": [
-		"source=/home/jackson/research/data/test_ndpi,target=/opt/QuickAnnotator/quickannotator/data/test_ndpi,type=bind,consistency=cached",
+		"source=qa_data,target=/opt/QuickAnnotator/quickannotator/data,type=volume",
 		"source=qadb_data,target=/opt/QuickAnnotator/quickannotator/instance,type=volume"
 	],
 
