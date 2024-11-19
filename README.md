@@ -32,7 +32,7 @@ docker volume create qa_data    # Will store example WSIs
     ```
 
 2. Within VS Code, open the cloned repository and click on the "Reopen in Container" button to build the devcontainer. This will create a docker container with all the necessary dependencies to run QuickAnnotator.
-![alt text](images/reopen_in_container.png)
+![image](https://github.com/user-attachments/assets/b776577f-a4c2-4eb8-858c-c603ac20cc6d)
 
 
 ### Usage
