@@ -148,7 +148,7 @@ class GeometryField(fields.Field):
         if value is None:
             return None
         # Assuming value contains a WKB string
-        result = geojson.Feature(geometry=mapping(wkb.loads(str(value.data))))
+        result = geojson.Feature(geometry=mapping(wkb.loads(str(value))))
         return geojson.dumps(result)
 
     def _deserialize(self, value, attr, data, **kwargs):

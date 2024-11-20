@@ -5,7 +5,7 @@ from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from sqlalchemy import Table
 
 import quickannotator.db as qadb
-from .helper import annotations_within_bbox
+from .helper import annotations_within_bbox, annotations_within_bbox_spatial
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
 
@@ -111,7 +111,7 @@ class SearchAnnotations(MethodView):
             pass
         elif "x1" in args and "y1" in args and "x2" in args and "y2" in args:
             # return all annotations
-            return annotations_within_bbox(table, args['x1'], args['y1'], args['x2'], args['y2']), 200
+            return annotations_within_bbox_spatial(table_name, args['x1'], args['y1'], args['x2'], args['y2']), 200
         else:
             stmt = table.select()
             result = qadb.db.session.execute(stmt).fetchall()
