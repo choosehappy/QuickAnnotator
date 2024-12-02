@@ -6,7 +6,7 @@ import ClassesPane from "../components/classesPane.tsx";
 import GroundTruthPane from "../components/groundTruthPane.tsx";
 import PredictionsPane from "../components/predictionsPane.tsx";
 import ViewportMap from "../components/viewportMap.tsx";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
 import { fetchImage, fetchProject } from "../helpers/api.ts";
@@ -23,7 +23,7 @@ const AnnotationPage = () => {
     const [gts, setGts] = useState<Annotation[]>([]);
     const [preds, setPreds] = useState<Annotation[]>([]);
     const [currentTool, setCurrentTool] = useState<string | null>('0');
-    const [currentAnnotation, setCurrentAnnotation] = useState<CurrentAnnotation | null>(null);
+    const currentAnnotation = useRef<CurrentAnnotation | null>(null);
 
     useEffect(() => {
         fetchProject(parseInt(projectid)).then((resp) => {
@@ -53,7 +53,7 @@ const AnnotationPage = () => {
                                     zIndex: 10,
                                 }}><Toolbar {...{currentTool, setCurrentTool}} /></Card.Header>
                                 <Card.Body style={{padding: "0px"}}>
-                                    <ViewportMap {...{currentImage, currentClass, gts, setGts, preds, setPreds, currentTool, currentAnnotation, setCurrentAnnotation }}/>
+                                    <ViewportMap {...{currentImage, currentClass, gts, setGts, preds, setPreds, currentTool, currentAnnotation }}/>
                                 </Card.Body>
                             </Card>
                         </Col>

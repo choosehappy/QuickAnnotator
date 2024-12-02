@@ -152,6 +152,13 @@ class GeometryField(fields.Field):
         return geojson.dumps(result)
 
     def _deserialize(self, value, attr, data, **kwargs):
+
+        if isinstance(value, list):
+            try:
+                geom = geojson.Polygon(value)
+                return wkb.dumps(geom)
+            except Exception as e:
+                raise ValueError(f"Invalid geometry format: {e}")
         if value is None:
             return None
         # Not currently used, but may be used to deserialize e.g., a polygon for insertion into the db.

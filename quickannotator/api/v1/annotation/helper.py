@@ -50,9 +50,6 @@ def annotations_within_bbox_spatial(table_name: str, x1: float, y1: float, x2: f
         AND search_frame = BuildMbr({x1}, {y1}, {x2}, {y2})
     ''')
     
-    # ORM Integration: Alias the model
-    # Annotation = aliased(model)  # Replace `qadb.Annotation` with your model class
-    
     # Main query using the spatial subquery
     query = (
         select(model)

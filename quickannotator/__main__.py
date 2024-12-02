@@ -9,7 +9,7 @@ from quickannotator.config import get_database_uri, get_database_path
 from geoalchemy2 import load_spatialite
 from sqlalchemy import event
 import os
-from quickannotator.api.v1 import annotation, project, image, annotation_class, notification, tile, setting, ray
+from quickannotator.api.v1 import annotation, project, image, annotation_class, notification, tile, setting, ray, misc
 
 def serve_quickannotator(app):
     # NOTE: Will need to account for reverse proxy scenarios: https://docs.pylonsproject.org/projects/waitress/en/stable/reverse-proxy.html
@@ -69,6 +69,7 @@ if __name__ == '__main__':
     api.register_blueprint(setting.bp, url_prefix=prefix + "/setting")
     api.register_blueprint(tile.bp, url_prefix=prefix + "/tile")
     api.register_blueprint(ray.bp, url_prefix=prefix + "/ray")
+    api.register_blueprint(misc.bp, url_prefix=prefix + "/misc")
 
     # serve_quickannotator(app)
     serve_quickannotator_dev(app)

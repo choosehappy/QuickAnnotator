@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -15,6 +15,7 @@
     "bootstrap-icons": "^1.11.3",
     "geojs": "^1.12.3",
     "geojson": "^0.5.0",
+    "polygon-clipping": "^0.15.7",
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.5",
     "react-bootstrap-icons": "^1.11.4",

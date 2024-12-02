@@ -1,6 +1,7 @@
 // Generic response type
 type ApiResponse<T> = Promise<T>;
-import { Image, Project, Annotation, AnnotationClass, Tile } from "../types.ts";
+import { Image, Project, Annotation, AnnotationClass, Tile, PostAnnArgs, PostIntersectArgs, PostIntersectResponse } from "../types.ts";
+import { MultiPolygon, Polygon, Point } from 'geojson'; 
 
 interface FetchOptions extends RequestInit {
     headers?: HeadersInit;
@@ -24,7 +25,7 @@ export const get = async <T>(url: string, options: FetchOptions = {}): ApiRespon
 };
 
 // POST request method
-export const post = async <T, U>(url: string, data: U, options: FetchOptions = {}): ApiResponse<T> => {
+export const post = async <U, T>(url: string, data: U, options: FetchOptions = {}): ApiResponse<T> => {
     const response = await fetch(`${API_URL}${url}`, {
         method: 'POST',
         headers: {
@@ -102,8 +103,13 @@ export const searchAnnotations = async (image_id: number, annotation_class_id: n
 }
 
 // Post annotation
-export const postAnnotation = async (data: Annotation) => {
-    return await post<Annotation, Annotation>('/annotation/', data);
+export const postAnnotation = async (image_id: number, annotation_class_id: number, is_gt: boolean, polygon: MultiPolygon) => {
+    const requestBody: PostAnnArgs = {
+        is_gt: is_gt,
+        polygon: polygon,
+    };
+
+    return await post<PostAnnArgs, Annotation>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);
 }
 
 // Fetch annotation classes
@@ -134,4 +140,13 @@ export const searchTiles = async (image_id: number, annotation_class_id: number,
 export const fetchTile = async (tile_id: number) => {
     const query = new URLSearchParams({ tile_id: tile_id.toString() });
     return await get<Tile>(`/tile?${query}`);
+}
+
+export const pointInPolygon = async (point: Point, polygon: MultiPolygon): boolean => {
+    const requestBody: PostIntersectArgs = {
+        point: point,
+        polygon: polygon
+    }
+
+    return await post<PostIntersectArgs, PostIntersectResp>(`/intersect`, requestBody)
 }

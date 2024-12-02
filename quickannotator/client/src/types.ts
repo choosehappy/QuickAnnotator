@@ -20,6 +20,20 @@ export interface Annotation {
     custom_metrics: { [key: string]: unknown }
 }
 
+export interface PostAnnArgs {
+    is_gt: boolean;
+    polygon: MultiPolygon;
+}
+
+export interface PostIntersectArgs {
+    point: Point;
+    polygon: MultiPolygon;
+}
+
+export interface PostIntersectResp {
+    intersect: boolean;
+}
+
 export interface Image {
     id: number;
     project_id: number;
@@ -57,6 +71,7 @@ export type OutletContextType = {
 }
 
 export interface CurrentAnnotation {
+    tileId: number
     id: number;
     undoStack: Annotation[];
     redoStack: Annotation[];

@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation } from "../types.ts"
-import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations } from "../helpers/api.ts";
+import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations, postAnnotation, pointInPolygon } from "../helpers/api.ts";
+import { MultiPolygon, Point } from "geojson";
+import polygonClipping from 'polygon-clipping';
+
 
 interface Props {
     currentImage: Image | null;
     currentClass: AnnotationClass | null;
-    currentAnnotation: CurrentAnnotation | null;
+    currentAnnotation: React.MutableRefObject<CurrentAnnotation | null>;
     gts: Annotation[];
     setGts: (gts: Annotation[]) => void;
     preds: Annotation[];
@@ -26,6 +29,7 @@ const ViewportMap = (props: Props) => {
     const viewRef = useRef(null);
     // const [dlTileQueue, setDlTileQueue] = useState<Tile[] | null>(null);
     const geojs_map = useRef<geo.map | null>(null);
+    const polygonClicked = useRef<Boolean>(false);  // We need this to ensure polygon clicked and background clicked are mutually exclusive, because geojs does not provide control over event propagation.
     const activeRenderAnnotationsCall = useRef<number>(0);
     let zoomPanTimeout = null;
 
@@ -33,17 +37,21 @@ const ViewportMap = (props: Props) => {
         if (!props.currentImage || !props.currentClass) return;
         const currentCallToken = ++activeRenderAnnotationsCall.current;
         const tiles = await searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2)
+
         // compute the difference between tiles and tiles_in_view
-        const tilesRendered = geojs_map.current.layers()[0].features().map((f) => f.props.tileId);
+        const tilesRendered = geojs_map.current.layers()[0].features()
+            .filter((f) => f.featureType === 'polygon')
+            .map((f) => f.props.tileId);
         const {tilesToRemove, tilesToRender} = computeTilesToRender(tilesRendered, tiles.map((t) => t.id));
-        let anns = [];
+        let anns: Annotation[] = [];
 
         // remove old tiles
         const layer = geojs_map.current.layers()[0];
         console.log(`Tiles to remove: ${tilesToRemove.size}`)
-
         tilesToRemove.forEach((tileId) => {
-            const feature = layer.features().find((f) => f.props.tileId === tileId);
+            const feature = layer.features().find((f) => {
+                return f.featureType === 'polygon' && f.props.tileId === tileId
+            });
             if (feature) {
                 feature.data([]);
                 layer.removeFeature(feature);
@@ -74,9 +82,6 @@ const ViewportMap = (props: Props) => {
                 props.setGts(anns);
             }
         }
-
-
-
     }
 
     const renderTissueMask = async (map: geo.map) => {
@@ -128,16 +133,12 @@ const ViewportMap = (props: Props) => {
     const drawPolygons = async (featureProps, annotations: Annotation[], map: geo.map) => {
         console.log("Annotations detected update.")
         const layer = map.layers()[0];
+
         const feature = layer.createFeature('polygon');
         feature.props = featureProps;
-        const newData = annotations.map((a) => {
-            const polygon = JSON.parse(a.polygon.toString());
-            return polygon.geometry.coordinates[0];
-        });
 
         feature
             .position((d) => {
-                const m = ""
                 return {
                 x: d[0], y: d[1]};
             })
@@ -146,12 +147,22 @@ const ViewportMap = (props: Props) => {
                 return polygon.geometry.coordinates[0];
             }) //should return the polygon.geometry.coordinates[0];
             .data(annotations)
-            .style('fill', 'lime')
+            .style('fill', true)
+            .style('fillColor', 'lime')
             .style('fillOpacity', 0.5)
-            .style('stroke', false)  // for some reason we get a tileid error when stroke is true
-            .geoOn(geo.event.feature.mouseclick, function (evt: any) {
-                console.log(evt.data);
-            }).draw();
+            // .style('stroke', (a: Annotation) => {
+            //     // Define your mapping function here
+            //     if (a.id === props.currentAnnotation.current?.id) {
+            //         console.log("Change stroke of polygon.")
+            //         return true
+            //     }
+            //     return false; // Default to no stroke
+            // })
+            .style('stroke', true)
+            .style('strokeColor', 'black')
+            .style('strokeWidth', 2)
+            .geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon).draw();
+        console.log('Drew polygon')
     }
 
     const drawCentroids = (annotations: Annotation[], map: geo.map) => {
@@ -173,18 +184,117 @@ const ViewportMap = (props: Props) => {
             .data(feature.data().concat(newData)).draw();
     }
 
-    const handleNewAnnotation = (evt) => {
+    const commitCurrentAnnotation = () => {
+        const polygonList = geojs_map.current.layers()[2].toPolygonList();
+        const polygon: MultiPolygon = {
+            type: "MultiPolygon",
+            coordinates: polygonList
+        }
+        postAnnotation(props.currentImage.id, props.currentClass.id, true, polygon).then((resp) => {
+            console.log("Annotation posted.")
+        });
+    }
+
+    function handleMousedownOnPolygon(evt) {
+        console.log("Polygon clicked.")
+        console.log(evt.data)
+        polygonClicked.current = true;
+
+        if(props.currentAnnotation.current) {   // If the current annotation exists, 
+            if (props.currentAnnotation.current.id !== evt.data.id) {   // If the current annotation id has changed...
+                // Commit the previously selected annotation
+                commitCurrentAnnotation();
+                
+                // Redraw the feature in the UI. The Selected polygon should be drawn with a stroke.
+                const feature = geojs_map.current.layers()[0].features().find((f) => {
+                    return f.featureType === 'polygon' && f.props.tileId === this.props.tileId;
+                });
+
+                if (feature) {
+                    // feature.data([evt.data]);
+                    console.log(`redrew feature ${feature}`)
+                    feature.draw();
+                }
+
+
+                // Set the current annotation to the clicked annotation
+                const clickedAnnotation: CurrentAnnotation = {
+                    id: evt.data.id,
+                    tileId: this.props.tileId,
+                    redoStack: [],
+                    undoStack: [evt.data.polygon]
+                }
+
+                props.currentAnnotation.current = clickedAnnotation;
+            }
+        } else {
+            const clickedAnnotation: CurrentAnnotation = {
+                id: evt.data.id,
+                tileId: this.props.tileId,
+                redoStack: [],
+                undoStack: [evt.data.polygon]
+            }
+
+            props.currentAnnotation.current = clickedAnnotation;
+        }
+        setTimeout(() => {
+            polygonClicked.current = false;
+        }, 0);
+    }
+
+    function handleMousedown(evt) {
+        console.log("Mouse down detected.")
+        if (!polygonClicked.current && props.currentAnnotation.current) {
+        
+            commitCurrentAnnotation();
+            props.currentAnnotation.current = null;
+            console.log("Background clicked - committed current annotation.")
+        }
+    }
+
+    const handleMouseup = (evt) => {
+        console.log("New annotation detected.")
         const polygonLayer = geojs_map.current.layers()[0]
         const annotationLayer = geojs_map.current.layers()[2]
         const polygonList = annotationLayer.toPolygonList()
 
-        if (polygonList.length > 0) {
-            const polygon = polygonList[0]
+        if (polygonList.length > 0 && props.currentImage && props.currentClass) {
+            // 1. Get the polygon from the annotation layer.
+            const polygon: MultiPolygon = {
+                type: "MultiPolygon",
+                coordinates: polygonList
+            }
+
+            // 2. if currentAnnotation exists, update the currentAnnotation
+            const ann = props.currentAnnotation.current;
+            if (ann) {
+                // 1. Get the feature data associated with the CurrentAnnotation
+                const feature = polygonLayer.features().find((f) => f.props.tileId === ann.tileId);
+
+                // 2. Get the annotation data associated with the CurrentAnnotation
+            
+                ann.redoStack.push() // useRef is immutable
+                props.currentAnnotation.current = ann;
+                
+                // Update the currentAnnotation with the new polygon
+            } else {    // if currentAnnotation does not exist, create a new annotation
+                // Determine which feature needs to get updated
+
+                
+
+            }
+            
+            // postAnnotation(props.currentImage.id, props.currentClass.id, true, polygon).then((resp) => {
+            //     // 3. Once the polygon is committed, set the currentAnnotation to the new polygon
+
+            //     console.log("Annotation posted.")
+            //     console.log(resp)
+            // });
             // 1. Commit the polygon to the database
             // 2. Re-render the tile where the polygon is drawn.
         }
 
-        polygonFeature.data(polygonList).draw()
+        // polygonFeature.data(polygonList).draw()
     }
 
     // UseEffect hook to initialize the map
@@ -215,18 +325,18 @@ const ViewportMap = (props: Props) => {
                 const interactor = geo.mapInteractor({alwaysTouch: true})
                 const map = geo.map({...params.map, interactor: interactor});
                 // map.interactor(geo.mapInteractor({alwaysTouch: true}))
-
+                map.geoOn(geo.event.mousedown, function (evt) {
+                    const t = this;
+                });
                 params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
                 console.log("OSM layer loaded.")
                 map.createLayer('feature', {features: ['polygon']});
                 map.createLayer('osm', { ...params.layer, zIndex: 0 })
                 const annotationLayer = map.createLayer('annotation', {active: true, zIndex: 2});
-                annotationLayer.geoOn(geo.event.annotation.mode, handleNewAnnotation)
+                annotationLayer.geoOn(geo.event.mousedown, handleMousedown)
+                // annotationLayer.geoOn(geo.event.mouseup, handleMouseup)
 
-
-                map.geoOn(geo.event.mousemove, function (evt: any) {
-                    console.log(`Mouse at x=${evt.geo.x}, y=${evt.geo.y}`);
-                });
+                // map.geoOn(geo.event.mousemove, function (evt: any) {console.log(`Mouse at x=${evt.geo.x}, y=${evt.geo.y}`);});
                 map.geoOn(geo.event.zoom, handleZoomPan)
                 if (props.currentClass.id === 1) {      // Tissue mask class requires different rendering approach.
                     renderTissueMask(map).then(() => console.log("Tissue mask rendered."));
