@@ -113,7 +113,8 @@ export default class AnnotationList extends React.Component {
                 id: ann.id,
                 thumbnail: ann.polygon.toString(),
                 area: ann.area,
-                centroid: ann.centroid.toString()
+                centroid: ann.centroid.toString(),
+                class: ann.annotation_class_id
             };
         });
 

@@ -1,7 +1,7 @@
 // Generic response type
 type ApiResponse<T> = Promise<T>;
-import { Image, Project, Annotation, AnnotationClass, Tile, PostAnnArgs, PostIntersectArgs, PostIntersectResponse } from "../types.ts";
-import { MultiPolygon, Polygon, Point } from 'geojson'; 
+import { Image, Project, Annotation, AnnotationClass, Tile, PostAnnArgs, PostIntersectArgs, PostIntersectResponse, PostOperationArgs } from "../types.ts";
+import { MultiPolygon, Polygon, Point, Feature } from 'geojson'; 
 
 interface FetchOptions extends RequestInit {
     headers?: HeadersInit;
@@ -149,4 +149,14 @@ export const pointInPolygon = async (point: Point, polygon: MultiPolygon): boole
     }
 
     return await post<PostIntersectArgs, PostIntersectResp>(`/intersect`, requestBody)
+}
+
+export const operateOnAnnotation = async (annotation: Annotation, polygon2: Feature, operation: number) => {
+    const requestBody: PostOperationArgs = {
+        ...annotation,
+        polygon2: JSON.stringify(polygon2),
+        operation: operation,
+    };
+
+    return await post<PostOperationArgs, Annotation>(`/annotation/operation`, requestBody);
 }

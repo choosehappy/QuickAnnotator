@@ -14,6 +14,7 @@ export interface AnnotationClass {
 
 export interface Annotation {
     id: number;
+    annotation_class_id: number;
     polygon: MultiPolygon;
     centroid: Point;
     area: number;
@@ -25,13 +26,9 @@ export interface PostAnnArgs {
     polygon: MultiPolygon;
 }
 
-export interface PostIntersectArgs {
-    point: Point;
-    polygon: MultiPolygon;
-}
-
-export interface PostIntersectResp {
-    intersect: boolean;
+export interface PostOperationArgs extends Annotation {
+    polygon2: string;
+    operation: number;
 }
 
 export interface Image {
