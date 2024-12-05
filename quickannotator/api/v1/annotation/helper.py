@@ -24,7 +24,7 @@ def annotations_within_bbox(table, x1, y1, x2, y2):
 
 def annotations_within_bbox_spatial_old(table_name: str, x1: float, y1: float, x2: float, y2: float) -> List[qadb.Annotation]:
     stmt = text(f'''
-        SELECT ROWID, AsEWKB(centroid) as centroid, area, AsEWKB(polygon) as polygon, custom_metrics, datetime
+        SELECT ROWID, AsEWKB(centroid) as centroid, area, AsGeoJSON(polygon) as polygon, custom_metrics, datetime
         FROM "{table_name}"
         WHERE "{table_name}".ROWID IN (
             SELECT ROWID
@@ -53,7 +53,7 @@ def annotations_within_bbox_spatial(table_name: str, x1: float, y1: float, x2: f
     # Main query using the spatial subquery
     query = (
         select(model)
-        .where(model.id.in_(spatial_subquery))
+        .where(model.id.in_(spatial_subquery)) # TODO: make sure to return geojson here.
     )
     
     start_time = time.time()

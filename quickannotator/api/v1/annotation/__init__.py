@@ -2,7 +2,9 @@ from flask_smorest import Blueprint
 from marshmallow import fields, Schema
 from flask.views import MethodView
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
+import shapely.wkt
 from sqlalchemy import Table
+from shapely.geometry import shape, mapping
 
 import quickannotator.db as qadb
 from .helper import annotations_within_bbox, annotations_within_bbox_spatial
@@ -15,7 +17,8 @@ class AnnRespSchema(SQLAlchemyAutoSchema):
     """     Annotation response schema      """
     class Meta:
         model = qadb.Annotation
-
+        include_fk = True
+        exclude = ("image_id", "isgt")
     centroid = qadb.GeometryField()
     polygon = qadb.GeometryField()
 
@@ -35,12 +38,16 @@ class PostAnnArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
     polygon = qadb.GeometryField(required=True)
 
+class OperationArgsSchema(AnnRespSchema):
+    operation = fields.Integer(required=True)  # Default 0 for union.
+    polygon2 = qadb.GeometryField(required=True)    # The second polygon
+
 class PutAnnArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
     annotation_id = fields.Int()
-    centroid = fields.String()
+    centroid = qadb.GeometryField(required=True)
     area = fields.Str()
-    polygon = fields.String()
+    polygon = qadb.GeometryField(required=True)
     custom_metrics = fields.Dict()
 
 class DeleteAnnArgsSchema(GetAnnArgsSchema):
@@ -63,7 +70,11 @@ class Annotation(MethodView):
         gtpred = 'gt' if args['is_gt'] else 'pred'
         table_name = f"{image_id}_{annotation_class_id}_{gtpred}_annotation"
         table = Table(table_name, qadb.db.metadata, autoload_with=qadb.db.engine)
-        stmt = table.select().where(table.c.id == args['annotation_id'])
+        stmt = table.select().where(table.c.id == args['annotation_id']).with_only_columns(
+            *(col for col in table.c if col.name != "polygon" and col.name != "centroid"),
+            table.c.centroid.ST_AsGeoJSON().label('centroid'),
+            table.c.polygon.ST_AsGeoJSON().label('polygon')
+        )
         result = qadb.db.session.execute(stmt).first()
         return result, 200
 
@@ -140,3 +151,24 @@ class AnnotationDryRun(MethodView):
 
         return 200
 
+@bp.route('/operation')
+class AnnotationOperation(MethodView):
+    @bp.arguments(OperationArgsSchema, location='json')
+    @bp.response(200, AnnRespSchema)
+    def post(self, args):
+        """     perform a union of two annotations
+
+        """
+
+        poly1 = shape(args['polygon'].geometry)
+        poly2 = shape(args['polygon2'].geometry)
+        operation = args['operation']
+
+        if operation == 0:
+            union = poly1.union(poly2)
+        
+        resp = AnnRespSchema().dump(args)
+        resp['polygon'] = mapping(union)
+        resp['area'] = union.area
+        resp['centroid'] = union.centroid
+        return resp, 200

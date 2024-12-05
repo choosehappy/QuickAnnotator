@@ -84,7 +84,6 @@ class Tile(db.Model):
     image_id = Column(Integer, ForeignKey('image.id'), nullable=False)
     annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=False)
 
-
     # columns
     geom = Column(Geometry('POLYGON'))
     seen = Column(Integer, nullable=False, default=0)
@@ -96,7 +95,13 @@ class Annotation(db.Model):
     # primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
 
+    # foreign keys (these are redundant because the table name encodes the same information. But good for querying and future proofing)
+    image_id = Column(Integer, ForeignKey('image.id'), nullable=False)
+    annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=False)
+    
+
     # columns
+    isgt = Column(Boolean, nullable=False)
     centroid = Column(Geometry('POINT'))
     area = Column(Float)
     polygon = Column(Geometry('POLYGON'))
@@ -148,18 +153,13 @@ class GeometryField(fields.Field):
         if value is None:
             return None
         # Assuming value contains a WKB string
-        result = geojson.Feature(geometry=mapping(wkb.loads(str(value))))
-        return geojson.dumps(result)
+        # result = geojson.Feature(geometry=mapping(wkb.loads(str(value))))
+        return value
 
     def _deserialize(self, value, attr, data, **kwargs):
-
-        if isinstance(value, list):
-            try:
-                geom = geojson.Polygon(value)
-                return wkb.dumps(geom)
-            except Exception as e:
-                raise ValueError(f"Invalid geometry format: {e}")
-        if value is None:
-            return None
-        # Not currently used, but may be used to deserialize e.g., a polygon for insertion into the db.
-        return value
+        try:
+            geom = geojson.loads(value)
+            return geom
+        except Exception as e:
+            raise ValueError(f"Invalid geometry format: {e}")
+        

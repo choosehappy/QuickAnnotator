@@ -48,7 +48,10 @@ class Tile(MethodView):
     def get(self, args):
         """     returns a Tile
         """
-        result = db.session.query(qadb.Tile).filter_by(id=args['tile_id']).first()
+        result = db.session.query(
+            *[getattr(qadb.Tile, column.name) for column in qadb.Tile.__table__.columns],
+            db.func.ST_AsGeoJSON(qadb.Tile.geom).label('geom')
+        ).filter_by(id=args['tile_id']).first()
         return result, 200
 
     @bp.arguments(PostTileArgsSchema, location='query')

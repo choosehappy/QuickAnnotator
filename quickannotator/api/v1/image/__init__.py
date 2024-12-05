@@ -53,7 +53,10 @@ class Image(MethodView):
     def get(self, args):
         """     returns an Image
         """
-        result = db.session.query(qadb.Image).filter(qadb.Image.id == args['image_id']).first()
+        result = db.session.query(
+            *[getattr(qadb.Image, column.name) for column in qadb.Image.__table__.columns],
+            db.func.ST_AsGeoJSON(qadb.Image.embedding_coord).label('embedding_coord')
+        ).filter(qadb.Image.id == args['image_id']).first()
         if result is not None:
             return result, 200
         else:
