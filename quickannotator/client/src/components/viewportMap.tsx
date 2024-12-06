@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation } from "../types.ts"
-import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation } from "../helpers/api.ts";
+import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation } from "../helpers/api.ts";
 import { Point, Polygon, Feature } from "geojson";
 
 
@@ -267,6 +267,28 @@ const ViewportMap = (props: Props) => {
         }
     }
 
+    function deleteAnnotation(evt) {
+        console.log("Delete annotation detected.")
+        const ann = props.currentAnnotation.current;
+        const image = props.currentImage;
+        const annotationClass = props.currentClass;
+        const annotationId = ann?.undoStack.at(-1).id;
+        if (annotationId && image && annotationClass) {
+            removeAnnotation(image.id, annotationClass.id, annotationId, true).then(() => {
+                const feature = getFeatureByTileId(ann.tileId);
+                const data = feature.data();
+                const deletedData = data.filter((d: Annotation) => {
+                    return d.id !== annotationId;
+                });
+                feature.data(deletedData);
+                feature.modified();
+                feature.draw();
+                props.currentAnnotation.current = null;
+                console.log("Annotation deleted.")
+            })
+        }
+    }
+
     const handleNewAnnotation = async (evt) => {
         console.log("New annotation detected.")
         const polygonLayer = geojs_map.current.layers()[0]
@@ -359,38 +381,42 @@ const ViewportMap = (props: Props) => {
         const initializeMap = async () => {
             const img = props.currentImage;
 
-            if (img && props.currentClass) {
-                const params = geo.util.pixelCoordinateParams(
-                    viewRef.current, img.width, img.height, img.dz_tilesize, img.dz_tilesize);
-                const interactor = geo.mapInteractor({alwaysTouch: true})
-                const map = geo.map({...params.map, interactor: interactor});
-                // map.interactor(geo.mapInteractor({alwaysTouch: true}))
-                map.geoOn(geo.event.mousedown, function (evt) {
-                    const t = this;
+            // if (img && props.currentClass) {
+            const params = geo.util.pixelCoordinateParams(
+                viewRef.current, img.width, img.height, img.dz_tilesize, img.dz_tilesize);
+            const interactor = geo.mapInteractor({alwaysTouch: true})
+            const map = geo.map({...params.map, interactor: interactor});
+            // map.interactor(geo.mapInteractor({alwaysTouch: true}))
+            map.geoOn(geo.event.mousedown, function (evt) {
+                const t = this;
+            });
+            params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
+            console.log("OSM layer loaded.")
+            const featureLayer = map.createLayer('feature', {features: ['polygon']});
+            map.createLayer('osm', { ...params.layer, zIndex: 0 })
+            const annotationLayer = map.createLayer('annotation', 
+                {
+                    active: true, 
+                    zIndex: 2,
+                    // renderer: featureLayer.renderer()
                 });
-                params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
-                console.log("OSM layer loaded.")
-                const featureLayer = map.createLayer('feature', {features: ['polygon']});
-                map.createLayer('osm', { ...params.layer, zIndex: 0 })
-                const annotationLayer = map.createLayer('annotation', 
-                    {
-                        active: true, 
-                        zIndex: 2,
-                        // renderer: featureLayer.renderer()
-                    });
-                annotationLayer.geoOn(geo.event.mousedown, handleMousedown)
-                annotationLayer.geoOn(geo.event.annotation.state, handleNewAnnotation)
-
-                // map.geoOn(geo.event.mousemove, function (evt: any) {console.log(`Mouse at x=${evt.geo.x}, y=${evt.geo.y}`);});
-                map.geoOn(geo.event.zoom, handleZoomPan)
-                if (props.currentClass.id === 1) {      // Tissue mask class requires different rendering approach.
-                    renderTissueMask(map).then(() => console.log("Tissue mask rendered."));
-                } else {
-                    map.geoOn(geo.event.pan, handleZoomPan)
+            annotationLayer.geoOn(geo.event.mousedown, handleMousedown)
+            annotationLayer.geoOn(geo.event.annotation.state, handleNewAnnotation)
+            window.onkeydown = (evt) => {
+                if (evt.key === 'Backspace' || evt.key === 'Delete') {
+                    deleteAnnotation(evt);
                 }
-                geojs_map.current = map;
-                return null;
             }
+
+            // map.geoOn(geo.event.mousemove, function (evt: any) {console.log(`Mouse at x=${evt.geo.x}, y=${evt.geo.y}`);});
+            map.geoOn(geo.event.zoom, handleZoomPan)
+            if (props.currentClass.id === 1) {      // Tissue mask class requires different rendering approach.
+                renderTissueMask(map).then(() => console.log("Tissue mask rendered."));
+            } else {
+                map.geoOn(geo.event.pan, handleZoomPan)
+            }
+            geojs_map.current = map;
+            return null;
         }
 
         if (props.currentImage && props.currentClass) {
@@ -424,6 +450,7 @@ const ViewportMap = (props: Props) => {
 
         }
     }, [props.currentTool])
+
     return (
         <div ref={viewRef} style={
             {

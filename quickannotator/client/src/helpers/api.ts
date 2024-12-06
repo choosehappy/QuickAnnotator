@@ -21,7 +21,8 @@ export const get = async <T>(url: string, options: FetchOptions = {}): ApiRespon
     if (!response.ok) {
         throw new Error(`Error: ${response.status}`);
     }
-    return response.json();
+    const text = await response.text();
+    return text ? JSON.parse(text) : {};
 };
 
 // POST request method
@@ -71,7 +72,9 @@ export const remove = async <T>(url: string, options: FetchOptions = {}): ApiRes
     if (!response.ok) {
         throw new Error(`Error: ${response.status}`);
     }
-    return response.json();
+
+    const text = await response.text();
+    return text ? JSON.parse(text) : {};
 };
 
 // Fetch image by ID
@@ -118,6 +121,11 @@ export const putAnnotation = async (image_id: number, annotation_class_id: numbe
         is_gt: true,
     }
     return await put<PutAnnArgs, Annotation>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);;
+}
+
+export const removeAnnotation = async (image_id: number, annotation_class_id: number, annotation_id: number, is_gt: boolean) => {
+    const query = new URLSearchParams({ is_gt: is_gt.toString(), annotation_id: annotation_id.toString() });
+    return await remove(`/annotation/${image_id}/${annotation_class_id}?${query}`);
 }
 
 // Fetch annotation classes
