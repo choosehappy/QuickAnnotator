@@ -45,7 +45,7 @@ export default class AnnotationList extends React.Component {
             // const svg = "<svg width='100' height='100'>hello</svg>";
             const geojson = JSON.parse(value);
 
-            const coordinates = geojson.geometry.coordinates[0];
+            const coordinates = geojson.coordinates[0];
             // Find min and max coordinates for scaling
             const xCoords = coordinates.map(coord => coord[0]);
             const yCoords = coordinates.map(coord => coord[1]);
@@ -71,12 +71,12 @@ export default class AnnotationList extends React.Component {
 
         const centroidXFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
             const geojson = JSON.parse(value);
-            return geojson.geometry.coordinates[0]
+            return geojson.coordinates[0]
         }
 
         const centroidYFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
             const geojson = JSON.parse(value);
-            return geojson.geometry.coordinates[1]}
+            return geojson.coordinates[1]}
 
         const columns: Column[] = [
             { id: 'thumbnail', name: 'Thumbnail', field: 'thumbnail', sortable: true, minWidth: 100, formatter: polygonFormatter },

@@ -5,9 +5,18 @@ from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 import shapely.wkt
 from sqlalchemy import Table
 from shapely.geometry import shape, mapping
+import json
 
 import quickannotator.db as qadb
-from .helper import annotations_within_bbox, annotations_within_bbox_spatial
+from .helper import (
+    annotations_within_bbox,
+    annotations_within_bbox_spatial,
+    retrieve_annotation_table,
+    compute_custom_metrics,
+    annotation_by_id,
+    dynamically_create_model_for_table
+)
+from datetime import datetime
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
 
@@ -21,6 +30,7 @@ class AnnRespSchema(SQLAlchemyAutoSchema):
         exclude = ("image_id", "isgt")
     centroid = qadb.GeometryField()
     polygon = qadb.GeometryField()
+    datetime = fields.DateTime(format='iso')
 
 class GetAnnArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
@@ -41,6 +51,7 @@ class PostAnnArgsSchema(Schema):
 class OperationArgsSchema(AnnRespSchema):
     operation = fields.Integer(required=True)  # Default 0 for union.
     polygon2 = qadb.GeometryField(required=True)    # The second polygon
+
 
 class PutAnnArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
@@ -67,27 +78,50 @@ class Annotation(MethodView):
     def get(self, args, image_id, annotation_class_id):
         """     returns an Annotation
         """
-        gtpred = 'gt' if args['is_gt'] else 'pred'
-        table_name = f"{image_id}_{annotation_class_id}_{gtpred}_annotation"
-        table = Table(table_name, qadb.db.metadata, autoload_with=qadb.db.engine)
-        stmt = table.select().where(table.c.id == args['annotation_id']).with_only_columns(
-            *(col for col in table.c if col.name != "polygon" and col.name != "centroid"),
-            table.c.centroid.ST_AsGeoJSON().label('centroid'),
-            table.c.polygon.ST_AsGeoJSON().label('polygon')
-        )
-        result = qadb.db.session.execute(stmt).first()
+        table = retrieve_annotation_table(image_id, annotation_class_id, args['is_gt'])
+
+        # stmt = table.select().where(table.c.id == args['annotation_id']).with_only_columns(
+        #     *(col for col in table.c if col.name != "polygon" and col.name != "centroid"),
+        #     table.c.centroid.ST_AsGeoJSON().label('centroid'),
+        #     table.c.polygon.ST_AsGeoJSON().label('polygon')
+        # )
+        # result = qadb.db.session.execute(stmt).first()
+
+        result = annotation_by_id(table, args['annotation_id'])
         return result, 200
 
     @bp.arguments(PostAnnArgsSchema, location='json')
-    def post(self, args):
+    @bp.response(200, AnnRespSchema)
+    def post(self, args, image_id, annotation_class_id):
         """     process a new annotation
 
         """
 
-        return 200
+        poly: shapely.geometry.base.BaseGeometry = shape(args['polygon'])
+
+        table = retrieve_annotation_table(image_id, annotation_class_id, args['is_gt'])
+        model = dynamically_create_model_for_table(table)
+
+        ann = model(
+            image_id=image_id,
+            annotation_class_id=annotation_class_id,
+            isgt=args['is_gt'],
+            centroid=poly.centroid.wkt,
+            area=poly.area,
+            polygon=poly.wkt,
+            custom_metrics=compute_custom_metrics(),
+        )
+
+        qadb.db.session.add(ann)
+        qadb.db.session.commit()
+        # unfortunately the ORM doesn't return the centroid and polygon as geojson. Consider updating the GeometryField to automatically convert EWKB to geojson.
+        result = annotation_by_id(table, ann.id)
+        return result, 200
+    
+
 
     @bp.arguments(PutAnnArgsSchema, location='json')
-    def put(self, args):
+    def put(self, args, image_id, annotation_class_id):
         """     create or update an annotation directly in the db
 
         """
@@ -95,11 +129,15 @@ class Annotation(MethodView):
         return 201
 
     @bp.arguments(DeleteAnnArgsSchema, location='query')
-    def delete(self, args):
+    def delete(self, args, image_id, annotation_class_id):
         """     delete an annotation
 
         """
+        table = retrieve_annotation_table(image_id, annotation_class_id, args['is_gt'])
 
+        stmt = table.delete().where(table.c.id == args['annotation_id'])
+        qadb.db.session.execute(stmt)
+        qadb.db.session.commit()
         return {}, 204
 
 #################################################################################
@@ -160,15 +198,17 @@ class AnnotationOperation(MethodView):
 
         """
 
-        poly1 = shape(args['polygon'].geometry)
-        poly2 = shape(args['polygon2'].geometry)
+        poly1 = shape(args['polygon'])
+        poly2 = shape(args['polygon2'])
         operation = args['operation']
 
         if operation == 0:
             union = poly1.union(poly2)
         
-        resp = AnnRespSchema().dump(args)
-        resp['polygon'] = mapping(union)
-        resp['area'] = union.area
-        resp['centroid'] = union.centroid
+            resp = {field: args[field] for field in AnnRespSchema.Meta.model.__table__.columns.keys() if field in args} # Basically a copy of args without "polygon2" or "operation"
+            # unfortunately we have to lose the dictionary format because we are mimicking the geojson string outputted by the db.
+            resp['polygon'] = json.dumps(mapping(union))
+            resp['centroid'] = json.dumps(mapping(union.centroid))   
+            resp['area'] = union.area
+
         return resp, 200

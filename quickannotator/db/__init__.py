@@ -152,8 +152,8 @@ class GeometryField(fields.Field):
     def _serialize(self, value, attr, obj, **kwargs):
         if value is None:
             return None
-        # Assuming value contains a WKB string
-        # result = geojson.Feature(geometry=mapping(wkb.loads(str(value))))
+        # if isinstance(value, str):
+        #     return geojson.loads(value)
         return value
 
     def _deserialize(self, value, attr, data, **kwargs):

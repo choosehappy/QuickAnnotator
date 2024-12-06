@@ -1,4 +1,4 @@
-import {MultiPolygon, Point, Polygon, Feature} from "geojson"
+import {Point, Polygon, Feature} from "geojson"
 
 export interface AnnotationClass {
     id: number;
@@ -15,7 +15,7 @@ export interface AnnotationClass {
 export interface Annotation {
     id: number;
     annotation_class_id: number;
-    polygon: MultiPolygon;
+    polygon: Polygon;
     centroid: Point;
     area: number;
     custom_metrics: { [key: string]: unknown }
@@ -23,7 +23,7 @@ export interface Annotation {
 
 export interface PostAnnArgs {
     is_gt: boolean;
-    polygon: MultiPolygon;
+    polygon: Polygon;
 }
 
 export interface PostOperationArgs extends Annotation {
@@ -69,7 +69,6 @@ export type OutletContextType = {
 
 export interface CurrentAnnotation {
     tileId: number
-    id: number;
     undoStack: Annotation[];
     redoStack: Annotation[];
 }

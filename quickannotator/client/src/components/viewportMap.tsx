@@ -2,8 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation } from "../types.ts"
 import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations, postAnnotation, pointInPolygon, operateOnAnnotation } from "../helpers/api.ts";
-import { MultiPolygon, Point, Polygon, Feature } from "geojson";
-import polygonClipping from 'polygon-clipping';
+import { Point, Polygon, Feature } from "geojson";
 
 
 interface Props {
@@ -94,13 +93,13 @@ const ViewportMap = (props: Props) => {
 
     const processTile = async (tile: Tile) => {
         const t = await fetchTile(tile.id);
-        const geom = JSON.parse(t.geom.toString());    // for some reason the geom is stringified
+        const geom = JSON.parse(t.geom.toString());
         // const tileState = t.seen;
 
-        const x1 = geom.coordinates[0][0][0];
-        const y1 = geom.coordinates[0][0][1];
-        const x2 = geom.coordinates[0][2][0];
-        const y2 = geom.coordinates[0][2][1];
+        const x1 = Math.round(geom.coordinates[0][0][0]);
+        const y1 = Math.round(geom.coordinates[0][0][1]);
+        const x2 = Math.round(geom.coordinates[0][2][0]);
+        const y2 = Math.round(geom.coordinates[0][2][1]);
 
         // switch (tileState) {
         //     case 0:
@@ -144,15 +143,15 @@ const ViewportMap = (props: Props) => {
                 x: d[0], y: d[1]};
             })
             .polygon((a: Annotation) => {
-                const polygon = JSON.parse(a.polygon.toString());   // shouldn't be doing json parsing here.
-                return polygon.geometry.coordinates[0];
-            }) //should return the polygon.geometry.coordinates[0];
+                const polygon = JSON.parse(a.polygon.toString());
+                return polygon.coordinates[0];
+            })
             .data(annotations)
             .style('fill', true)
             .style('fillColor', 'lime')
             .style('fillOpacity', 0.5)
             .style('stroke', (a: Annotation) => {
-                if (a.id === props.currentAnnotation.current?.id) {
+                if (a.id === props.currentAnnotation.current?.undoStack.at(-1)?.id) {
                     console.log("Change stroke of polygon.")    // For some reason this is getting called many times.
                     return true
                 }
@@ -171,7 +170,7 @@ const ViewportMap = (props: Props) => {
 
         const newData = annotations.map((a) => {
             const centroid = JSON.parse(a.centroid.toString());
-            return centroid.geometry.coordinates;
+            return centroid.coordinates;
         });
 
         feature
@@ -184,10 +183,11 @@ const ViewportMap = (props: Props) => {
     }
 
     const commitCurrentAnnotation = () => {
-        const polygonList = geojs_map.current.layers()[2].toPolygonList();
-        const polygon: MultiPolygon = {
-            type: "MultiPolygon",
-            coordinates: polygonList
+        const state = props.currentAnnotation.current?.undoStack.pop();
+        if (state?.id) {    // Annotation already exists - update it in the backend
+
+        } else {    // Annotation does not exist - create it in the backend
+            
         }
         // postAnnotation(props.currentImage.id, props.currentClass.id, true, polygon).then((resp) => {
         //     console.log("Annotation posted.")
@@ -200,13 +200,13 @@ const ViewportMap = (props: Props) => {
         });
     }
 
-    function handleMousedownOnPolygon(evt) {
+    function handleMousedownOnPolygon(evt) {    // TODO: Clean up this function. There is redundant code.
         console.log("Polygon clicked.")
         console.log(evt.data)
         polygonClicked.current = true;
 
         if(props.currentAnnotation.current) {   // If the current annotation exists, 
-            if (props.currentAnnotation.current.id !== evt.data.id) {   // If the current annotation id has changed...
+            if (props.currentAnnotation.current.undoStack.at(-1)?.id !== evt.data.id) {   // If the current annotation id has changed...
                 // Commit the previously selected annotation
                 commitCurrentAnnotation();
 
@@ -215,10 +215,9 @@ const ViewportMap = (props: Props) => {
                 
                 // Set the current annotation to the clicked annotation
                 const clickedAnnotation: CurrentAnnotation = {
-                    id: evt.data.id,
                     tileId: this.props.tileId,
                     redoStack: [],
-                    undoStack: [evt.data.polygon]
+                    undoStack: [evt.data]
                 }
 
                 props.currentAnnotation.current = clickedAnnotation;
@@ -239,7 +238,7 @@ const ViewportMap = (props: Props) => {
                 id: evt.data.id,
                 tileId: this.props.tileId,
                 redoStack: [],
-                undoStack: [evt.data.polygon]
+                undoStack: [evt.data]
             }
 
             props.currentAnnotation.current = clickedAnnotation;
@@ -276,9 +275,9 @@ const ViewportMap = (props: Props) => {
 
         if (polygonList.length > 0 && props.currentImage && props.currentClass) {
             // 1. Get the polygon from the annotation layer.
-            const polygon2: MultiPolygon = {
-                type: "MultiPolygon",
-                coordinates: [[polygonList]]
+            const polygon2: Polygon = {
+                type: "Polygon",
+                coordinates: [polygonList]
             }
             const polygon2Feature: Feature = {
                 type: "Feature",
@@ -293,14 +292,21 @@ const ViewportMap = (props: Props) => {
                 // // 1. Get the feature data associated with the CurrentAnnotation
                 const feature = getFeatureByTileId(ann.tileId);
                 const data = feature.data();
-                const updatedData = data.map((d: Annotation) => {
-                    if (d.id === ann.id) {
-                        // const polygon: Polygon = JSON.parse(d.polygon.toString()).geometry;
-                        // const result = polygonClipping.union(annotationPolygon.coordinates, polygon.coordinates);
-                        const r = operateOnAnnotation(d, polygon2Feature, 0);
-                        return d
-                    }
-                    return d;
+                const currentState = ann.undoStack.pop();
+                ann.redoStack.push(currentState);
+                operateOnAnnotation(currentState, polygon2, 0).then((newState) => {
+                    ann.undoStack.push(newState);
+
+                    const updatedData = data.map((d: Annotation) => {
+                        if (d.id === ann.id) {
+                            return newState;
+                        }
+                        return d;
+                    });
+
+                    feature.data(updatedData);
+                    feature.modified();
+                    feature.draw();
                 })
                 // // 2. Get the annotation data associated with the CurrentAnnotation
                 
@@ -311,6 +317,7 @@ const ViewportMap = (props: Props) => {
             } else {    // if currentAnnotation does not exist, create a new annotation
                 console.log("Current annotation does not exist. Creating...")
                 // Determine which feature needs to get updated
+
             }
 
             const mode = annotationLayer.mode();
