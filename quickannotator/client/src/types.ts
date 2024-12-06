@@ -23,12 +23,16 @@ export interface Annotation {
 
 export interface PostAnnArgs {
     is_gt: boolean;
-    polygon: Polygon;
+    polygon: string;
 }
 
 export interface PostOperationArgs extends Annotation {
     polygon2: string;
     operation: number;
+}
+
+export interface PutAnnArgs extends Annotation {
+    is_gt: boolean;
 }
 
 export interface Image {

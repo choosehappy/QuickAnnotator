@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation } from "../types.ts"
-import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations, postAnnotation, pointInPolygon, operateOnAnnotation } from "../helpers/api.ts";
+import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation } from "../helpers/api.ts";
 import { Point, Polygon, Feature } from "geojson";
 
 
@@ -208,7 +208,7 @@ const ViewportMap = (props: Props) => {
         if(props.currentAnnotation.current) {   // If the current annotation exists, 
             if (props.currentAnnotation.current.undoStack.at(-1)?.id !== evt.data.id) {   // If the current annotation id has changed...
                 // Commit the previously selected annotation
-                commitCurrentAnnotation();
+                putAnnotation(props.currentImage.id, props.currentClass.id, props.currentAnnotation.current.undoStack.at(-1))
 
                 // Get the old feature
                 const oldFeature = getFeatureByTileId(props.currentAnnotation.current.tileId);
@@ -234,6 +234,7 @@ const ViewportMap = (props: Props) => {
 
             }
         } else {
+
             const clickedAnnotation: CurrentAnnotation = {
                 id: evt.data.id,
                 tileId: this.props.tileId,
@@ -255,7 +256,8 @@ const ViewportMap = (props: Props) => {
         console.log("Mouse down detected.")
         if (!polygonClicked.current && props.currentAnnotation.current) {
             const ann = props.currentAnnotation.current;
-            commitCurrentAnnotation();
+            putAnnotation(props.currentImage.id, props.currentClass.id, ann.undoStack.at(-1))
+
             const feature = getFeatureByTileId(ann.tileId);
             props.currentAnnotation.current = null;
             feature.modified();
@@ -279,14 +281,10 @@ const ViewportMap = (props: Props) => {
                 type: "Polygon",
                 coordinates: [polygonList]
             }
-            const polygon2Feature: Feature = {
-                type: "Feature",
-                properties: {},
-                geometry: polygon2
-            }
+
+            const ann = props.currentAnnotation.current;
 
             // 2. if currentAnnotation exists, update the currentAnnotation
-            const ann = props.currentAnnotation.current;
             if (ann) {
                 console.log("Current annotation exists. Updating...")
                 // // 1. Get the feature data associated with the CurrentAnnotation
@@ -307,17 +305,25 @@ const ViewportMap = (props: Props) => {
                     feature.data(updatedData);
                     feature.modified();
                     feature.draw();
-                })
-                // // 2. Get the annotation data associated with the CurrentAnnotation
-                
-                // ann.redoStack.push() // useRef is immutable
-                // props.currentAnnotation.current = ann;
-                
-                // // Update the currentAnnotation with the new polygon
+                });
+
             } else {    // if currentAnnotation does not exist, create a new annotation
                 console.log("Current annotation does not exist. Creating...")
-                // Determine which feature needs to get updated
-
+                postAnnotation(props.currentImage.id, props.currentClass.id, true, polygon2).then((resp) => {
+                    const xy = JSON.parse(resp.centroid).coordinates;
+                    searchTiles(props.currentImage?.id, props.currentClass?.id, xy[0], xy[1], xy[0], xy[1]).then((tiles) => {
+                        if (tiles.length > 0) {
+                            const tileId = tiles[0].id;
+                            const feature = getFeatureByTileId(tileId);
+                            const data = feature.data();
+                            const updatedData = data.concat(resp);
+                            feature.data(updatedData);
+                            feature.modified();
+                            feature.draw();
+                        }
+                    });
+                });
+            
             }
 
             const mode = annotationLayer.mode();

@@ -53,13 +53,8 @@ class OperationArgsSchema(AnnRespSchema):
     polygon2 = qadb.GeometryField(required=True)    # The second polygon
 
 
-class PutAnnArgsSchema(Schema):
+class PutAnnArgsSchema(AnnRespSchema):
     is_gt = fields.Bool(required=True)
-    annotation_id = fields.Int()
-    centroid = qadb.GeometryField(required=True)
-    area = fields.Str()
-    polygon = qadb.GeometryField(required=True)
-    custom_metrics = fields.Dict()
 
 class DeleteAnnArgsSchema(GetAnnArgsSchema):
     pass
@@ -121,12 +116,38 @@ class Annotation(MethodView):
 
 
     @bp.arguments(PutAnnArgsSchema, location='json')
+    @bp.response(201, AnnRespSchema)
     def put(self, args, image_id, annotation_class_id):
         """     create or update an annotation directly in the db
 
         """
+        table = retrieve_annotation_table(image_id, annotation_class_id, args['is_gt'])
+        model = dynamically_create_model_for_table(table)
 
-        return 201
+        ann = qadb.db.session.query(model).filter_by(id=args['id']).first()
+        if ann:
+            ann.centroid = shape(args['centroid']).wkt
+            ann.area = args['area']
+            ann.polygon = shape(args['polygon']).wkt
+            ann.custom_metrics = args['custom_metrics']
+            ann.datetime = datetime.now()
+        else:
+            ann = model(
+                id=args['id'],
+                image_id=image_id,
+                annotation_class_id=annotation_class_id,
+                isgt=args['is_gt'],
+                centroid=args['centroid'],
+                area=args['area'],
+                polygon=args['polygon'],
+                custom_metrics=args['custom_metrics'],
+                datetime=datetime.now()
+            )
+            qadb.db.session.add(ann)
+        qadb.db.session.commit()
+
+        result = annotation_by_id(table, ann.id)
+        return result, 201
 
     @bp.arguments(DeleteAnnArgsSchema, location='query')
     def delete(self, args, image_id, annotation_class_id):

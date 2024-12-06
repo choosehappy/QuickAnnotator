@@ -1,6 +1,6 @@
 // Generic response type
 type ApiResponse<T> = Promise<T>;
-import { Image, Project, Annotation, AnnotationClass, Tile, PostAnnArgs, PostIntersectArgs, PostIntersectResponse, PostOperationArgs } from "../types.ts";
+import { Image, Project, Annotation, AnnotationClass, Tile, PostAnnArgs, PostOperationArgs, PutAnnArgs } from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
 
 interface FetchOptions extends RequestInit {
@@ -106,10 +106,18 @@ export const searchAnnotations = async (image_id: number, annotation_class_id: n
 export const postAnnotation = async (image_id: number, annotation_class_id: number, is_gt: boolean, polygon: Polygon) => {
     const requestBody: PostAnnArgs = {
         is_gt: is_gt,
-        polygon: polygon,
+        polygon: JSON.stringify(polygon),
     };
 
     return await post<PostAnnArgs, Annotation>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);
+}
+
+export const putAnnotation = async (image_id: number, annotation_class_id: number, annotation: Annotation) => {
+    const requestBody: PutAnnArgs = {
+        ...annotation,
+        is_gt: true,
+    }
+    return await put<PutAnnArgs, Annotation>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);;
 }
 
 // Fetch annotation classes
