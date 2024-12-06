@@ -23,6 +23,7 @@ const AnnotationPage = () => {
     const [gts, setGts] = useState<Annotation[]>([]);
     const [preds, setPreds] = useState<Annotation[]>([]);
     const [currentTool, setCurrentTool] = useState<string | null>('0');
+    const [action, setAction] = useState<string | null>(null);
     const currentAnnotation = useRef<CurrentAnnotation | null>(null);
 
     useEffect(() => {
@@ -51,7 +52,7 @@ const AnnotationPage = () => {
                                     borderColor: "rgba(0, 0, 0, 0.8)",
                                     borderRadius: 6,
                                     zIndex: 10,
-                                }}><Toolbar {...{currentTool, setCurrentTool}} /></Card.Header>
+                                }}><Toolbar {...{currentTool, setCurrentTool, action, setAction}} /></Card.Header>
                                 <Card.Body style={{padding: "0px"}}>
                                     <ViewportMap {...{currentImage, currentClass, gts, setGts, preds, setPreds, currentTool, currentAnnotation }}/>
                                 </Card.Body>
@@ -63,10 +64,10 @@ const AnnotationPage = () => {
                                     {...{currentClass, setCurrentClass}}
                                 />
                                 <GroundTruthPane
-                                    {...{gts, setGts}}
+                                    {...{gts, setGts, currentAnnotation}}
                                 />
                                 <PredictionsPane
-                                    {...{preds, setPreds}}
+                                    {...{preds, setPreds, currentAnnotation}}
                                 />
                             </Stack>
                         </Col>

@@ -1,11 +1,12 @@
 import * as React from 'react';
 import {Column, GridOption, SlickgridReactInstance, SlickgridReact} from "slickgrid-react";
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
-import { Annotation } from "../types.ts";
+import { Annotation, CurrentAnnotation } from "../types.ts";
 
 interface Props {
     annotations: Annotation[];
     containerId: string;
+    currentAnnotation: CurrentAnnotation;
 }
 
 export default class AnnotationList extends React.Component {
@@ -32,6 +33,16 @@ export default class AnnotationList extends React.Component {
                 dataset: this.getData(this.props.annotations),
             }));
         }
+
+        // // If the current annotation changed
+        // const currentAnnotation = this.props.currentAnnotation;
+        // const previousAnnotation = prevProps.currentAnnotation;
+        // if (currentAnnotation) {
+        //     if (!previousAnnotation || !currentAnnotation.undoStack || !previousAnnotation.undoStack || currentAnnotation.undoStack.at(-1).id !== previousAnnotation.undoStack.at(-1).id) {
+        //         // this.reactGrid?.gridService.setSelectedRow(currentAnnotation.id);
+        //         console.log('highlighted item in slickgrid');
+        //     }
+        // }
     }
 
     reactGridReady(reactGrid: SlickgridReactInstance) {

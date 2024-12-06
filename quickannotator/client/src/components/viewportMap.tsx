@@ -182,18 +182,6 @@ const ViewportMap = (props: Props) => {
             .data(feature.data().concat(newData)).draw();
     }
 
-    const commitCurrentAnnotation = () => {
-        const state = props.currentAnnotation.current?.undoStack.pop();
-        if (state?.id) {    // Annotation already exists - update it in the backend
-
-        } else {    // Annotation does not exist - create it in the backend
-            
-        }
-        // postAnnotation(props.currentImage.id, props.currentClass.id, true, polygon).then((resp) => {
-        //     console.log("Annotation posted.")
-        // });
-    }
-
     const getFeatureByTileId = (tileId: number) => {
         return geojs_map.current.layers()[0].features().find((f) => {
             return f.featureType === 'polygon' && f.props.tileId === tileId;
@@ -284,7 +272,7 @@ const ViewportMap = (props: Props) => {
                 feature.modified();
                 feature.draw();
                 props.currentAnnotation.current = null;
-                console.log("Annotation deleted.")
+                console.log(`Annotation id=${annotationId} deleted.`)
             })
         }
     }
