@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation } from "../types.ts"
-import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation } from "../helpers/api.ts";
+import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation, searchAnnotationsWithinTile } from "../helpers/api.ts";
 import { Point, Polygon, Feature } from "geojson";
 
 
@@ -68,7 +68,7 @@ const ViewportMap = (props: Props) => {
                     return;
                 }
                 console.log(`Processing tile ${tile.id}`)
-                const resp = await processTile(tile);
+                const resp = await searchAnnotationsWithinTile(tile, true);
                 if (currentCallToken !== activeRenderAnnotationsCall.current) {     // ... and after processing the tile to avoid the race condition
                     console.log("Render cancelled.")
                     return;
@@ -91,46 +91,7 @@ const ViewportMap = (props: Props) => {
         props.setGts(resp);
     }
 
-    const processTile = async (tile: Tile) => {
-        const t = await fetchTile(tile.id);
-        const geom = JSON.parse(t.geom.toString());
-        // const tileState = t.seen;
-
-        const x1 = Math.round(geom.coordinates[0][0][0]);
-        const y1 = Math.round(geom.coordinates[0][0][1]);
-        const x2 = Math.round(geom.coordinates[0][2][0]);
-        const y2 = Math.round(geom.coordinates[0][2][1]);
-
-        // switch (tileState) {
-        //     case 0:
-        //         console.log("Tile not seen");
-        //         /*  Tile not seen. Perform the following:
-        //         *   1. Call compute endpoint
-        //         *   2. Update tile state to 1
-        //         *   3. Update Queue with tile
-        //         * */
-        //         break;
-        //     case 1:
-        //         console.log("Tile processing");
-        //         /*  Tile processing. Perform the following:
-        //         *   1. Push tile to end of queue
-        //          */
-        //         break;
-        //     case 2:
-        //         console.log("Tile processed");
-        //         searchAnnotations(t.image_id, t.annotation_class_id, false, x1, y1, x2, y2).then((annotations) => {
-        //             console.log("Predictions")
-        //             console.log(annotations);
-        //         });
-        //         break;
-        //
-        // }
-
-        const resp = await searchAnnotations(t.image_id, t.annotation_class_id, true, x1, y1, x2, y2)
-        return resp
-    }
-
-    const drawPolygons = async (featureProps, annotations: Annotation[], map: geo.map, annotationClassId: number=1) => {
+    const drawPolygons = async (featureProps: any, annotations: Annotation[], map: geo.map, annotationClassId: number=1) => {
         console.log("Annotations detected update.")
         const layer = map.layers()[0];
 

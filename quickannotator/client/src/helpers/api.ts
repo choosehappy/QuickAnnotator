@@ -105,6 +105,18 @@ export const searchAnnotations = async (image_id: number, annotation_class_id: n
     return await get<Annotation[]>(`/annotation/${image_id}/${annotation_class_id}/search?${query}`);
 }
 
+export const searchAnnotationsWithinTile = async (tile: Tile, is_gt: boolean) => {
+    const geom = JSON.parse(tile.geom.toString());
+
+    const x1 = Math.round(geom.coordinates[0][0][0]);
+    const y1 = Math.round(geom.coordinates[0][0][1]);
+    const x2 = Math.round(geom.coordinates[0][2][0]);
+    const y2 = Math.round(geom.coordinates[0][2][1]);
+
+    const resp = await searchAnnotations(tile.image_id, tile.annotation_class_id, is_gt, x1, y1, x2, y2)
+    return resp
+}
+
 // Post annotation
 export const postAnnotation = async (image_id: number, annotation_class_id: number, is_gt: boolean, polygon: Polygon) => {
     const requestBody: PostAnnArgs = {
