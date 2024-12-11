@@ -108,6 +108,7 @@ const ViewportMap = (props: Props) => {
                 console.log("Tile currently processing.");
                 break;
             case 2:
+                console.log("Tile seen.");
                 drawPredictedPolygons({ tileId: tile.id }, annotations, layer);
                 break;
             default:
@@ -367,6 +368,19 @@ const ViewportMap = (props: Props) => {
             });
         }, 100); // Adjust this timeout duration as needed
     };
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (geojs_map.current) {
+                const bounds = geojs_map.current.bounds();
+                renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top, activeRenderPredictionsCall, false).then(() => {
+                    console.log("Predictions rendered.");
+                });
+            }
+        }, 500);
+
+        return () => clearInterval(interval); // Cleanup on unmount
+    }, []);
 
     // UseEffect hook to initialize the map
     useEffect(() => {

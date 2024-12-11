@@ -99,7 +99,7 @@ class TilePredict(MethodView):
         """     predict tiles for a given image & class
         """
         # Update the Tile seen column to 1
-        tile = tile_by_id(db, args['tile_id'])
+        tile = tile_by_id(db.session, args['tile_id'])
         tile.seen = 1
         db.session.commit()
 

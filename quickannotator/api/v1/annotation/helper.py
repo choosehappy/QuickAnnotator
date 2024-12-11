@@ -102,7 +102,7 @@ def annotation_by_id(table, annotation_id):
 
     return result
 
-def insert_new_annotation(image_id, annotation_class_id, is_gt, polygon: shapely.geometry.Polygon):
+def insert_new_annotation(session, image_id, annotation_class_id, is_gt, polygon: shapely.geometry.Polygon):
     table = retrieve_annotation_table(image_id, annotation_class_id, is_gt)
     DynamicModel = dynamically_create_model_for_table(table)
 
@@ -116,5 +116,4 @@ def insert_new_annotation(image_id, annotation_class_id, is_gt, polygon: shapely
         custom_metrics=compute_custom_metrics(),
         datetime=datetime.now()
     )
-    qadb.db.session.add(new_annotation)
-    qadb.db.session.commit()
+    session.add(new_annotation)

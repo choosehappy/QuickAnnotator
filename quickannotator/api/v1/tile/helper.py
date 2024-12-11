@@ -1,7 +1,7 @@
 import quickannotator.db as qadb
 from sqlalchemy import func, Table
 from quickannotator.db import db
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, sessionmaker
 from sqlalchemy import exists
 import shapely
 from shapely.geometry import Polygon
@@ -63,8 +63,8 @@ def tiles_within_bbox(db, image_id, annotation_class_id, x1, y1, x2, y2):
 
     return tiles
 
-def tile_by_id(db, tile_id: int) -> qadb.Tile:
-    result = db.session.query(qadb.Tile).filter(qadb.Tile.id == tile_id).first()
+def tile_by_id(session, tile_id: int) -> qadb.Tile:
+    result = session.query(qadb.Tile).filter(qadb.Tile.id == tile_id).first()
     return result
 
 def generate_random_circle_within_bbox(bbox: Polygon, radius: float) -> shapely.geometry.Polygon:
@@ -78,23 +78,23 @@ def generate_random_circle_within_bbox(bbox: Polygon, radius: float) -> shapely.
 
 def compute_on_tile(db, qadb, tile_id: int, sleep_time=5): 
     def async_task():
-        # Update tile.seen to 2 after sleep_time
+        Session = sessionmaker(bind=db.engine)
+
         time.sleep(sleep_time)
-        tile = tile_by_id(db, tile_id)
 
-        bbox = shapely.wkb.loads(tile.geom.data)
-        polygon = generate_random_circle_within_bbox(bbox, 100)
+        with Session() as session:
+            tile = tile_by_id(session, tile_id)
+            image_id: int = tile.image_id
+            annotation_class_id: int = tile.annotation_class_id
 
+            bbox = shapely.wkb.loads(tile.geom.data)
+            for i in range(random.randint(20, 40)):
+                polygon = generate_random_circle_within_bbox(bbox, 100)
+                insert_new_annotation(session, image_id, annotation_class_id, is_gt=False, polygon=polygon)
 
-        image_id: int = tile.image_id
-        annotation_class_id: int = tile.annotation_class_id
-
-        # commit the new polygon to the database
-        insert_new_annotation(image_id, annotation_class_id, is_gt=False, polygon=polygon)
-
-        # now that the tile has been processed, update the tile.seen column to 2
-        tile.seen = 2
-        db.session.commit()
+            # now that the tile has been processed, update the tile.seen column to 2
+            tile.seen = 2
+            session.commit()
 
         print(f"Async task completed by process id: {current_process().pid}")
         print(f"Generated polygon: {polygon}")
