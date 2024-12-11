@@ -7,7 +7,9 @@ import shapely.geometry
 from sqlalchemy.ext.declarative import declarative_base
 import time
 from sqlalchemy.types import DateTime
+from datetime import datetime
 import json
+import random
 
 Base = declarative_base()
 
@@ -99,3 +101,20 @@ def annotation_by_id(table, annotation_id):
     result = qadb.db.session.execute(stmt).first()
 
     return result
+
+def insert_new_annotation(image_id, annotation_class_id, is_gt, polygon: shapely.geometry.Polygon):
+    table = retrieve_annotation_table(image_id, annotation_class_id, is_gt)
+    DynamicModel = dynamically_create_model_for_table(table)
+
+    new_annotation = DynamicModel(
+        image_id=image_id,
+        annotation_class_id=annotation_class_id,
+        isgt=is_gt,
+        centroid=polygon.centroid.wkt,
+        area=polygon.area,
+        polygon=polygon.wkt,
+        custom_metrics=compute_custom_metrics(),
+        datetime=datetime.now()
+    )
+    qadb.db.session.add(new_annotation)
+    qadb.db.session.commit()

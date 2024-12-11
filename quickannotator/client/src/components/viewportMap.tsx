@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation } from "../types.ts"
-import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation, searchAnnotationsWithinTile } from "../helpers/api.ts";
+import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation, searchAnnotationsWithinTile, predictTile } from "../helpers/api.ts";
 import { Point, Polygon, Feature } from "geojson";
+import { responsivePropType } from 'react-bootstrap/esm/createUtilityClasses';
 
 
 interface Props {
@@ -24,64 +25,100 @@ const computeTilesToRender = (oldTileIds: number[], newTileIds: number[]) => {
     return {tilesToRemove, tilesToRender}
 }
 
+const layerIdx = {
+    gt: 0,
+    pred: 1,
+    osm: 2,
+    ann: 3
+}
+
 const ViewportMap = (props: Props) => {
     const viewRef = useRef(null);
     // const [dlTileQueue, setDlTileQueue] = useState<Tile[] | null>(null);
     const geojs_map = useRef<geo.map | null>(null);
     const polygonClicked = useRef<Boolean>(false);  // We need this to ensure polygon clicked and background clicked are mutually exclusive, because geojs does not provide control over event propagation.
-    const activeRenderAnnotationsCall = useRef<number>(0);
-    let zoomPanTimeout = null;
+    const activeRenderGroundTruthsCall = useRef<number>(0);
+    const activeRenderPredictionsCall = useRef<number>(0);
+    let zoomPanTimeout: any = null;
 
-    const renderAnnotations = async (x1: number, y1: number, x2: number, y2: number) => {
+    const renderAnnotations = async (
+        x1: number, y1: number, x2: number, y2: number, 
+        activeCallRef: React.MutableRefObject<number>, is_gt: boolean
+    ) => {
         if (!props.currentImage || !props.currentClass) return;
-        const currentCallToken = ++activeRenderAnnotationsCall.current;
-        // need a loop here across all classes
-        const tiles = await searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2)
 
-        // compute the difference between tiles and tiles_in_view
-        const tilesRendered = geojs_map.current.layers()[0].features()
+        const currentCallToken = ++activeCallRef.current;
+        const tiles = await searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2);  // Tiles may be shared by both layers. Consider pushing this to a shared state.
+        const layer = geojs_map.current.layers()[is_gt ? layerIdx.gt : layerIdx.pred]; // Layer 0 is for ground truths, layer 1 is for predictions
+
+        const tilesRendered = layer.features()
             .filter((f) => f.featureType === 'polygon')
             .map((f) => f.props.tileId);
-        const {tilesToRemove, tilesToRender} = computeTilesToRender(tilesRendered, tiles.map((t) => t.id));
-        let anns: Annotation[] = [];
+        const { tilesToRemove, tilesToRender } = computeTilesToRender(tilesRendered, tiles.map((t) => t.id));
 
-        // remove old tiles
-        const layer = geojs_map.current.layers()[0];
-        console.log(`Tiles to remove: ${tilesToRemove.size}`)
+        console.log(`Tiles to remove: ${tilesToRemove.size}`);
         tilesToRemove.forEach((tileId) => {
-            const feature = layer.features().find((f) => {
-                return f.featureType === 'polygon' && f.props.tileId === tileId
-            });
+            const feature = layer.features().find((f) => f.featureType === 'polygon' && f.props.tileId === tileId);
             if (feature) {
                 feature.data([]);
                 layer.removeFeature(feature);
                 feature.draw();
-                console.log(`Removed tile ${tileId}`)
+                console.log(`Removed tile ${tileId}`);
             }
         });
 
-        // render new tiles
+        let anns: Annotation[] = [];
         for (const tile of tiles) {
             if (tilesToRender.has(tile.id)) {
-                if (currentCallToken !== activeRenderAnnotationsCall.current) {     // We want to check before processing the tile to save resources
-                    console.log("Render cancelled.")
+                if (currentCallToken !== activeCallRef.current) {
+                    console.log("Render cancelled.");
                     return;
                 }
-                console.log(`Processing tile ${tile.id}`)
-                const resp = await searchAnnotationsWithinTile(tile, true);
-                if (currentCallToken !== activeRenderAnnotationsCall.current) {     // ... and after processing the tile to avoid the race condition
-                    console.log("Render cancelled.")
+                console.log(`Processing tile ${tile.id}`);
+                const resp = await searchAnnotationsWithinTile(tile, is_gt);
+                if (currentCallToken !== activeCallRef.current) {
+                    console.log("Render cancelled.");
                     return;
                 }
-                const featureProps = {
-                    tileId: tile.id
+                if (is_gt) {
+                    processGroundTruthTile(tile, resp, layer);
+                    anns = anns.concat(resp);
+                    props.setGts(anns);
+                } else {
+                    processPredictedTile(tile, resp, layer);
+                    anns = anns.concat(resp);
+                    props.setPreds(anns);
                 }
-                drawPolygons(featureProps, resp, geojs_map.current);
-                // drawCentroids(resp, geojs_map.current);
-                anns = anns.concat(resp);
-                props.setGts(anns);
             }
         }
+    };
+
+    const processPredictedTile = (tile: Tile, annotations: Annotation[], layer: any) => {
+        switch (tile.seen) {
+            case 0:
+                // call compute endpoint
+                predictTile(tile.id).then((resp) => {
+                    console.log("Predicting tile. Job ID: ", resp.job_id);
+                })
+                console.log("Tile not seen.");
+
+                break;
+            case 1:
+                // do nothing
+                console.log("Tile currently processing.");
+                break;
+            case 2:
+                drawPredictedPolygons({ tileId: tile.id }, annotations, layer);
+                break;
+            default:
+                console.log("Invalid tile seen value.");
+                break;
+        }
+    };
+
+    const processGroundTruthTile = (tile: Tile, annotations: Annotation[], layer: any) => {
+        const featureProps = { tileId: tile.id };
+        drawGroundTruthPolygons(featureProps, annotations, layer);
     }
 
     const renderTissueMask = async (map: geo.map) => {
@@ -91,10 +128,7 @@ const ViewportMap = (props: Props) => {
         props.setGts(resp);
     }
 
-    const drawPolygons = async (featureProps: any, annotations: Annotation[], map: geo.map, annotationClassId: number=1) => {
-        console.log("Annotations detected update.")
-        const layer = map.layers()[0];
-
+    const drawGroundTruthPolygons = async (featureProps: any, annotations: Annotation[], layer: any, annotationClassId: number=1) => {
         const feature = layer.createFeature('polygon');
         feature.props = featureProps;
 
@@ -121,30 +155,37 @@ const ViewportMap = (props: Props) => {
             .style('strokeColor', 'black')
             .style('strokeWidth', 2)
             .geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon).draw();
-        console.log('Drew polygon')
+        console.log('Drew ground truth polygons.')
+    }
+
+    const drawPredictedPolygons = async (featureProps: any, annotations: Annotation[], layer: any, annotationClassId: number=1) => {
+        const feature = layer.createFeature('polygon');
+        feature.props = featureProps;
+
+        feature
+            .position((d) => {
+                return {
+                x: d[0], y: d[1]};
+            })
+            .polygon((a: Annotation) => {
+                const polygon = JSON.parse(a.polygon.toString());
+                return polygon.coordinates[0];
+            })
+            .data(annotations)
+            .style('fill', true)
+            .style('fillColor', 'red')
+            .style('fillOpacity', 0.5)
+            .style('stroke', false)
+            .draw();
+        console.log('Drew predicted polygons.')
     }
 
     const drawCentroids = (annotations: Annotation[], map: geo.map) => {
-        console.log("Annotations detected update.")
-        const layer = map.layers()[0];
-        const feature = layer.features()[1];
-
-        const newData = annotations.map((a) => {
-            const centroid = JSON.parse(a.centroid.toString());
-            return centroid.coordinates;
-        });
-
-        feature
-            .position((d) => {return {
-                x: d[0], y: d[1]};
-            })
-            .style('stroke', false)
-            .style('size', 1)
-            .data(feature.data().concat(newData)).draw();
+        return;
     }
 
     const getFeatureByTileId = (tileId: number) => {
-        return geojs_map.current.layers()[0].features().find((f) => {
+        return geojs_map.current.layers()[layerIdx.gt].features().find((f) => {
             return f.featureType === 'polygon' && f.props.tileId === tileId;
         });
     }
@@ -240,8 +281,8 @@ const ViewportMap = (props: Props) => {
 
     const handleNewAnnotation = async (evt) => {
         console.log("New annotation detected.")
-        const polygonLayer = geojs_map.current.layers()[0]
-        const annotationLayer = geojs_map.current.layers()[2]
+        const polygonLayer = geojs_map.current.layers()[layerIdx.gt];
+        const annotationLayer = geojs_map.current.layers()[layerIdx.ann];
         const polygonList = annotationLayer.toPolygonList()[0][0].map((p: number[]) => {    // This is a hack to convert the polygon to the correct coordinate space.
             return [p[0], -p[1]]
         })  
@@ -308,40 +349,43 @@ const ViewportMap = (props: Props) => {
         // polygonFeature.data(polygonList).draw()
     }
 
+    const handleZoomPan = () => {
+        console.log('Zooming or Panning...');
+        // Clear the previous timeout if the zoom continues
+        if (zoomPanTimeout) clearTimeout(zoomPanTimeout);
+        // Set a new timeout to detect when zooming has stopped
+        zoomPanTimeout = setTimeout(() => {
+            console.log('Zooming or Panning stopped.');
+            const bounds = geojs_map.current.bounds();
+            console.log(bounds);
+
+            renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top, activeRenderGroundTruthsCall, true).then(() => {
+                console.log("Ground truths rendered.");
+            });
+            renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top, activeRenderPredictionsCall, false).then(() => {
+                console.log("Predictions rendered.");
+            });
+        }, 100); // Adjust this timeout duration as needed
+    };
+
     // UseEffect hook to initialize the map
     useEffect(() => {
-        const handleZoomPan = () => {
-            console.log('Zooming or Panning...');
-            // Clear the previous timeout if the zoom continues
-            if (zoomPanTimeout) clearTimeout(zoomPanTimeout);
-            // Set a new timeout to detect when zooming has stopped
-            zoomPanTimeout = setTimeout(() => {
-                console.log('Zooming or Panning stopped.');
-                const bounds = geojs_map.current.bounds();
-                console.log(bounds);
-
-                renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top).then(() => {
-                    console.log("Annotations rendered.");
-                });
-                // renderAnnotationTest();
-            }, 100); // Adjust this timeout duration as needed
-        };
-
         const initializeMap = async () => {
             const img = props.currentImage;
 
             // if (img && props.currentClass) {
             const params = geo.util.pixelCoordinateParams(
                 viewRef.current, img.width, img.height, img.dz_tilesize, img.dz_tilesize);
-            const interactor = geo.mapInteractor({alwaysTouch: true})
+            const interactor = geo.mapInteractor({alwaysTouch: true});
             const map = geo.map({...params.map, interactor: interactor});
             // map.interactor(geo.mapInteractor({alwaysTouch: true}))
             map.geoOn(geo.event.mousedown, function (evt) {
                 const t = this;
             });
             params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
-            console.log("OSM layer loaded.")
-            const featureLayer = map.createLayer('feature', {features: ['polygon']});
+            console.log("OSM layer loaded.");
+            const groundTruthLayer = map.createLayer('feature', {features: ['polygon']});
+            const predictionsLayer = map.createLayer('feature', {features: ['polygon']});
             map.createLayer('osm', { ...params.layer, zIndex: 0 })
             const annotationLayer = map.createLayer('annotation', 
                 {
@@ -349,20 +393,20 @@ const ViewportMap = (props: Props) => {
                     zIndex: 2,
                     // renderer: featureLayer.renderer()
                 });
-            annotationLayer.geoOn(geo.event.mousedown, handleMousedown)
-            annotationLayer.geoOn(geo.event.annotation.state, handleNewAnnotation)
+            annotationLayer.geoOn(geo.event.mousedown, handleMousedown);
+            annotationLayer.geoOn(geo.event.annotation.state, handleNewAnnotation);
             window.onkeydown = (evt) => {
                 if (evt.key === 'Backspace' || evt.key === 'Delete') {
-                    deleteAnnotation(evt);
+                    deleteAnnotation(evt);;
                 }
             }
 
             // map.geoOn(geo.event.mousemove, function (evt: any) {console.log(`Mouse at x=${evt.geo.x}, y=${evt.geo.y}`);});
-            map.geoOn(geo.event.zoom, handleZoomPan)
+            map.geoOn(geo.event.zoom, handleZoomPan);
             if (props.currentClass.id === 1) {      // Tissue mask class requires different rendering approach.
                 renderTissueMask(map).then(() => console.log("Tissue mask rendered."));
             } else {
-                map.geoOn(geo.event.pan, handleZoomPan)
+                map.geoOn(geo.event.pan, handleZoomPan);
             }
             geojs_map.current = map;
             return null;
@@ -370,7 +414,7 @@ const ViewportMap = (props: Props) => {
 
         if (props.currentImage && props.currentClass) {
             // Need code to clear the map
-            activeRenderAnnotationsCall.current = 0;
+            activeRenderGroundTruthsCall.current = 0;
             geojs_map.current?.exit();
             initializeMap().then(() => console.log(`Map initialized for ${geojs_map.current}`));
         }
@@ -379,23 +423,23 @@ const ViewportMap = (props: Props) => {
 
     // UseEffect for when the toolbar value changes
     useEffect(() => {
-        console.log('detected toolbar change')
-        const layer = geojs_map.current?.layers()[2];
+        console.log('detected toolbar change');
+        const layer = geojs_map.current?.layers()[layerIdx.ann];
         switch (props.currentTool) {
             case null:
-                console.log("toolbar is null")
+                console.log("toolbar is null");
                 break;
             case '0':   // Pointer tool
-                console.log("toolbar is 0")
-                layer?.mode(null)
-                break
+                console.log("toolbar is 0");
+                layer?.mode(null);
+                break;
             case '5':   // polygon tool
                 // layer.active(true)
-                layer.mode('polygon')
-                break
+                layer.mode('polygon');
+                break;
             default:
 
-                break
+                break;
 
         }
     }, [props.currentTool])
