@@ -19,7 +19,7 @@ class TileRespSchema(SQLAlchemyAutoSchema):
     geom = qadb.GeometryField()
 
 class PredictTileRespSchema(Schema):
-    job_id = fields.Int()
+    object_ref = fields.Str()
 
 # ------------------------ REQUEST PARSERS ------------------------
 class GetTileArgsSchema(Schema):
@@ -103,7 +103,7 @@ class TilePredict(MethodView):
         tile.seen = 1
         db.session.commit()
 
-        job_id = compute_on_tile(db=db, qadb=qadb, tile_id=args['tile_id'], sleep_time=5)
+        object_ref = compute_on_tile(db=db, qadb=qadb, tile_id=args['tile_id'], sleep_time=5)
 
-        return {'job_id': job_id}, 201
+        return {'object_ref': object_ref}, 201
         

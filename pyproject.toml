@@ -44,6 +44,7 @@ dependencies = [
     "umap-learn==0.5.1",
     "geojson",
     "shapely",
+    "ray[default]~=2.10.0"
     "large-image~=1.30.1",
     "large-image-source-openslide~=1.30.1",
     "psycopg2-binary~=2.9.10"

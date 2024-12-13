@@ -125,7 +125,7 @@ const ViewportMap = (props: Props) => {
     const renderTissueMask = async (map: geo.map) => {
         if (!props.currentImage || !props.currentClass) return;
         const resp = await fetchAllAnnotations(props.currentImage.id, props.currentClass.id, true);
-        drawPolygons({}, resp, map);
+        drawGroundTruthPolygons({}, resp, map);
         props.setGts(resp);
     }
 
@@ -371,7 +371,7 @@ const ViewportMap = (props: Props) => {
 
     useEffect(() => {
         const interval = setInterval(() => {
-            if (geojs_map.current) {
+            if (geojs_map.current && props.currentImage && props.currentClass) {
                 const bounds = geojs_map.current.bounds();
                 renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top, activeRenderPredictionsCall, false).then(() => {
                     console.log("Predictions rendered.");

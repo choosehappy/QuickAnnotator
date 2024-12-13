@@ -36,6 +36,7 @@ ENV PATH="/opt/QuickAnnotator/venv/bin:$PATH"
 
 
 RUN python3 -m venv venv \
+    && python3 -m pip install --upgrade pip \
     && pip install -e .
 
 # Install development python dependencies

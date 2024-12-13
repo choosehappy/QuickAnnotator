@@ -73,7 +73,7 @@ class Annotation(MethodView):
     def get(self, args, image_id, annotation_class_id):
         """     returns an Annotation
         """
-        table = retrieve_annotation_table(image_id, annotation_class_id, args['is_gt'])
+        table = retrieve_annotation_table(qadb.db.session, image_id, annotation_class_id, args['is_gt'])
 
         # stmt = table.select().where(table.c.id == args['annotation_id']).with_only_columns(
         #     *(col for col in table.c if col.name != "polygon" and col.name != "centroid"),
@@ -94,7 +94,7 @@ class Annotation(MethodView):
 
         poly: shapely.geometry.base.BaseGeometry = shape(args['polygon'])
 
-        table = retrieve_annotation_table(image_id, annotation_class_id, args['is_gt'])
+        table = retrieve_annotation_table(qadb.db.session, image_id, annotation_class_id, args['is_gt'])
         model = dynamically_create_model_for_table(table)
 
         ann = model(
@@ -121,7 +121,7 @@ class Annotation(MethodView):
         """     create or update an annotation directly in the db
 
         """
-        table = retrieve_annotation_table(image_id, annotation_class_id, args['is_gt'])
+        table = retrieve_annotation_table(qadb.db.session, image_id, annotation_class_id, args['is_gt'])
         model = dynamically_create_model_for_table(table)
 
         ann = qadb.db.session.query(model).filter_by(id=args['id']).first()
@@ -154,7 +154,7 @@ class Annotation(MethodView):
         """     delete an annotation
 
         """
-        table = retrieve_annotation_table(image_id, annotation_class_id, args['is_gt'])
+        table = retrieve_annotation_table(qadb.db.session, image_id, annotation_class_id, args['is_gt'])
 
         stmt = table.delete().where(table.c.id == args['annotation_id'])
         qadb.db.session.execute(stmt)

@@ -83,11 +83,11 @@ def count_annotations_within_bbox(table, x1, y1, x2, y2):
     result = qadb.db.session.execute(stmt).scalar()
     return result
 
-def retrieve_annotation_table(image_id: int, annotation_class_id: int, is_gt: bool) -> Table:
+def retrieve_annotation_table(session, image_id: int, annotation_class_id: int, is_gt: bool) -> Table:
     gtpred = 'gt' if is_gt else 'pred'
     table_name = f"{image_id}_{annotation_class_id}_{gtpred}_annotation"
 
-    return Table(table_name, qadb.db.metadata, autoload_with=qadb.db.engine)
+    return Table(table_name, qadb.db.metadata, autoload_with=session.bind)
 
 def compute_custom_metrics() -> dict:
     return json.dumps({"iou": 0.5})
@@ -103,7 +103,7 @@ def annotation_by_id(table, annotation_id):
     return result
 
 def insert_new_annotation(session, image_id, annotation_class_id, is_gt, polygon: shapely.geometry.Polygon):
-    table = retrieve_annotation_table(image_id, annotation_class_id, is_gt)
+    table = retrieve_annotation_table(session, image_id, annotation_class_id, is_gt)
     DynamicModel = dynamically_create_model_for_table(table)
 
     new_annotation = DynamicModel(
@@ -117,3 +117,8 @@ def insert_new_annotation(session, image_id, annotation_class_id, is_gt, polygon
         datetime=datetime.now()
     )
     session.add(new_annotation)
+
+def delete_all_annotations(session, image_id: int, annotation_class_id: int, is_gt: bool):
+    table = retrieve_annotation_table(session, image_id, annotation_class_id, is_gt)
+    session.query(table).delete() 
+    session.commit()
