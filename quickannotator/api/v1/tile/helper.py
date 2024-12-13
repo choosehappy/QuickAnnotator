@@ -81,6 +81,7 @@ def generate_random_circle_within_bbox(bbox: Polygon, radius: float) -> shapely.
 
 @ray.remote
 def remote_compute_on_tile(db_url, tile_id: int, sleep_time=5):
+    time.sleep(sleep_time)
     # Create the engine and session for each Ray task
     engine = create_engine(db_url)
     Session = sessionmaker(bind=engine)
