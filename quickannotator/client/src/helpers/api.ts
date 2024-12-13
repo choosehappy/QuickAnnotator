@@ -184,5 +184,5 @@ export const operateOnAnnotation = async (annotation: Annotation, polygon2: Poly
 // Predict tile
 export const predictTile = async (tile_id: number) => {
     const requestBody = { tile_id: tile_id };
-    return await post<{ tile_id: number }, {job_id: number}>(`/tile/predict`, requestBody);
+    return await post<{ tile_id: number }, {object_ref: number}>(`/tile/predict`, requestBody);
 }

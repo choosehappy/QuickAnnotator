@@ -98,7 +98,7 @@ const ViewportMap = (props: Props) => {
             case 0:
                 // call compute endpoint
                 predictTile(tile.id).then((resp) => {
-                    console.log("Predicting tile. Job ID: ", resp.job_id);
+                    console.log("Predicting tile. Ray object ref: ", resp.object_ref);
                 })
                 console.log("Tile not seen.");
 
@@ -371,6 +371,7 @@ const ViewportMap = (props: Props) => {
 
     useEffect(() => {
         const interval = setInterval(() => {
+            console.log("Interval triggered.");
             if (geojs_map.current && props.currentImage && props.currentClass) {
                 const bounds = geojs_map.current.bounds();
                 renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top, activeRenderPredictionsCall, false).then(() => {
@@ -380,7 +381,7 @@ const ViewportMap = (props: Props) => {
         }, 500);
 
         return () => clearInterval(interval); // Cleanup on unmount
-    }, []);
+    }, [props.currentClass]);
 
     // UseEffect hook to initialize the map
     useEffect(() => {
