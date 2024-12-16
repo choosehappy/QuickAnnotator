@@ -51,6 +51,15 @@ docker volume create qa_data    # Will store example WSIs
     * Debugger PIN: 581-630-257
     ``` 
 
+2. Connect to a Ray cluster. Ray is used to run operations which require asyncronous processing. There are three ways to connect to a Ray cluster:
+    - **Default**: By default QA will initialize a local Ray cluster within the docker container. 
+        - Note: The default ray cluster does not host the Ray dashboard.
+    - **Manual local cluster**: Run the following command to start a Ray cluster with the Ray dashboard:
+        ```bash
+        ray start --head --dashboard-host 0.0.0.0
+        ```
+    - **Pre-existing cluster**: If you would like QA to connect to an existing Ray cluster, use the `--cluster_address` argument.
+
 2. **(Optional)** Upload example data to QuickAnnotator
     1. Download the `test_ndpi` folder (request access from jackson.jacobs@emory.edu) and copy it to the `qa_data` volume.
     1. Run the `populate_db.ipynb` notebook.
