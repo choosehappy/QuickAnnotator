@@ -2,7 +2,7 @@ import quickannotator.db as qadb
 from sqlalchemy import func, Table
 from quickannotator.db import db
 from sqlalchemy.orm import aliased, sessionmaker
-from sqlalchemy import exists
+from sqlalchemy import exists, event
 import shapely
 from shapely.geometry import Polygon
 import random
@@ -10,6 +10,9 @@ import geojson
 from quickannotator.api.v1.annotation.helper import insert_new_annotation
 from multiprocessing import Process, current_process
 import time
+import ray
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 # def tiles_within_bbox_old(db, image_id, annotation_class_id, x1, y1, x2, y2):
 #     envelope = func.BuildMbr(x1, y1, x2, y2)
@@ -76,35 +79,62 @@ def generate_random_circle_within_bbox(bbox: Polygon, radius: float) -> shapely.
     intersection = bbox.intersection(circle)
     return intersection
 
-def compute_on_tile(db, qadb, tile_id: int, sleep_time=5): 
-    def async_task():
-        Session = sessionmaker(bind=db.engine)
+@ray.remote
+def remote_compute_on_tile(db_url, tile_id: int, sleep_time=5):
+    time.sleep(sleep_time)
+    # Create the engine and session for each Ray task
+    engine = create_engine(db_url)
+    Session = sessionmaker(bind=engine)
 
-        time.sleep(sleep_time)
+    # Attach the event listener to the engine (inside the task to ensure it's unique per task)
+    @event.listens_for(engine, "connect")
+    def connect(dbapi_connection, connection_record):
+        try:
+            # Enable the Spatialite extension on the raw SQLite connection
+            if hasattr(dbapi_connection, "enable_load_extension"):
+                dbapi_connection.enable_load_extension(True)
+                dbapi_connection.execute('SELECT load_extension("mod_spatialite")')
+                dbapi_connection.execute("PRAGMA busy_timeout=10000000;")
+                print("Spatialite extension loaded successfully")
+            else:
+                print("Extension loading not supported for this connection")
+        except Exception as e:
+            print(f"Error enabling Spatialite extension: {e}")
 
+    try:
+        # Start a session for the task
         with Session() as session:
-            tile = tile_by_id(session, tile_id)
+            # Example: load the tile and process
+            tile = tile_by_id(session, tile_id)  # Replace with your actual function to get the tile
             image_id: int = tile.image_id
             annotation_class_id: int = tile.annotation_class_id
 
+            # Process the tile (using shapely for example)
             bbox = shapely.wkb.loads(tile.geom.data)
-            for i in range(random.randint(20, 40)):
+            for _ in range(random.randint(20, 40)):
                 polygon = generate_random_circle_within_bbox(bbox, 100)
                 insert_new_annotation(session, image_id, annotation_class_id, is_gt=False, polygon=polygon)
 
-            # now that the tile has been processed, update the tile.seen column to 2
+            # Mark tile as processed
             tile.seen = 2
+            
             session.commit()
 
-        print(f"Async task completed by process id: {current_process().pid}")
-        print(f"Generated polygon: {polygon}")
+    except Exception as e:
+        print(f"Error processing tile: {e}")
 
-    process = Process(target=async_task)
-    process.start()
-    return process.pid
+    finally:
+        # Cleanup: Dispose of the engine when the task is done
+        engine.dispose()
 
 
-def reset_all_tiles_seen(db):
+def compute_on_tile(db, qadb, tile_id: int, sleep_time=5):
+    db_url = db.engine.url
+    ref = remote_compute_on_tile.remote(str(db_url), tile_id, sleep_time)
+    return ref.hex()
+
+
+def reset_all_tiles_seen(session):
     """
     Resets the 'seen' status of all tiles in the database to 0.
     Args:
@@ -113,5 +143,5 @@ def reset_all_tiles_seen(db):
         None
     """
 
-    db.session.query(qadb.Tile).update({qadb.Tile.seen: 0})
-    db.session.commit()
+    session.query(qadb.Tile).update({qadb.Tile.seen: 0})
+    session.commit()

@@ -5,11 +5,12 @@ import argparse
 from waitress import serve
 from quickannotator.config import config
 from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation, SearchCache
-from quickannotator.config import get_database_uri, get_database_path
+from quickannotator.config import get_database_uri, get_database_path, get_ray_dashboard_host, get_ray_dashboard_port
 from geoalchemy2 import load_spatialite
 from sqlalchemy import event
 import os
-from quickannotator.api.v1 import annotation, project, image, annotation_class, notification, tile, setting, ray, misc
+from quickannotator.api.v1 import annotation, project, image, annotation_class, notification, tile, setting, misc
+import ray
 
 def serve_quickannotator(app):
     # NOTE: Will need to account for reverse proxy scenarios: https://docs.pylonsproject.org/projects/waitress/en/stable/reverse-proxy.html
@@ -30,6 +31,7 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--port', type=int, default=config.getint('flask', 'port', fallback=5000))
     parser.add_argument('-r', '--recreate_db',  action='store_true', default=False,
         help="Restore QuickAnnotator to its factory state. WARNING: all projects and respective data will be deleted.")
+    parser.add_argument('-a', '--cluster_address', type=str, default=None)
     args = parser.parse_args()
     os.environ['SPATIALITE_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu/mod_spatialite.so'  # TODO: set with a function
 
@@ -51,6 +53,11 @@ if __name__ == '__main__':
         event.listen(db.engine, 'connect', load_spatialite)
         db.metadata.create_all(bind=db.engine, tables=[item.__table__ for item in models])
 
+    # ------------------------ RAY SETUP ------------------------
+
+    context = ray.init(address=args.cluster_address, dashboard_host=get_ray_dashboard_host(), dashboard_port=get_ray_dashboard_port())
+    
+    print(f"Ray dashboard available at {context.dashboard_url}")
 
     # ------------------------ API SETUP ------------------------
     app.config["V1_API_TITLE"] = "QuickAnnotator_API"
@@ -68,7 +75,6 @@ if __name__ == '__main__':
     api.register_blueprint(notification.bp, url_prefix=prefix + "/notification")
     api.register_blueprint(setting.bp, url_prefix=prefix + "/setting")
     api.register_blueprint(tile.bp, url_prefix=prefix + "/tile")
-    api.register_blueprint(ray.bp, url_prefix=prefix + "/ray")
     api.register_blueprint(misc.bp, url_prefix=prefix + "/misc")
 
     # serve_quickannotator(app)
