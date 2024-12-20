@@ -114,6 +114,9 @@ export const searchAnnotationsWithinTile = async (tile: Tile, is_gt: boolean) =>
     const y2 = Math.round(geom.coordinates[0][2][1]);
 
     const resp = await searchAnnotations(tile.image_id, tile.annotation_class_id, is_gt, x1, y1, x2, y2)
+    resp.forEach(annotation => {
+        annotation.tile_id = tile.id;
+    });
     return resp
 }
 

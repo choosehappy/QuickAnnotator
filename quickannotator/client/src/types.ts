@@ -14,6 +14,7 @@ export interface AnnotationClass {
 
 export interface Annotation {
     id: number;
+    tile_id: number;
     annotation_class_id: number;
     polygon: Polygon;
     centroid: Point;
@@ -72,7 +73,6 @@ export type OutletContextType = {
 }
 
 export interface CurrentAnnotation {
-    tileId: number
     undoStack: Annotation[];
     redoStack: Annotation[];
 }

@@ -9,7 +9,8 @@ import { responsivePropType } from 'react-bootstrap/esm/createUtilityClasses';
 interface Props {
     currentImage: Image | null;
     currentClass: AnnotationClass | null;
-    currentAnnotation: React.MutableRefObject<CurrentAnnotation | null>;
+    currentAnnotation: CurrentAnnotation| null;
+    setCurrentAnnotation: React.Dispatch<React.SetStateAction<CurrentAnnotation | null>>;
     gts: Annotation[];
     setGts: (gts: Annotation[]) => void;
     preds: Annotation[];
@@ -158,7 +159,7 @@ const ViewportMap = (props: Props) => {
             .style('fillColor', 'lime')
             .style('fillOpacity', 0.5)
             .style('stroke', (a: Annotation) => {
-                if (a.id === props.currentAnnotation.current?.undoStack.at(-1)?.id) {
+                if (a.id === props.currentAnnotation.undoStack.at(-1)?.id) {
                     console.log("Change stroke of polygon.")    // For some reason this is getting called many times.
                     return true
                 }
@@ -185,9 +186,10 @@ const ViewportMap = (props: Props) => {
             })
             .data(annotations)
             .style('fill', true)
-            .style('fillColor', 'red')
+            .style('fillColor', 'lime')
             .style('fillOpacity', 0.5)
-            .style('stroke', false)
+            .style('stroke', true)
+            .style('strokeColor', 'white')
             .draw();
         console.log('Drew predicted polygons.')
     }
@@ -207,47 +209,46 @@ const ViewportMap = (props: Props) => {
         console.log(evt.data)
         polygonClicked.current = true;
 
-        if(props.currentAnnotation.current) {   // If the current annotation exists, 
-            if (props.currentAnnotation.current.undoStack.at(-1)?.id !== evt.data.id) {   // If the current annotation id has changed...
+        if(props.currentAnnotation && props.currentImage && props.currentClass) {   // If the current annotation exists, 
+            const currentState = props.currentAnnotation.undoStack.at(-1);
+            if (currentState && currentState.id !== evt.data.id) {   // If the current annotation id has changed...
+                const tileId = currentState.tile_id;
                 // Commit the previously selected annotation
-                putAnnotation(props.currentImage.id, props.currentClass.id, props.currentAnnotation.current.undoStack.at(-1))
+                putAnnotation(props.currentImage.id, props.currentClass.id, currentState)
 
                 // Get the old feature
-                const oldFeature = getFeatureByTileId(layerIdxNames.gt, props.currentAnnotation.current.tileId);
+                const oldFeature = getFeatureByTileId(layerIdxNames.gt, tileId);
                 
                 // Set the current annotation to the clicked annotation
                 const clickedAnnotation: CurrentAnnotation = {
-                    tileId: this.props.tileId,
                     redoStack: [],
                     undoStack: [evt.data]
                 }
 
-                props.currentAnnotation.current = clickedAnnotation;
+                props.setCurrentAnnotation(clickedAnnotation);
 
-                this.modified();
-                this.draw();
+                // this.modified();
+                // this.draw();
 
-                if (oldFeature.props.tileId !== this.props.tileId) {
-                    // feature.data([evt.data]);
-                    console.log(`redrew feature ${oldFeature}`)
-                    oldFeature.modified();
-                    oldFeature.draw();
-                }
+                // if (oldFeature.props.tileId !== this.props.tileId) {
+                //     // feature.data([evt.data]);
+                //     console.log(`redrew feature ${oldFeature}`)
+                //     oldFeature.modified();
+                //     oldFeature.draw();
+                // }
 
             }
         } else {
 
             const clickedAnnotation: CurrentAnnotation = {
-                id: evt.data.id,
-                tileId: this.props.tileId,
                 redoStack: [],
                 undoStack: [evt.data]
             }
 
-            props.currentAnnotation.current = clickedAnnotation;
+            props.setCurrentAnnotation(clickedAnnotation);
 
-            this.modified();
-            this.draw();
+            // this.modified();
+            // this.draw();
         }
         setTimeout(() => {
             polygonClicked.current = false;
@@ -256,12 +257,13 @@ const ViewportMap = (props: Props) => {
 
     function handleMousedown(evt) {
         console.log("Mouse down detected.")
-        if (!polygonClicked.current && props.currentAnnotation.current) {
-            const ann = props.currentAnnotation.current;
-            putAnnotation(props.currentImage.id, props.currentClass.id, ann.undoStack.at(-1))
+        if (!polygonClicked.current && props.currentAnnotation) {
+            const currentAnn = props.currentAnnotation;
+            const currentState = currentAnn.undoStack.at(-1);
+            putAnnotation(props.currentImage.id, props.currentClass.id, currentState)
 
-            const feature = getFeatureByTileId(layerIdxNames.gt, ann.tileId);
-            props.currentAnnotation.current = null;
+            const feature = getFeatureByTileId(layerIdxNames.gt, currentState.tile_id);
+            props.setCurrentAnnotation(null);
             feature.modified();
             feature.draw();
 
@@ -271,13 +273,14 @@ const ViewportMap = (props: Props) => {
 
     function deleteAnnotation(evt) {
         console.log("Delete annotation detected.")
-        const ann = props.currentAnnotation.current;
+        const currentState = props.currentAnnotation?.undoStack.at(-1);
+        const tileId = currentState?.tile_id;
         const image = props.currentImage;
         const annotationClass = props.currentClass;
-        const annotationId = ann?.undoStack.at(-1).id;
+        const annotationId = currentState?.id;
         if (annotationId && image && annotationClass) {
             removeAnnotation(image.id, annotationClass.id, annotationId, true).then(() => {
-                const feature = getFeatureByTileId(layerIdxNames.gt, ann.tileId);
+                const feature = getFeatureByTileId(layerIdxNames.gt, tileId);
                 const data = feature.data();
                 const deletedData = data.filter((d: Annotation) => {
                     return d.id !== annotationId;
@@ -285,7 +288,7 @@ const ViewportMap = (props: Props) => {
                 feature.data(deletedData);
                 feature.modified();
                 feature.draw();
-                props.currentAnnotation.current = null;
+                props.setCurrentAnnotation(null);
                 console.log(`Annotation id=${annotationId} deleted.`)
             })
         }
@@ -306,21 +309,23 @@ const ViewportMap = (props: Props) => {
                 coordinates: [polygonList]
             }
 
-            const ann = props.currentAnnotation.current;
+            const currentAnn = props.currentAnnotation;
+            const currentState = currentAnn.undoStack.pop();
+            const tileId = currentState.tile_id;
 
             // 2. if currentAnnotation exists, update the currentAnnotation
-            if (ann) {
+            if (currentAnn && currentState && tileId) {
                 console.log("Current annotation exists. Updating...")
                 // // 1. Get the feature data associated with the CurrentAnnotation
-                const feature = getFeatureByTileId(layerIdxNames.gt, ann.tileId);
+                const feature = getFeatureByTileId(layerIdxNames.gt, tileId);
                 const data = feature.data();
-                const currentState = ann.undoStack.pop();
-                ann.redoStack.push(currentState);
+                currentAnn.redoStack.push(currentState);
+
                 operateOnAnnotation(currentState, polygon2, 0).then((newState) => {
-                    ann.undoStack.push(newState);
+                    currentAnn.undoStack.push(newState);
 
                     const updatedData = data.map((d: Annotation) => {
-                        if (d.id === ann.id) {
+                        if (d.id === currentState.id) {
                             return newState;
                         }
                         return d;
@@ -331,7 +336,7 @@ const ViewportMap = (props: Props) => {
                     feature.draw();
                 });
 
-            } else {    // if currentAnnotation does not exist, create a new annotation
+            } else {    // if currentAnnotation does not exist, create a new annotation in the database.
                 console.log("Current annotation does not exist. Creating...")
                 postAnnotation(props.currentImage.id, props.currentClass.id, true, polygon2).then((resp) => {
                     const xy = JSON.parse(resp.centroid).coordinates;
@@ -380,6 +385,7 @@ const ViewportMap = (props: Props) => {
         }, 100); // Adjust this timeout duration as needed
     };
 
+    // UseEffect hook for rendering predictions periodically
     useEffect(() => {
         const interval = setInterval(() => {
             console.log("Interval triggered.");
@@ -469,6 +475,21 @@ const ViewportMap = (props: Props) => {
 
         }
     }, [props.currentTool])
+
+    useEffect(() => {
+        console.log("Current annotation changed.");
+        if (props.currentAnnotation) {
+            const currentState = props.currentAnnotation.undoStack.at(-1);
+            if (currentState) {
+                const tileId = currentState.tile_id;
+                const feature = getFeatureByTileId(layerIdxNames.gt, tileId);
+                if (feature) {
+                    feature.modified();
+                    feature.draw();
+                }
+            }
+        }
+    }, [props.currentAnnotation])
 
     return (
         <div ref={viewRef} style={

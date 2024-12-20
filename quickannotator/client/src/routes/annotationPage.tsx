@@ -24,7 +24,8 @@ const AnnotationPage = () => {
     const [preds, setPreds] = useState<Annotation[]>([]);
     const [currentTool, setCurrentTool] = useState<string | null>('0');
     const [action, setAction] = useState<string | null>(null);
-    const currentAnnotation = useRef<CurrentAnnotation | null>(null);
+    const [currentAnnotation, setCurrentAnnotation] = useState<CurrentAnnotation | null>(null);
+
 
     useEffect(() => {
         fetchProject(parseInt(projectid)).then((resp) => {
@@ -54,7 +55,7 @@ const AnnotationPage = () => {
                                     zIndex: 10,
                                 }}><Toolbar {...{currentTool, setCurrentTool, action, setAction}} /></Card.Header>
                                 <Card.Body style={{padding: "0px"}}>
-                                    <ViewportMap {...{currentImage, currentClass, gts, setGts, preds, setPreds, currentTool, currentAnnotation }}/>
+                                    <ViewportMap {...{currentImage, currentClass, gts, setGts, preds, setPreds, currentTool, currentAnnotation, setCurrentAnnotation }}/>
                                 </Card.Body>
                             </Card>
                         </Col>

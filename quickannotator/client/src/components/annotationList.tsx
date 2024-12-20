@@ -1,23 +1,25 @@
 import * as React from 'react';
-import {Column, GridOption, SlickgridReactInstance, SlickgridReact} from "slickgrid-react";
+import {Column, GridOption, SlickgridReactInstance, SlickgridReact, } from "slickgrid-react";
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
 import { Annotation, CurrentAnnotation } from "../types.ts";
 
 interface Props {
     annotations: Annotation[];
     containerId: string;
-    currentAnnotation: CurrentAnnotation;
+    currentAnnotation: React.MutableRefObject<CurrentAnnotation | null>;
 }
 
-export default class AnnotationList extends React.Component {
+export default class AnnotationList extends React.Component<Props, any> {
+    private rowHovered: boolean;
     constructor(public props: Props){
         super(props);
 
+        this.rowHovered = false;
         this.state = {
             gridOptions: undefined,
             columnDefinitions: [],
             dataset: [],
-            reactGrid: undefined
+            reactGrid: undefined,
         };
     }
 
@@ -27,13 +29,7 @@ export default class AnnotationList extends React.Component {
     }
 
     componentDidUpdate(prevProps: Props) {
-        if (prevProps.annotations !== this.props.annotations) {
-            this.setState(() => ({
-                ...this.state,
-                dataset: this.getData(this.props.annotations),
-            }));
-        }
-
+        this.checkAnnotations(prevProps);
         // // If the current annotation changed
         // const currentAnnotation = this.props.currentAnnotation;
         // const previousAnnotation = prevProps.currentAnnotation;
@@ -45,15 +41,30 @@ export default class AnnotationList extends React.Component {
         // }
     }
 
+    checkAnnotations(prevProps: Props) {
+        if (prevProps.annotations !== this.props.annotations) {
+            this.setState(() => ({
+                ...this.state,
+                dataset: this.getData(this.props.annotations),
+            }));
+        }
+    }
+
+    handleClick(e: CustomEvent) {
+        console.log('Clicking on row e')
+        const clickedRowIndex = e.detail.args.row;
+        const annotation = this.state.reactGrid?.dataView.getItem(clickedRowIndex);
+        console.log('Clicked annotation:', annotation);
+    }
+
     reactGridReady(reactGrid: SlickgridReactInstance) {
-        this.reactGrid = reactGrid;
+        this.setState({ reactGrid });
     }
 
     defineGrid() {
 
         const polygonFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
-            // const svg = "<svg width='100' height='100'><polygon points='0,0 100,0 100,100 0,100' style='fill:lime;stroke:purple;stroke-width:1' /></svg>";
-            // const svg = "<svg width='100' height='100'>hello</svg>";
+            // const svg =
             const geojson = JSON.parse(value);
 
             const coordinates = geojson.coordinates[0];
@@ -139,6 +150,7 @@ export default class AnnotationList extends React.Component {
                             gridOptions={this.state.gridOptions}
                             dataset={this.state.dataset}
                             onReactGridCreated={$event => this.reactGridReady($event.detail)}
+                            onClick={$event => this.handleClick($event)}
             />
         );
     }
