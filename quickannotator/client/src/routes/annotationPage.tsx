@@ -10,10 +10,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
 import { fetchImage, fetchProject } from "../helpers/api.ts";
-import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation} from "../types.ts";
+import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation } from "../types.ts";
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
 
+function usePrevious<T>(value: T): T | undefined {
+    const ref = useRef<T>();
+    useEffect(() => {
+        ref.current = value;
+    }, [value]);
+    return ref.current;
+}
 
 const AnnotationPage = () => {
     const { projectid, imageid } = useParams();
@@ -25,7 +32,7 @@ const AnnotationPage = () => {
     const [currentTool, setCurrentTool] = useState<string | null>('0');
     const [action, setAction] = useState<string | null>(null);
     const [currentAnnotation, setCurrentAnnotation] = useState<CurrentAnnotation | null>(null);
-
+    const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
 
     useEffect(() => {
         fetchProject(parseInt(projectid)).then((resp) => {
@@ -53,22 +60,22 @@ const AnnotationPage = () => {
                                     borderColor: "rgba(0, 0, 0, 0.8)",
                                     borderRadius: 6,
                                     zIndex: 10,
-                                }}><Toolbar {...{currentTool, setCurrentTool, action, setAction}} /></Card.Header>
-                                <Card.Body style={{padding: "0px"}}>
-                                    <ViewportMap {...{currentImage, currentClass, gts, setGts, preds, setPreds, currentTool, currentAnnotation, setCurrentAnnotation }}/>
+                                }}><Toolbar {...{ currentTool, setCurrentTool, action, setAction }} /></Card.Header>
+                                <Card.Body style={{ padding: "0px" }}>
+                                    <ViewportMap {...{ currentImage, currentClass, gts, setGts, preds, setPreds, currentTool, currentAnnotation, setCurrentAnnotation, prevCurrentAnnotation }} />
                                 </Card.Body>
                             </Card>
                         </Col>
                         <Col xs={3}>
                             <Stack gap={3}>
                                 <ClassesPane
-                                    {...{currentClass, setCurrentClass}}
+                                    {...{ currentClass, setCurrentClass }}
                                 />
                                 <GroundTruthPane
-                                    {...{gts, setGts, currentAnnotation}}
+                                    {...{ gts, setGts, currentAnnotation }}
                                 />
                                 <PredictionsPane
-                                    {...{preds, setPreds, currentAnnotation}}
+                                    {...{ preds, setPreds, currentAnnotation }}
                                 />
                             </Stack>
                         </Col>
