@@ -6,7 +6,8 @@ import { propTypes } from 'react-bootstrap/esm/Image';
 interface Props {
     gts: Annotation[];
     setGts: (gts: Annotation[]) => void;
-    currentAnnotation: React.MutableRefObject<CurrentAnnotation | null>;
+    currentAnnotation: CurrentAnnotation;
+    setCurrentAnnotation: React.Dispatch<React.SetStateAction<CurrentAnnotation | null>>;
 }
 const GroundTruthPane = (props: Props) => {
     const id = 'gt'; // hardcoded ids should ideally not be used.
@@ -18,6 +19,7 @@ const GroundTruthPane = (props: Props) => {
                 <AnnotationList containerId={id} 
                                 annotations={props.gts} 
                                 currentAnnotation={props.currentAnnotation} 
+                                setCurrentAnnotation={props.setCurrentAnnotation}
                                 />
             </Card.Body>
         </Card>

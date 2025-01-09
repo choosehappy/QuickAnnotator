@@ -1,15 +1,14 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import geo from "geojs"
-import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation } from "../types.ts"
+import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, constructCurrentAnnotation } from "../types.ts"
 import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation, searchAnnotationsWithinTile, predictTile } from "../helpers/api.ts";
 import { Point, Polygon, Feature } from "geojson";
-import { responsivePropType } from 'react-bootstrap/esm/createUtilityClasses';
 
 
 interface Props {
     currentImage: Image | null;
     currentClass: AnnotationClass | null;
-    currentAnnotation: CurrentAnnotation| null;
+    currentAnnotation: CurrentAnnotation | null;
     setCurrentAnnotation: React.Dispatch<React.SetStateAction<CurrentAnnotation | null>>;
     prevCurrentAnnotation: CurrentAnnotation | null;
     gts: Annotation[];
@@ -34,6 +33,23 @@ const layerIdxNames = {
     ann: 3
 }
 
+// This hook is used so that event handlers created within useEffects can access up-to-date useState consts.
+// In the future, this should be replaced with the currently experimental useEffectEvent hook: https://react.dev/learn/separating-events-from-effects
+// const useLocalContext = (data) => { 
+//     const [ctx] = React.useState({})
+//     Object.keys(data).forEach(key => {
+//       ctx[key] = data[key]
+//     })
+//     return ctx
+// }
+
+
+const useLocalContext = (data: any) => {
+    const ctx = React.useRef(data)
+    ctx.current = data
+    return ctx
+}
+
 const ViewportMap = (props: Props) => {
     const viewRef = useRef(null);
     // const [dlTileQueue, setDlTileQueue] = useState<Tile[] | null>(null);
@@ -41,6 +57,7 @@ const ViewportMap = (props: Props) => {
     const polygonClicked = useRef<Boolean>(false);  // We need this to ensure polygon clicked and background clicked are mutually exclusive, because geojs does not provide control over event propagation.
     const activeRenderGroundTruthsCall = useRef<number>(0);
     const activeRenderPredictionsCall = useRef<number>(0);
+    const ctx = useLocalContext({ ...props });
     let zoomPanTimeout: any = null;
 
     const renderAnnotations = async (
@@ -59,7 +76,7 @@ const ViewportMap = (props: Props) => {
             .map((f) => f.props.tileId);
         const { tilesToRemove, tilesToRender } = computeTilesToRender(tilesRendered, tiles.map((t) => t.id));
 
-        console.log(`Tiles to remove: ${tilesToRemove.size}`);
+        // console.log(`Tiles to remove: ${tilesToRemove.size}`);
         tilesToRemove.forEach((tileId) => {
             const feature = getFeatureByTileId(layerIdx, tileId);
             if (feature) {
@@ -90,6 +107,9 @@ const ViewportMap = (props: Props) => {
                 }
                 console.log(`Processing tile ${tile.id}`);
                 const resp = await searchAnnotationsWithinTile(tile, is_gt);
+                resp.forEach(annotation => {    // The client knows the tile id, so we can set it for future reference.
+                    annotation.tile_id = tile.id;
+                });
                 if (currentCallToken !== activeCallRef.current) {
                     console.log("Render cancelled.");
                     return;
@@ -135,7 +155,7 @@ const ViewportMap = (props: Props) => {
         drawGroundTruthPolygons(featureProps, annotations, layer);
     }
 
-    const renderTissueMask = async (map: geo.map) => {
+    const renderTissueMask = async (map: geo.map) => {  // The renderTissueMask function does not currently work...
         if (!props.currentImage || !props.currentClass) return;
         const resp = await fetchAllAnnotations(props.currentImage.id, props.currentClass.id, true);
         drawGroundTruthPolygons({}, resp, map);
@@ -219,21 +239,17 @@ const ViewportMap = (props: Props) => {
         console.log("Polygon clicked.")
         console.log(evt.data)
         polygonClicked.current = true;
+        const currentState = ctx.current.currentAnnotation?.undoStack.at(-1);
+        const currentClass = ctx.current.currentClass;
+        const currentImage = ctx.current.currentImage;
 
         // If the current annotation exists, commit it before selecting the new annotation.
-        if(props.currentAnnotation && props.currentImage && props.currentClass) {   // If the current annotation exists, 
-            const currentState = props.currentAnnotation.undoStack.at(-1);
-            if (currentState && currentState.id !== evt.data.id) {   // If the current annotation id has changed...
-                const tileId = currentState.tile_id;
-                // Commit the previously selected annotation
-                putAnnotation(props.currentImage.id, props.currentClass.id, currentState)
+        if(currentState && currentImage && currentClass) {   // If the current annotation exists, 
+            if (currentState.id !== evt.data.id) {   // If the current annotation id has changed...
+                putAnnotation(currentImage.id, currentClass.id, currentState)
             }
         }
-
-        const clickedAnnotation: CurrentAnnotation = {
-            redoStack: [],
-            undoStack: [evt.data]
-        }
+        const clickedAnnotation = constructCurrentAnnotation(evt.data);
 
         props.setCurrentAnnotation(clickedAnnotation);
 
@@ -242,31 +258,36 @@ const ViewportMap = (props: Props) => {
         }, 0);
     }
 
-    function handleMousedown(evt) {
-        console.log("Mouse down detected.")
-        if (!polygonClicked.current && props.currentAnnotation) {
-            const currentAnn = props.currentAnnotation;
+    const handleMousedown = (evt) => {
+        console.log(ctx.current.currentAnnotation);
+        const currentAnn = ctx.current.currentAnnotation;
+        const currentClass = ctx.current.currentClass;
+        const currentImage = ctx.current.currentImage;
+
+        if (!polygonClicked.current && currentAnn) {
             const currentState = currentAnn.undoStack.at(-1);
             const tileId = currentState?.tile_id;
-            if (props.currentImage && props.currentClass && currentState) {
+            if (currentImage && currentClass && currentState) {
                 console.log("Background clicked - committed current annotation.")
-                putAnnotation(props.currentImage.id, props.currentClass.id, currentState)
+                putAnnotation(currentImage.id, currentClass.id, currentState)
             }
             if (tileId) {
                 props.setCurrentAnnotation(null);
             }
         }
-    }
+    };
 
-    function deleteAnnotation(evt) {
+    function handleDeleteAnnotation(evt) {
         console.log("Delete annotation detected.")
-        const currentState = props.currentAnnotation?.undoStack.at(-1);
+        const currentState: Annotation = ctx.current.currentAnnotation.undoStack.at(-1);
         const tileId = currentState?.tile_id;
-        const image = props.currentImage;
-        const annotationClass = props.currentClass;
+        const currentImage: Image = ctx.current.currentImage;
+        const currentClass: AnnotationClass = ctx.current.currentClass;
         const annotationId = currentState?.id;
-        if (annotationId && image && annotationClass) {
-            removeAnnotation(image.id, annotationClass.id, annotationId, true).then(() => {
+
+
+        if (annotationId && currentImage && currentClass) {
+            removeAnnotation(currentImage.id, currentClass.id, annotationId, true).then(() => {
                 const feature = getFeatureByTileId(layerIdxNames.gt, tileId);
                 const data = feature.data();
                 const deletedData = data.filter((d: Annotation) => {
@@ -289,22 +310,24 @@ const ViewportMap = (props: Props) => {
             return [p[0], -p[1]]
         })  
 
-        if (polygonList.length > 0 && props.currentImage && props.currentClass) {
+        const currentImage: Image = ctx.current.currentImage;
+        const currentClass: AnnotationClass = ctx.current.currentClass;
+        const currentAnn: CurrentAnnotation = ctx.current.currentAnnotation;
+
+        if (polygonList.length > 0 && currentImage && currentClass) {
             // 1. Get the polygon from the annotation layer.
             const polygon2: Polygon = {
                 type: "Polygon",
                 coordinates: [polygonList]
             }
 
-            const currentAnn = props.currentAnnotation;
-            const currentState = currentAnn.undoStack.pop();
-            const tileId = currentState.tile_id;
+            const currentState = currentAnn?.undoStack.pop();
 
             // 2. if currentAnnotation exists, update the currentAnnotation
-            if (currentAnn && currentState && tileId) {
+            if (currentAnn && currentState && currentState.tile_id) {
                 console.log("Current annotation exists. Updating...")
                 // // 1. Get the feature data associated with the CurrentAnnotation
-                const feature = getFeatureByTileId(layerIdxNames.gt, tileId);
+                const feature = getFeatureByTileId(layerIdxNames.gt, currentState.tile_id);
                 const data = feature.data();
                 currentAnn.redoStack.push(currentState);
 
@@ -325,17 +348,21 @@ const ViewportMap = (props: Props) => {
 
             } else {    // if currentAnnotation does not exist, create a new annotation in the database.
                 console.log("Current annotation does not exist. Creating...")
-                postAnnotation(props.currentImage.id, props.currentClass.id, true, polygon2).then((resp) => {
+                postAnnotation(currentImage.id, currentClass.id, true, polygon2).then((resp) => {
                     const xy = JSON.parse(resp.centroid).coordinates;
-                    searchTiles(props.currentImage?.id, props.currentClass?.id, xy[0], xy[1], xy[0], xy[1]).then((tiles) => {
+                    searchTiles(currentImage?.id, currentClass?.id, xy[0], xy[1], xy[0], xy[1]).then((tiles) => {
                         if (tiles.length > 0) {
                             const tileId = tiles[0].id;
                             const feature = getFeatureByTileId(layerIdxNames.gt, tileId);
                             const data = feature.data();
+                            resp.tile_id = tileId;
                             const updatedData = data.concat(resp);
                             feature.data(updatedData);
                             feature.modified();
                             feature.draw();
+                        }
+                        else {
+                            console.log("No tiles found. User has ")
                         }
                     });
                 });
@@ -384,11 +411,11 @@ const ViewportMap = (props: Props) => {
     // UseEffect hook for rendering predictions periodically
     useEffect(() => {
         const interval = setInterval(() => {
-            console.log("Interval triggered.");
+            // console.log("Interval triggered.");
             if (geojs_map.current && props.currentImage && props.currentClass) {
                 const bounds = geojs_map.current.bounds();
                 renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top, activeRenderPredictionsCall, false).then(() => {
-                    console.log("Predictions rendered.");
+                    // console.log("Predictions rendered.");
                 });
             }
         }, 500);
@@ -425,11 +452,11 @@ const ViewportMap = (props: Props) => {
             annotationLayer.geoOn(geo.event.annotation.state, handleNewAnnotation);
             window.onkeydown = (evt) => {
                 if (evt.key === 'Backspace' || evt.key === 'Delete') {
-                    deleteAnnotation(evt);;
+                    handleDeleteAnnotation(evt);;
                 }
             }
 
-            // map.geoOn(geo.event.mousemove, function (evt: any) {console.log(`Mouse at x=${evt.geo.x}, y=${evt.geo.y}`);});
+            map.geoOn(geo.event.mousemove, function (evt: any) {console.log(`Mouse at x=${evt.geo.x}, y=${evt.geo.y}`);});
             map.geoOn(geo.event.zoom, handleZoomPan);
             if (props.currentClass.id === 1) {      // Tissue mask class requires different rendering approach.
                 renderTissueMask(map).then(() => console.log("Tissue mask rendered."));
@@ -475,19 +502,27 @@ const ViewportMap = (props: Props) => {
     useEffect(() => {
         console.log("Current annotation changed.");
         const currentState = props.currentAnnotation?.undoStack.at(-1);
+        const prevState = props.prevCurrentAnnotation?.undoStack.at(-1);
         const tileId = currentState?.tile_id;
+        const prevTileId = prevState?.tile_id;
+        const annotationId = currentState?.id;
+        const prevAnnotationId = prevState?.id;
 
-        if (tileId) {   // If the current annotation is associated with a tile feature, "redraw" the feature.
+        // If the current annotation is associated with a tile feature, "redraw" the feature.
+        if (tileId) {   
             redrawTile(tileId, layerIdxNames.gt, {currentAnnotationId: currentState?.id});
         }
 
-        // Redraw the feature associated with the previous annotation if possible.
-        // Get the old feature
-        const oldTileId = props.prevCurrentAnnotation?.undoStack.at(-1)?.tile_id;
-
-        if (oldTileId && oldTileId !== tileId) {
-            redrawTile(oldTileId, layerIdxNames.gt, {});
+        // If the previous current annotation is associated with a tile feature, "redraw" the old tile.
+        if (prevTileId && prevTileId !== tileId) {
+            redrawTile(prevTileId, layerIdxNames.gt, {});
         }
+
+        // If the annotation id has changed, commit the previous annotation.
+        // if (props.currentImage && props.currentClass && annotationId && prevState && annotationId !== prevAnnotationId) {
+        //     putAnnotation(props.currentImage.id, props.currentClass.id, prevState);
+        // }
+
     }, [props.currentAnnotation])
 
     return (

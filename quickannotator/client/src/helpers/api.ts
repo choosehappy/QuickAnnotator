@@ -114,9 +114,6 @@ export const searchAnnotationsWithinTile = async (tile: Tile, is_gt: boolean) =>
     const y2 = Math.round(geom.coordinates[0][2][1]);
 
     const resp = await searchAnnotations(tile.image_id, tile.annotation_class_id, is_gt, x1, y1, x2, y2)
-    resp.forEach(annotation => {
-        annotation.tile_id = tile.id;
-    });
     return resp
 }
 
@@ -131,8 +128,9 @@ export const postAnnotation = async (image_id: number, annotation_class_id: numb
 }
 
 export const putAnnotation = async (image_id: number, annotation_class_id: number, annotation: Annotation) => {
+    const { tile_id, ...rest } = annotation;
     const requestBody: PutAnnArgs = {
-        ...annotation,
+        ...rest,
         is_gt: true,
     }
     return await put<PutAnnArgs, Annotation>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);;

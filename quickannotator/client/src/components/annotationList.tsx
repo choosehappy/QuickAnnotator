@@ -1,20 +1,19 @@
 import * as React from 'react';
 import {Column, GridOption, SlickgridReactInstance, SlickgridReact, } from "slickgrid-react";
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
-import { Annotation, CurrentAnnotation } from "../types.ts";
+import { Annotation, CurrentAnnotation, constructCurrentAnnotation } from "../types.ts";
 
 interface Props {
     annotations: Annotation[];
     containerId: string;
-    currentAnnotation: React.MutableRefObject<CurrentAnnotation | null>;
+    currentAnnotation: CurrentAnnotation;
+    setCurrentAnnotation: React.Dispatch<React.SetStateAction<CurrentAnnotation | null>>;
 }
 
 export default class AnnotationList extends React.Component<Props, any> {
-    private rowHovered: boolean;
     constructor(public props: Props){
         super(props);
 
-        this.rowHovered = false;
         this.state = {
             gridOptions: undefined,
             columnDefinitions: [],
@@ -45,7 +44,7 @@ export default class AnnotationList extends React.Component<Props, any> {
         if (prevProps.annotations !== this.props.annotations) {
             this.setState(() => ({
                 ...this.state,
-                dataset: this.getData(this.props.annotations),
+                dataset: this.props.annotations,
             }));
         }
     }
@@ -54,6 +53,9 @@ export default class AnnotationList extends React.Component<Props, any> {
         console.log('Clicking on row e')
         const clickedRowIndex = e.detail.args.row;
         const annotation = this.state.reactGrid?.dataView.getItem(clickedRowIndex);
+
+        this.props.setCurrentAnnotation(constructCurrentAnnotation(annotation));
+
         console.log('Clicked annotation:', annotation);
     }
 
@@ -101,11 +103,11 @@ export default class AnnotationList extends React.Component<Props, any> {
             return geojson.coordinates[1]}
 
         const columns: Column[] = [
-            { id: 'thumbnail', name: 'Thumbnail', field: 'thumbnail', sortable: true, minWidth: 100, formatter: polygonFormatter },
+            { id: 'thumbnail', name: 'Thumbnail', field: 'polygon', sortable: true, minWidth: 100, formatter: polygonFormatter },
             { id: 'area', name: 'Area', field: 'area', sortable: true, minWidth: 100 },
             { id: 'centroidX', name: 'CentroidX', field: 'centroid', sortable: true, minWidth: 100, formatter: centroidXFormatter},
             { id: 'centroidY', name: 'CentroidY', field: 'centroid', sortable: true, minWidth: 100, formatter: centroidYFormatter},
-            { id: 'class', name: 'Class', field: 'class', sortable: true, minWidth: 100 },
+            { id: 'class', name: 'Class', field: 'annotation_class_id', sortable: true, minWidth: 100 },
         ];
 
         const gridOptions: GridOption = {
@@ -127,20 +129,6 @@ export default class AnnotationList extends React.Component<Props, any> {
             dataset: [],
         }));
 
-    }
-
-    getData(anns: Annotation[]) {
-        const mappedData = anns.map((ann) => {
-            return {
-                id: ann.id,
-                thumbnail: ann.polygon.toString(),
-                area: ann.area,
-                centroid: ann.centroid.toString(),
-                class: ann.annotation_class_id
-            };
-        });
-
-        return mappedData;
     }
 
     render() {

@@ -32,7 +32,7 @@ export interface PostOperationArgs extends Annotation {
     operation: number;
 }
 
-export interface PutAnnArgs extends Annotation {
+export interface PutAnnArgs extends Omit<Annotation, 'tile_id'> {
     is_gt: boolean;
 }
 
@@ -75,4 +75,11 @@ export type OutletContextType = {
 export interface CurrentAnnotation {
     undoStack: Annotation[];
     redoStack: Annotation[];
+}
+
+export function constructCurrentAnnotation(annotation: Annotation): CurrentAnnotation {
+    return {
+        undoStack: [annotation],
+        redoStack: [],
+    }
 }

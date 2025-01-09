@@ -60,9 +60,21 @@ const AnnotationPage = () => {
                                     borderColor: "rgba(0, 0, 0, 0.8)",
                                     borderRadius: 6,
                                     zIndex: 10,
-                                }}><Toolbar {...{ currentTool, setCurrentTool, action, setAction }} /></Card.Header>
+                                }}><Toolbar {...{ currentTool, 
+                                                setCurrentTool, 
+                                                action, 
+                                                setAction }} /></Card.Header>
                                 <Card.Body style={{ padding: "0px" }}>
-                                    <ViewportMap {...{ currentImage, currentClass, gts, setGts, preds, setPreds, currentTool, currentAnnotation, setCurrentAnnotation, prevCurrentAnnotation }} />
+                                    <ViewportMap {...{ currentImage, 
+                                                    currentClass, 
+                                                    gts, 
+                                                    setGts, 
+                                                    preds, 
+                                                    setPreds, 
+                                                    currentTool, 
+                                                    currentAnnotation, 
+                                                    setCurrentAnnotation, 
+                                                    prevCurrentAnnotation }} />
                                 </Card.Body>
                             </Card>
                         </Col>
@@ -72,7 +84,7 @@ const AnnotationPage = () => {
                                     {...{ currentClass, setCurrentClass }}
                                 />
                                 <GroundTruthPane
-                                    {...{ gts, setGts, currentAnnotation }}
+                                    {...{ gts, setGts, currentAnnotation, setCurrentAnnotation }}
                                 />
                                 <PredictionsPane
                                     {...{ preds, setPreds, currentAnnotation }}
