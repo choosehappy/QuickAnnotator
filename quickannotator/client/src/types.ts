@@ -27,7 +27,7 @@ export interface PostAnnArgs {
     polygon: string;
 }
 
-export interface PostOperationArgs extends Annotation {
+export interface PostOperationArgs extends Omit<Annotation, 'tile_id'>{
     polygon2: string;
     operation: number;
 }

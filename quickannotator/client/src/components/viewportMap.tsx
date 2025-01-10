@@ -12,9 +12,9 @@ interface Props {
     setCurrentAnnotation: React.Dispatch<React.SetStateAction<CurrentAnnotation | null>>;
     prevCurrentAnnotation: CurrentAnnotation | null;
     gts: Annotation[];
-    setGts: (gts: Annotation[]) => void;
+    setGts: React.Dispatch<React.SetStateAction<Annotation[]>>;
     preds: Annotation[];
-    setPreds: (preds: Annotation[]) => void;
+    setPreds: React.Dispatch<React.SetStateAction<Annotation[]>>;
     currentTool: string | null;
 }
 
@@ -239,16 +239,7 @@ const ViewportMap = (props: Props) => {
         console.log("Polygon clicked.")
         console.log(evt.data)
         polygonClicked.current = true;
-        const currentState = ctx.current.currentAnnotation?.undoStack.at(-1);
-        const currentClass = ctx.current.currentClass;
-        const currentImage = ctx.current.currentImage;
 
-        // If the current annotation exists, commit it before selecting the new annotation.
-        if(currentState && currentImage && currentClass) {   // If the current annotation exists, 
-            if (currentState.id !== evt.data.id) {   // If the current annotation id has changed...
-                putAnnotation(currentImage.id, currentClass.id, currentState)
-            }
-        }
         const clickedAnnotation = constructCurrentAnnotation(evt.data);
 
         props.setCurrentAnnotation(clickedAnnotation);
@@ -260,17 +251,13 @@ const ViewportMap = (props: Props) => {
 
     const handleMousedown = (evt) => {
         console.log(ctx.current.currentAnnotation);
-        const currentAnn = ctx.current.currentAnnotation;
-        const currentClass = ctx.current.currentClass;
-        const currentImage = ctx.current.currentImage;
+        const currentAnn: CurrentAnnotation = ctx.current.currentAnnotation;
+        const currentClass: AnnotationClass = ctx.current.currentClass;
+        const currentImage: Image = ctx.current.currentImage;
 
         if (!polygonClicked.current && currentAnn) {
             const currentState = currentAnn.undoStack.at(-1);
             const tileId = currentState?.tile_id;
-            if (currentImage && currentClass && currentState) {
-                console.log("Background clicked - committed current annotation.")
-                putAnnotation(currentImage.id, currentClass.id, currentState)
-            }
             if (tileId) {
                 props.setCurrentAnnotation(null);
             }
@@ -333,6 +320,7 @@ const ViewportMap = (props: Props) => {
 
                 operateOnAnnotation(currentState, polygon2, 0).then((newState) => {
                     currentAnn.undoStack.push(newState);
+                    newState.tile_id = currentState.tile_id;
 
                     const updatedData = data.map((d: Annotation) => {
                         if (d.id === currentState.id) {
@@ -340,10 +328,18 @@ const ViewportMap = (props: Props) => {
                         }
                         return d;
                     });
+                    // TODO: What's wrong with this code? The annotation list does not update correctly.
+                    const updatedGroundTruths = ctx.current.gts.map((gt: Annotation) => {
+                        if (gt.id === currentState.id) {
+                            return newState;
+                        }
+                        return gt;
+                    });
+                    props.setGts(updatedGroundTruths);
 
                     feature.data(updatedData);
                     feature.modified();
-                    feature.draw();
+                    feature.draw({currentAnnotationId: currentState.id});
                 });
 
             } else {    // if currentAnnotation does not exist, create a new annotation in the database.
@@ -358,8 +354,10 @@ const ViewportMap = (props: Props) => {
                             resp.tile_id = tileId;
                             const updatedData = data.concat(resp);
                             feature.data(updatedData);
+                            props.setGts((prev: Annotation[]) => prev.concat(resp));
+                            // props.setCurrentAnnotation(constructCurrentAnnotation(resp));
                             feature.modified();
-                            feature.draw();
+                            feature.draw({});
                         }
                         else {
                             console.log("No tiles found. User has ")
@@ -509,7 +507,13 @@ const ViewportMap = (props: Props) => {
         const prevAnnotationId = prevState?.id;
 
         // If the current annotation is associated with a tile feature, "redraw" the feature.
-        if (tileId) {   
+        if (tileId) {
+            if (prevAnnotationId && prevAnnotationId !== annotationId && props.currentImage && props.currentClass) {
+                putAnnotation(props.currentImage.id, props.currentClass.id, prevState).then(() => {
+                    console.log("Annotation updated.")
+                });
+            }
+
             redrawTile(tileId, layerIdxNames.gt, {currentAnnotationId: currentState?.id});
 
             if (!polygonClicked.current) {  // The polygon was selected from the ground truth list.

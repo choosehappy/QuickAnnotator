@@ -173,8 +173,9 @@ export const fetchTile = async (tile_id: number) => {
 
 
 export const operateOnAnnotation = async (annotation: Annotation, polygon2: Polygon, operation: number) => {
+    const { tile_id, ...rest } = annotation;
     const requestBody: PostOperationArgs = {
-        ...annotation,
+        ...rest,
         polygon2: JSON.stringify(polygon2),
         operation: operation,
     };

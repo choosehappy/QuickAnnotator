@@ -29,25 +29,37 @@ export default class AnnotationList extends React.Component<Props, any> {
 
     componentDidUpdate(prevProps: Props) {
         this.checkAnnotations(prevProps);
-        // // If the current annotation changed
-        // const currentAnnotation = this.props.currentAnnotation;
-        // const previousAnnotation = prevProps.currentAnnotation;
-        // if (currentAnnotation) {
-        //     if (!previousAnnotation || !currentAnnotation.undoStack || !previousAnnotation.undoStack || currentAnnotation.undoStack.at(-1).id !== previousAnnotation.undoStack.at(-1).id) {
-        //         // this.reactGrid?.gridService.setSelectedRow(currentAnnotation.id);
-        //         console.log('highlighted item in slickgrid');
-        //     }
-        // }
+
+        this.checkCurrentAnnotation(prevProps)
     }
 
     checkAnnotations(prevProps: Props) {
         if (prevProps.annotations !== this.props.annotations) {
+            this.state.reactGrid?.gridService.resetGrid();
             this.setState(() => ({
                 ...this.state,
                 dataset: this.props.annotations,
             }));
         }
     }
+
+    checkCurrentAnnotation(prevProps: Props) {
+        if (this.props.currentAnnotation) {
+            const currentAnn = this.props.currentAnnotation;
+            const prevAnnId = prevProps.currentAnnotation?.undoStack.at(-1)?.id;
+            const currentAnnId = currentAnn?.undoStack.at(-1)?.id;
+            // IF the current annotation is not null and is new, scroll to the new annotation
+            if (this.props.containerId === 'gt' && currentAnnId && prevAnnId !== currentAnnId) {
+                const annotationId = currentAnn.undoStack.at(-1)?.id;
+                const annotationIndex = this.state.dataset.findIndex(annotation => annotation.id === annotationId);
+                if (annotationId) {
+                    this.state.reactGrid?.gridService.setSelectedRow(annotationIndex);
+                    this.state.reactGrid?.slickGrid.scrollRowIntoView(annotationIndex);
+                }
+            }
+        }
+    }
+
 
     handleClick(e: CustomEvent) {
         console.log('Clicking on row e')
@@ -117,6 +129,9 @@ export default class AnnotationList extends React.Component<Props, any> {
                 maxHeight: 200,
                 minWidth: 10,
             },
+            enableCellNavigation: true,
+            enableRowSelection: true,
+            multiSelect: false,
 
         };
 
