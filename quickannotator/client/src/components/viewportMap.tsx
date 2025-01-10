@@ -511,17 +511,24 @@ const ViewportMap = (props: Props) => {
         // If the current annotation is associated with a tile feature, "redraw" the feature.
         if (tileId) {   
             redrawTile(tileId, layerIdxNames.gt, {currentAnnotationId: currentState?.id});
+
+            if (!polygonClicked.current) {  // The polygon was selected from the ground truth list.
+                const centroid = JSON.parse(currentState.centroid);
+
+                geojs_map.current.transition({
+                    center: {x: centroid.coordinates[0], y: centroid.coordinates[1]},
+                    duration: 500,
+                    ease: function (t: number) {
+                        return 1 - Math.pow(1 - t, 2);
+                    }
+                })
+            }
         }
 
         // If the previous current annotation is associated with a tile feature, "redraw" the old tile.
         if (prevTileId && prevTileId !== tileId) {
             redrawTile(prevTileId, layerIdxNames.gt, {});
         }
-
-        // If the annotation id has changed, commit the previous annotation.
-        // if (props.currentImage && props.currentClass && annotationId && prevState && annotationId !== prevAnnotationId) {
-        //     putAnnotation(props.currentImage.id, props.currentClass.id, prevState);
-        // }
 
     }, [props.currentAnnotation])
 
