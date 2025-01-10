@@ -72,14 +72,39 @@ export type OutletContextType = {
     setCurrentImage: (image: Image | null) => void;
 }
 
-export interface CurrentAnnotation {
+export class CurrentAnnotation {
     undoStack: Annotation[];
     redoStack: Annotation[];
-}
 
-export function constructCurrentAnnotation(annotation: Annotation): CurrentAnnotation {
-    return {
-        undoStack: [annotation],
-        redoStack: [],
+    constructor(annotation: Annotation) {
+        this.undoStack = [annotation];
+        this.redoStack = [];
+    }
+
+    addAnnotation(annotation: Annotation) {
+        this.undoStack.push(annotation);
+        this.redoStack = [];
+    }
+
+    currentState() {
+        return this.undoStack.at(-1);
+    }
+
+    undo() {
+        if (this.undoStack.length > 1) {
+            const annotation = this.undoStack.pop();
+            if (annotation) {
+                this.redoStack.push(annotation);
+            }
+        }
+    }
+
+    redo() {
+        if (this.redoStack.length > 0) {
+            const annotation = this.redoStack.pop();
+            if (annotation) {
+                this.undoStack.push(annotation);
+            }
+        }
     }
 }

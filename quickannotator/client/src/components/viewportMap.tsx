@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import geo from "geojs"
-import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, constructCurrentAnnotation } from "../types.ts"
+import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs } from "../types.ts"
 import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation, searchAnnotationsWithinTile, predictTile } from "../helpers/api.ts";
 import { Point, Polygon, Feature } from "geojson";
 
@@ -180,7 +180,7 @@ const ViewportMap = (props: Props) => {
             .style('fillColor', 'lime')
             .style('fillOpacity', 0.5)
             // .style('stroke', (a: Annotation) => {
-            //     if (a.id === props.currentAnnotation?.undoStack.at(-1)?.id) {
+            //     if (a.id === props.currentAnnotation?.currentState()?.id) {
             //         console.log("Change stroke of polygon.")
             //         return true
             //     }
@@ -199,7 +199,7 @@ const ViewportMap = (props: Props) => {
         }
         console.log('Drew ground truth polygons.')
 
-        feature.draw({currentAnnotationId: props.currentAnnotation?.undoStack.at(-1)?.id});
+        feature.draw({currentAnnotationId: props.currentAnnotation?.currentState()?.id});
     }
 
     const drawPredictedPolygons = async (featureProps: any, annotations: Annotation[], layer: any, annotationClassId: number=1) => {
@@ -240,9 +240,7 @@ const ViewportMap = (props: Props) => {
         console.log(evt.data)
         polygonClicked.current = true;
 
-        const clickedAnnotation = constructCurrentAnnotation(evt.data);
-
-        props.setCurrentAnnotation(clickedAnnotation);
+        props.setCurrentAnnotation(new CurrentAnnotation(evt.data));
 
         setTimeout(() => {
             polygonClicked.current = false;
@@ -256,7 +254,7 @@ const ViewportMap = (props: Props) => {
         const currentImage: Image = ctx.current.currentImage;
 
         if (!polygonClicked.current && currentAnn) {
-            const currentState = currentAnn.undoStack.at(-1);
+            const currentState = currentAnn.currentState();
             const tileId = currentState?.tile_id;
             if (tileId) {
                 props.setCurrentAnnotation(null);
@@ -266,7 +264,7 @@ const ViewportMap = (props: Props) => {
 
     function handleDeleteAnnotation(evt) {
         console.log("Delete annotation detected.")
-        const currentState: Annotation = ctx.current.currentAnnotation.undoStack.at(-1);
+        const currentState: Annotation = ctx.current.currentAnnotation.currentState();
         const tileId = currentState?.tile_id;
         const currentImage: Image = ctx.current.currentImage;
         const currentClass: AnnotationClass = ctx.current.currentClass;
@@ -280,6 +278,9 @@ const ViewportMap = (props: Props) => {
                 const deletedData = data.filter((d: Annotation) => {
                     return d.id !== annotationId;
                 });
+
+                const updatedGroundTruths = ctx.current.gts.filter((gt: Annotation) => gt.id !== annotationId);
+                props.setGts(updatedGroundTruths);
                 feature.data(deletedData);
                 feature.modified();
                 feature.draw();
@@ -308,7 +309,7 @@ const ViewportMap = (props: Props) => {
                 coordinates: [polygonList]
             }
 
-            const currentState = currentAnn?.undoStack.pop();
+            const currentState = currentAnn?.currentState();
 
             // 2. if currentAnnotation exists, update the currentAnnotation
             if (currentAnn && currentState && currentState.tile_id) {
@@ -316,10 +317,9 @@ const ViewportMap = (props: Props) => {
                 // // 1. Get the feature data associated with the CurrentAnnotation
                 const feature = getFeatureByTileId(layerIdxNames.gt, currentState.tile_id);
                 const data = feature.data();
-                currentAnn.redoStack.push(currentState);
 
                 operateOnAnnotation(currentState, polygon2, 0).then((newState) => {
-                    currentAnn.undoStack.push(newState);
+                    currentAnn.addAnnotation(newState);
                     newState.tile_id = currentState.tile_id;
 
                     const updatedData = data.map((d: Annotation) => {
@@ -328,7 +328,7 @@ const ViewportMap = (props: Props) => {
                         }
                         return d;
                     });
-                    // TODO: What's wrong with this code? The annotation list does not update correctly.
+
                     const updatedGroundTruths = ctx.current.gts.map((gt: Annotation) => {
                         if (gt.id === currentState.id) {
                             return newState;
@@ -355,12 +355,8 @@ const ViewportMap = (props: Props) => {
                             const updatedData = data.concat(resp);
                             feature.data(updatedData);
                             props.setGts((prev: Annotation[]) => prev.concat(resp));
-                            // props.setCurrentAnnotation(constructCurrentAnnotation(resp));
                             feature.modified();
                             feature.draw({});
-                        }
-                        else {
-                            console.log("No tiles found. User has ")
                         }
                     });
                 });
@@ -499,8 +495,8 @@ const ViewportMap = (props: Props) => {
 
     useEffect(() => {
         console.log("Current annotation changed.");
-        const currentState = props.currentAnnotation?.undoStack.at(-1);
-        const prevState = props.prevCurrentAnnotation?.undoStack.at(-1);
+        const currentState = props.currentAnnotation?.currentState();
+        const prevState = props.prevCurrentAnnotation?.currentState();
         const tileId = currentState?.tile_id;
         const prevTileId = prevState?.tile_id;
         const annotationId = currentState?.id;

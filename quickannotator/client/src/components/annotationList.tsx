@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {Column, GridOption, SlickgridReactInstance, SlickgridReact, } from "slickgrid-react";
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
-import { Annotation, CurrentAnnotation, constructCurrentAnnotation } from "../types.ts";
+import { Annotation, CurrentAnnotation } from "../types.ts";
 
 interface Props {
     annotations: Annotation[];
@@ -46,17 +46,19 @@ export default class AnnotationList extends React.Component<Props, any> {
     checkCurrentAnnotation(prevProps: Props) {
         if (this.props.currentAnnotation) {
             const currentAnn = this.props.currentAnnotation;
-            const prevAnnId = prevProps.currentAnnotation?.undoStack.at(-1)?.id;
-            const currentAnnId = currentAnn?.undoStack.at(-1)?.id;
+            const prevAnnId = prevProps.currentAnnotation?.currentState()?.id;
+            const currentAnnId = currentAnn?.currentState()?.id;
             // IF the current annotation is not null and is new, scroll to the new annotation
             if (this.props.containerId === 'gt' && currentAnnId && prevAnnId !== currentAnnId) {
-                const annotationId = currentAnn.undoStack.at(-1)?.id;
-                const annotationIndex = this.state.dataset.findIndex(annotation => annotation.id === annotationId);
+                const annotationId = currentAnn.currentState()?.id;
+                const annotationIndex = this.state.dataset.findIndex((annotation: Annotation) => annotation.id === annotationId);
                 if (annotationId) {
                     this.state.reactGrid?.gridService.setSelectedRow(annotationIndex);
                     this.state.reactGrid?.slickGrid.scrollRowIntoView(annotationIndex);
                 }
             }
+        } else {
+
         }
     }
 
@@ -66,7 +68,7 @@ export default class AnnotationList extends React.Component<Props, any> {
         const clickedRowIndex = e.detail.args.row;
         const annotation = this.state.reactGrid?.dataView.getItem(clickedRowIndex);
 
-        this.props.setCurrentAnnotation(constructCurrentAnnotation(annotation));
+        this.props.setCurrentAnnotation(new CurrentAnnotation(annotation));
 
         console.log('Clicked annotation:', annotation);
     }
