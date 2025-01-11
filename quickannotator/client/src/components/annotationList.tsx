@@ -2,6 +2,7 @@ import * as React from 'react';
 import {Column, GridOption, SlickgridReactInstance, SlickgridReact, } from "slickgrid-react";
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
 import { Annotation, CurrentAnnotation } from "../types.ts";
+import { Point, Polygon, Position } from 'geojson';
 
 interface Props {
     annotations: Annotation[];
@@ -46,11 +47,11 @@ export default class AnnotationList extends React.Component<Props, any> {
     checkCurrentAnnotation(prevProps: Props) {
         if (this.props.currentAnnotation) {
             const currentAnn = this.props.currentAnnotation;
-            const prevAnnId = prevProps.currentAnnotation?.currentState()?.id;
-            const currentAnnId = currentAnn?.currentState()?.id;
+            const prevAnnId = prevProps.currentAnnotation?.currentState?.id;
+            const currentAnnId = currentAnn?.currentState?.id;
             // IF the current annotation is not null and is new, scroll to the new annotation
             if (this.props.containerId === 'gt' && currentAnnId && prevAnnId !== currentAnnId) {
-                const annotationId = currentAnn.currentState()?.id;
+                const annotationId = currentAnn.currentState?.id;
                 const annotationIndex = this.state.dataset.findIndex((annotation: Annotation) => annotation.id === annotationId);
                 if (annotationId) {
                     this.state.reactGrid?.gridService.setSelectedRow(annotationIndex);
@@ -79,14 +80,12 @@ export default class AnnotationList extends React.Component<Props, any> {
 
     defineGrid() {
 
-        const polygonFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
-            // const svg =
-            const geojson = JSON.parse(value);
+        const polygonFormatter = (_row: number, _cell: number, value: Polygon, _columnDef: Column, _dataContext: any) => {
 
-            const coordinates = geojson.coordinates[0];
+            const coordinates = value.coordinates[0];
             // Find min and max coordinates for scaling
-            const xCoords = coordinates.map(coord => coord[0]);
-            const yCoords = coordinates.map(coord => coord[1]);
+            const xCoords = coordinates.map((coord: Position) => coord[0]);
+            const yCoords = coordinates.map((coord: Position) => coord[1]);
             const minX = Math.min(...xCoords);
             const maxX = Math.max(...xCoords);
             const minY = Math.min(...yCoords);
@@ -107,20 +106,19 @@ export default class AnnotationList extends React.Component<Props, any> {
             return svg;
         }
 
-        const centroidXFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
-            const geojson = JSON.parse(value);
-            return geojson.coordinates[0]
+        const centroidXFormatter = (_row: number, _cell: number, value: Point, _columnDef: Column, _dataContext: any): string => {
+            return value.coordinates[0].toString();
         }
 
-        const centroidYFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
-            const geojson = JSON.parse(value);
-            return geojson.coordinates[1]}
+        const centroidYFormatter = (_row: number, _cell: number, value: Point, _columnDef: Column, _dataContext: any): string => {
+            return value.coordinates[1].toString();
+        }
 
         const columns: Column[] = [
-            { id: 'thumbnail', name: 'Thumbnail', field: 'polygon', sortable: true, minWidth: 100, formatter: polygonFormatter },
+            { id: 'thumbnail', name: 'Thumbnail', field: 'parsedPolygon', sortable: true, minWidth: 100, formatter: polygonFormatter },
             { id: 'area', name: 'Area', field: 'area', sortable: true, minWidth: 100 },
-            { id: 'centroidX', name: 'CentroidX', field: 'centroid', sortable: true, minWidth: 100, formatter: centroidXFormatter},
-            { id: 'centroidY', name: 'CentroidY', field: 'centroid', sortable: true, minWidth: 100, formatter: centroidYFormatter},
+            { id: 'centroidX', name: 'CentroidX', field: 'parsedCentroid', sortable: true, minWidth: 100, formatter: centroidXFormatter },
+            { id: 'centroidY', name: 'CentroidY', field: 'parsedCentroid', sortable: true, minWidth: 100, formatter: centroidYFormatter },
             { id: 'class', name: 'Class', field: 'annotation_class_id', sortable: true, minWidth: 100 },
         ];
 

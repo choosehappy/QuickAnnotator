@@ -35,13 +35,15 @@ const AnnotationPage = () => {
     const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
 
     useEffect(() => {
-        fetchProject(parseInt(projectid)).then((resp) => {
-            setCurrentProject(resp);
-        });
-
-        fetchImage(parseInt(imageid)).then((resp) => {
-            setCurrentImage(resp);
-        });
+        if (projectid && imageid) {
+            fetchProject(parseInt(projectid)).then((resp) => {
+                setCurrentProject(resp);
+            });
+    
+            fetchImage(parseInt(imageid)).then((resp) => {
+                setCurrentImage(resp);
+            });
+        }
     }, [])
 
     if (currentImage) {
