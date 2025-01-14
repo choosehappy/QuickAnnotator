@@ -87,6 +87,7 @@ class Tile(db.Model):
     # columns
     geom = Column(Geometry('POLYGON'))
     seen = Column(Integer, nullable=False, default=0)
+    hasgt = Column(Boolean, nullable=False, default=False)
 
 
 class Annotation(db.Model):
@@ -98,6 +99,7 @@ class Annotation(db.Model):
     # foreign keys (these are redundant because the table name encodes the same information. But good for querying and future proofing)
     image_id = Column(Integer, ForeignKey('image.id'), nullable=False)
     annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=False)
+    tile_id = Column(Integer, ForeignKey('tile.id'), nullable=True, default=None)
     
 
     # columns
