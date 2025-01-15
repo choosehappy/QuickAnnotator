@@ -44,8 +44,8 @@ RUN /opt/venv/bin/pip install tqdm \
                             ipykernel
 
 # Install node dependencies
-WORKDIR /opt/QuickAnnotator/quickannotator/client
-RUN npm install --prefix /opt/node_modules .
-ENV NODE_PATH=/opt/node_modules/node_modules
+WORKDIR /opt/
+RUN npm install QuickAnnotator/quickannotator/client
+ENV NODE_PATH=/opt/node_modules
 
 WORKDIR /opt/QuickAnnotator
