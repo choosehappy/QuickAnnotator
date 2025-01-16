@@ -5,7 +5,7 @@ import { Annotation, CurrentAnnotation } from "../types.ts";
 interface Props {
     preds: Annotation[];
     setPreds: (gts: Annotation[]) => void;
-    currentAnnotation: CurrentAnnotation;
+    currentAnnotation: React.MutableRefObject<CurrentAnnotation | null>;
 }
 const PredictionsPane = (props: Props) => {
     const id = 'id'
@@ -13,7 +13,10 @@ const PredictionsPane = (props: Props) => {
         <Card>
             <Card.Header as={'h5'}>Predictions</Card.Header>
             <Card.Body id={id}>
-                <AnnotationList containerId={id} annotations={props.preds} currentAnnotation={props.currentAnnotation}/>
+            <AnnotationList containerId={id} 
+                                annotations={props.preds} 
+                                currentAnnotation={props.currentAnnotation} 
+                                />
             </Card.Body>
         </Card>
     )

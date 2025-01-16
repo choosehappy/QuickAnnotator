@@ -7,6 +7,7 @@ from sqlalchemy import Table
 from shapely.geometry import shape, mapping
 import json
 
+
 import quickannotator.db as qadb
 from .helper import (
     annotations_within_bbox,

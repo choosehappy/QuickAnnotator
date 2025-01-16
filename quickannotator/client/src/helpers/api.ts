@@ -1,6 +1,6 @@
 // Generic response type
 type ApiResponse<T> = Promise<T>;
-import { Image, Project, Annotation, AnnotationClass, Tile, PostAnnArgs, PostOperationArgs, PutAnnArgs } from "../types.ts";
+import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, PostAnnArgs, PostOperationArgs, PutAnnArgs } from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
 
 interface FetchOptions extends RequestInit {
@@ -91,7 +91,7 @@ export const fetchProject = async (project_id: number) => {
 
 // Fetch annotations
 export const fetchAllAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean) => {
-    return await get<Annotation[]>(`/annotation/${image_id}/${annotation_class_id}/search?is_gt=${is_gt}`);
+    return await get<AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/search?is_gt=${is_gt}`);
 }
 
 export const searchAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean, x1: number, y1: number, x2: number, y2: number) => {
@@ -102,7 +102,7 @@ export const searchAnnotations = async (image_id: number, annotation_class_id: n
         x2: x2.toString(),
         y2: y2.toString(),
     });
-    return await get<Annotation[]>(`/annotation/${image_id}/${annotation_class_id}/search?${query}`);
+    return await get<AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/search?${query}`);
 }
 
 export const searchAnnotationsWithinTile = async (tile: Tile, is_gt: boolean) => {
@@ -124,15 +124,16 @@ export const postAnnotation = async (image_id: number, annotation_class_id: numb
         polygon: JSON.stringify(polygon),
     };
 
-    return await post<PostAnnArgs, Annotation>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);
+    return await post<PostAnnArgs, AnnotationResponse>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);
 }
 
 export const putAnnotation = async (image_id: number, annotation_class_id: number, annotation: Annotation) => {
+    const { tileId, ...rest } = annotation;
     const requestBody: PutAnnArgs = {
-        ...annotation,
+        ...rest,
         is_gt: true,
     }
-    return await put<PutAnnArgs, Annotation>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);;
+    return await put<PutAnnArgs, AnnotationResponse>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);;
 }
 
 export const removeAnnotation = async (image_id: number, annotation_class_id: number, annotation_id: number, is_gt: boolean) => {
@@ -172,8 +173,9 @@ export const fetchTile = async (tile_id: number) => {
 
 
 export const operateOnAnnotation = async (annotation: Annotation, polygon2: Polygon, operation: number) => {
+    const { tileId, ...rest } = annotation;
     const requestBody: PostOperationArgs = {
-        ...annotation,
+        ...rest,
         polygon2: JSON.stringify(polygon2),
         operation: operation,
     };

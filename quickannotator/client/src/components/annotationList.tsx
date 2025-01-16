@@ -1,15 +1,17 @@
 import * as React from 'react';
-import {Column, GridOption, SlickgridReactInstance, SlickgridReact} from "slickgrid-react";
+import {Column, GridOption, SlickgridReactInstance, SlickgridReact, } from "slickgrid-react";
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
 import { Annotation, CurrentAnnotation } from "../types.ts";
+import { Point, Polygon, Position } from 'geojson';
 
 interface Props {
     annotations: Annotation[];
     containerId: string;
     currentAnnotation: CurrentAnnotation;
+    setCurrentAnnotation: React.Dispatch<React.SetStateAction<CurrentAnnotation | null>>;
 }
 
-export default class AnnotationList extends React.Component {
+export default class AnnotationList extends React.Component<Props, any> {
     constructor(public props: Props){
         super(props);
 
@@ -17,7 +19,7 @@ export default class AnnotationList extends React.Component {
             gridOptions: undefined,
             columnDefinitions: [],
             dataset: [],
-            reactGrid: undefined
+            reactGrid: undefined,
         };
     }
 
@@ -27,39 +29,63 @@ export default class AnnotationList extends React.Component {
     }
 
     componentDidUpdate(prevProps: Props) {
+        this.checkAnnotations(prevProps);
+
+        this.checkCurrentAnnotation(prevProps)
+    }
+
+    checkAnnotations(prevProps: Props) {
         if (prevProps.annotations !== this.props.annotations) {
+            this.state.reactGrid?.gridService.resetGrid();
             this.setState(() => ({
                 ...this.state,
-                dataset: this.getData(this.props.annotations),
+                dataset: this.props.annotations,
             }));
         }
+    }
 
-        // // If the current annotation changed
-        // const currentAnnotation = this.props.currentAnnotation;
-        // const previousAnnotation = prevProps.currentAnnotation;
-        // if (currentAnnotation) {
-        //     if (!previousAnnotation || !currentAnnotation.undoStack || !previousAnnotation.undoStack || currentAnnotation.undoStack.at(-1).id !== previousAnnotation.undoStack.at(-1).id) {
-        //         // this.reactGrid?.gridService.setSelectedRow(currentAnnotation.id);
-        //         console.log('highlighted item in slickgrid');
-        //     }
-        // }
+    checkCurrentAnnotation(prevProps: Props) {
+        if (this.props.currentAnnotation) {
+            const currentAnn = this.props.currentAnnotation;
+            const prevAnnId = prevProps.currentAnnotation?.currentState?.id;
+            const currentAnnId = currentAnn?.currentState?.id;
+            // IF the current annotation is not null and is new, scroll to the new annotation
+            if (this.props.containerId === 'gt' && currentAnnId && prevAnnId !== currentAnnId) {
+                const annotationId = currentAnn.currentState?.id;
+                const annotationIndex = this.state.dataset.findIndex((annotation: Annotation) => annotation.id === annotationId);
+                if (annotationId) {
+                    this.state.reactGrid?.gridService.setSelectedRow(annotationIndex);
+                    this.state.reactGrid?.slickGrid.scrollRowIntoView(annotationIndex);
+                }
+            }
+        } else {
+
+        }
+    }
+
+
+    handleClick(e: CustomEvent) {
+        console.log('Clicking on row e')
+        const clickedRowIndex = e.detail.args.row;
+        const annotation = this.state.reactGrid?.dataView.getItem(clickedRowIndex);
+
+        this.props.setCurrentAnnotation(new CurrentAnnotation(annotation));
+
+        console.log('Clicked annotation:', annotation);
     }
 
     reactGridReady(reactGrid: SlickgridReactInstance) {
-        this.reactGrid = reactGrid;
+        this.setState({ reactGrid });
     }
 
     defineGrid() {
 
-        const polygonFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
-            // const svg = "<svg width='100' height='100'><polygon points='0,0 100,0 100,100 0,100' style='fill:lime;stroke:purple;stroke-width:1' /></svg>";
-            // const svg = "<svg width='100' height='100'>hello</svg>";
-            const geojson = JSON.parse(value);
+        const polygonFormatter = (_row: number, _cell: number, value: Polygon, _columnDef: Column, _dataContext: any) => {
 
-            const coordinates = geojson.coordinates[0];
+            const coordinates = value.coordinates[0];
             // Find min and max coordinates for scaling
-            const xCoords = coordinates.map(coord => coord[0]);
-            const yCoords = coordinates.map(coord => coord[1]);
+            const xCoords = coordinates.map((coord: Position) => coord[0]);
+            const yCoords = coordinates.map((coord: Position) => coord[1]);
             const minX = Math.min(...xCoords);
             const maxX = Math.max(...xCoords);
             const minY = Math.min(...yCoords);
@@ -80,21 +106,20 @@ export default class AnnotationList extends React.Component {
             return svg;
         }
 
-        const centroidXFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
-            const geojson = JSON.parse(value);
-            return geojson.coordinates[0]
+        const centroidXFormatter = (_row: number, _cell: number, value: Point, _columnDef: Column, _dataContext: any): string => {
+            return value.coordinates[0].toString();
         }
 
-        const centroidYFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
-            const geojson = JSON.parse(value);
-            return geojson.coordinates[1]}
+        const centroidYFormatter = (_row: number, _cell: number, value: Point, _columnDef: Column, _dataContext: any): string => {
+            return value.coordinates[1].toString();
+        }
 
         const columns: Column[] = [
-            { id: 'thumbnail', name: 'Thumbnail', field: 'thumbnail', sortable: true, minWidth: 100, formatter: polygonFormatter },
+            { id: 'thumbnail', name: 'Thumbnail', field: 'parsedPolygon', sortable: true, minWidth: 100, formatter: polygonFormatter },
             { id: 'area', name: 'Area', field: 'area', sortable: true, minWidth: 100 },
-            { id: 'centroidX', name: 'CentroidX', field: 'centroid', sortable: true, minWidth: 100, formatter: centroidXFormatter},
-            { id: 'centroidY', name: 'CentroidY', field: 'centroid', sortable: true, minWidth: 100, formatter: centroidYFormatter},
-            { id: 'class', name: 'Class', field: 'class', sortable: true, minWidth: 100 },
+            { id: 'centroidX', name: 'CentroidX', field: 'parsedCentroid', sortable: true, minWidth: 100, formatter: centroidXFormatter },
+            { id: 'centroidY', name: 'CentroidY', field: 'parsedCentroid', sortable: true, minWidth: 100, formatter: centroidYFormatter },
+            { id: 'class', name: 'Class', field: 'annotation_class_id', sortable: true, minWidth: 100 },
         ];
 
         const gridOptions: GridOption = {
@@ -104,6 +129,9 @@ export default class AnnotationList extends React.Component {
                 maxHeight: 200,
                 minWidth: 10,
             },
+            enableCellNavigation: true,
+            enableRowSelection: true,
+            multiSelect: false,
 
         };
 
@@ -118,20 +146,6 @@ export default class AnnotationList extends React.Component {
 
     }
 
-    getData(anns: Annotation[]) {
-        const mappedData = anns.map((ann) => {
-            return {
-                id: ann.id,
-                thumbnail: ann.polygon.toString(),
-                area: ann.area,
-                centroid: ann.centroid.toString(),
-                class: ann.annotation_class_id
-            };
-        });
-
-        return mappedData;
-    }
-
     render() {
         return !this.state.gridOptions ? '/' : (
             <SlickgridReact gridId={this.props.containerId + '-grid'}
@@ -139,6 +153,7 @@ export default class AnnotationList extends React.Component {
                             gridOptions={this.state.gridOptions}
                             dataset={this.state.dataset}
                             onReactGridCreated={$event => this.reactGridReady($event.detail)}
+                            onClick={$event => this.handleClick($event)}
             />
         );
     }
