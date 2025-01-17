@@ -13,7 +13,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
          libglib2.0-0 \
          libjpeg-dev \
          libpng-dev \
-         gcc gfortran libopenblas-dev liblapack-dev cython \
+         gcc gfortran libopenblas-dev liblapack-dev cython3 \
          sqlite3 \
          libsqlite3-dev \
          libsqlite3-mod-spatialite \
