@@ -1,6 +1,6 @@
 import quickannotator.db as qadb
 from sqlalchemy import func, select, text, MetaData, Table
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, Session
 from typing import List
 import quickannotator.db as qadb
 import shapely.geometry
@@ -26,6 +26,11 @@ def annotations_within_bbox(table, x1, y1, x2, y2):
     # Right now we are selecting by centroid and not polygon.
     stmt = table.select().where(func.ST_Intersects(table.c.centroid, envelope))
     result = qadb.db.session.execute(stmt).fetchall()
+    return result
+
+def get_annotations_for_tile(session: Session, table: Table, tile_id):
+    model = dynamically_create_model_for_table(table)
+    result = session.query(model).get(tile_id)
     return result
 
 def annotations_within_bbox_spatial(table_name: str, x1: float, y1: float, x2: float, y2: float) -> List[qadb.Annotation]:

@@ -6,7 +6,7 @@ from pkg_resources import require
 
 import quickannotator.db as qadb
 from quickannotator.db import db
-from .helper import tiles_within_bbox, generate_random_circle_within_bbox, tile_by_id, compute_on_tile
+from .helper import tiles_within_bbox, generate_random_circle_within_bbox, get_tile, compute_on_tile
 
 bp = Blueprint('tile', __name__, description="Tile operations")
 
@@ -16,13 +16,13 @@ class TileRespSchema(SQLAlchemyAutoSchema):
         model = qadb.Tile
         include_fk = True
 
-    geom = qadb.GeometryField()
-
 class PredictTileRespSchema(Schema):
     object_ref = fields.Str()
 
 # ------------------------ REQUEST PARSERS ------------------------
 class GetTileArgsSchema(Schema):
+    annotation_class_id = fields.Int()
+    image_id = fields.Int()
     tile_id = fields.Int()
 
 class PutTileArgsSchema(Schema):
@@ -51,10 +51,7 @@ class Tile(MethodView):
     def get(self, args):
         """     returns a Tile
         """
-        result = db.session.query(
-            *[getattr(qadb.Tile, column.name) for column in qadb.Tile.__table__.columns],
-            db.func.ST_AsGeoJSON(qadb.Tile.geom).label('geom')
-        ).filter_by(id=args['tile_id']).first()
+        result = get_tile(db.session, args['annotation_class_id'], args['image_id'], args['tile_id'])
         return result, 200
 
     @bp.arguments(PostTileArgsSchema, location='query')
@@ -99,11 +96,11 @@ class TilePredict(MethodView):
         """     predict tiles for a given image & class
         """
         # Update the Tile seen column to 1
-        tile = tile_by_id(db.session, args['tile_id'])
+        tile = get_tile(db.session, args['annotation_class_id'], args['image_id'], args['tile_id'])
         tile.seen = 1
         db.session.commit()
 
-        object_ref = compute_on_tile(db=db, qadb=qadb, tile_id=args['tile_id'], sleep_time=5)
+        object_ref = compute_on_tile(db=db, tile_id=args['tile_id'], sleep_time=5)
 
         return {'object_ref': object_ref}, 201
         
