@@ -9,7 +9,6 @@ import json
 
 import quickannotator.db as qadb
 from .helper import (
-    annotations_within_bbox,
     annotations_within_bbox_spatial,
     retrieve_annotation_table,
     compute_custom_metrics,

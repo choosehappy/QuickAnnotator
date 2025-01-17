@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Text, Column, Integer, DateTime, ForeignKey, JSON, Boolean, Float, event
+from sqlalchemy import Text, Column, Integer, DateTime, ForeignKey, JSON, Boolean, Float, event, Index
 from geoalchemy2 import Geometry, load_spatialite
 from flask_caching import Cache
 from marshmallow import fields
@@ -78,14 +78,11 @@ class AnnotationClass(db.Model):
 
 class Tile(db.Model):
     # primary key
-    id = Column(Integer, primary_key=True)
-
-    # foreign keys
-    image_id = Column(Integer, ForeignKey('image.id'), nullable=False)
-    annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=False)
+    annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), primary_key=True, nullable=False)
+    image_id = Column(Integer, ForeignKey('image.id'), primary_key=True, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=False, nullable=False)
 
     # columns
-    geom = Column(Geometry('POLYGON'))
     seen = Column(Integer, nullable=False, default=0)
     hasgt = Column(Boolean, nullable=False, default=False)
 
@@ -97,13 +94,13 @@ class Annotation(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     # foreign keys (these are redundant because the table name encodes the same information. But good for querying and future proofing)
-    image_id = Column(Integer, ForeignKey('image.id'), nullable=False)
-    annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=False)
-    tile_id = Column(Integer, ForeignKey('tile.id'), nullable=True, default=None)
+    image_id = Column(Integer, ForeignKey('image.id'), nullable=True, default=None)
+    annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=True, default=None)
+    # tile_id = Column(Integer, ForeignKey('tile.id'), nullable=True, default=None)
     
 
     # columns
-    isgt = Column(Boolean, nullable=False)
+    isgt = Column(Boolean, nullable=True, default=None)
     centroid = Column(Geometry('POINT'))
     area = Column(Float)
     polygon = Column(Geometry('POLYGON'))
