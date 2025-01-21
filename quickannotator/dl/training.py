@@ -4,6 +4,8 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
+
+from quickannotator.dl.inference import run_inference, getTileStatus
 from .dataset import TileDataset
 import io
 import albumentations as A
@@ -37,8 +39,8 @@ def get_transforms(tile_size): #probably goes...elsewhere
 def train_model(config):
     is_train = config.get("is_train",True) # else True #default to training
     allow_pred = config.get("allow_pred",True) #default to enable predts
-    classid = config["classid"]
-    tile_size = config["tile_size"]
+    classid = config["classid"] # --- this should result in a catastrophic failure if not provided
+    tile_size = config["tile_size"] #probably this as well
     # from project settings
     num_epochs=10 # probably needs to be huge, or potentially even Inf
     batch_size=1
@@ -59,20 +61,36 @@ def train_model(config):
         model.train()
         running_loss = 0.0
         for images, masks, weights in tqdm(dataloader):
+
+
+            if tiles := getTileStatus(classid):
+                print(f"running inference on {len(tiles)}")
+                run_inference(model, tiles, device)
+
             images = images.to(device)
             masks = masks.to(device)
             weights = weights.to(device)
+            
             optimizer.zero_grad()
             outputs = model(images)
+            
             loss = criterion(outputs, masks.float())
             loss = (loss * (edge_weight ** weights).type_as(loss)).mean()
+            
             positive_mask = (masks == 1).float()
             unlabeled_mask = (masks == 0).float()
+            
             positive_loss = 1.0 * (loss * positive_mask).mean()
             unlabeled_loss = .1 * (loss * unlabeled_mask).mean()
+            
             loss_total = positive_loss + unlabeled_loss
             loss_total.backward()
+            
             optimizer.step()
+            
             running_loss += loss_total.item()
+            
+            print("losses:\t",loss_total,positive_mask.sum(),positive_loss,unlabeled_loss)
+
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(dataloader)}")
     print("Training complete")
