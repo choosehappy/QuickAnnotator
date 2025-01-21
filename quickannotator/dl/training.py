@@ -57,6 +57,11 @@ def train_model(config):
     
     model = model.to(device)
 
+
+    if tiles := getTileStatus(classid): #to be moved into for loop
+        print(f"running inference on {len(tiles)}")
+        run_inference(model, tiles, device)
+
     for epoch in range(num_epochs):
         model.train()
         running_loss = 0.0

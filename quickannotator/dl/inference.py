@@ -69,15 +69,18 @@ def save_annotations(tile,polygons):
         translated_polygon = shapely.affinity.translate(polygon, xoff=minx, yoff=miny)
         area = translated_polygon.area
         centroid = translated_polygon.centroid
+        
         new_annotation = {
-            'image_id': image_id,
-            'annotation_class_id': class_id,
+            'image_id': tile.image_id,
+            'annotation_class_id': tile.annotation_class_id,
             'polygon': translated_polygon.wkt,
             'area': area,
             'isgt': False,
             'centroid': centroid.wkt
         }
+        print("new anno!\t\t:",new_annotation["image_id"],new_annotation["annotation_class_id"])
         new_annotations.append(new_annotation)
+    #print(new_annotations)
     
     session = get_session_aj(create_db_engine(get_database_path()))
     session.execute(table.insert(), new_annotations)
@@ -103,10 +106,16 @@ def batch_iterable(iterable, tile_batch_size):
     for i in range(0, len(iterable), tile_batch_size):
         yield iterable[i:i + tile_batch_size]
 
+    
+def update_tile_status(tile_batch):
+    session = get_session_aj(create_db_engine(get_database_path())) #should have some error checking a context manager
+    for tile in tile_batch:
+        tile.seen = 2
+    session.bulk_save_objects(tile_batch)  # Bulk operation for efficiency
+    session.commit()  # Commit changes
 
 def run_inference(model, tiles, device):
-    Session = sessionmaker(bind=db.engine)
-    session = Session()
+    session = get_session_aj(create_db_engine(get_database_path()))
 
     infer_tile_batch_size = 2  # need to get from project setting
     
@@ -115,9 +124,9 @@ def run_inference(model, tiles, device):
         infertiles = []
         for tile in tile_batch:
             cache_key = f"{tile.image_id}_{tile.id}" ## This further suggests that we should be storing the IMAGE and the MASK seperately
-            cache_result = load_image_from_cache(cache_key)
-            if cache_result:
-                io_image, mask_image, weight = cache_result
+            cache_val = load_image_from_cache(cache_key)
+            if cache_val:
+                io_image, mask_image, weight = [decompress_from_jpeg(i) for i in cache_val]
             else:
                 io_image = load_image_from_slide(tile)
             io_images.append(io_image)
@@ -135,6 +144,6 @@ def run_inference(model, tiles, device):
                 polygons = postprocess_output(output) #some parmaeters here should be added to the class level config -- see function prototype
                 save_annotations(tile_batch[j],polygons)
 
-
+        update_tile_status(tile_batch) #now taht the batch is done, need to set seen = 2
     session.close()
     return outputs
