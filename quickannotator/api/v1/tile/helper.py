@@ -104,7 +104,7 @@ def get_tile_ids_within_bbox(tile_size: int, bbox: tuple, image_width: int, imag
 
 def get_tile_id_for_point(tile_size: int, point: tuple, grid_width: int, grid_height) -> int:
     if not (0 <= point[0] < grid_width and 0 <= point[1] < grid_height):
-        raise ValueError("Point is out of image dimensions")
+        raise ValueError(f"Point {point} is out of image dimensions (0, 0, {grid_width}, {grid_height})")
 
     x, y = point
     col = x // tile_size

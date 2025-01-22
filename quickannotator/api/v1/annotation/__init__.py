@@ -13,8 +13,8 @@ from .helper import (
     retrieve_annotation_table,
     compute_custom_metrics,
     annotation_by_id,
-    dynamically_create_model_for_table
 )
+from quickannotator.db import create_dynamic_model
 from datetime import datetime
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
@@ -72,29 +72,17 @@ class Annotation(MethodView):
     def get(self, args, image_id, annotation_class_id):
         """     returns an Annotation
         """
-        table = retrieve_annotation_table(qadb.db.session, image_id, annotation_class_id, args['is_gt'])
-
-        # stmt = table.select().where(table.c.id == args['annotation_id']).with_only_columns(
-        #     *(col for col in table.c if col.name != "polygon" and col.name != "centroid"),
-        #     table.c.centroid.ST_AsGeoJSON().label('centroid'),
-        #     table.c.polygon.ST_AsGeoJSON().label('polygon')
-        # )
-        # result = qadb.db.session.execute(stmt).first()
-
-        result = annotation_by_id(table, args['annotation_id'])
+        model = create_dynamic_model(image_id, annotation_class_id, args['is_gt'])
+        result = qadb.db.session.query(model).filter_by(id=args['annotation_id']).first()
         return result, 200
 
     @bp.arguments(PostAnnArgsSchema, location='json')
     @bp.response(200, AnnRespSchema)
     def post(self, args, image_id, annotation_class_id):
         """     process a new annotation
-
         """
-
         poly: shapely.geometry.base.BaseGeometry = shape(args['polygon'])
-
-        table = retrieve_annotation_table(qadb.db.session, image_id, annotation_class_id, args['is_gt'])
-        model = dynamically_create_model_for_table(table)
+        model = create_dynamic_model(image_id, annotation_class_id, args['is_gt'])
 
         ann = model(
             image_id=image_id,
@@ -108,22 +96,17 @@ class Annotation(MethodView):
 
         qadb.db.session.add(ann)
         qadb.db.session.commit()
-        # unfortunately the ORM doesn't return the centroid and polygon as geojson. Consider updating the GeometryField to automatically convert EWKB to geojson.
-        result = annotation_by_id(table, ann.id)
+        result = qadb.db.session.query(model).filter_by(id=ann.id).first()
         return result, 200
-    
-
 
     @bp.arguments(PutAnnArgsSchema, location='json')
     @bp.response(201, AnnRespSchema)
     def put(self, args, image_id, annotation_class_id):
         """     create or update an annotation directly in the db
-
         """
-        table = retrieve_annotation_table(qadb.db.session, image_id, annotation_class_id, args['is_gt'])
-        model = dynamically_create_model_for_table(table)
-
+        model = create_dynamic_model(image_id, annotation_class_id, args['is_gt'])
         ann = qadb.db.session.query(model).filter_by(id=args['id']).first()
+
         if ann:
             ann.centroid = shape(args['centroid']).wkt
             ann.area = args['area']
@@ -145,20 +128,22 @@ class Annotation(MethodView):
             qadb.db.session.add(ann)
         qadb.db.session.commit()
 
-        result = annotation_by_id(table, ann.id)
+        result = qadb.db.session.query(model).filter_by(id=ann.id).first()
         return result, 201
 
     @bp.arguments(DeleteAnnArgsSchema, location='query')
     def delete(self, args, image_id, annotation_class_id):
         """     delete an annotation
-
         """
-        table = retrieve_annotation_table(qadb.db.session, image_id, annotation_class_id, args['is_gt'])
+        model = create_dynamic_model(image_id, annotation_class_id, args['is_gt'])
+        ann = qadb.db.session.query(model).filter_by(id=args['annotation_id']).first()
 
-        stmt = table.delete().where(table.c.id == args['annotation_id'])
-        qadb.db.session.execute(stmt)
-        qadb.db.session.commit()
-        return {}, 204
+        if ann:
+            qadb.db.session.delete(ann)
+            qadb.db.session.commit()
+            return {}, 204
+        else:
+            return {"message": "Annotation not found"}, 404
 
 #################################################################################
 @bp.route('/<int:image_id>/<int:annotation_class_id>/search')

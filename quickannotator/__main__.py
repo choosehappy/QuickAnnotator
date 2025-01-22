@@ -51,10 +51,11 @@ if __name__ == '__main__':
     db.init_app(app)
     with app.app_context():
         event.listen(db.engine, 'connect', load_spatialite)
+        print(f"Creating tables")
         db.metadata.create_all(bind=db.engine, tables=[item.__table__ for item in models])
 
     # ------------------------ RAY SETUP ------------------------
-
+    print(f"Connecting to Ray cluster")
     context = ray.init(address=args.cluster_address, dashboard_host=get_ray_dashboard_host(), dashboard_port=get_ray_dashboard_port())
     
     print(f"Ray dashboard available at {context.dashboard_url}")
