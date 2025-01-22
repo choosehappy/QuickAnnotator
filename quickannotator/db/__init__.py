@@ -85,16 +85,22 @@ class AnnotationClass(db.Model):
 
 class Tile(db.Model):
     # primary key
-    annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), primary_key=True, nullable=False)
-    image_id = Column(Integer, ForeignKey('image.id'), primary_key=True, nullable=False)
-    tile_id = Column(Integer, primary_key=True, autoincrement=False, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # foreign keys
+    annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=False)
+    image_id = Column(Integer, ForeignKey('image.id'), nullable=False)
+    tile_id = Column(Integer, nullable=False)
 
     # columns
-    # sqlalchemy does not support autoincrement for non-primary keys
-    # id = Column(Integer, autoincrement=True, unique=True, nullable=False)
     seen = Column(Integer, nullable=False, default=0)
     hasgt = Column(Boolean, nullable=False, default=False)
     datetime = Column(DateTime, server_default=db.func.now())
+
+    # indexes
+    __table_args__ = (
+        Index('idx_annotation_class_image_tile', 'annotation_class_id', 'image_id', 'tile_id', unique=True),
+    )
     
 
 class Annotation(db.Model):

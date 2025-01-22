@@ -67,11 +67,15 @@ def tiles_within_bbox(db, image_id, annotation_class_id, x1, y1, x2, y2):
     return tiles
 
 def get_tile(session: Session, annotation_class_id: int, image_id: int, tile_id: int) -> qadb.Tile:
-    result = session.query(qadb.Tile).get((annotation_class_id, image_id, tile_id))
+    result = session.query(qadb.Tile).filter_by(
+        annotation_class_id=annotation_class_id,
+        image_id=image_id,
+        tile_id=tile_id
+    ).first()
     return result
 
 def insert_new_tile(session: Session, annotation_class_id: int, image_id: int, tile_id: int):
-    tile = qadb.Tile(annotation_class_id=annotation_class_id, image_id=image_id, id=tile_id)
+    tile = qadb.Tile(annotation_class_id=annotation_class_id, image_id=image_id, tile_id=tile_id)
     session.add(tile)
     session.commit()
 
