@@ -170,19 +170,6 @@ class SearchAnnotations(MethodView):
             result = qadb.db.session.execute(stmt).fetchall()
             return result, 200
         
-
-#################################################################################
-# @bp.route('/<int:image_id>/<int:annotation_class_id>/predict')
-# class PredictAnnotations(MethodView):
-#     """     request new DL model predictions
-#     """
-#     @bp.arguments(PostAnnArgsSchema, location='json')
-#     @bp.response(200, AnnRespSchema(many=True))
-#     def post(self, args, image_id, annotation_class_id):
-
-#         return 200
-
-#################################################################################
 @bp.route('/<int:annotation_class_id>/dryrun')
 class AnnotationDryRun(MethodView):
     @bp.arguments(PostDryRunArgsSchema, location='json')
