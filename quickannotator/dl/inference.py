@@ -4,7 +4,7 @@ import shapely.wkb
 import shapely.geometry
 import shapely.affinity
 import openslide
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from sqlalchemy.orm import sessionmaker
 from .dataset import TileDataset
 from .database import db
@@ -27,7 +27,7 @@ def load_image_from_slide(tile):
 
     image = session.query(Image).filter_by(id=tile.image_id).first()
     image_path = image.path
-    slide = openslide.OpenSlide("../" + image_path)
+    slide = openslide.OpenSlide("/opt/QuickAnnotator/quickannotator/"+image_path)
 
     tpoly = shapely.wkb.loads(tile.geom.data)
     minx, miny, maxx, maxy = tpoly.bounds #

@@ -55,7 +55,7 @@ class TileDataset(IterableDataset):
                 if not image:
                     continue
                 image_path = image.path
-                slide = openslide.OpenSlide("../" + image_path)
+                slide = openslide.OpenSlide("/opt/QuickAnnotator/quickannotator/"+image_path)
                 region = slide.read_region((int(minx), int(miny)), 0, (width, height))
                 io_image = np.array(region.convert("RGB"))
                 mask_image = np.zeros((height, width), dtype=np.uint8)
