@@ -4,7 +4,7 @@ from flask_smorest import Api, Blueprint
 import argparse
 from waitress import serve
 from quickannotator.config import config
-from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation, SearchCache
+from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation
 from quickannotator.config import get_database_uri, get_database_path, get_ray_dashboard_host, get_ray_dashboard_port
 from geoalchemy2 import load_spatialite
 from sqlalchemy import event
@@ -37,7 +37,6 @@ if __name__ == '__main__':
 
     # ------------------------ APP SETUP ------------------------
     app = Flask(__name__)
-    SearchCache.init_app(app)
     app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
 
     # ------------------------ DB SETUP ------------------------

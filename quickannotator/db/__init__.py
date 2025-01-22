@@ -1,14 +1,12 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Text, Column, Integer, DateTime, ForeignKey, JSON, Boolean, Float, event, Index, Table
 from geoalchemy2 import Geometry, load_spatialite
-from flask_caching import Cache
 from marshmallow import fields
 import geojson
 import shapely.wkb as wkb
 from sqlalchemy.ext.declarative import declarative_base
 
 db = SQLAlchemy()
-SearchCache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
 
 Base = declarative_base()
 
