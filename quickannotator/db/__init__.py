@@ -94,7 +94,8 @@ class Tile(db.Model):
     # id = Column(Integer, autoincrement=True, unique=True, nullable=False)
     seen = Column(Integer, nullable=False, default=0)
     hasgt = Column(Boolean, nullable=False, default=False)
-
+    datetime = Column(DateTime, server_default=db.func.now())
+    
 
 class Annotation(db.Model):
     """Each table will follow this naming convention: {image_id}_{annotation_class_id}_{gt/pred}"""

@@ -136,10 +136,9 @@ class Annotation(MethodView):
         """     delete an annotation
         """
         model = create_dynamic_model(image_id, annotation_class_id, args['is_gt'])
-        ann = qadb.db.session.query(model).filter_by(id=args['annotation_id']).first()
+        result = qadb.db.session.query(model).filter_by(id=args['annotation_id']).delete()
 
-        if ann:
-            qadb.db.session.delete(ann)
+        if result:
             qadb.db.session.commit()
             return {}, 204
         else:
