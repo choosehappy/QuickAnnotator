@@ -2,14 +2,11 @@ import quickannotator.db as qadb
 from sqlalchemy import func, select, text, MetaData, Table
 from sqlalchemy.orm import aliased, Session
 from typing import List
-import quickannotator.db as qadb
 import shapely.geometry
 from sqlalchemy.ext.declarative import declarative_base
-import time
 from sqlalchemy.types import DateTime
 from datetime import datetime
 import json
-import random
 from quickannotator.db import create_dynamic_model, build_annotation_table_name
 
 Base = declarative_base()
@@ -21,10 +18,9 @@ def annotations_within_bbox(table, x1, y1, x2, y2):
     result = qadb.db.session.execute(stmt).fetchall()
     return result
 
-def get_annotations_for_tile(session: Session, image_id, annotation_class_id, tile_id) -> List[qadb.Annotation]:
-    table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=True)
-    model = create_dynamic_model(table_name)
-    result = session.query(model).filter_by(tile_id=tile_id).all()
+def get_annotations_for_tile(session: Session, image_id: int, annotation_class_id: int, tile_id: int, is_gt: bool) -> List[qadb.Annotation]:
+    model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt))
+    result = qadb.db.session.query(model).filter_by(tile_id=tile_id).all()
     return result
 
 def annotations_within_bbox_spatial(table_name: str, x1: float, y1: float, x2: float, y2: float) -> List[qadb.Annotation]:
@@ -90,16 +86,6 @@ def retrieve_annotation_table(session, image_id: int, annotation_class_id: int, 
 
 def compute_custom_metrics() -> dict:
     return json.dumps({"iou": 0.5})
-
-def annotation_by_id(table, annotation_id):
-    stmt = table.select().where(table.c.id == annotation_id).with_only_columns(
-        *(col for col in table.c if col.name != "polygon" and col.name != "centroid"),
-        table.c.centroid.ST_AsGeoJSON().label('centroid'),
-        table.c.polygon.ST_AsGeoJSON().label('polygon')
-    )
-    result = qadb.db.session.execute(stmt).first()
-
-    return result
 
 def insert_new_annotation(session, image_id, annotation_class_id, is_gt, polygon: shapely.geometry.Polygon):
     table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)

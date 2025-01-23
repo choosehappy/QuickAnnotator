@@ -53,29 +53,42 @@ def get_tile(session: Session, annotation_class_id: int, image_id: int, tile_id:
     ).first()
     return result
 
-def upsert_tile(session: Session, annotation_class_id: int, image_id: int, tile_id: int, isgt: bool):
-    if isgt:
-        insert(qadb.Tile).values(
-            annotation_class_id=annotation_class_id,
-            image_id=image_id,
-            tile_id=tile_id,
-            seen=0,
-            hasgt=True
-        ).on_conflict_do_update(
-            index_elements=['annotation_class_id', 'image_id', 'tile_id'],
-            set_={'hasgt': True}
-        )
-    else:
-        insert(qadb.Tile).values(
-            annotation_class_id=annotation_class_id,
-            image_id=image_id,
-            tile_id=tile_id,
-            seen=1,
-            hasgt=False
-        ).on_conflict_do_update(
-            index_elements=['annotation_class_id', 'image_id', 'tile_id'],
-            set_={'seen': 1}
-        )
+def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: int=None, hasgt: bool=None):
+    '''
+        Inserts a new tile record into the database or updates an existing one based on the given parameters.
+        The function uses an upsert operation to either insert a new record or update an existing one
+        based on the combination of `annotation_class_id`, `image_id`, and `tile_id`.
+        Parameters:
+        - session (Session): The database session to use for the operation.
+        - annotation_class_id (int): The ID of the annotation class.
+        - image_id (int): The ID of the image.
+        - tile_id (int): The ID of the tile.
+        - seen (int): The seen status of the tile.
+        - hasgt (bool): A flag indicating whether the tile is ground truth (True) or not (False).
+        Returns:
+        - result: The result of the executed statement.
+    '''
+    update_fields = {}
+    if seen is not None:    # Only update the 'seen' field if the value is provided
+        update_fields['seen'] = seen
+    if hasgt is not None:   # Only update the 'hasgt' field if the value is provided
+        update_fields['hasgt'] = hasgt
+    
+    stmt = insert(qadb.Tile).values(
+        annotation_class_id=annotation_class_id,
+        image_id=image_id,
+        tile_id=tile_id,
+        **update_fields
+    ).on_conflict_do_update(
+        index_elements=['annotation_class_id', 'image_id', 'tile_id'],
+        set_=update_fields
+    )
+    
+    result = qadb.db.session.execute(stmt)
+    qadb.db.session.commit()
+    
+    return result
+    
 
 def get_tile_ids_within_bbox(tile_size: int, bbox: tuple, image_width: int, image_height: int) -> list:
     # Bounding box: (x1, y1, x2, y2)

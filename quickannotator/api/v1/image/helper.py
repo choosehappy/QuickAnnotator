@@ -1,7 +1,13 @@
-import openslide as ops
-import PIL
-from PIL import Image
+import quickannotator.db as qadb
+from quickannotator.db import Image
 
+
+def get_image_by_id(image_id: int) -> Image:
+    return qadb.db.session.query(Image).get(image_id)
+    
+
+# The following code is not in use - instead large_image is used for tile serving.
+'''
 def getTile(x, y, z, slide: ops.OpenSlide, tileWidth, tileHeight):
     # When we read a region from the SVS, we have to ask for it in the
     # SVS level 0 coordinate system.  Our x and y is in tile space at the
@@ -71,3 +77,5 @@ def getTile(x, y, z, slide: ops.OpenSlide, tileWidth, tileHeight):
     return self._outputTile(tile, format, x, y, z, pilImageAllowed,
                             numpyAllowed, **kwargs)
     return tile
+    
+'''

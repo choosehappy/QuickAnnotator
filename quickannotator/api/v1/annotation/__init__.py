@@ -6,16 +6,19 @@ import shapely.wkt
 from sqlalchemy import Table
 from shapely.geometry import shape, mapping
 import json
+from geojson import Point
 
 import quickannotator.db as qadb
 from .helper import (
     annotations_within_bbox_spatial,
-    retrieve_annotation_table,
     compute_custom_metrics,
-    annotation_by_id,
+    get_annotations_for_tile
 )
-from quickannotator.db import create_dynamic_model
+from quickannotator.db import create_dynamic_model, build_annotation_table_name, Image, AnnotationClass
 from datetime import datetime
+from quickannotator.api.v1.tile.helper import upsert_tile, get_tile_id_for_point
+from quickannotator.api.v1.image.helper import get_image_by_id
+from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
 
@@ -43,6 +46,9 @@ class GetAnnSearchArgsSchema(Schema):
     y2 = fields.Int(required=False)
     polygon = qadb.GeometryField(required=False)
 
+class GetAnnByTileArgsSchema(Schema):
+    is_gt = fields.Bool(required=True)
+
 class PostAnnArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
     polygon = qadb.GeometryField(required=True)
@@ -50,7 +56,6 @@ class PostAnnArgsSchema(Schema):
 class OperationArgsSchema(AnnRespSchema):
     operation = fields.Integer(required=True)  # Default 0 for union.
     polygon2 = qadb.GeometryField(required=True)    # The second polygon
-
 
 class PutAnnArgsSchema(AnnRespSchema):
     is_gt = fields.Bool(required=True)
@@ -72,70 +77,87 @@ class Annotation(MethodView):
     def get(self, args, image_id, annotation_class_id):
         """     returns an Annotation
         """
-        model = create_dynamic_model(image_id, annotation_class_id, args['is_gt'])
+        model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, args['is_gt']))
         result = qadb.db.session.query(model).filter_by(id=args['annotation_id']).first()
         return result, 200
 
     @bp.arguments(PostAnnArgsSchema, location='json')
     @bp.response(200, AnnRespSchema)
     def post(self, args, image_id, annotation_class_id):
-        """     process a new annotation
+        """     post a new annotation to the db. 
+        
+        This method is primarily used for ground truth annotations. Predictions should only by saved by the model.
         """
         poly: shapely.geometry.base.BaseGeometry = shape(args['polygon'])
-        model = create_dynamic_model(image_id, annotation_class_id, args['is_gt'])
-
+        
+        # Get the tile id.
+        # NOTE: The client is aware of the tilesize and image dimensions. Consider passing this information in the request or even calculating the tile_id client-side.
+        image: Image = get_image_by_id(image_id)
+        annotation_class: AnnotationClass = get_annotation_class_by_id(annotation_class_id)
+        tile_id = get_tile_id_for_point(annotation_class.tilesize, poly.centroid.x, poly.centroid.y, image.width, image.height)
+        
+        model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, args['is_gt']))
         ann = model(
-            image_id=image_id,
-            annotation_class_id=annotation_class_id,
-            isgt=args['is_gt'],
+            image_id=None,
+            annotation_class_id=None,
+            isgt=None,
             centroid=poly.centroid.wkt,
             area=poly.area,
             polygon=poly.wkt,
             custom_metrics=compute_custom_metrics(),
+            tile_id=tile_id,
+            datetime=datetime.now()
         )
 
         qadb.db.session.add(ann)
         qadb.db.session.commit()
-        result = qadb.db.session.query(model).filter_by(id=ann.id).first()
-        return result, 200
+        
+        if args['is_gt']:   # Not seen by the deep learning model
+            upsert_tile(annotation_class_id, image_id, tile_id, hasgt=True)
+        
+        return ann, 200
 
     @bp.arguments(PutAnnArgsSchema, location='json')
     @bp.response(201, AnnRespSchema)
     def put(self, args, image_id, annotation_class_id):
         """     create or update an annotation directly in the db
         """
-        model = create_dynamic_model(image_id, annotation_class_id, args['is_gt'])
-        ann = qadb.db.session.query(model).filter_by(id=args['id']).first()
+        model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, args['is_gt']))
 
-        if ann:
+        ann: Annotation = qadb.db.session.query(model).filter_by(id=args['id']).first()
+        
+        if ann: # Update the existing annotation
             ann.centroid = shape(args['centroid']).wkt
             ann.area = args['area']
             ann.polygon = shape(args['polygon']).wkt
             ann.custom_metrics = args['custom_metrics']
+            ann.tile_id = args['tile_id']
             ann.datetime = datetime.now()
-        else:
-            ann = model(
-                id=args['id'],
-                image_id=image_id,
-                annotation_class_id=annotation_class_id,
-                isgt=args['is_gt'],
+        else: # Create a new annotation
+            new_ann = model(
+                image_id=None,
+                annotation_class_id=None,
+                isgt=None,
                 centroid=args['centroid'],
                 area=args['area'],
                 polygon=args['polygon'],
                 custom_metrics=args['custom_metrics'],
+                tile_id=args['tile_id'],
                 datetime=datetime.now()
             )
-            qadb.db.session.add(ann)
+            qadb.db.session.add(new_ann)
         qadb.db.session.commit()
+        
+        if args['is_gt']:
+            upsert_tile(annotation_class_id, image_id, args['tile_id'], hasgt=True)
 
-        result = qadb.db.session.query(model).filter_by(id=ann.id).first()
-        return result, 201
+        return ann, 201
 
     @bp.arguments(DeleteAnnArgsSchema, location='query')
     def delete(self, args, image_id, annotation_class_id):
         """     delete an annotation
         """
-        model = create_dynamic_model(image_id, annotation_class_id, args['is_gt'])
+        model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, args['is_gt']))
         result = qadb.db.session.query(model).filter_by(id=args['annotation_id']).delete()
 
         if result:
@@ -169,6 +191,16 @@ class SearchAnnotations(MethodView):
             stmt = table.select()
             result = qadb.db.session.execute(stmt).fetchall()
             return result, 200
+        
+@bp.route('/<int:image_id>/<int:annotation_class_id>/<int:tile_id>')
+class AnnotationByTile(MethodView):
+    @bp.arguments(GetAnnByTileArgsSchema, location='query')
+    @bp.response(200, AnnRespSchema(many=True))
+    def get(self, args, image_id, annotation_class_id, tile_id):
+        """     get all annotations for a given tile
+        """
+        result = get_annotations_for_tile(image_id, annotation_class_id, tile_id, args['is_gt'])
+        return result, 200
         
 @bp.route('/<int:annotation_class_id>/dryrun')
 class AnnotationDryRun(MethodView):

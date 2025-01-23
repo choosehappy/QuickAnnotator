@@ -6,7 +6,7 @@ from pkg_resources import require
 
 import quickannotator.db as qadb
 from quickannotator.db import db
-from .helper import tiles_within_bbox, generate_random_circle_within_bbox, get_tile, compute_on_tile
+from .helper import tiles_within_bbox, generate_random_circle_within_bbox, get_tile, compute_on_tile, upsert_tile
 
 bp = Blueprint('tile', __name__, description="Tile operations")
 
@@ -95,10 +95,7 @@ class TilePredict(MethodView):
     def post(self, args):
         """     predict tiles for a given image & class
         """
-        # Update the Tile seen column to 1
-        tile = get_tile(db.session, args['annotation_class_id'], args['image_id'], args['tile_id'])
-        tile.seen = 1
-        db.session.commit()
+        upsert_tile(args['annotation_class_id'], args['image_id'], args['tile_id'], seen=1)
 
         object_ref = compute_on_tile(db=db, tile_id=args['tile_id'], sleep_time=5)
 
