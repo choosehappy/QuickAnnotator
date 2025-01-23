@@ -7,7 +7,7 @@ from pkg_resources import require
 import quickannotator.db as qadb
 from quickannotator.db import db
 from quickannotator.db import Image, AnnotationClass
-from .helper import tiles_within_bbox, generate_random_circle_within_bbox, get_tile, compute_on_tile, upsert_tile, get_tile_ids_within_bbox, get_tile_id_for_point
+from .helper import get_tile, compute_on_tile, upsert_tile, get_tile_ids_within_bbox, get_tile_id_for_point
 from quickannotator.api.v1.image.helper import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 
