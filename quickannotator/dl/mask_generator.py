@@ -4,6 +4,7 @@ import cv2
 from sqlalchemy import Table
 from sqlalchemy.orm import sessionmaker
 from .database import db
+from quickannotator.db import build_annotation_table_name
 
 def generate_binary_masks(engine):
     Session = sessionmaker(bind=engine)
@@ -18,7 +19,7 @@ def generate_binary_masks(engine):
         for tile in tiles:
             image_id = tile.image_id
             gtpred = 'gt'
-            table_name = f"{image_id}_{class_id}_{gtpred}_annotation"
+            table_name = build_annotation_table_name(image_id, class_id, gtpred == 'gt')
 
             if not engine.dialect.has_table(engine, table_name):
                 continue

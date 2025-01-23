@@ -177,8 +177,7 @@ class SearchAnnotations(MethodView):
         # Implementation
         - Will need to determine the return type. Should it be pure geojson?
         """
-        gtpred = 'gt' if args['is_gt'] else 'pred'
-        table_name = f"{image_id}_{annotation_class_id}_{gtpred}_annotation"
+        table_name = build_annotation_table_name(image_id, annotation_class_id, args['is_gt'])
         table = Table(table_name, qadb.db.metadata, autoload_with=qadb.db.engine)
 
         if "polygon" in args:

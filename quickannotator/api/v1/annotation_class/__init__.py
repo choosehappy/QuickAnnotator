@@ -41,7 +41,7 @@ class AnnotationClass(MethodView):
     def get(self, args):
         """     returns an AnnotationClass      """
 
-        result = get_annotation_class_by_id(db.session, args['annotation_class_id'])
+        result = get_annotation_class_by_id(args['annotation_class_id'])
         if result is not None:
             return result, 200
         else:

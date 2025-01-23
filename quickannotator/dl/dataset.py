@@ -5,7 +5,7 @@ from sqlalchemy import Table, inspect
 from torch.utils.data import IterableDataset
 from quickannotator.dl.database import create_db_engine, get_database_path, get_session_aj
 from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client
-from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation, SearchCache
+from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation, SearchCache, build_annotation_table_name
 import openslide
 import numpy as np
 from PIL import Image as PILImage
@@ -40,7 +40,7 @@ class TileDataset(IterableDataset):
                 io_image, mask_image, weight = [decompress_from_jpeg(i) for i in cache_val]
             else:
                 gtpred = 'gt'  # or 'pred' based on your requirement
-                table_name = f"{image_id}_{self.classid}_{gtpred}_annotation"
+                table_name = build_annotation_table_name(image_id, self.classid, gtpred == 'gt')
                 if not inspector.has_table(table_name):
                     continue
                 table = Table(table_name, db.metadata, autoload_with=engine)

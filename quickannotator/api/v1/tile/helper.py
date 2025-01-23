@@ -15,35 +15,6 @@ from sqlalchemy import create_engine
 import math
 from sqlalchemy.dialects.sqlite import insert   # NOTE: This import is necessary as there is no dialect-neutral way to call on_conflict()
 
-def tiles_within_bbox(db, image_id, annotation_class_id, x1, y1, x2, y2):
-    tm_class_id = 1
-    envelope = func.BuildMbr(x1, y1, x2, y2)
-
-    tissue_mask_tablename = f"{image_id}_{tm_class_id}_gt_annotation"
-    tissue_mask_table = Table(tissue_mask_tablename, db.metadata, autoload_with=db.engine)
-    # Step 1: Define a CTE to pre-filter polygons by the envelope
-    envelope_intersecting_polygons = (
-        db.session.query(tissue_mask_table.c.polygon)
-        .filter(tissue_mask_table.c.polygon.ST_Intersects(envelope))
-        .cte("envelope_intersecting_polygons")
-    )
-
-    # Step 2: Create an alias for the CTE to use in the main query
-    eip_alias = aliased(envelope_intersecting_polygons)
-
-    # Step 3: Main query to filter tiles by intersecting polygons
-    tiles = db.session.query(
-        *[getattr(qadb.Tile, column.name) for column in qadb.Tile.__table__.columns],
-        func.ST_AsGeoJSON(qadb.Tile.geom).label('geom')
-    ).filter(
-        qadb.Tile.image_id == image_id,
-        qadb.Tile.annotation_class_id == annotation_class_id,
-        qadb.Tile.geom.ST_Intersects(envelope),
-        exists()
-        .where(eip_alias.c.polygon.ST_Intersects(qadb.Tile.geom))
-    ).all()
-
-    return tiles
 
 def get_tile(session: Session, annotation_class_id: int, image_id: int, tile_id: int) -> qadb.Tile:
     result = session.query(qadb.Tile).filter_by(

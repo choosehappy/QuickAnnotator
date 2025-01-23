@@ -79,8 +79,7 @@ def count_annotations_within_bbox(table, x1, y1, x2, y2):
     return result
 
 def retrieve_annotation_table(session, image_id: int, annotation_class_id: int, is_gt: bool) -> Table:
-    gtpred = 'gt' if is_gt else 'pred'
-    table_name = f"{image_id}_{annotation_class_id}_{gtpred}_annotation"
+    table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
 
     return Table(table_name, qadb.db.metadata, autoload_with=session.bind)
 
