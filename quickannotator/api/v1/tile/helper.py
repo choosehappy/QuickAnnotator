@@ -13,6 +13,7 @@ import time
 import ray
 from sqlalchemy import create_engine
 import math
+from sqlalchemy.dialects.sqlite import insert   # NOTE: This import is necessary as there is no dialect-neutral way to call on_conflict()
 
 def tiles_within_bbox(db, image_id, annotation_class_id, x1, y1, x2, y2):
     tm_class_id = 1
@@ -52,10 +53,29 @@ def get_tile(session: Session, annotation_class_id: int, image_id: int, tile_id:
     ).first()
     return result
 
-def insert_new_tile(session: Session, annotation_class_id: int, image_id: int, tile_id: int):
-    tile = qadb.Tile(annotation_class_id=annotation_class_id, image_id=image_id, tile_id=tile_id)
-    session.add(tile)
-    session.commit()
+def upsert_tile(session: Session, annotation_class_id: int, image_id: int, tile_id: int, isgt: bool):
+    if isgt:
+        insert(qadb.Tile).values(
+            annotation_class_id=annotation_class_id,
+            image_id=image_id,
+            tile_id=tile_id,
+            seen=0,
+            hasgt=True
+        ).on_conflict_do_update(
+            index_elements=['annotation_class_id', 'image_id', 'tile_id'],
+            set_={'hasgt': True}
+        )
+    else:
+        insert(qadb.Tile).values(
+            annotation_class_id=annotation_class_id,
+            image_id=image_id,
+            tile_id=tile_id,
+            seen=1,
+            hasgt=False
+        ).on_conflict_do_update(
+            index_elements=['annotation_class_id', 'image_id', 'tile_id'],
+            set_={'seen': 1}
+        )
 
 def get_tile_ids_within_bbox(tile_size: int, bbox: tuple, image_width: int, image_height: int) -> list:
     # Bounding box: (x1, y1, x2, y2)
