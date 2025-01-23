@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation } from "../types.ts"
-import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation, searchAnnotationsWithinTile, predictTile } from "../helpers/api.ts";
+import { fetchTile, searchTiles, searchAnnotations, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTile, predictTile } from "../helpers/api.ts";
 import { Point, Polygon, Feature } from "geojson";
 import { responsivePropType } from 'react-bootstrap/esm/createUtilityClasses';
 
@@ -87,7 +87,7 @@ const ViewportMap = (props: Props) => {
                     return;
                 }
                 console.log(`Processing tile ${tile.id}`);
-                const resp = await searchAnnotationsWithinTile(tile, is_gt);
+                const resp = await getAnnotationsForTile(tile.image_id, tile.annotation_class_id, tile.tile_id, is_gt);
                 if (currentCallToken !== activeCallRef.current) {
                     console.log("Render cancelled.");
                     return;
@@ -370,11 +370,14 @@ const ViewportMap = (props: Props) => {
             console.log('Zooming or Panning stopped.');
             const bounds = geojs_map.current.bounds();
             console.log(bounds);
-
-            renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top, activeRenderGroundTruthsCall, true).then(() => {
+            const x1 = bounds.left;
+            const y1 = Math.abs(bounds.top);
+            const x2 = bounds.right;
+            const y2 = Math.abs(bounds.bottom);
+            renderAnnotations(x1, y1, x2, y2, activeRenderGroundTruthsCall, true).then(() => {
                 console.log("Ground truths rendered.");
             });
-            renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top, activeRenderPredictionsCall, false).then(() => {
+            renderAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall, false).then(() => {
                 console.log("Predictions rendered.");
             });
         }, 100); // Adjust this timeout duration as needed
@@ -385,7 +388,11 @@ const ViewportMap = (props: Props) => {
             console.log("Interval triggered.");
             if (geojs_map.current && props.currentImage && props.currentClass) {
                 const bounds = geojs_map.current.bounds();
-                renderAnnotations(bounds.left, bounds.bottom, bounds.right, bounds.top, activeRenderPredictionsCall, false).then(() => {
+                const x1 = bounds.left;
+                const y1 = Math.abs(bounds.top);
+                const x2 = bounds.right;
+                const y2 = Math.abs(bounds.bottom);
+                renderAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall, false).then(() => {
                     console.log("Predictions rendered.");
                 });
             }

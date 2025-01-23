@@ -94,7 +94,7 @@ export const fetchAllAnnotations = async (image_id: number, annotation_class_id:
     return await get<Annotation[]>(`/annotation/${image_id}/${annotation_class_id}/search?is_gt=${is_gt}`);
 }
 
-export const searchAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean, x1: number, y1: number, x2: number, y2: number) => {
+export const spatialSearchAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean, x1: number, y1: number, x2: number, y2: number) => {
     const query = new URLSearchParams({
         is_gt: is_gt.toString(),
         x1: x1.toString(),
@@ -105,16 +105,12 @@ export const searchAnnotations = async (image_id: number, annotation_class_id: n
     return await get<Annotation[]>(`/annotation/${image_id}/${annotation_class_id}/search?${query}`);
 }
 
-export const searchAnnotationsWithinTile = async (tile: Tile, is_gt: boolean) => {
-    const geom = JSON.parse(tile.geom.toString());
+export const getAnnotationsForTile = async (image_id: number, annotation_class_id: number, tile_id: number, is_gt: boolean) => {
+    const query = new URLSearchParams({
+        is_gt: is_gt.toString(),
+    });
 
-    const x1 = Math.round(geom.coordinates[0][0][0]);
-    const y1 = Math.round(geom.coordinates[0][0][1]);
-    const x2 = Math.round(geom.coordinates[0][2][0]);
-    const y2 = Math.round(geom.coordinates[0][2][1]);
-
-    const resp = await searchAnnotations(tile.image_id, tile.annotation_class_id, is_gt, x1, y1, x2, y2)
-    return resp
+    return await get<Annotation[]>(`/annotation/${image_id}/${annotation_class_id}/${tile_id}?${query}`);
 }
 
 // Post annotation
@@ -151,7 +147,7 @@ export const fetchAnnotationClassById = async (annotation_class_id: number) => {
     return await get<AnnotationClass>(`/class/?${query}`);
 }
 
-// Fetch annotation by ID
+// Fetch tiles by bounding box
 export const searchTiles = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number) => {
     const query = new URLSearchParams({
         image_id: image_id.toString(),
@@ -161,12 +157,12 @@ export const searchTiles = async (image_id: number, annotation_class_id: number,
         x2: x2.toString(),
         y2: y2.toString(),
     });
-    return await get<Tile[]>(`/tile/search?${query}`);
+    return await get<Tile[]>(`/tile/search/bbox?${query}`);
 }
 
 // Fetch tile by ID
-export const fetchTile = async (tile_id: number) => {
-    const query = new URLSearchParams({ tile_id: tile_id.toString() });
+export const fetchTile = async (image_id: number, annotation_class_id: number, tile_id: number) => {
+    const query = new URLSearchParams({ image_id: image_id.toString(), annotation_class_id: annotation_class_id.toString(), tile_id: tile_id.toString() });
     return await get<Tile>(`/tile?${query}`);
 }
 

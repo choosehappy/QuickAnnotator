@@ -66,9 +66,11 @@ def get_tile_ids_within_bbox(tile_size: int, bbox: tuple, image_width: int, imag
     x1, y1, x2, y2 = bbox
 
     # Verify that the bounding box is within the image dimensions
+    if not (x1 < x2 and y1 < y2):
+        raise ValueError(f"Bounding box coordinates must be monotonically increasing: {bbox}")
     if not (0 <= x1 < x2 <= image_width and 0 <= y1 < y2 <= image_height):
-        raise ValueError("Bounding box is out of image dimensions")
-    
+        raise ValueError(f"Bounding box {bbox} is out of image dimensions (0, 0, {image_width}, {image_height})")
+
     # Calculate the number of tiles per row
     tiles_per_row = math.ceil(image_width / tile_size)
 
