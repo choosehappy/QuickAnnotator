@@ -15,6 +15,7 @@ export interface AnnotationClass {
 export interface Annotation {
     id: number;
     annotation_class_id: number;
+    tile_id: number;
     polygon: Polygon;
     centroid: Point;
     area: number;
@@ -58,10 +59,12 @@ export interface Project {
 
 export interface Tile {
     id: number;
-    image_id: number;
     annotation_class_id: number;
-    geom: {};
+    image_id: number;
+    tile_id: number;
     seen: number;
+    hasgt: boolean;
+    date: Date;
 }
 
 export type OutletContextType = {
