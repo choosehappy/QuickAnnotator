@@ -6,7 +6,10 @@ from pkg_resources import require
 
 import quickannotator.db as qadb
 from quickannotator.db import db
-from .helper import tiles_within_bbox, generate_random_circle_within_bbox, get_tile, compute_on_tile, upsert_tile
+from quickannotator.db import Image, AnnotationClass
+from .helper import tiles_within_bbox, generate_random_circle_within_bbox, get_tile, compute_on_tile, upsert_tile, get_tile_ids_within_bbox, get_tile_id_for_point
+from quickannotator.api.v1.image.helper import get_image_by_id
+from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 
 bp = Blueprint('tile', __name__, description="Tile operations")
 
@@ -39,6 +42,12 @@ class SearchTileArgsSchema(Schema):
     y1 = fields.Float(required=True)
     x2 = fields.Float(required=True)
     y2 = fields.Float(required=True)
+
+class SearchTileByCoordinatesArgsSchema(Schema):
+    image_id = fields.Int(required=True)
+    annotation_class_id = fields.Int(required=True)
+    x = fields.Float(required=True)
+    y = fields.Float(required=True)
 
 class PredictTileArgsSchema(GetTileArgsSchema):
     pass
@@ -77,16 +86,31 @@ class Tile(MethodView):
 
         return 204
 
-@bp.route('/search')
+@bp.route('/search/bbox')
 class TileSearch(MethodView):
     @bp.arguments(SearchTileArgsSchema, location='query')
     @bp.response(200, TileRespSchema(many=True))
     def get(self, args):
         """     get all Tiles within a bounding box
         """
-        tiles = tiles_within_bbox(db, args['image_id'], args['annotation_class_id'], args['x1'], args['y1'], args['x2'], args['y2'])
+        image: Image = get_image_by_id(args['image_id'])
+        annotation_class: AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
+        tile_ids = get_tile_ids_within_bbox(annotation_class.tilesize, (args['x1'], args['y1'], args['x2'], args['y2']), image.width, image.height)
+        tiles = qadb.db.session.query(qadb.Tile).filter(qadb.Tile.id.in_(tile_ids)).all()
+        
         return tiles, 200
     
+@bp.route('/search/coordinates')
+class TileSearchByCoordinates(MethodView):
+    @bp.arguments(SearchTileArgsSchema, location='query')
+    @bp.response(200, TileRespSchema)
+    def get(self, args):
+        """     get a Tile for a given point
+        """
+        image: Image = get_image_by_id(args['image_id'])
+        annotation_class: AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
+        tile_id = get_tile_id_for_point(annotation_class.tilesize, (args['x'], args['y']), image.width, image.height)
+        return get_tile(db.session, args['annotation_class_id'], args['image_id'], tile_id), 200
 
 @bp.route('/predict')
 class TilePredict(MethodView):
