@@ -12,6 +12,7 @@ from multiprocessing import Process, current_process
 import time
 import ray
 from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 import math
 from sqlalchemy.dialects.sqlite import insert   # NOTE: This import is necessary as there is no dialect-neutral way to call on_conflict()
 

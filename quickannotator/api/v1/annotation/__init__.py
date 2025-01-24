@@ -8,6 +8,7 @@ from shapely.geometry import shape, mapping
 import json
 from geojson import Point
 
+
 import quickannotator.db as qadb
 from .helper import (
     annotations_within_bbox_spatial,
