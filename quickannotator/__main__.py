@@ -4,7 +4,7 @@ from flask_smorest import Api, Blueprint
 import argparse
 from waitress import serve
 from quickannotator.config import config
-from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation, SearchCache
+from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation
 from quickannotator.config import get_database_uri, get_database_path, get_ray_dashboard_host, get_ray_dashboard_port
 from geoalchemy2 import load_spatialite
 from sqlalchemy import event
@@ -37,7 +37,6 @@ if __name__ == '__main__':
 
     # ------------------------ APP SETUP ------------------------
     app = Flask(__name__)
-    SearchCache.init_app(app)
     app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
 
     # ------------------------ DB SETUP ------------------------
@@ -51,10 +50,11 @@ if __name__ == '__main__':
     db.init_app(app)
     with app.app_context():
         event.listen(db.engine, 'connect', load_spatialite)
+        print(f"Creating tables")
         db.metadata.create_all(bind=db.engine, tables=[item.__table__ for item in models])
 
     # ------------------------ RAY SETUP ------------------------
-
+    print(f"Connecting to Ray cluster")
     context = ray.init(address=args.cluster_address, dashboard_host=get_ray_dashboard_host(), dashboard_port=get_ray_dashboard_port())
     
     print(f"Ray dashboard available at {context.dashboard_url}")

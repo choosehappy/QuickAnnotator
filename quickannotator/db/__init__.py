@@ -1,16 +1,21 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Text, Column, Integer, DateTime, ForeignKey, JSON, Boolean, Float, event
+from sqlalchemy import Text, Column, Integer, DateTime, ForeignKey, JSON, Boolean, Float, event, Index, Table
 from geoalchemy2 import Geometry, load_spatialite
-from flask_caching import Cache
 from marshmallow import fields
 import geojson
-from shapely.geometry import mapping
 import shapely.wkb as wkb
+from sqlalchemy.ext.declarative import declarative_base
 
 db = SQLAlchemy()
-SearchCache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
 
+Base = declarative_base()
 
+def create_dynamic_model(table_name, base=Base):
+    class DynamicAnnotation(base):
+        __tablename__ = table_name
+        __table__ = Table(table_name, base.metadata, autoload_with=db.engine)
+    
+    return DynamicAnnotation
 
 class Project(db.Model):
     """
@@ -78,16 +83,23 @@ class AnnotationClass(db.Model):
 
 class Tile(db.Model):
     # primary key
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
 
     # foreign keys
-    image_id = Column(Integer, ForeignKey('image.id'), nullable=False)
     annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=False)
+    image_id = Column(Integer, ForeignKey('image.id'), nullable=False)
+    tile_id = Column(Integer, nullable=False)
 
     # columns
-    geom = Column(Geometry('POLYGON'))
     seen = Column(Integer, nullable=False, default=0)
+    hasgt = Column(Boolean, nullable=False, default=False)
+    datetime = Column(DateTime, server_default=db.func.now())
 
+    # indexes
+    __table_args__ = (
+        Index('idx_annotation_class_image_tile', 'annotation_class_id', 'image_id', 'tile_id', unique=True),
+    )
+    
 
 class Annotation(db.Model):
     """Each table will follow this naming convention: {image_id}_{annotation_class_id}_{gt/pred}"""
@@ -96,18 +108,23 @@ class Annotation(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     # foreign keys (these are redundant because the table name encodes the same information. But good for querying and future proofing)
-    image_id = Column(Integer, ForeignKey('image.id'), nullable=False)
-    annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=False)
+    image_id = Column(Integer, ForeignKey('image.id'), nullable=True, default=None)
+    annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=True, default=None)
+    tile_id = Column(Integer, ForeignKey('tile.tile_id'), nullable=True, default=None)
     
 
     # columns
-    isgt = Column(Boolean, nullable=False)
+    isgt = Column(Boolean, nullable=True, default=None)
     centroid = Column(Geometry('POINT'))
     area = Column(Float)
     polygon = Column(Geometry('POLYGON'))
     custom_metrics = Column(JSON)
     datetime = Column(DateTime, server_default=db.func.now())
 
+def build_annotation_table_name(image_id: int, annotation_class_id: int, is_gt: bool):
+    gtpred = 'gt' if is_gt else 'pred'
+    table_name = f"annotation_{image_id}_{annotation_class_id}_{gtpred}"
+    return table_name
 
 class Notification(db.Model):
     # primary key
