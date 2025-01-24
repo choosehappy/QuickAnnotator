@@ -100,14 +100,14 @@ const ViewportMap = (props: Props) => {
 
         let anns: Annotation[] = [];
         for (const tile of tiles) {     // For all tiles within the current viewport bounds
-            if (tilesToRender.has(tile.id)) {   // Tile is not yet rendered
+            if (tilesToRender.has(tile.tile_id)) {   // Tile is not yet rendered
                 if (currentCallToken !== activeCallRef.current) {
                     console.log("Render cancelled.");
                     return;
                 }
-                console.log(`Processing tile ${tile.id}`);
+                console.log(`Processing tile ${tile.tile_id}`);
                 const resp = await getAnnotationsForTile(tile.image_id, tile.annotation_class_id, tile.tile_id, is_gt);
-                const annotations = resp.map(annResp => new Annotation(annResp, tile.id));
+                const annotations = resp.map(annResp => new Annotation(annResp, tile.tile_id));
                 if (currentCallToken !== activeCallRef.current) {
                     console.log("Render cancelled.");
                     return;
@@ -116,7 +116,7 @@ const ViewportMap = (props: Props) => {
                 anns = anns.concat(annotations);
                 renderFunction(tile, annotations, layer);
             } else {    // Tile is already rendered
-                const data: Annotation[] = getFeatureByTileId(layerIdx, tile.id)?.data();
+                const data: Annotation[] = getFeatureByTileId(layerIdx, tile.tile_id)?.data();
                 // anns.push(...data);
                 anns = anns.concat(data);
             }
@@ -128,7 +128,7 @@ const ViewportMap = (props: Props) => {
         switch (tile.seen) {
             case 0:
                 // call compute endpoint
-                predictTile(tile.id).then((resp) => {
+                predictTile(tile.image_id, tile.annotation_class_id, tile.tile_id).then((resp) => {
                     console.log("Predicting tile. Ray object ref: ", resp.object_ref);
                 })
                 console.log("Tile not seen.");
@@ -140,7 +140,7 @@ const ViewportMap = (props: Props) => {
                 break;
             case 2:
                 console.log("Tile seen.");
-                drawPredictedPolygons({ tileId: tile.id }, annotations, layer);
+                drawPredictedPolygons({ tileId: tile.tile_id }, annotations, layer);
                 break;
             default:
                 console.log("Invalid tile seen value.");
@@ -149,7 +149,7 @@ const ViewportMap = (props: Props) => {
     };
 
     const processGroundTruthTile = (tile: Tile, annotations: Annotation[], layer: any) => {
-        const featureProps = { tileId: tile.id };
+        const featureProps = { tileId: tile.tile_id };
         drawGroundTruthPolygons(featureProps, annotations, layer);
     }
 

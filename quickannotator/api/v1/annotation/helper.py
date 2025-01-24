@@ -7,7 +7,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.types import DateTime
 from datetime import datetime
 import json
-from quickannotator.db import create_dynamic_model, build_annotation_table_name
+from quickannotator.db import create_dynamic_model, build_annotation_table_name, Annotation
 
 Base = declarative_base()
 
@@ -18,9 +18,18 @@ def annotations_within_bbox(table, x1, y1, x2, y2):
     result = qadb.db.session.execute(stmt).fetchall()
     return result
 
-def get_annotations_for_tile(session: Session, image_id: int, annotation_class_id: int, tile_id: int, is_gt: bool) -> List[qadb.Annotation]:
-    model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt))
-    result = qadb.db.session.query(model).filter_by(tile_id=tile_id).all()
+def get_annotations_for_tile(image_id: int, annotation_class_id: int, tile_id: int, is_gt: bool) -> List[dict]:
+    model: Annotation = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt))
+    result = qadb.db.session.query(
+        func.AsGeoJSON(model.centroid).label('centroid'),
+        model.area,
+        func.AsGeoJSON(model.polygon).label('polygon'),
+        model.custom_metrics,
+        model.datetime,
+        model.annotation_class_id,
+        model.tile_id
+    ).filter_by(tile_id=tile_id).all()
+    
     return result
 
 def annotations_within_bbox_spatial(table_name: str, x1: float, y1: float, x2: float, y2: float) -> List[qadb.Annotation]:

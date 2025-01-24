@@ -62,9 +62,9 @@ def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: int
     return result
     
 
-def get_tile_ids_within_bbox(tile_size: int, bbox: tuple, image_width: int, image_height: int) -> list:
+def get_tile_ids_within_bbox(tile_size: int, bbox: list[int], image_width: int, image_height: int) -> list:
     # Bounding box: (x1, y1, x2, y2)
-    x1, y1, x2, y2 = bbox
+    x1, y1, x2, y2 = map(int, bbox)
 
     # Verify that the bounding box is within the image dimensions
     if not (x1 < x2 and y1 < y2):
@@ -95,7 +95,7 @@ def get_tile_id_for_point(tile_size: int, point: tuple, grid_width: int, grid_he
     if not (0 <= point[0] < grid_width and 0 <= point[1] < grid_height):
         raise ValueError(f"Point {point} is out of image dimensions (0, 0, {grid_width}, {grid_height})")
 
-    x, y = point
+    x, y = map(int, point)
     col = x // tile_size
     row = y // tile_size
     tile_id = row * (grid_width // tile_size) + col

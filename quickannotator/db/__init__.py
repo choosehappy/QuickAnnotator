@@ -179,4 +179,3 @@ class GeometryField(fields.Field):
             return geom
         except Exception as e:
             raise ValueError(f"Invalid geometry format: {e}")
-        

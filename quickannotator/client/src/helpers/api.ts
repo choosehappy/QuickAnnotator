@@ -180,7 +180,11 @@ export const operateOnAnnotation = async (annotation: Annotation, polygon2: Poly
 }
 
 // Predict tile
-export const predictTile = async (tile_id: number) => {
-    const requestBody = { tile_id: tile_id };
+export const predictTile = async (image_id: number, annotation_class_id: number, tile_id: number) => {
+    const requestBody = { 
+        image_id: image_id, 
+        annotation_class_id: annotation_class_id, 
+        tile_id: tile_id 
+    };
     return await post<{ tile_id: number }, {object_ref: number}>(`/tile/predict`, requestBody);
 }

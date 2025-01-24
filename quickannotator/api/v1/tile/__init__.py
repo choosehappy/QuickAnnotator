@@ -96,7 +96,11 @@ class TileSearch(MethodView):
         image: Image = get_image_by_id(args['image_id'])
         annotation_class: AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
         tile_ids = get_tile_ids_within_bbox(annotation_class.tilesize, (args['x1'], args['y1'], args['x2'], args['y2']), image.width, image.height)
-        tiles = qadb.db.session.query(qadb.Tile).filter(qadb.Tile.id.in_(tile_ids)).all()
+        tiles = qadb.db.session.query(qadb.Tile).filter(
+            qadb.Tile.tile_id.in_(tile_ids),
+            qadb.Tile.image_id == args['image_id'],
+            qadb.Tile.annotation_class_id == args['annotation_class_id']
+        ).all()
         
         return tiles, 200
     
