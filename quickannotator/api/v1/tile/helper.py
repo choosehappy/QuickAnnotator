@@ -12,6 +12,7 @@ from multiprocessing import Process, current_process
 import time
 import ray
 from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 import math
 
 def tiles_within_bbox(db, image_id, annotation_class_id, x1, y1, x2, y2):
@@ -20,17 +21,8 @@ def tiles_within_bbox(db, image_id, annotation_class_id, x1, y1, x2, y2):
 
     tissue_mask_tablename = f"{image_id}_{tm_class_id}_gt_annotation"
     tissue_mask_table = Table(tissue_mask_tablename, db.metadata, autoload_with=db.engine)
-    # Step 1: Define a CTE to pre-filter polygons by the envelope
-    envelope_intersecting_polygons = (
-        db.session.query(tissue_mask_table.c.polygon)
-        .filter(tissue_mask_table.c.polygon.ST_Intersects(envelope))
-        .cte("envelope_intersecting_polygons")
-    )
 
-    # Step 2: Create an alias for the CTE to use in the main query
-    eip_alias = aliased(envelope_intersecting_polygons)
-
-    # Step 3: Main query to filter tiles by intersecting polygons
+    # Main query to filter tiles by intersecting polygons without pre-filtering
     tiles = db.session.query(
         *[getattr(qadb.Tile, column.name) for column in qadb.Tile.__table__.columns],
         func.ST_AsGeoJSON(qadb.Tile.geom).label('geom')
@@ -39,7 +31,7 @@ def tiles_within_bbox(db, image_id, annotation_class_id, x1, y1, x2, y2):
         qadb.Tile.annotation_class_id == annotation_class_id,
         qadb.Tile.geom.ST_Intersects(envelope),
         exists()
-        .where(eip_alias.c.polygon.ST_Intersects(qadb.Tile.geom))
+        .where(tissue_mask_table.c.polygon.ST_Intersects(qadb.Tile.geom))
     ).all()
 
     return tiles
