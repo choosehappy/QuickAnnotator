@@ -14,6 +14,7 @@ import ray
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import math
+import numpy as np
 from sqlalchemy.dialects.sqlite import insert   # NOTE: This import is necessary as there is no dialect-neutral way to call on_conflict()
 
 
@@ -63,14 +64,17 @@ def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: int
     
 
 def get_tile_ids_within_bbox(tile_size: int, bbox: list[int], image_width: int, image_height: int) -> list:
-    # Bounding box: (x1, y1, x2, y2)
-    x1, y1, x2, y2 = map(int, bbox)
+    # Force the bounding box to be within the image dimensions for robustness.
+    x1 = max(0, min(bbox[0], image_width))
+    y1 = max(0, min(bbox[1], image_height))
+    x2 = max(0, min(bbox[2], image_width))
+    y2 = max(0, min(bbox[3], image_height))
 
     # Verify that the bounding box is within the image dimensions
     if not (x1 < x2 and y1 < y2):
         raise ValueError(f"Bounding box coordinates must be monotonically increasing: {bbox}")
-    if not (0 <= x1 < x2 <= image_width and 0 <= y1 < y2 <= image_height):
-        raise ValueError(f"Bounding box {bbox} is out of image dimensions (0, 0, {image_width}, {image_height})")
+    # Ensure the bounding box coordinates are within the image dimensions
+
 
     # Calculate the number of tiles per row
     tiles_per_row = math.ceil(image_width / tile_size)
@@ -81,14 +85,12 @@ def get_tile_ids_within_bbox(tile_size: int, bbox: list[int], image_width: int, 
     start_row = y1 // tile_size
     end_row = math.ceil(y2 / tile_size) - 1
     
-    # Collect tile IDs
-    tile_ids = []
-    for row in range(start_row, end_row + 1):
-        for col in range(start_col, end_col + 1):
-            tile_id = row * tiles_per_row + col
+    # Create a mesh grid of tile coordinates
+    cols, rows = np.meshgrid(np.arange(start_col, end_col + 1), np.arange(start_row, end_row + 1))
 
-            tile_ids.append(tile_id)
-    
+    # Flatten the mesh grid and calculate tile IDs
+    tile_ids = (rows * tiles_per_row + cols).flatten().tolist()
+
     return tile_ids
 
 def get_tile_id_for_point(tile_size: int, point: tuple, grid_width: int, grid_height) -> int:
