@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import geo from "geojs"
-import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs } from "../types.ts"
+import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse } from "../types.ts"
 import { searchTiles, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTile, predictTile } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 
@@ -98,7 +98,8 @@ const ViewportMap = (props: Props) => {
             setAnnotations = props.setPreds;
         }
 
-        let anns: Annotation[] = [];
+        let anns = [];
+        const a = 3;
         for (const tile of tiles) {     // For all tiles within the current viewport bounds
             if (tilesToRender.has(tile.tile_id)) {   // Tile is not yet rendered
                 if (currentCallToken !== activeCallRef.current) {
@@ -389,9 +390,9 @@ const ViewportMap = (props: Props) => {
             renderAnnotations(x1, y1, x2, y2, activeRenderGroundTruthsCall, true).then(() => {
                 console.log("Ground truths rendered.");
             });
-            renderAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall, false).then(() => {
-                console.log("Predictions rendered.");
-            });
+            // renderAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall, false).then(() => {
+            //     console.log("Predictions rendered.");
+            // });
         }, 100); // Adjust this timeout duration as needed
     };
 
@@ -414,9 +415,9 @@ const ViewportMap = (props: Props) => {
                 const y1 = Math.abs(bounds.top);
                 const x2 = bounds.right;
                 const y2 = Math.abs(bounds.bottom);
-                renderAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall, false).then(() => {
-                    console.log("Predictions rendered.");
-                });
+                // renderAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall, false).then(() => {
+                //     console.log("Predictions rendered.");
+                // });
             }
         }, 500);
 

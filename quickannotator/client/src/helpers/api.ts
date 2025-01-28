@@ -110,7 +110,7 @@ export const getAnnotationsForTile = async (image_id: number, annotation_class_i
         is_gt: is_gt.toString(),
     });
 
-    return await get<Annotation[]>(`/annotation/${image_id}/${annotation_class_id}/${tile_id}?${query}`);
+    return await get<AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/${tile_id}?${query}`);
 }
 
 // Post annotation
