@@ -9,10 +9,10 @@ import json
 from geojson import Point
 
 
+from ..utils.shared_crud import compute_custom_metrics
 import quickannotator.db as qadb
 from .helper import (
     annotations_within_bbox_spatial,
-    compute_custom_metrics,
     get_annotations_for_tile
 )
 from quickannotator.db import create_dynamic_model, build_annotation_table_name, Image, AnnotationClass

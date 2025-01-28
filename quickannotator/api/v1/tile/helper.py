@@ -7,7 +7,7 @@ import shapely
 from shapely.geometry import Polygon
 import random
 import geojson
-from quickannotator.api.v1.annotation.helper import insert_new_annotation
+from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_tile
 from multiprocessing import Process, current_process
 import time
 import ray
@@ -18,13 +18,6 @@ import numpy as np
 from sqlalchemy.dialects.sqlite import insert   # NOTE: This import is necessary as there is no dialect-neutral way to call on_conflict()
 
 
-def get_tile(session: Session, annotation_class_id: int, image_id: int, tile_id: int) -> qadb.Tile:
-    result = session.query(qadb.Tile).filter_by(
-        annotation_class_id=annotation_class_id,
-        image_id=image_id,
-        tile_id=tile_id
-    ).first()
-    return result
 
 def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: int=None, hasgt: bool=None):
     '''
@@ -161,7 +154,7 @@ def remote_compute_on_tile(db_url, annotation_class_id: int, image_id: int, tile
         engine.dispose()
 
 
-def compute_on_tile(db, annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
+def compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
     db_url = db.engine.url
     ref = remote_compute_on_tile.remote(str(db_url), annotation_class_id, image_id, tile_id, sleep_time)
     return ref.hex()

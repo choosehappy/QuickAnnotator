@@ -2,11 +2,8 @@ import quickannotator.db as qadb
 from sqlalchemy import func, select, text, MetaData, Table
 from sqlalchemy.orm import aliased, Session
 from typing import List
-import shapely.geometry
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.types import DateTime
-from datetime import datetime
-import json
 from quickannotator.db import create_dynamic_model, build_annotation_table_name, Annotation
 
 Base = declarative_base()
@@ -60,25 +57,6 @@ def retrieve_annotation_table(session, image_id: int, annotation_class_id: int, 
     table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
 
     return Table(table_name, qadb.db.metadata, autoload_with=session.bind)
-
-def compute_custom_metrics() -> dict:
-    return json.dumps({"iou": 0.5})
-
-def insert_new_annotation(session, image_id, annotation_class_id, is_gt, polygon: shapely.geometry.Polygon):
-    table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
-    model = create_dynamic_model(table_name)
-
-    new_annotation = model(
-        image_id=image_id,
-        annotation_class_id=annotation_class_id,
-        isgt=is_gt,
-        centroid=polygon.centroid.wkt,
-        area=polygon.area,
-        polygon=polygon.wkt,
-        custom_metrics=compute_custom_metrics(),
-        datetime=datetime.now()
-    )
-    session.add(new_annotation)
 
 def delete_all_annotations(session, image_id: int, annotation_class_id: int, is_gt: bool):
     table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
