@@ -66,8 +66,6 @@ def get_tile_ids_within_bbox(tile_size: int, bbox: list[int], image_width: int, 
     # Verify that the bounding box is within the image dimensions
     if not (x1 < x2 and y1 < y2):
         raise ValueError(f"Bounding box coordinates must be monotonically increasing: {bbox}")
-    # Ensure the bounding box coordinates are within the image dimensions
-
 
     # Calculate the number of tiles per row
     tiles_per_row = math.ceil(image_width / tile_size)
@@ -81,20 +79,35 @@ def get_tile_ids_within_bbox(tile_size: int, bbox: list[int], image_width: int, 
     # Create a mesh grid of tile coordinates
     cols, rows = np.meshgrid(np.arange(start_col, end_col + 1), np.arange(start_row, end_row + 1))
 
-    # Flatten the mesh grid and calculate tile IDs
-    tile_ids = (rows * tiles_per_row + cols).flatten().tolist()
+    # Flatten the mesh grid and calculate tile IDs, starting at 1 instead of 0
+    tile_ids = (rows * tiles_per_row + cols + 1).flatten().tolist()
 
     return tile_ids
 
-def get_tile_id_for_point(tile_size: int, point: tuple, grid_width: int, grid_height) -> int:
-    if not (0 <= point[0] < grid_width and 0 <= point[1] < grid_height):
-        raise ValueError(f"Point {point} is out of image dimensions (0, 0, {grid_width}, {grid_height})")
-
+def get_tile_id_for_point(tile_size: int, point: tuple, image_width: int, image_height: int) -> int:
     x, y = map(int, point)
+    if not (0 <= x < image_width and 0 <= y < image_height):
+        raise ValueError(f"Point {point} is out of image dimensions (0, 0, {image_width}, {image_height})")
+
     col = x // tile_size
     row = y // tile_size
-    tile_id = row * (grid_width // tile_size) + col
+    tile_id = row * math.ceil(image_width / tile_size) + col + 1  # Adjust tile_id to start at 1
     return tile_id
+
+def get_bbox_for_tile(tile_size: int, tile_id: int, image_width: int, image_height: int) -> tuple:
+    if tile_id < 1:
+        raise ValueError(f"Tile ID must be greater than or equal to 1: {tile_id}")
+
+    tiles_per_row = math.ceil(image_width / tile_size)
+    row = tile_id // tiles_per_row
+    col = tile_id % tiles_per_row
+
+    x1 = col * tile_size
+    y1 = row * tile_size
+    x2 = x1 + tile_size
+    y2 = y1 + tile_size
+
+    return (x1, y1, x2, y2)
 
 def generate_random_circle_within_bbox(bbox: Polygon, radius: float) -> shapely.geometry.Polygon:
     minx, miny, maxx, maxy = bbox.bounds

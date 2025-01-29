@@ -7,7 +7,7 @@ from pkg_resources import require
 import quickannotator.db as qadb
 from quickannotator.db import db
 from quickannotator.db import Image, AnnotationClass
-from .helper import get_tile, compute_on_tile, upsert_tile, get_tile_ids_within_bbox, get_tile_id_for_point
+from .helper import get_tile, compute_on_tile, upsert_tile, get_tile_ids_within_bbox, get_tile_id_for_point, get_bbox_for_tile
 from quickannotator.api.v1.image.helper import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 
@@ -22,6 +22,8 @@ class TileRespSchema(SQLAlchemyAutoSchema):
 class PredictTileRespSchema(Schema):
     object_ref = fields.Str()
 
+class TileBoundingBoxRespSchema(Schema):
+    bbox = fields.Tuple((fields.Int, fields.Int, fields.Int, fields.Int))
 # ------------------------ REQUEST PARSERS ------------------------
 class GetTileArgsSchema(Schema):
     annotation_class_id = fields.Int()
@@ -86,6 +88,18 @@ class Tile(MethodView):
 
         return 204
 
+@bp.route('/bbox')
+class TileBoundingBox(MethodView):
+    @bp.arguments(GetTileArgsSchema, location='query')
+    @bp.response(200, TileBoundingBoxRespSchema)
+    def get(self, args):
+        """     get the bounding box for a given tile
+        """
+        image: Image = get_image_by_id(args['image_id'])
+        annotation_class: AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
+        bbox = get_bbox_for_tile(annotation_class.tilesize, args['tile_id'], image.width, image.height)
+        return {'bbox': bbox}, 200
+
 @bp.route('/search/bbox')
 class TileSearch(MethodView):
     @bp.arguments(SearchTileArgsSchema, location='query')
@@ -106,7 +120,7 @@ class TileSearch(MethodView):
     
 @bp.route('/search/coordinates')
 class TileSearchByCoordinates(MethodView):
-    @bp.arguments(SearchTileArgsSchema, location='query')
+    @bp.arguments(SearchTileByCoordinatesArgsSchema, location='query')
     @bp.response(200, TileRespSchema)
     def get(self, args):
         """     get a Tile for a given point

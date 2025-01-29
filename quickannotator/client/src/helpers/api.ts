@@ -124,9 +124,8 @@ export const postAnnotation = async (image_id: number, annotation_class_id: numb
 }
 
 export const putAnnotation = async (image_id: number, annotation_class_id: number, annotation: Annotation) => {
-    const { tileId, ...rest } = annotation;
     const requestBody: PutAnnArgs = {
-        ...rest,
+        ...annotation,
         is_gt: true,
     }
     return await put<PutAnnArgs, AnnotationResponse>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);;
@@ -169,14 +168,14 @@ export const fetchTile = async (image_id: number, annotation_class_id: number, t
 
 
 export const operateOnAnnotation = async (annotation: Annotation, polygon2: Polygon, operation: number) => {
-    const { tileId, ...rest } = annotation;
+    const { tile_id: tile_id, ...rest } = annotation;
     const requestBody: PostOperationArgs = {
         ...rest,
         polygon2: JSON.stringify(polygon2),
         operation: operation,
     };
 
-    return await post<PostOperationArgs, Annotation>(`/annotation/operation`, requestBody);
+    return await post<PostOperationArgs, AnnotationResponse>(`/annotation/operation`, requestBody);
 }
 
 // Predict tile

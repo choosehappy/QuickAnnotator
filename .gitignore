@@ -8,7 +8,6 @@ instance/
 *.log
 *.pyc
 *.db*
-launch.json
 data/
 _version.py
 *.sqlite

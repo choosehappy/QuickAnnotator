@@ -16,24 +16,24 @@ export interface AnnotationResponse {
     id: number;
     annotation_class_id: number;
     tile_id: number;
-    polygon: Polygon;
-    centroid: Point;
+    polygon: string;
+    centroid: string;
     area: number;
     custom_metrics: { [key: string]: unknown }
 }
 
 export class Annotation {
     id: number;
-    tileId: number | null;
     annotation_class_id: number;
+    tile_id: number | null;
     polygon: string;
     centroid: string;
     area: number;
     custom_metrics: { [key: string]: unknown }
 
-    constructor(annotation: AnnotationResponse, tileId: number | null = null) {
+    constructor(annotation: AnnotationResponse, tile_id: number | null = null) {
         this.id = annotation.id;
-        this.tileId = tileId;
+        this.tile_id = tile_id;
         this.annotation_class_id = annotation.annotation_class_id;
         this.polygon = annotation.polygon;
         this.centroid = annotation.centroid;
@@ -41,8 +41,8 @@ export class Annotation {
         this.custom_metrics = annotation.custom_metrics;
     }
 
-    setTileId(tileId: number | null) {
-        this.tileId = tileId;
+    setTileId(tile_id: number | null) {
+        this.tile_id = tile_id;
     }
 
     get parsedPolygon(): Polygon {

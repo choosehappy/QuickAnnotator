@@ -18,6 +18,7 @@ def annotations_within_bbox(table, x1, y1, x2, y2):
 def get_annotations_for_tile(image_id: int, annotation_class_id: int, tile_id: int, is_gt: bool) -> List[dict]:
     model: Annotation = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt))
     result = qadb.db.session.query(
+        model.id,
         func.AsGeoJSON(model.centroid).label('centroid'),
         model.area,
         func.AsGeoJSON(model.polygon).label('polygon'),
