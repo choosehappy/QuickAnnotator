@@ -20,7 +20,8 @@ from datetime import datetime
 from quickannotator.api.v1.tile.helper import upsert_tile, get_tile_id_for_point
 from quickannotator.api.v1.image.helper import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
-from quickannotator.api.v1.utils.shared_crud import insert_new_annotation
+from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_annotation_query
+
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
 
@@ -29,28 +30,12 @@ bp = Blueprint('annotation', __name__, description='Annotation operations')
 class AnnRespSchema(Schema):
     """     Annotation response schema      """
     id = fields.Int()
-    # image_id = fields.Int()
-    annotation_class_id = fields.Int()
     tile_id = fields.Int()
-    # isgt = fields.Bool()
-    centroid = fields.Method("get_centroid_geojson", "deserialize_centroid")
-    polygon = fields.Method("get_polygon_geojson", "deserialize_centroid")
-
+    centroid = qadb.GeometryField()
+    polygon = qadb.GeometryField()
+    area = fields.Float()
     custom_metrics = fields.Str()
 
-    def get_centroid_geojson(self, obj):
-        return obj.centroid_geojson
-
-    def get_polygon_geojson(self, obj):
-        return obj.polygon_geojson
-    
-    def deserialize_polygon(self, value):
-        return geojson.loads(value)
-    
-    def deserialize_centroid(self, value):
-        return geojson.loads(value)
-    
-    # custom_metrics = fields.Dict()
     datetime = fields.DateTime(format='iso')
 
 class GetAnnArgsSchema(Schema):
@@ -97,7 +82,7 @@ class Annotation(MethodView):
         """     returns an Annotation
         """
         model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, args['is_gt']))
-        result = qadb.db.session.query(model).filter_by(id=args['annotation_id']).first()
+        result = get_annotation_query(model).filter_by(id=args['annotation_id']).first()
         return result, 200
 
     @bp.arguments(PostAnnArgsSchema, location='json')
@@ -115,12 +100,12 @@ class Annotation(MethodView):
         annotation_class: AnnotationClass = get_annotation_class_by_id(annotation_class_id)
         tile_id = get_tile_id_for_point(annotation_class.tilesize, poly.centroid.x, poly.centroid.y, image.width, image.height)
         
-        insert_new_annotation(qadb.db.session, image_id, annotation_class_id, args['is_gt'], poly)
+        ann = insert_new_annotation(qadb.db.session, image_id, annotation_class_id, args['is_gt'], poly)
         
         if args['is_gt']:   # Not seen by the deep learning model
             upsert_tile(annotation_class_id, image_id, tile_id, hasgt=True)
 
-        ann = qadb.db.session.query(ann.__class__).filter_by(id=ann.id).first()
+        ann = get_annotation_query(ann).filter_by(id=ann.id).first()
         
         return ann, 200
 
@@ -131,7 +116,7 @@ class Annotation(MethodView):
         """
         model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, args['is_gt']))
 
-        ann: Annotation = qadb.db.session.query(model).filter_by(id=args['id']).first()
+        ann: Annotation = get_annotation_query(model).filter_by(id=args['id']).first()
         
         if ann: # Update the existing annotation
             ann.centroid = shape(args['centroid']).wkt
@@ -140,6 +125,7 @@ class Annotation(MethodView):
             ann.custom_metrics = args['custom_metrics']
             ann.tile_id = args['tile_id']
             ann.datetime = datetime.now()
+
         else: # Create a new annotation
             ann = model(
                 image_id=None,
@@ -154,11 +140,13 @@ class Annotation(MethodView):
             )
             qadb.db.session.add(ann)
         qadb.db.session.commit()
+
+        result = get_annotation_query(model).filter_by(id=ann.id).first()
         
         if args['is_gt']:
             upsert_tile(annotation_class_id, image_id, args['tile_id'], hasgt=True)
 
-        return ann, 201
+        return result, 201
 
     @bp.arguments(DeleteAnnArgsSchema, location='query')
     def delete(self, args, image_id, annotation_class_id):

@@ -18,12 +18,6 @@ def create_dynamic_model(table_name, base=Base):
         __tablename__ = table_name
         __table__ = Table(table_name, base.metadata, autoload_with=db.engine)
 
-            # Add column_property for centroid or polygon as GeoJSON, with different names
-        centroid_geojson = column_property(func.ST_AsGeoJSON(__table__.c.centroid))
-
-        polygon_geojson = column_property(func.ST_AsGeoJSON(__table__.c.polygon))
-
-    
     return DynamicAnnotation
 
 class Project(db.Model):
@@ -128,9 +122,6 @@ class Annotation(db.Model):
     polygon = Column(Geometry('POLYGON', srid=4326))  # Stored as geometry
     custom_metrics = Column(JSON)
     datetime = Column(DateTime, server_default=func.now())
-
-    centroid_geojson = column_property(func.ST_AsGeoJSON(centroid).label('centroid'))
-    polygon_geojson = column_property(func.ST_AsGeoJSON(polygon).label('polygon'))
     
 
 def build_annotation_table_name(image_id: int, annotation_class_id: int, is_gt: bool):

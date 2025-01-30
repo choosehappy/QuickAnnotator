@@ -5,6 +5,7 @@ from typing import List
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.types import DateTime
 from quickannotator.db import create_dynamic_model, build_annotation_table_name, Annotation
+from quickannotator.api.v1.utils.shared_crud import get_annotation_query
 
 Base = declarative_base()
 
@@ -15,13 +16,13 @@ def annotations_within_bbox(table, x1, y1, x2, y2):
     result = qadb.db.session.execute(stmt).fetchall()
     return result
 
-def get_annotations_for_tile(image_id: int, annotation_class_id: int, tile_id: int, is_gt: bool) -> List[dict]:
+def get_annotations_for_tile(image_id: int, annotation_class_id: int, tile_id: int, is_gt: bool) -> List[Annotation]:
     model: Annotation = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt))
-    result = qadb.db.session.query(model).filter_by(tile_id=tile_id).all()
+    result: List[Annotation] = get_annotation_query(model).filter_by(tile_id=tile_id).all()
     
     return result
 
-def annotations_within_bbox_spatial(table_name: str, x1: float, y1: float, x2: float, y2: float) -> List[qadb.Annotation]:
+def annotations_within_bbox_spatial(table_name: str, x1: float, y1: float, x2: float, y2: float) -> List[Annotation]:
     stmt = text(f'''
         SELECT ROWID, AsGeoJSON(centroid) as centroid, area, AsGeoJSON(polygon) as polygon, custom_metrics, datetime, annotation_class_id
         FROM "{table_name}"
