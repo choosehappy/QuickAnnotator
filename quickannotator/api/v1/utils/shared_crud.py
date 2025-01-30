@@ -4,7 +4,7 @@ import quickannotator.db as qadb
 from quickannotator.db import build_annotation_table_name, create_dynamic_model
 import shapely
 import json
-from sqlalchemy import func
+from sqlalchemy import func, text
 
 
 # TODO: Remove session from params
@@ -18,7 +18,7 @@ def get_tile(session: Session, annotation_class_id: int, image_id: int, tile_id:
 
 
 def compute_custom_metrics() -> dict:
-    return json.dumps({"iou": 0.5})
+    return {"iou": 0.5}
 
 # TODO: Remove session from params
 def insert_new_annotation(session, image_id, annotation_class_id, is_gt, polygon: shapely.geometry.Polygon):

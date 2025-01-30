@@ -34,7 +34,7 @@ class AnnRespSchema(Schema):
     centroid = qadb.GeometryField()
     polygon = qadb.GeometryField()
     area = fields.Float()
-    custom_metrics = fields.Str()
+    custom_metrics = fields.Dict()
 
     datetime = fields.DateTime(format='iso')
 
