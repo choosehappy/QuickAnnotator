@@ -127,7 +127,7 @@ class TileSearchByCoordinates(MethodView):
         """
         image: Image = get_image_by_id(args['image_id'])
         annotation_class: AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
-        tile_id = get_tile_id_for_point(annotation_class.tilesize, (args['x'], args['y']), image.width, image.height)
+        tile_id = get_tile_id_for_point(annotation_class.tilesize, args['x'], args['y'], image.width, image.height)
         return get_tile(db.session, args['annotation_class_id'], args['image_id'], tile_id), 200
 
 @bp.route('/predict')

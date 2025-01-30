@@ -5,6 +5,9 @@ from marshmallow import fields
 import geojson
 import shapely.wkb as wkb
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import column_property
+from sqlalchemy.sql import func
+from sqlalchemy.ext.hybrid import hybrid_property
 
 db = SQLAlchemy()
 
@@ -14,6 +17,12 @@ def create_dynamic_model(table_name, base=Base):
     class DynamicAnnotation(base):
         __tablename__ = table_name
         __table__ = Table(table_name, base.metadata, autoload_with=db.engine)
+
+            # Add column_property for centroid or polygon as GeoJSON, with different names
+        centroid_geojson = column_property(func.ST_AsGeoJSON(__table__.c.centroid))
+
+        polygon_geojson = column_property(func.ST_AsGeoJSON(__table__.c.polygon))
+
     
     return DynamicAnnotation
 
@@ -107,19 +116,22 @@ class Annotation(db.Model):
     # primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
 
-    # foreign keys (these are redundant because the table name encodes the same information. But good for querying and future proofing)
+    # foreign keys (redundant due to table naming but useful for queries and future proofing)
     image_id = Column(Integer, ForeignKey('image.id'), nullable=True, default=None)
     annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=True, default=None)
     tile_id = Column(Integer, ForeignKey('tile.tile_id'), nullable=True, default=None)
-    
 
     # columns
     isgt = Column(Boolean, nullable=True, default=None)
-    centroid = Column(Geometry('POINT'))
+    centroid = Column(Geometry('POINT', srid=4326))  # Stored as geometry
     area = Column(Float)
-    polygon = Column(Geometry('POLYGON'))
+    polygon = Column(Geometry('POLYGON', srid=4326))  # Stored as geometry
     custom_metrics = Column(JSON)
-    datetime = Column(DateTime, server_default=db.func.now())
+    datetime = Column(DateTime, server_default=func.now())
+
+    centroid_geojson = column_property(func.ST_AsGeoJSON(centroid).label('centroid'))
+    polygon_geojson = column_property(func.ST_AsGeoJSON(polygon).label('polygon'))
+    
 
 def build_annotation_table_name(image_id: int, annotation_class_id: int, is_gt: bool):
     gtpred = 'gt' if is_gt else 'pred'

@@ -1,6 +1,6 @@
 import quickannotator.db as qadb
 from sqlalchemy import func, select, text, MetaData, Table
-from sqlalchemy.orm import aliased, Session
+from sqlalchemy.orm import aliased, Session, Query
 from typing import List
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.types import DateTime
@@ -17,16 +17,7 @@ def annotations_within_bbox(table, x1, y1, x2, y2):
 
 def get_annotations_for_tile(image_id: int, annotation_class_id: int, tile_id: int, is_gt: bool) -> List[dict]:
     model: Annotation = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt))
-    result = qadb.db.session.query(
-        model.id,
-        func.AsGeoJSON(model.centroid).label('centroid'),
-        model.area,
-        func.AsGeoJSON(model.polygon).label('polygon'),
-        model.custom_metrics,
-        model.datetime,
-        model.annotation_class_id,
-        model.tile_id
-    ).filter_by(tile_id=tile_id).all()
+    result = qadb.db.session.query(model).filter_by(tile_id=tile_id).all()
     
     return result
 

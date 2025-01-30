@@ -5,6 +5,7 @@ from quickannotator.db import build_annotation_table_name, create_dynamic_model
 import shapely
 import json
 
+# TODO: Remove session from params
 def get_tile(session: Session, annotation_class_id: int, image_id: int, tile_id: int) -> qadb.Tile:
     result = session.query(qadb.Tile).filter_by(
         annotation_class_id=annotation_class_id,
@@ -17,15 +18,15 @@ def get_tile(session: Session, annotation_class_id: int, image_id: int, tile_id:
 def compute_custom_metrics() -> dict:
     return json.dumps({"iou": 0.5})
 
-
+# TODO: Remove session from params
 def insert_new_annotation(session, image_id, annotation_class_id, is_gt, polygon: shapely.geometry.Polygon):
     table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
     model = create_dynamic_model(table_name)
 
     new_annotation = model(
-        image_id=image_id,
-        annotation_class_id=annotation_class_id,
-        isgt=is_gt,
+        image_id=None,
+        annotation_class_id=None,
+        isgt=None,
         centroid=polygon.centroid.wkt,
         area=polygon.area,
         polygon=polygon.wkt,
@@ -33,4 +34,5 @@ def insert_new_annotation(session, image_id, annotation_class_id, is_gt, polygon
         datetime=datetime.now()
     )
     session.add(new_annotation)
-
+    session.commit()
+    return new_annotation
