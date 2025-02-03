@@ -100,12 +100,14 @@ class Annotation(MethodView):
         annotation_class: AnnotationClass = get_annotation_class_by_id(annotation_class_id)
         tile_id = get_tile_id_for_point(annotation_class.tilesize, poly.centroid.x, poly.centroid.y, image.width, image.height)
         
-        ann = insert_new_annotation(qadb.db.session, image_id, annotation_class_id, args['is_gt'], poly)
+        ann = insert_new_annotation(qadb.db.session, image_id, annotation_class_id, args['is_gt'], tile_id, poly)
         
         if args['is_gt']:   # Not seen by the deep learning model
             upsert_tile(annotation_class_id, image_id, tile_id, hasgt=True)
+        else:
+            raise ValueError("Predictions should only be saved by the model.")
 
-        ann = get_annotation_query(ann).filter_by(id=ann.id).first()
+        ann = get_annotation_query(ann.__class__).filter_by(id=ann.id).first()
         
         return ann, 200
 
@@ -222,7 +224,7 @@ class AnnotationOperation(MethodView):
         if operation == 0:
             union = poly1.union(poly2)
         
-            resp = {field: args[field] for field in AnnRespSchema.Meta.model.__table__.columns.keys() if field in args} # Basically a copy of args without "polygon2" or "operation"
+            resp = {field: args[field] for field in AnnRespSchema().fields.keys() if field in args} # Basically a copy of args without "polygon2" or "operation"
             # unfortunately we have to lose the dictionary format because we are mimicking the geojson string outputted by the db.
             resp['polygon'] = json.dumps(mapping(union))
             resp['centroid'] = json.dumps(mapping(union.centroid))   

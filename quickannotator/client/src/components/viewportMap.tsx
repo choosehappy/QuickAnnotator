@@ -263,12 +263,14 @@ const ViewportMap = (props: Props) => {
 
     function handleDeleteAnnotation(evt) {
         console.log("Delete annotation detected.")
-        const currentState: Annotation = ctx.current.currentAnnotation.currentState;
+        const currentAnn: CurrentAnnotation = ctx.current.currentAnnotation;
+        if (!currentAnn) return;    // Delete operation only allowed if an annotation is selected.
+
+        const currentState: Annotation | undefined = currentAnn.currentState;
         const tile_id = currentState?.tile_id;
         const currentImage: Image = ctx.current.currentImage;
         const currentClass: AnnotationClass = ctx.current.currentClass;
         const annotationId = currentState?.id;
-
 
         if (annotationId && currentImage && currentClass && tile_id) {
             removeAnnotation(currentImage.id, currentClass.id, annotationId, true).then(() => {
@@ -317,7 +319,7 @@ const ViewportMap = (props: Props) => {
                 const data = feature.data();
 
                 operateOnAnnotation(currentState, polygon2, 0).then((resp) => {
-                    const newState = new Annotation(resp, currentState.tile_id);
+                    const newState = new Annotation(resp);
                     currentAnn.addAnnotation(newState);
 
                     const updatedData = data.map((d: Annotation) => {
@@ -344,20 +346,38 @@ const ViewportMap = (props: Props) => {
                 console.log("Current annotation does not exist. Creating...")
                 postAnnotation(currentImage.id, currentClass.id, true, polygon2).then((resp) => {
                     const annotation = new Annotation(resp);
-                    const xy = annotation.parsedCentroid.coordinates;
-                    searchTiles(currentImage?.id, currentClass?.id, xy[0], xy[1], xy[0], xy[1]).then((tiles) => {
-                        if (tiles.length > 0) {
-                            const tile_id = tiles[0].id;
-                            const feature = getFeatureByTileId(layerIdxNames.gt, tile_id);
-                            const data = feature.data();
-                            annotation.setTileId(tile_id);
-                            const updatedData = data.concat(annotation);
-                            feature.data(updatedData);
-                            props.setGts((prev: Annotation[]) => prev.concat(annotation));
-                            feature.modified();
-                            feature.draw({});
-                        }
-                    });
+                    const tile_id = annotation.tile_id;
+                    if (!tile_id) {
+                        console.log("Tile ID not found.")
+                        return;
+                    }
+                    const tile_feature = getFeatureByTileId(layerIdxNames.gt, tile_id);
+
+                    if (tile_feature) { // If the tile feature has already been rendered, update the data
+                        const data = tile_feature.data();
+                        const updatedData = data.concat(annotation);
+                        tile_feature.data(updatedData);
+                        tile_feature.modified();
+                        tile_feature.draw({});
+                    } else {
+                        drawGroundTruthPolygons({}, [annotation], geojs_map.current.layers()[layerIdxNames.gt], currentClass.id);
+                    }
+                    props.setGts((prev: Annotation[]) => prev.concat(annotation));
+
+
+                    // searchTiles(currentImage?.id, currentClass?.id, xy[0], xy[1], xy[0], xy[1]).then((tiles) => {
+                    //     if (tiles.length > 0) {
+                    //         const tile_id = tiles[0].id;
+                    //         const feature = getFeatureByTileId(layerIdxNames.gt, tile_id);
+                    //         const data = feature.data();
+                    //         annotation.setTileId(tile_id);
+                    //         const updatedData = data.concat(annotation);
+                    //         feature.data(updatedData);
+                    //         props.setGts((prev: Annotation[]) => prev.concat(annotation));
+                    //         feature.modified();
+                    //         feature.draw({});
+                    //     }
+                    // });
                 });
             
             }

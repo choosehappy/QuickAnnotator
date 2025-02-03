@@ -21,7 +21,7 @@ def compute_custom_metrics() -> dict:
     return {"iou": 0.5}
 
 # TODO: Remove session from params
-def insert_new_annotation(session, image_id, annotation_class_id, is_gt, polygon: shapely.geometry.Polygon):
+def insert_new_annotation(session, image_id, annotation_class_id, is_gt, tile_id, polygon: shapely.geometry.Polygon):
     table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
     model = create_dynamic_model(table_name)
 
@@ -29,6 +29,7 @@ def insert_new_annotation(session, image_id, annotation_class_id, is_gt, polygon
         image_id=None,
         annotation_class_id=None,
         isgt=None,
+        tile_id=tile_id,
         centroid=polygon.centroid.wkt,
         polygon=polygon.wkt,
         area=polygon.area,
