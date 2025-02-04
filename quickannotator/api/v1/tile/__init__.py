@@ -40,6 +40,7 @@ class PostTileArgsSchema(Schema):
 class SearchTileArgsSchema(Schema):
     image_id = fields.Int(required=True)
     annotation_class_id = fields.Int(required=True)
+    include_ghost_tiles = fields.Bool(required=False, default=False)    # A ghost tile is a placeholder tile that has not yet been created in the database.
     x1 = fields.Float(required=True)
     y1 = fields.Float(required=True)
     x2 = fields.Float(required=True)
@@ -110,12 +111,23 @@ class TileSearch(MethodView):
         image: Image = get_image_by_id(args['image_id'])
         annotation_class: AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
         tile_ids = get_tile_ids_within_bbox(annotation_class.tilesize, (args['x1'], args['y1'], args['x2'], args['y2']), image.width, image.height)
-        tiles = qadb.db.session.query(qadb.Tile).filter(
+        
+
+        query = qadb.db.session.query(qadb.Tile).filter(
             qadb.Tile.tile_id.in_(tile_ids),
             qadb.Tile.image_id == args['image_id'],
             qadb.Tile.annotation_class_id == args['annotation_class_id']
-        ).all()
+        )
         
+        tiles = query.all()
+
+        if args['include_ghost_tiles']:
+            within_bbox = set(tile_ids)
+            within_bbox_and_database = set([tile.tile_id for tile in tiles])
+            ghost_tile_ids = within_bbox - within_bbox_and_database
+            ghost_tiles = [qadb.Tile(tile_id=tile_id, image_id=args['image_id'], annotation_class_id=args['annotation_class_id']) for tile_id in ghost_tile_ids]
+            
+            tiles.extend(ghost_tiles)
         return tiles, 200
     
 @bp.route('/search/coordinates')

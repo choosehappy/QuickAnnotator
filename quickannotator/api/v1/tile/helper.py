@@ -5,6 +5,7 @@ from sqlalchemy.orm import aliased, sessionmaker, Session
 from sqlalchemy import exists, event
 import shapely
 from shapely.geometry import Polygon
+import shapely.wkb as wkb
 import random
 import geojson
 from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_tile
@@ -16,8 +17,10 @@ from sqlalchemy.orm import sessionmaker
 import math
 import numpy as np
 from sqlalchemy.dialects.sqlite import insert   # NOTE: This import is necessary as there is no dialect-neutral way to call on_conflict()
-
-
+from quickannotator.api.v1.utils.shared_crud import get_annotation_query
+from quickannotator.db import build_annotation_table_name, create_dynamic_model, Annotation
+from quickannotator.api.v1.image.helper import get_image_by_id
+from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 
 def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: int=None, hasgt: bool=None):
     '''
@@ -107,6 +110,22 @@ def get_bbox_for_tile(tile_size: int, tile_id: int, image_width: int, image_heig
     y2 = y1 + tile_size
 
     return (x1, y1, x2, y2)
+
+def tile_intersects_mask(image_id: int, annotatation_class_id: int, tile_id: int) -> bool:
+    image = get_image_by_id(image_id)
+    tilesize = get_annotation_class_by_id(annotatation_class_id).tilesize
+
+    bbox = get_bbox_for_tile(tilesize, tile_id, image.width, image.height)
+    model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id=1, is_gt=True))
+    mask_annotations = db.session.query(model).all()
+
+    if mask_annotations:
+        bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
+        for ann in mask_annotations:
+            if bbox_polygon.intersects(wkb.loads(ann.polygon.data)):
+                return True
+    
+    return False
 
 def generate_random_circle_within_bbox(bbox: Polygon, radius: float) -> shapely.geometry.Polygon:
     minx, miny, maxx, maxy = bbox.bounds
