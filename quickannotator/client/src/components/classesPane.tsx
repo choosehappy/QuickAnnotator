@@ -12,10 +12,10 @@ const ClassesPane = (props: Props) => {
     const [classes, setClasses] = useState<AnnotationClass[]>([]);
     useEffect(() => {
         fetchAnnotationClasses().then((resp) => {
-            setClasses(resp);
+            setClasses(resp.data);
         })
         fetchAnnotationClassById(2).then((resp) => {
-            props.setCurrentClass(resp);
+            props.setCurrentClass(resp.data);
         });
     }, []);
 

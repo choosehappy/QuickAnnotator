@@ -9,7 +9,7 @@ interface FetchOptions extends RequestInit {
 const API_URL = '/api/v1';
 
 // GET request method
-export const get = async <T>(url: string, options: FetchOptions = {}): ApiResponse<T> => {
+export const get = async <T>(url: string, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
     const response = await fetch(`${API_URL}${url}`, {
         method: 'GET',
         headers: {
@@ -18,15 +18,13 @@ export const get = async <T>(url: string, options: FetchOptions = {}): ApiRespon
         },
         ...options,
     });
-    if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-    }
     const text = await response.text();
-    return text ? JSON.parse(text) : {};
+    const data = text ? JSON.parse(text) : {};
+    return { data, status: response.status };
 };
 
 // POST request method
-export const post = async <U, T>(url: string, data: U, options: FetchOptions = {}): ApiResponse<T> => {
+export const post = async <U, T>(url: string, data: U, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
     const response = await fetch(`${API_URL}${url}`, {
         method: 'POST',
         headers: {
@@ -36,14 +34,12 @@ export const post = async <U, T>(url: string, data: U, options: FetchOptions = {
         body: JSON.stringify(data),
         ...options,
     });
-    if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-    }
-    return response.json();
+    const responseData = await response.json();
+    return { data: responseData, status: response.status };
 };
 
 // PUT request method
-export const put = async <T, U>(url: string, data: U, options: FetchOptions = {}): ApiResponse<T> => {
+export const put = async <T, U>(url: string, data: U, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
     const response = await fetch(`${API_URL}${url}`, {
         method: 'PUT',
         headers: {
@@ -53,14 +49,12 @@ export const put = async <T, U>(url: string, data: U, options: FetchOptions = {}
         body: JSON.stringify(data),
         ...options,
     });
-    if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-    }
-    return response.json();
+    const responseData = await response.json();
+    return { data: responseData, status: response.status };
 };
 
 // DELETE request method
-export const remove = async <T>(url: string, options: FetchOptions = {}): ApiResponse<T> => {
+export const remove = async <T>(url: string, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
     const response = await fetch(`${API_URL}${url}`, {
         method: 'DELETE',
         headers: {
@@ -69,12 +63,9 @@ export const remove = async <T>(url: string, options: FetchOptions = {}): ApiRes
         },
         ...options,
     });
-    if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-    }
-
     const text = await response.text();
-    return text ? JSON.parse(text) : {};
+    const data = text ? JSON.parse(text) : {};
+    return { data, status: response.status };
 };
 
 // Fetch image by ID
@@ -114,9 +105,8 @@ export const getAnnotationsForTile = async (image_id: number, annotation_class_i
 }
 
 // Post annotation
-export const postAnnotation = async (image_id: number, annotation_class_id: number, is_gt: boolean, polygon: Polygon) => {
+export const postAnnotation = async (image_id: number, annotation_class_id: number, polygon: Polygon) => {
     const requestBody: PostAnnArgs = {
-        is_gt: is_gt,
         polygon: JSON.stringify(polygon),
     };
 
@@ -148,10 +138,12 @@ export const fetchAnnotationClassById = async (annotation_class_id: number) => {
 }
 
 // Fetch tiles by bounding box
-export const searchTiles = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number) => {
+export const searchTiles = async (image_id: number, annotation_class_id: number, hasgt: boolean, include_placeholder_tiles: boolean, x1: number, y1: number, x2: number, y2: number) => {
     const query = new URLSearchParams({
         image_id: image_id.toString(),
         annotation_class_id: annotation_class_id.toString(),
+        hasgt: hasgt.toString(),
+        include_placeholder_tiles: include_placeholder_tiles.toString(),
         x1: x1.toString(),
         y1: y1.toString(),
         x2: x2.toString(),

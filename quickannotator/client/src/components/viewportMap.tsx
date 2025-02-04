@@ -67,7 +67,8 @@ const ViewportMap = (props: Props) => {
         if (!props.currentImage || !props.currentClass) return;
 
         const currentCallToken = ++activeCallRef.current;
-        const tiles = await searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2);  // Tiles may be shared by both layers. Consider pushing this to a shared state.
+        const resp = await searchTiles(props.currentImage.id, props.currentClass.id, is_gt, !is_gt, x1, y1, x2, y2);  // Tiles may be shared by both layers. Consider pushing this to a shared state.
+        const tiles = resp.data;
         const layerIdx = is_gt ? layerIdxNames.gt : layerIdxNames.pred;
         const layer = geojs_map.current.layers()[layerIdx];
 
@@ -107,7 +108,7 @@ const ViewportMap = (props: Props) => {
                 }
                 console.log(`Processing tile ${tile.tile_id}`);
                 const resp = await getAnnotationsForTile(tile.image_id, tile.annotation_class_id, tile.tile_id, is_gt);
-                const annotations = resp.map(annResp => new Annotation(annResp));
+                const annotations = resp.data.map(annResp => new Annotation(annResp));
                 if (currentCallToken !== activeCallRef.current) {
                     console.log("Render cancelled.");
                     return;
@@ -129,7 +130,7 @@ const ViewportMap = (props: Props) => {
             case 0:
                 // call compute endpoint
                 predictTile(tile.image_id, tile.annotation_class_id, tile.tile_id).then((resp) => {
-                    console.log("Predicting tile. Ray object ref: ", resp.object_ref);
+                    console.log("Predicting tile. Ray object ref: ", resp.data.object_ref);
                 })
                 console.log("Tile not seen.");
 
@@ -156,7 +157,7 @@ const ViewportMap = (props: Props) => {
     const renderTissueMask = async (map: geo.map) => {  // The renderTissueMask function does not currently work...
         if (!props.currentImage || !props.currentClass) return;
         const resp = await fetchAllAnnotations(props.currentImage.id, props.currentClass.id, true);
-        const annotations = resp.map(annResp => new Annotation(annResp));
+        const annotations = resp.data.map(annResp => new Annotation(annResp));
         drawGroundTruthPolygons({}, annotations, map);
         props.setGts(annotations);
     }
@@ -319,7 +320,7 @@ const ViewportMap = (props: Props) => {
                 const data = feature.data();
 
                 operateOnAnnotation(currentState, polygon2, 0).then((resp) => {
-                    const newState = new Annotation(resp);
+                    const newState = new Annotation(resp.data);
                     currentAnn.addAnnotation(newState);
 
                     const updatedData = data.map((d: Annotation) => {
@@ -344,40 +345,29 @@ const ViewportMap = (props: Props) => {
 
             } else {    // if currentAnnotation does not exist, create a new annotation in the database.
                 console.log("Current annotation does not exist. Creating...")
-                postAnnotation(currentImage.id, currentClass.id, true, polygon2).then((resp) => {
-                    const annotation = new Annotation(resp);
-                    const tile_id = annotation.tile_id;
-                    if (!tile_id) {
-                        console.log("Tile ID not found.")
-                        return;
-                    }
-                    const tile_feature = getFeatureByTileId(layerIdxNames.gt, tile_id);
-
-                    if (tile_feature) { // If the tile feature has already been rendered, update the data
-                        const data = tile_feature.data();
-                        const updatedData = data.concat(annotation);
-                        tile_feature.data(updatedData);
-                        tile_feature.modified();
-                        tile_feature.draw({});
+                postAnnotation(currentImage.id, currentClass.id, polygon2).then((resp) => {
+                    if (resp.status === 200) {
+                        const annotation = new Annotation(resp.data);
+                        const tile_id = annotation.tile_id;
+                        if (!tile_id) {
+                            console.log("Tile ID not found.")
+                            return;
+                        }
+                        const tile_feature = getFeatureByTileId(layerIdxNames.gt, tile_id);
+    
+                        if (tile_feature) { // If the tile feature has already been rendered, update the data
+                            const data = tile_feature.data();
+                            const updatedData = data.concat(annotation);
+                            tile_feature.data(updatedData);
+                            tile_feature.modified();
+                            tile_feature.draw({});
+                        } else {
+                            drawGroundTruthPolygons({}, [annotation], geojs_map.current.layers()[layerIdxNames.gt], currentClass.id);
+                        }
+                        props.setGts((prev: Annotation[]) => prev.concat(annotation));
                     } else {
-                        drawGroundTruthPolygons({}, [annotation], geojs_map.current.layers()[layerIdxNames.gt], currentClass.id);
+
                     }
-                    props.setGts((prev: Annotation[]) => prev.concat(annotation));
-
-
-                    // searchTiles(currentImage?.id, currentClass?.id, xy[0], xy[1], xy[0], xy[1]).then((tiles) => {
-                    //     if (tiles.length > 0) {
-                    //         const tile_id = tiles[0].id;
-                    //         const feature = getFeatureByTileId(layerIdxNames.gt, tile_id);
-                    //         const data = feature.data();
-                    //         annotation.setTileId(tile_id);
-                    //         const updatedData = data.concat(annotation);
-                    //         feature.data(updatedData);
-                    //         props.setGts((prev: Annotation[]) => prev.concat(annotation));
-                    //         feature.modified();
-                    //         feature.draw({});
-                    //     }
-                    // });
                 });
             
             }

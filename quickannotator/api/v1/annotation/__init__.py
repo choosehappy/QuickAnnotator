@@ -17,7 +17,7 @@ from .helper import (
 )
 from quickannotator.db import create_dynamic_model, build_annotation_table_name, Image, AnnotationClass
 from datetime import datetime
-from quickannotator.api.v1.tile.helper import upsert_tile, get_tile_id_for_point
+from quickannotator.api.v1.tile.helper import upsert_tile, get_tile_id_for_point, tile_intersects_mask
 from quickannotator.api.v1.image.helper import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_annotation_query
@@ -37,6 +37,7 @@ class AnnRespSchema(Schema):
     custom_metrics = fields.Dict()
 
     datetime = fields.DateTime(format='iso')
+    message = fields.Str()
 
 class GetAnnArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
@@ -54,7 +55,6 @@ class GetAnnByTileArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
 
 class PostAnnArgsSchema(Schema):
-    is_gt = fields.Bool(required=True)
     polygon = qadb.GeometryField(required=True)
 
 class OperationArgsSchema(AnnRespSchema):
@@ -100,12 +100,12 @@ class Annotation(MethodView):
         annotation_class: AnnotationClass = get_annotation_class_by_id(annotation_class_id)
         tile_id = get_tile_id_for_point(annotation_class.tilesize, poly.centroid.x, poly.centroid.y, image.width, image.height)
         
-        ann = insert_new_annotation(qadb.db.session, image_id, annotation_class_id, args['is_gt'], tile_id, poly)
+        ann = insert_new_annotation(qadb.db.session, image_id, annotation_class_id, True, tile_id, poly)
         
-        if args['is_gt']:   # Not seen by the deep learning model
+        if tile_intersects_mask(image_id, annotation_class_id, tile_id):
             upsert_tile(annotation_class_id, image_id, tile_id, hasgt=True)
         else:
-            raise ValueError("Predictions should only be saved by the model.")
+            return {"message": "Tile does not intersect with the tissue mask and will not be inserted."}, 400
 
         ann = get_annotation_query(ann.__class__).filter_by(id=ann.id).first()
         
