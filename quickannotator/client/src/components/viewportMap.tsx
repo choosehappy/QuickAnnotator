@@ -107,7 +107,7 @@ const ViewportMap = (props: Props) => {
                 }
                 console.log(`Processing tile ${tile.tile_id}`);
                 const resp = await getAnnotationsForTile(tile.image_id, tile.annotation_class_id, tile.tile_id, is_gt);
-                const annotations = resp.map(annResp => new Annotation(annResp, tile.tile_id));
+                const annotations = resp.map(annResp => new Annotation(annResp));
                 if (currentCallToken !== activeCallRef.current) {
                     console.log("Render cancelled.");
                     return;
