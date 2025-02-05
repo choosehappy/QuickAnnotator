@@ -61,7 +61,7 @@ class Image(db.Model):
 
     # relationships
     notifications = db.relationship("Notification", backref='image', lazy=True)
-    tile = db.relationship('Tile', backref='image', lazy=True)
+    # tile = db.relationship('Tile', backref='image', lazy=True)
 
 
 class AnnotationClass(db.Model):
@@ -81,7 +81,7 @@ class AnnotationClass(db.Model):
     datetime = Column(DateTime, server_default=db.func.now())
 
     # relationships
-    db.relationship("Tile", backref='annotation_class', lazy=True)
+    # db.relationship("Tile", backref='annotation_class', lazy=True)
 
 
 class Tile(db.Model):
@@ -97,6 +97,10 @@ class Tile(db.Model):
     seen = Column(Integer, nullable=False, default=0)
     hasgt = Column(Boolean, nullable=False, default=False)
     datetime = Column(DateTime, server_default=db.func.now())
+
+    # relationships
+    image = db.relationship('Image', backref='tiles')
+    annotation_class = db.relationship('AnnotationClass', backref='tiles')
 
     # indexes
     __table_args__ = (

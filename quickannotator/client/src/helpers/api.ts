@@ -113,9 +113,10 @@ export const postAnnotation = async (image_id: number, annotation_class_id: numb
     return await post<PostAnnArgs, AnnotationResponse>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);
 }
 
-export const putAnnotation = async (image_id: number, annotation_class_id: number, annotation: Annotation) => {
+export const putAnnotation = async (image_id: number, annotation: Annotation) => {
+    const { annotation_class_id, ...rest } = annotation;
     const requestBody: PutAnnArgs = {
-        ...annotation,
+        ...rest,
         is_gt: true,
     }
     return await put<PutAnnArgs, AnnotationResponse>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);;
@@ -160,7 +161,7 @@ export const fetchTile = async (image_id: number, annotation_class_id: number, t
 
 
 export const operateOnAnnotation = async (annotation: Annotation, polygon2: Polygon, operation: number) => {
-    const { tile_id: tile_id, ...rest } = annotation;
+    const { annotation_class_id, ...rest } = annotation;
     const requestBody: PostOperationArgs = {
         ...rest,
         polygon2: JSON.stringify(polygon2),

@@ -31,10 +31,10 @@ export class Annotation {
     area: number;
     custom_metrics: { [key: string]: unknown }
 
-    constructor(annotation: AnnotationResponse) {
+    constructor(annotation: AnnotationResponse, annotation_class_id: number) {
         this.id = annotation.id;
         this.tile_id = annotation.tile_id;
-        this.annotation_class_id = annotation.annotation_class_id;
+        this.annotation_class_id = annotation_class_id;
         this.polygon = annotation.polygon;
         this.centroid = annotation.centroid;
         this.area = annotation.area;

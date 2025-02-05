@@ -162,15 +162,19 @@ def remote_compute_on_tile(db_url, annotation_class_id: int, image_id: int, tile
         # Start a session for the task
         with Session() as session:
             # Example: load the tile and process
+            # breakpoint()
             tile = get_tile(session, annotation_class_id, image_id, tile_id)  # Replace with your actual function to get the tile
+            annotation_class: qadb.AnnotationClass = tile.annotation_class
+            image: qadb.Image = tile.image
             image_id: int = tile.image_id
             annotation_class_id: int = tile.annotation_class_id
 
             # Process the tile (using shapely for example)
-            bbox = shapely.wkb.loads(tile.geom.data)
+            bbox = get_bbox_for_tile(annotation_class.tilesize, tile_id, image.width, image.height)
+            bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
             for _ in range(random.randint(20, 40)):
-                polygon = generate_random_circle_within_bbox(bbox, 100)
-                insert_new_annotation(session, image_id, annotation_class_id, is_gt=False, polygon=polygon)
+                polygon = generate_random_circle_within_bbox(bbox_polygon, 100)
+                insert_new_annotation(session, image_id, annotation_class_id, is_gt=False, tile_id=tile_id, polygon=polygon)
 
             # Mark tile as processed
             tile.seen = 2

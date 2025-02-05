@@ -118,7 +118,8 @@ class Annotation(MethodView):
         """
         model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, args['is_gt']))
 
-        ann: Annotation = get_annotation_query(model).filter_by(id=args['id']).first()
+        # We get the full ORM object here so that we can set values.
+        ann: Annotation = qadb.db.session.query(model).filter_by(id=args['id']).first()
         
         if ann: # Update the existing annotation
             ann.centroid = shape(args['centroid']).wkt
@@ -145,8 +146,7 @@ class Annotation(MethodView):
 
         result = get_annotation_query(model).filter_by(id=ann.id).first()
         
-        if args['is_gt']:
-            upsert_tile(annotation_class_id, image_id, args['tile_id'], hasgt=True)
+        upsert_tile(annotation_class_id, image_id, args['tile_id'], hasgt=True)
 
         return result, 201
 
