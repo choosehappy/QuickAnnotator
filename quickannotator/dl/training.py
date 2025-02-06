@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 
-from quickannotator.dl.inference import run_inference, getTileStatus
+from quickannotator.dl.inference import run_inference, getPendingInferenceTiles
 from .dataset import TileDataset
 import io
 import albumentations as A
@@ -37,38 +37,70 @@ def get_transforms(tile_size): #probably goes...elsewhere
 
 
 def train_model(config):
+    #---------AJ Place holder code - DO NOT REMOVE
+    # print(f"{os.environ['CUDA_VISIBLE_DEVICES']=}")
+    # localrank=ray.train.get_context().get_local_rank()
+    # worldsize=ray.train.get_context().get_local_world_size()
+    # print("my local rank",localrank)
+    # print("my local worldsize",worldsize)
+
+    # noderank=ray.train.get_context().get_node_rank()
+    # worldrank=ray.train.get_context().get_world_rank()
+    # print("my node rank",noderank)
+    # print("my worldrank",worldrank)
+    
+    # print("creating model")
+    # model = resnet18(num_classes=10)
+
+    # print("figuring out local device")
+    # cuda_dev=torch.device('cuda',localrank)
+    # print("local device is: ",cuda_dev)
+    # print(" now moving")
+    # model.to(cuda_dev)
+    
+    # print("prepping model")
+    # #model=ray.train.torch.prepare_model(model,cuda_dev)
+    # model=ray.train.torch.prepare_model(model,move_to_device=False)
+    #---------
+
+    #TODO: likely need to accept here the checkpoint location
     is_train = config.get("is_train",True) # else True #default to training
     allow_pred = config.get("allow_pred",True) #default to enable predts
     classid = config["classid"] # --- this should result in a catastrophic failure if not provided
     tile_size = config["tile_size"] #probably this as well
-    # from project settings
+    #TODO: all these from project settings
     num_epochs=10 # probably needs to be huge, or potentially even Inf
     batch_size=1
     edge_weight=2
+    num_workers=4
 
-    dataset=TileDataset(classid, edge_weight=edge_weight, transforms=get_transforms(tile_size))
+    dataset=TileDataset(classid, tile_size=tile_size, edge_weight=edge_weight, transforms=get_transforms(tile_size))
 
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
-    model = smp.Unet(encoder_name="timm-mobilenetv3_small_100", encoder_weights="imagenet", in_channels=3, classes=1)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False,num_workers=num_workers) #NOTE: for dataset of type iter - shuffle must == False
+
+    model = smp.Unet(encoder_name="timm-mobilenetv3_small_100", encoder_weights="imagenet", in_channels=3, classes=1) #TODO: this should be a setting
     criterion = nn.BCEWithLogitsLoss(reduction='none')
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.001) #TODO: this should be a setting
     
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #TODO: AJ - convert to ray dist train code
     
-    model = model.to(device)
+    model = model.to(device) #TODO: need to load previous weights if they exist here
 
 
-    if tiles := getTileStatus(classid): #to be moved into for loop
+    if tiles := getPendingInferenceTiles(classid): #to be moved into for loop
         print(f"running inference on {len(tiles)}")
-        run_inference(model, tiles, device)
-
+        run_inference(model, tiles, device) #TODO: AJ - massive to do - this function needs to delegate work to workers correctly
+    
+    if not is_train: #technically, i think we can start this function just to do inference if needed - otherwise not clear to me how we'll get stuff predicted
+        return
+    
     for epoch in range(num_epochs):
         model.train()
-        running_loss = 0.0
+        running_loss = []
         for images, masks, weights in tqdm(dataloader):
 
 
-            if tiles := getTileStatus(classid):
+            if tiles := getPendingInferenceTiles(classid):
                 print(f"running inference on {len(tiles)}")
                 run_inference(model, tiles, device)
 
@@ -93,9 +125,12 @@ def train_model(config):
             
             optimizer.step()
             
-            running_loss += loss_total.item()
+            running_loss.append(loss_total.item())
             
             print("losses:\t",loss_total,positive_mask.sum(),positive_loss,unlabeled_loss)
+            #TODO: add a timer here to save the model every so often
 
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {running_loss/len(dataloader)}")
+        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {sum(running_loss)/len(running_loss)}")
+        running_loss=[]
+
     print("Training complete")

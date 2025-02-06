@@ -8,10 +8,10 @@ import openslide
 from sqlalchemy.orm import sessionmaker
 from .dataset import TileDataset
 from .database import db
-from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation, SearchCache
+from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation
 from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client
 from quickannotator.dl.database import create_db_engine, get_database_path, get_session_aj
-import cv2
+import cv2, os
 from sqlalchemy import Table
 
 
@@ -22,15 +22,15 @@ def load_image_from_cache(cache_key): ## probably doesn't need to be a function.
             
 
 
-def load_image_from_slide(tile):
+def load_image_from_slide(tile): #TODO: i suspect this sort of function exists elsewhere within QA to serve tiles to the front end? change to merge functionality?
     session = get_session_aj(create_db_engine(get_database_path()))
 
     image = session.query(Image).filter_by(id=tile.image_id).first()
     image_path = image.path
-    slide = openslide.OpenSlide("/opt/QuickAnnotator/quickannotator/"+image_path)
+    slide = openslide.OpenSlide(os.path.join("/opt/QuickAnnotator/quickannotator", image_path))
 
     tpoly = shapely.wkb.loads(tile.geom.data)
-    minx, miny, maxx, maxy = tpoly.bounds #
+    minx, miny, maxx, maxy = tpoly.bounds #TODO: this seems incorrect - i feel like this information should be pulled from a system table and readily avaialble and not needing to be computed on a per tile basis
     width = int(maxx - minx)
     height = int(maxy - miny)
 
@@ -56,7 +56,7 @@ def postprocess_output(outputs, min_area = 100, dilate_kernel = 2): ## These sho
     polygons = [shapely.geometry.Polygon(contour[:, 0, :]) for contour in contours if cv2.contourArea(contour) >= min_area]
     return polygons
 
-def save_annotations(tile,polygons):
+def save_annotations(tile,polygons): #TODO: i feel like this function likely exists elsewhere in the system as well?
     gtpred = 'pred'
     table_name = f"{tile.image_id}_{tile.annotation_class_id}_{gtpred}_annotation"
     table = Table(table_name, db.metadata, autoload_with=create_db_engine(get_database_path()))
@@ -66,7 +66,7 @@ def save_annotations(tile,polygons):
 
     new_annotations = []
     for polygon in polygons:
-        translated_polygon = shapely.affinity.translate(polygon, xoff=minx, yoff=miny)
+        translated_polygon = shapely.affinity.translate(polygon, xoff=minx, yoff=miny) #elegant
         area = translated_polygon.area
         centroid = translated_polygon.centroid
         
@@ -78,7 +78,7 @@ def save_annotations(tile,polygons):
             'isgt': False,
             'centroid': centroid.wkt
         }
-        print("new anno!\t\t:",new_annotation["image_id"],new_annotation["annotation_class_id"])
+        print("new anno!\t\t:",new_annotation["image_id"],new_annotation["annotation_class_id"]) #TODO: push to logging or remove
         new_annotations.append(new_annotation)
     #print(new_annotations)
     
@@ -87,13 +87,13 @@ def save_annotations(tile,polygons):
     session.commit()
 
 
-def getTileStatus(classid):
-    import sqlalchemy, datetime
+def getPendingInferenceTiles(classid):
+    import sqlalchemy, datetime #gross - but i'm afraid of removing and breaeking something :)
     from quickannotator.dl.database import create_db_engine, get_database_path, get_session_aj
-    from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation, SearchCache
+    from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation
 
     session = get_session_aj(create_db_engine(get_database_path()))
-    stmt = session.query(Tile).filter(Tile.annotation_class_id == classid, Tile.seen == 1)
+    stmt = session.query(Tile).filter(Tile.annotation_class_id == classid, Tile.seen == 1) #TODO: ==1 should be converted to a named  ENUM
     
     result = stmt.all()
     
@@ -102,7 +102,7 @@ def getTileStatus(classid):
     return result
 
 
-def batch_iterable(iterable, tile_batch_size):
+def batch_iterable(iterable, tile_batch_size): #TODO: check version of python in container -- a function like this is avaialble  in itertools and should be used instead
     for i in range(0, len(iterable), tile_batch_size):
         yield iterable[i:i + tile_batch_size]
 
@@ -110,20 +110,20 @@ def batch_iterable(iterable, tile_batch_size):
 def update_tile_status(tile_batch):
     session = get_session_aj(create_db_engine(get_database_path())) #should have some error checking a context manager
     for tile in tile_batch:
-        tile.seen = 2
+        tile.seen = 2 #TODO: replace with named enum
     session.bulk_save_objects(tile_batch)  # Bulk operation for efficiency
     session.commit()  # Commit changes
 
 def run_inference(model, tiles, device):
     session = get_session_aj(create_db_engine(get_database_path()))
 
-    infer_tile_batch_size = 2  # need to get from project setting
+    infer_tile_batch_size = 2  #TODO: need to get from project setting
     
     for tile_batch in batch_iterable(tiles, infer_tile_batch_size):
         io_images = []
         infertiles = []
         for tile in tile_batch:
-            cache_key = f"{tile.image_id}_{tile.id}" ## This further suggests that we should be storing the IMAGE and the MASK seperately
+            cache_key = f"{tile.image_id}_{tile.id}" ##TODO: This further suggests that we should be storing the IMAGE and the MASK seperately
             cache_val = load_image_from_cache(cache_key)
             if cache_val:
                 io_image, mask_image, weight = [decompress_from_jpeg(i) for i in cache_val]

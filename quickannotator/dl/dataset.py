@@ -5,25 +5,49 @@ from sqlalchemy import Table, inspect
 from torch.utils.data import IterableDataset
 from quickannotator.dl.database import create_db_engine, get_database_path, get_session_aj
 from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client
-from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation, SearchCache, build_annotation_table_name
+from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation, build_annotation_table_name
 import openslide
 import numpy as np
 from PIL import Image as PILImage
 import scipy.ndimage
 import cv2
-
+import ray
+import ray.train
+import torch
 
 class TileDataset(IterableDataset):
-    def __init__(self, classid, transforms=None, edge_weight=0):
+    def __init__(self, classid, tile_size,transforms=None, edge_weight=0):
         self.classid = classid
         self.transforms = transforms
         self.edge_weight = edge_weight
-
+        self.tile_size = tile_size
+        
+        
+    def getWorkersTiles(self):
+        #note that we sort by reverse datetime - and then "pull out" alternating tiles based on worker ID
+        #this in theory means if there are 6 new tiles, and 6 GPUs, each GPU will get one of the new tiles before moving to "less recent"
         session = get_session_aj(create_db_engine(get_database_path()))
-        self.tiles = session.query(Tile)\
-                                    .filter(Tile.annotation_class_id == self.classid)\
-                                    .all() 
-        print(f"{len(self.tiles)=}")
+        tiles = session.query(Tile)\
+                    .filter(Tile.annotation_class_id == self.classid, Tile.hasgt == True)\
+                    .order_by(Tile.datetime.desc())\
+                    .all() 
+        world_size= ray.train.get_context().get_world_size()
+        world_rank= ray.train.get_context().get_world_rank()
+        
+        if world_size > 1: #filter down to entire list of tiles which should be seen by this GPU
+            worker_tiles= [tile for idx, tile in enumerate(tiles) if idx % world_size == world_rank]
+        else:
+            worker_tiles = tiles
+
+        pytorch_worker_info = torch.utils.data.get_worker_info()
+        if pytorch_worker_info is None:  # single-process data loading, return the full iterator
+            final_tiles= worker_tiles
+        else: #further filter down to tiles which should be seen by *this* pytorch worker
+            num_workers = pytorch_worker_info.num_workers
+            worker_id = pytorch_worker_info.id
+            final_tiles = [worker_tile for idx, worker_tile in enumerate(worker_tiles) if idx % num_workers == worker_id]
+
+        return final_tiles
         
 
     def __iter__(self):
@@ -31,43 +55,69 @@ class TileDataset(IterableDataset):
         engine = create_db_engine(get_database_path())
         inspector = inspect(engine)
         client = get_memcached_client() ## client should be a "self" variable
-        for tile in self.tiles:
+        tiles = self.getWorkersTiles()
+
+        for tile in tiles: #TODO: if this list is very long, and a new tile is added, it won't appear until the current queue is depleated
             image_id = tile.image_id
-            tile_id = tile.id
-            cache_key = f"{image_id}_{tile_id}"
-            cache_val = client.get(cache_key)
-            if cache_val:
-                io_image, mask_image, weight = [decompress_from_jpeg(i) for i in cache_val]
+            tile_id = tile.tile_id
+            
+            img_cache_key = f"img_{image_id}_{tile_id}"
+            mask_cache_key = f"mask_{image_id}_{tile_id}"
+            cache_vals = client.get_multi([img_cache_key, mask_cache_key])
+            img_cache_val = cache_vals.get(img_cache_key)
+            mask_cache_val = cache_vals.get(mask_cache_key)
+
+            #-------- if there are no annotations, immediatelyt move on
+            gtpred = 'gt'
+            table_name = build_annotation_table_name(image_id, self.classid, gtpred == 'gt')
+            if not inspector.has_table(table_name):
+                continue
+            table = Table(table_name, db.metadata, autoload_with=engine)
+            
+            annotations = session.query(table).filter(table.c.tile_id==tile_id).all()
+            
+            if len(annotations) == 0: # would be strange given how things are set up?
+                continue
+            #----
+
+            if img_cache_val:
+                io_image = decompress_from_jpeg(img_cache_val[0])
+                row,col = img_cache_val[1]
             else:
-                gtpred = 'gt'  # or 'pred' based on your requirement
-                table_name = build_annotation_table_name(image_id, self.classid, gtpred == 'gt')
-                if not inspector.has_table(table_name):
-                    continue
-                table = Table(table_name, db.metadata, autoload_with=engine)
-                annotations = session.query(table).filter(table.c.polygon.ST_Within(tile.geom)).all()
-                if len(annotations) == 0:
-                    continue
-                tpoly = shapely.wkb.loads(tile.geom.data)
-                minx, miny, maxx, maxy = tpoly.bounds
-                width = int(maxx - minx)
-                height = int(maxy - miny)
+
+                
                 image = session.query(Image).filter_by(id=image_id).first()
                 if not image:
                     continue
                 image_path = image.path
-                slide = openslide.OpenSlide("/opt/QuickAnnotator/quickannotator/"+image_path)
-                region = slide.read_region((int(minx), int(miny)), 0, (width, height))
+                slide = openslide.OpenSlide("/opt/QuickAnnotator/quickannotator/"+image_path) #TODO: janky 
+
+
+                #TODO: should be moved to a project wide available utility function
+                tiles_per_row = np.ceil(image.width / self.tile_size) #width comes from DB
+                row = tile_id // (tiles_per_row) * self.tile_size #seems right - but should check
+                col = tile_id % (tiles_per_row) * self.tile_size
+
+                region = slide.read_region((int(col), int(row)), 0, (self.tile_size, self.tile_size)) #note: row/col swap is intentional, read_region is  x,y
                 io_image = np.array(region.convert("RGB"))
-                mask_image = np.zeros((height, width), dtype=np.uint8)
+                client.set(img_cache_key, [compress_to_jpeg(io_image), (row,col)])
+            
+
+            if mask_cache_val:
+                mask_image, weight = [decompress_from_jpeg(i) for i in mask_cache_val]
+            else:
+                mask_image = np.zeros((self.tile_size, self.tile_size), dtype=np.uint8) #TODO: maybe should be moved to a project wide available utility function? not sure
                 for annotation in annotations:
                     annotation_polygon = shapely.wkb.loads(annotation.polygon.data)
-                    translated_polygon = shapely.affinity.translate(annotation_polygon, xoff=-minx, yoff=-miny)
+                    translated_polygon = shapely.affinity.translate(annotation_polygon, xoff=-col, yoff=-row)
                     cv2.fillPoly(mask_image, [np.array(translated_polygon.exterior.coords, dtype=np.int32)], 1)
                 if self.edge_weight:
                     weight = scipy.ndimage.morphology.binary_dilation(mask_image, iterations=2) & ~mask_image
                 else:
                     weight = np.ones(mask_image.shape, dtype=mask_image.dtype)
-                client.set(cache_key, [compress_to_jpeg(i) for i in (io_image, mask_image, weight)])
+                client.set(mask_cache_key, [compress_to_jpeg(i) for i in (mask_image, weight)])
+
+
             img_new = io_image
             mask_new = mask_image
             weight_new = weight
