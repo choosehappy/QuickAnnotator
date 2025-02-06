@@ -21,6 +21,7 @@ from quickannotator.api.v1.utils.shared_crud import get_annotation_query
 from quickannotator.db import build_annotation_table_name, create_dynamic_model, Annotation
 from quickannotator.api.v1.image.helper import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
+import cv2
 
 def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: int=None, hasgt: bool=None):
     '''
@@ -82,8 +83,8 @@ def get_tile_ids_within_bbox(tile_size: int, bbox: list[int], image_width: int, 
     # Create a mesh grid of tile coordinates
     cols, rows = np.meshgrid(np.arange(start_col, end_col + 1), np.arange(start_row, end_row + 1))
 
-    # Flatten the mesh grid and calculate tile IDs, starting at 1 instead of 0
-    tile_ids = (rows * tiles_per_row + cols + 1).flatten().tolist()
+    # Flatten the mesh grid and calculate tile IDs
+    tile_ids = (rows * tiles_per_row + cols).flatten().tolist()
 
     return tile_ids
 
@@ -93,8 +94,16 @@ def get_tile_id_for_point(tile_size: int, x: int, y: int, image_width: int, imag
 
     col = x // tile_size
     row = y // tile_size
-    tile_id = row * math.ceil(image_width / tile_size) + col + 1  # Adjust tile_id to start at 1
+    tile_id = row * math.ceil(image_width / tile_size) + col
     return tile_id
+
+def get_tile_id_for_rc_index(tile_size: int, row: int, col: int, image_width: int, image_height: int) -> int:
+    tile_id = row * math.ceil(image_width / tile_size) + col
+    return tile_id
+
+def get_all_tile_ids_for_image(tile_size: int, image_width: int, image_height: int) -> list:
+    total_tiles = math.ceil(image_width / tile_size) * math.ceil(image_height / tile_size)
+    return list(range(total_tiles))
 
 def get_bbox_for_tile(tile_size: int, tile_id: int, image_width: int, image_height: int) -> tuple:
     if tile_id < 1:
@@ -126,6 +135,39 @@ def tile_intersects_mask(image_id: int, annotatation_class_id: int, tile_id: int
                 return True
     
     return False
+
+def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask_dilation: int) -> list:
+    image = get_image_by_id(image_id)
+    tilesize = get_annotation_class_by_id(annotation_class_id).tilesize
+    
+    # Load GeoJSON mask (assuming polygon)
+    model = create_dynamic_model(build_annotation_table_name(image_id, 1, is_gt=True))
+    mask_geojson = get_annotation_query(model).all()
+
+    polygons = []
+
+    for annotation in mask_geojson:
+        polygon = shapely.from_geojson(annotation.polygon)
+        dilated_polygon = polygon.buffer(mask_dilation)
+        scaled_polygon = np.floor((np.array(dilated_polygon.exterior.coords).astype(np.float64)) / tilesize).astype(np.int32)
+        polygons.append(scaled_polygon)
+
+
+    # Create empty mask image
+    mask_shape = np.ceil(np.array([image.height, image.width]) / tilesize).astype(np.int32)
+    mask = np.zeros(mask_shape, dtype=np.uint8)
+    
+    # Draw filled mask
+    cv2.fillPoly(mask, polygons, 255)
+    
+    # Get non-zero (filled) pixels
+    filled_rows, filled_cols = np.nonzero(mask)
+    
+    # Convert pixel coordinates to tile IDs
+    tile_ids = [get_tile_id_for_rc_index(tilesize, row, col, image.width, image.height) for row, col in zip(filled_rows, filled_cols)]
+
+    return tile_ids
+
 
 def generate_random_circle_within_bbox(bbox: Polygon, radius: float) -> shapely.geometry.Polygon:
     minx, miny, maxx, maxy = bbox.bounds
