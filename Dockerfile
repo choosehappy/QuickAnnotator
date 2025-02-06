@@ -35,7 +35,7 @@ RUN apt-get install -y nodejs
 
 RUN mkdir -p /opt/QuickAnnotator
 WORKDIR /opt/QuickAnnotator
-COPY ./pyproject.toml /opt/QuickAnnotator
+COPY ./pyproject.toml /opt/QuickAnnotator/pyproject.toml
 
 # Install uv
 RUN pip install uv
@@ -45,9 +45,9 @@ ENV UV_VENV_PATH="/opt/uv_venv"
 RUN source $UV_VENV_PATH/bin/activate
 RUN uv pip install -r <(uv pip compile pyproject.toml)
 
-# Install node dependencies
-WORKDIR /opt/
-RUN npm install QuickAnnotator/quickannotator/client
-ENV NODE_PATH=/opt/node_modules
+# # Install node dependencies
+# WORKDIR /opt/
+# RUN npm install QuickAnnotator/quickannotator/client
+# ENV NODE_PATH=/opt/node_modules
 
 WORKDIR /opt/QuickAnnotator

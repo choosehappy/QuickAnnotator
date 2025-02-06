@@ -30,5 +30,7 @@
 	"runArgs": [
 		"--gpus", "all",
 		"--shm-size=8G"
-	]
+	],
+
+	"postCreateCommand": "uv pip install -e ."
 }
