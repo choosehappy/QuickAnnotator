@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04
+FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
 
 CMD nvidia-smi
 
@@ -21,6 +21,10 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
          procps \
          libopenslide0 \
          curl \
+         ffmpeg \
+         libsm6 \
+         libxext6 \
+         memcached \
          # development tools
          git \
          vim 
@@ -31,17 +35,15 @@ RUN apt-get install -y nodejs
 
 RUN mkdir -p /opt/QuickAnnotator
 WORKDIR /opt/QuickAnnotator
-COPY . /opt/QuickAnnotator
+COPY ./pyproject.toml /opt/QuickAnnotator
 
-ENV PATH="/opt/venv/bin:$PATH"
+# Install uv
+RUN pip install uv
 
-RUN python3 -m venv /opt/venv \
-    && /opt/venv/bin/python -m pip install --upgrade pip \
-    && /opt/venv/bin/pip install -e .
-
-# Install development python dependencies
-RUN /opt/venv/bin/pip install tqdm \
-                            ipykernel
+# Create a virtual environment for uv and install all dependencies
+ENV UV_VENV_PATH="/opt/uv_venv"
+RUN source $UV_VENV_PATH/bin/activate
+RUN uv pip install -r <(uv pip compile pyproject.toml)
 
 # Install node dependencies
 WORKDIR /opt/
