@@ -17,7 +17,7 @@ from .helper import (
 )
 from quickannotator.db import create_dynamic_model, build_annotation_table_name, Image, AnnotationClass
 from datetime import datetime
-from quickannotator.api.v1.tile.helper import upsert_tile, get_tile_id_for_point, tile_intersects_mask
+from quickannotator.api.v1.tile.helper import upsert_tile, point_to_tileid, tile_intersects_mask
 from quickannotator.api.v1.image.helper import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_annotation_query
@@ -98,7 +98,7 @@ class Annotation(MethodView):
         # NOTE: The client is aware of the tilesize and image dimensions. Consider passing this information in the request or even calculating the tile_id client-side.
         image: Image = get_image_by_id(image_id)
         annotation_class: AnnotationClass = get_annotation_class_by_id(annotation_class_id)
-        tile_id = get_tile_id_for_point(annotation_class.tilesize, poly.centroid.x, poly.centroid.y, image.width, image.height)
+        tile_id = point_to_tileid(annotation_class.tilesize, poly.centroid.x, poly.centroid.y, image.width, image.height)
         
         ann = insert_new_annotation(qadb.db.session, image_id, annotation_class_id, True, tile_id, poly)
         

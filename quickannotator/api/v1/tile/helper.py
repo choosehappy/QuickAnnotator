@@ -88,20 +88,20 @@ def get_tile_ids_within_bbox(tile_size: int, bbox: list[int], image_width: int, 
 
     return tile_ids
 
-def get_tile_id_for_point(tile_size: int, x: int, y: int, image_width: int, image_height: int) -> int:
+def point_to_tileid(tile_size: int, x: int, y: int, image_width: int, image_height: int) -> int:
     if not (0 <= x < image_width and 0 <= y < image_height):
         raise ValueError(f"Point {x}, {y} is out of image dimensions (0, 0, {image_width}, {image_height})")
 
     col = x // tile_size
     row = y // tile_size
+    tile_id = rc_to_tileid(tile_size, row, col, image_width, image_height)
+    return tile_id
+
+def rc_to_tileid(tile_size: int, row: int, col: int, image_width: int, image_height: int) -> int:
     tile_id = row * math.ceil(image_width / tile_size) + col
     return tile_id
 
-def get_tile_id_for_rc_index(tile_size: int, row: int, col: int, image_width: int, image_height: int) -> int:
-    tile_id = row * math.ceil(image_width / tile_size) + col
-    return tile_id
-
-def get_rc_index_for_tile_id(tile_size: int, tile_id: int, image_width: int, image_height: int) -> tuple:
+def tileid_to_rc(tile_size: int, tile_id: int, image_width: int, image_height: int) -> tuple:
     tiles_per_row = math.ceil(image_width / tile_size)
     row = tile_id // tiles_per_row
     col = tile_id % tiles_per_row
@@ -115,9 +115,7 @@ def get_bbox_for_tile(tile_size: int, tile_id: int, image_width: int, image_heig
     if tile_id < 1:
         raise ValueError(f"Tile ID must be greater than or equal to 1: {tile_id}")
 
-    tiles_per_row = math.ceil(image_width / tile_size)
-    row = tile_id // tiles_per_row
-    col = tile_id % tiles_per_row
+    row, col = tileid_to_rc(tile_size, tile_id, image_width, image_height)
 
     x1 = col * tile_size
     y1 = row * tile_size
@@ -178,7 +176,7 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
     filled_rows, filled_cols = np.nonzero(mask)
     
     # Convert pixel coordinates to tile IDs
-    tile_ids = [get_tile_id_for_rc_index(tilesize, row, col, image.width, image.height) for row, col in zip(filled_rows, filled_cols)]
+    tile_ids = [rc_to_tileid(tilesize, row, col, image.width, image.height) for row, col in zip(filled_rows, filled_cols)]
 
     return tile_ids, mask, polygons
 

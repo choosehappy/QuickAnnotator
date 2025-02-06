@@ -7,7 +7,7 @@ from pkg_resources import require
 import quickannotator.db as qadb
 from quickannotator.db import db
 from quickannotator.db import Image, AnnotationClass
-from .helper import get_tile, compute_on_tile, upsert_tile, get_tile_ids_within_bbox, get_tile_id_for_point, get_bbox_for_tile, get_tile_ids_intersecting_mask
+from .helper import get_tile, compute_on_tile, upsert_tile, get_tile_ids_within_bbox, point_to_tileid, get_bbox_for_tile, get_tile_ids_intersecting_mask
 from quickannotator.api.v1.image.helper import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 
@@ -144,7 +144,7 @@ class TileSearchByCoordinates(MethodView):
         """
         image: Image = get_image_by_id(args['image_id'])
         annotation_class: AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
-        tile_id = get_tile_id_for_point(annotation_class.tilesize, args['x'], args['y'], image.width, image.height)
+        tile_id = point_to_tileid(annotation_class.tilesize, args['x'], args['y'], image.width, image.height)
         return get_tile(db.session, args['annotation_class_id'], args['image_id'], tile_id), 200
 
 @bp.route('/predict')
