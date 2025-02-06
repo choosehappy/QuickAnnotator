@@ -7,7 +7,7 @@ from pkg_resources import require
 import quickannotator.db as qadb
 from quickannotator.db import db
 from quickannotator.db import Image, AnnotationClass
-from .helper import get_tile, compute_on_tile, upsert_tile, get_tile_ids_within_bbox, get_tile_id_for_point, get_bbox_for_tile, tile_intersects_mask
+from .helper import get_tile, compute_on_tile, upsert_tile, get_tile_ids_within_bbox, get_tile_id_for_point, get_bbox_for_tile, get_tile_ids_intersecting_mask
 from quickannotator.api.v1.image.helper import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 
@@ -41,7 +41,7 @@ class PostTileArgsSchema(Schema):
 class SearchTileArgsSchema(Schema):
     image_id = fields.Int(required=True)
     annotation_class_id = fields.Int(required=True)
-    hasgt = fields.Bool(required=False, default=None)
+    hasgt = fields.Bool(required=False)
     include_placeholder_tiles = fields.Bool(required=False, default=False)    # A placeholder tile is a placeholder tile that has not yet been created in the database.
     x1 = fields.Float(required=True)
     y1 = fields.Float(required=True)
@@ -112,24 +112,24 @@ class TileSearch(MethodView):
         """
         image: Image = get_image_by_id(args['image_id'])
         annotation_class: AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
-        tile_ids = get_tile_ids_within_bbox(annotation_class.tilesize, (args['x1'], args['y1'], args['x2'], args['y2']), image.width, image.height)
-        
+        tile_ids_in_bbox = get_tile_ids_within_bbox(annotation_class.tilesize, (args['x1'], args['y1'], args['x2'], args['y2']), image.width, image.height)
+        tile_ids_in_mask, _, _ = get_tile_ids_intersecting_mask(args['image_id'], args['annotation_class_id'], mask_dilation=1)
+        ids = set(tile_ids_in_bbox) & set(tile_ids_in_mask)
 
         query = qadb.db.session.query(qadb.Tile).filter(
-            qadb.Tile.tile_id.in_(tile_ids),
+            qadb.Tile.tile_id.in_(ids),
             qadb.Tile.image_id == args['image_id'],
             qadb.Tile.annotation_class_id == args['annotation_class_id']
         )
 
-        if args['hasgt'] is not None:
+        if 'hasgt' in args:
             query = query.filter(qadb.Tile.hasgt == args['hasgt'])
         
         tiles = query.all()
 
         if args['include_placeholder_tiles']:
-            within_bbox = set(tile_ids)
-            within_bbox_and_database = set([tile.tile_id for tile in tiles])
-            placeholder_tile_ids = within_bbox - within_bbox_and_database
+            existing_ids = set([tile.tile_id for tile in tiles])
+            placeholder_tile_ids = ids - existing_ids
             placeholder_tiles = [qadb.Tile(tile_id=tile_id, image_id=args['image_id'], annotation_class_id=args['annotation_class_id'], seen=0, hasgt=False) for tile_id in placeholder_tile_ids]
             
             tiles.extend(placeholder_tiles)
@@ -154,12 +154,8 @@ class TilePredict(MethodView):
     def post(self, args):
         """     predict tiles for a given image & class
         """
-        if tile_intersects_mask(args['image_id'], args['annotation_class_id'], args['tile_id']):
-            upsert_tile(args['annotation_class_id'], args['image_id'], args['tile_id'], seen=1)
+        upsert_tile(args['annotation_class_id'], args['image_id'], args['tile_id'], seen=1)
 
-            object_ref = compute_on_tile(args['annotation_class_id'], args['image_id'], tile_id=args['tile_id'], sleep_time=5)
-            return {'object_ref': object_ref}, 201
-        else:
-            return {'message': 'Tile does not intersect the tissue mask and will not be inserted.'}, 400
-
+        object_ref = compute_on_tile(args['annotation_class_id'], args['image_id'], tile_id=args['tile_id'], sleep_time=5)
+        return {'object_ref': object_ref}, 201
         
