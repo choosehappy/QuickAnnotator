@@ -15,6 +15,7 @@
 
 	// Add -v tag to mount a data directory
 	"mounts": [
+		"source=${localWorkspaceFolder},target=/opt/QuickAnnotator,type=bind,consistency=cached",
 		"source=qa_data,target=/opt/QuickAnnotator/quickannotator/data,type=volume",
 		"source=qadb_data,target=/opt/QuickAnnotator/quickannotator/instance,type=volume"
 	],
@@ -24,6 +25,10 @@
 		"vscode": {
 		  "extensions": ["ms-python.python", "alexcvzz.vscode-sqlite", "ms-toolsai.jupyter"]
 		}
-	  }
+	},
 
+	"runArgs": [
+		"--gpus", "all",
+		"--shm-size=8G"
+	]
 }

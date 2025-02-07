@@ -1,4 +1,5 @@
-FROM nvidia/cuda:11.0.3-cudnn8-devel-ubuntu20.04
+FROM nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04
+
 CMD nvidia-smi
 
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" --no-install-recommends \
@@ -12,7 +13,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
          libglib2.0-0 \
          libjpeg-dev \
          libpng-dev \
-         gcc gfortran libopenblas-dev liblapack-dev cython \
+         gcc gfortran libopenblas-dev liblapack-dev cython3 \
          sqlite3 \
          libsqlite3-dev \
          libsqlite3-mod-spatialite \
@@ -32,19 +33,19 @@ RUN mkdir -p /opt/QuickAnnotator
 WORKDIR /opt/QuickAnnotator
 COPY . /opt/QuickAnnotator
 
-ENV PATH="/opt/QuickAnnotator/venv/bin:$PATH"
+ENV PATH="/opt/venv/bin:$PATH"
 
-
-RUN python3 -m venv venv \
-    && python3 -m pip install --upgrade pip \
-    && pip install -e .
+RUN python3 -m venv /opt/venv \
+    && /opt/venv/bin/python -m pip install --upgrade pip \
+    && /opt/venv/bin/pip install -e .
 
 # Install development python dependencies
-RUN pip install tqdm \
-                ipykernel
+RUN /opt/venv/bin/pip install tqdm \
+                            ipykernel
 
 # Install node dependencies
-WORKDIR /opt/QuickAnnotator/quickannotator/client
-RUN npm install .
+WORKDIR /opt/
+RUN npm install QuickAnnotator/quickannotator/client
+ENV NODE_PATH=/opt/node_modules
 
 WORKDIR /opt/QuickAnnotator
