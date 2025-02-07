@@ -2,11 +2,12 @@ import shapely.wkb
 import numpy as np
 import cv2
 from sqlalchemy import Table, inspect
-from quickannotator.db.helper import build_annotation_table_name
+from quickannotator.db.utils import build_annotation_table_name
+from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
 from torch.utils.data import IterableDataset
 from quickannotator.dl.database import create_db_engine, get_database_path, get_session_aj
 from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client
-from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation, SearchCache
+from quickannotator.db import db, SearchCache
 import openslide
 import numpy as np
 from PIL import Image as PILImage

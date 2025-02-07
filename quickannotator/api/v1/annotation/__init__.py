@@ -8,7 +8,9 @@ import json
 from geojson import Point
 import geojson
 
-from quickannotator.db.helper import build_annotation_table_name, create_dynamic_model
+import quickannotator.db.models
+from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from quickannotator.db.models import Image
 
 
 from ..utils.shared_crud import compute_custom_metrics
@@ -17,7 +19,7 @@ from .helper import (
     annotations_within_bbox_spatial,
     get_annotations_for_tile
 )
-from quickannotator.db import Image, AnnotationClass
+from quickannotator.db.models import AnnotationClass
 from datetime import datetime
 from quickannotator.api.v1.tile.helper import upsert_tile, point_to_tileid, tile_intersects_mask
 from quickannotator.api.v1.image.helper import get_image_by_id
@@ -33,8 +35,8 @@ class AnnRespSchema(Schema):
     """     Annotation response schema      """
     id = fields.Int()
     tile_id = fields.Int()
-    centroid = qadb.GeometryField()
-    polygon = qadb.GeometryField()
+    centroid = quickannotator.db.models.GeometryField()
+    polygon = quickannotator.db.models.GeometryField()
     area = fields.Float()
     custom_metrics = fields.Dict()
 
@@ -51,17 +53,17 @@ class GetAnnSearchArgsSchema(Schema):
     y1 = fields.Int(required=False)
     x2 = fields.Int(required=False)
     y2 = fields.Int(required=False)
-    polygon = qadb.GeometryField(required=False)
+    polygon = quickannotator.db.models.GeometryField(required=False)
 
 class GetAnnByTileArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
 
 class PostAnnArgsSchema(Schema):
-    polygon = qadb.GeometryField(required=True)
+    polygon = quickannotator.db.models.GeometryField(required=True)
 
 class OperationArgsSchema(AnnRespSchema):
     operation = fields.Integer(required=True)  # Default 0 for union.
-    polygon2 = qadb.GeometryField(required=True)    # The second polygon
+    polygon2 = quickannotator.db.models.GeometryField(required=True)    # The second polygon
 
 class PutAnnArgsSchema(AnnRespSchema):
     is_gt = fields.Bool(required=True)

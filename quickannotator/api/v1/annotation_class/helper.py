@@ -1,5 +1,5 @@
 import quickannotator.db as qadb
-from quickannotator.db import AnnotationClass
+from quickannotator.db.models import AnnotationClass
 from sqlalchemy import func, Table
 from sqlalchemy.orm import Session
 

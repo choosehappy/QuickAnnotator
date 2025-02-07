@@ -6,7 +6,9 @@ from pkg_resources import require
 
 import quickannotator.db as qadb
 from quickannotator.db import db
-from quickannotator.db import Image, AnnotationClass
+from quickannotator.db.models import AnnotationClass
+from quickannotator.db.models import Image
+import quickannotator.db.models
 from .helper import get_tile, compute_on_tile, upsert_tile, get_tile_ids_within_bbox, point_to_tileid, get_bbox_for_tile, get_tile_ids_intersecting_mask
 from quickannotator.api.v1.image.helper import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
@@ -16,7 +18,7 @@ bp = Blueprint('tile', __name__, description="Tile operations")
 # ------------------------ RESPONSE MODELS ------------------------
 class TileRespSchema(SQLAlchemyAutoSchema):
     class Meta:
-        model = qadb.Tile
+        model = quickannotator.db.models.Tile
         include_fk = True
 
 class PredictTileRespSchema(Schema):
@@ -116,21 +118,21 @@ class TileSearch(MethodView):
         tile_ids_in_mask, _, _ = get_tile_ids_intersecting_mask(args['image_id'], args['annotation_class_id'], mask_dilation=1)
         ids = set(tile_ids_in_bbox) & set(tile_ids_in_mask)
 
-        query = qadb.db.session.query(qadb.Tile).filter(
-            qadb.Tile.tile_id.in_(ids),
-            qadb.Tile.image_id == args['image_id'],
-            qadb.Tile.annotation_class_id == args['annotation_class_id']
+        query = qadb.db.session.query(quickannotator.db.models.Tile).filter(
+            quickannotator.db.models.Tile.tile_id.in_(ids),
+            quickannotator.db.models.Tile.image_id == args['image_id'],
+            quickannotator.db.models.Tile.annotation_class_id == args['annotation_class_id']
         )
 
         if 'hasgt' in args:
-            query = query.filter(qadb.Tile.hasgt == args['hasgt'])
+            query = query.filter(quickannotator.db.models.Tile.hasgt == args['hasgt'])
         
         tiles = query.all()
 
         if args['include_placeholder_tiles']:
             existing_ids = set([tile.tile_id for tile in tiles])
             placeholder_tile_ids = ids - existing_ids
-            placeholder_tiles = [qadb.Tile(tile_id=tile_id, image_id=args['image_id'], annotation_class_id=args['annotation_class_id'], seen=0, hasgt=False) for tile_id in placeholder_tile_ids]
+            placeholder_tiles = [quickannotator.db.models.Tile(tile_id=tile_id, image_id=args['image_id'], annotation_class_id=args['annotation_class_id'], seen=0, hasgt=False) for tile_id in placeholder_tile_ids]
             
             tiles.extend(placeholder_tiles)
         return tiles, 200

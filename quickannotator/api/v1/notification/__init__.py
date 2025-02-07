@@ -3,7 +3,7 @@ from marshmallow import fields, Schema
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from flask.views import MethodView
 from quickannotator.db import db
-import quickannotator.db as qadb
+import quickannotator.db.models as qadb
 
 bp = Blueprint('notification', __name__, description='Notification operations')
 # ------------------------ RESPONSE MODELS ------------------------

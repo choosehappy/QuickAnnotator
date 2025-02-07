@@ -1,7 +1,7 @@
 from flask_smorest import Blueprint, abort
 from marshmallow import fields, Schema
 from flask.views import MethodView
-import quickannotator.db as qadb
+import quickannotator.db.models as qadb
 from quickannotator.db import db
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from .helper import get_annotation_class_by_id

@@ -2,7 +2,7 @@ from flask_smorest import Blueprint, abort
 from marshmallow import fields, Schema
 from flask.views import MethodView
 from quickannotator.db import db
-import quickannotator.db as qadb
+import quickannotator.db.models as qadb
 
 bp = Blueprint('project', __name__, description='Project operations')
 

@@ -4,7 +4,7 @@ import cv2
 from sqlalchemy import Table
 from sqlalchemy.orm import sessionmaker
 from .database import db
-from quickannotator.db.helper import build_annotation_table_name
+from quickannotator.db.utils import build_annotation_table_name
 
 def generate_binary_masks(engine):
     Session = sessionmaker(bind=engine)

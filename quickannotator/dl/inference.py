@@ -1,3 +1,4 @@
+from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
 import torch
 import numpy as np
 import shapely.wkb
@@ -8,7 +9,7 @@ import openslide
 from sqlalchemy.orm import sessionmaker
 from .dataset import TileDataset
 from .database import db
-from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation, SearchCache
+from quickannotator.db import db, SearchCache
 from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client
 from quickannotator.dl.database import create_db_engine, get_database_path, get_session_aj
 import cv2
@@ -90,7 +91,7 @@ def save_annotations(tile,polygons):
 def getTileStatus(classid):
     import sqlalchemy, datetime
     from quickannotator.dl.database import create_db_engine, get_database_path, get_session_aj
-    from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation, SearchCache
+    from quickannotator.db import db, SearchCache
 
     session = get_session_aj(create_db_engine(get_database_path()))
     stmt = session.query(Tile).filter(Tile.annotation_class_id == classid, Tile.seen == 1)

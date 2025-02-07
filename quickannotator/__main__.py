@@ -4,13 +4,15 @@ from flask_smorest import Api, Blueprint
 import argparse
 from waitress import serve
 from quickannotator.config import config
-from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation
+from quickannotator.db import db
 from quickannotator.config import get_database_uri, get_database_path, get_ray_dashboard_host, get_ray_dashboard_port
 from geoalchemy2 import load_spatialite
 from sqlalchemy import event
 import os
 from quickannotator.api.v1 import annotation, project, image, annotation_class, notification, tile, setting, misc
 import ray
+
+from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
 
 def serve_quickannotator(app):
     # NOTE: Will need to account for reverse proxy scenarios: https://docs.pylonsproject.org/projects/waitress/en/stable/reverse-proxy.html

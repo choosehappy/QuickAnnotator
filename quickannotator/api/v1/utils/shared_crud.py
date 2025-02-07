@@ -1,17 +1,18 @@
 from datetime import datetime
 from sqlalchemy.orm import aliased, sessionmaker, Session, Query, DeclarativeBase
 import quickannotator.db as qadb
-from quickannotator.db.helper import build_annotation_table_name
+from quickannotator.db.utils import build_annotation_table_name
 import shapely
 import json
 from sqlalchemy import func, text
 
-from quickannotator.db.helper import create_dynamic_model
+from quickannotator.db.utils import create_dynamic_model
+import quickannotator.db.models
 
 
 # TODO: Remove session from params
-def get_tile(session: Session, annotation_class_id: int, image_id: int, tile_id: int) -> qadb.Tile:
-    result = session.query(qadb.Tile).filter_by(
+def get_tile(session: Session, annotation_class_id: int, image_id: int, tile_id: int) -> quickannotator.db.models.Tile:
+    result = session.query(quickannotator.db.models.Tile).filter_by(
         annotation_class_id=annotation_class_id,
         image_id=image_id,
         tile_id=tile_id

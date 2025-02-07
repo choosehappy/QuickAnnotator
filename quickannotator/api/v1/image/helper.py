@@ -1,5 +1,5 @@
 import quickannotator.db as qadb
-from quickannotator.db import Image
+from quickannotator.db.models import Image
 
 
 def get_image_by_id(image_id: int) -> Image:

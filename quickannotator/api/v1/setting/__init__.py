@@ -2,7 +2,7 @@ from flask_smorest import Blueprint
 from marshmallow import fields, Schema
 from flask.views import MethodView
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-import quickannotator.db as qadb
+import quickannotator.db.models as qadb
 
 bp = Blueprint('setting', __name__, description='Setting operations')
 
