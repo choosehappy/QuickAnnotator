@@ -4,8 +4,9 @@ from sqlalchemy.orm import aliased, Session, Query
 from typing import List
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.types import DateTime
-from quickannotator.db import create_dynamic_model, build_annotation_table_name, Annotation
+from quickannotator.db import Annotation
 from quickannotator.api.v1.utils.shared_crud import get_annotation_query
+from quickannotator.db.helper import build_annotation_table_name, create_dynamic_model
 
 Base = declarative_base()
 

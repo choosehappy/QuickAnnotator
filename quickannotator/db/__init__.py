@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Text, Column, Integer, DateTime, ForeignKey, JSON, Boolean, Float, event, Index, Table
+from sqlalchemy import Text, Column, Integer, DateTime, ForeignKey, JSON, Boolean, Float, event, Index
 from geoalchemy2 import Geometry, load_spatialite
 from marshmallow import fields
 import geojson
@@ -12,13 +12,6 @@ from sqlalchemy.ext.hybrid import hybrid_property
 db = SQLAlchemy()
 
 Base = declarative_base()
-
-def create_dynamic_model(table_name, base=Base):
-    class DynamicAnnotation(base):
-        __tablename__ = table_name
-        __table__ = Table(table_name, base.metadata, autoload_with=db.engine)
-
-    return DynamicAnnotation
 
 class Project(db.Model):
     """
@@ -127,12 +120,6 @@ class Annotation(db.Model):
     custom_metrics = Column(JSON)
     datetime = Column(DateTime, server_default=func.now())
     
-
-def build_annotation_table_name(image_id: int, annotation_class_id: int, is_gt: bool):
-    gtpred = 'gt' if is_gt else 'pred'
-    table_name = f"annotation_{image_id}_{annotation_class_id}_{gtpred}"
-    return table_name
-
 class Notification(db.Model):
     # primary key
     id = Column(Integer, primary_key=True)

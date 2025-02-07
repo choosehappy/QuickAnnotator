@@ -8,6 +8,8 @@ import json
 from geojson import Point
 import geojson
 
+from quickannotator.db.helper import build_annotation_table_name, create_dynamic_model
+
 
 from ..utils.shared_crud import compute_custom_metrics
 import quickannotator.db as qadb
@@ -15,7 +17,7 @@ from .helper import (
     annotations_within_bbox_spatial,
     get_annotations_for_tile
 )
-from quickannotator.db import create_dynamic_model, build_annotation_table_name, Image, AnnotationClass
+from quickannotator.db import Image, AnnotationClass
 from datetime import datetime
 from quickannotator.api.v1.tile.helper import upsert_tile, point_to_tileid, tile_intersects_mask
 from quickannotator.api.v1.image.helper import get_image_by_id

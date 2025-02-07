@@ -18,10 +18,12 @@ import math
 import numpy as np
 from sqlalchemy.dialects.sqlite import insert   # NOTE: This import is necessary as there is no dialect-neutral way to call on_conflict()
 from quickannotator.api.v1.utils.shared_crud import get_annotation_query
-from quickannotator.db import build_annotation_table_name, create_dynamic_model, Annotation
+from quickannotator.db import Annotation
 from quickannotator.api.v1.image.helper import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 import cv2
+
+from quickannotator.db.helper import build_annotation_table_name, create_dynamic_model
 
 def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: int=None, hasgt: bool=None):
     '''

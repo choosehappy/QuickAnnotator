@@ -1,10 +1,12 @@
 from datetime import datetime
 from sqlalchemy.orm import aliased, sessionmaker, Session, Query, DeclarativeBase
 import quickannotator.db as qadb
-from quickannotator.db import build_annotation_table_name, create_dynamic_model
+from quickannotator.db.helper import build_annotation_table_name
 import shapely
 import json
 from sqlalchemy import func, text
+
+from quickannotator.db.helper import create_dynamic_model
 
 
 # TODO: Remove session from params
