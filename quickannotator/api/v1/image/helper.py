@@ -1,9 +1,10 @@
 import quickannotator.db as qadb
 from quickannotator.db.models import Image
+from quickannotator.db import db_session
 
 
 def get_image_by_id(image_id: int) -> Image:
-    return qadb.db.session.query(Image).get(image_id)
+    return db_session.query(Image).get(image_id)
     
 
 # The following code is not in use - instead large_image is used for tile serving.

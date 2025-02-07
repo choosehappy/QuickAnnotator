@@ -1,16 +1,17 @@
 from geoalchemy2 import Geometry
 from marshmallow import fields
 from sqlalchemy.sql import func
-from quickannotator.db import db
+from quickannotator.db import Base
+from sqlalchemy.orm import relationship
+import geojson
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, Text, func
 
 
-from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, Text
-
-
-class Project(db.Model):
+class Project(Base):
     """
     The projects table will store all the projects created by the user.
     """
+    __tablename__ = 'project'
     # primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
 
@@ -19,16 +20,17 @@ class Project(db.Model):
 
     description = Column(Text, default="")
     is_dataset_large = Column(Boolean, default=False)
-    datetime = Column(DateTime, server_default=db.func.now())
+    datetime = Column(DateTime, server_default=func.now())
 
     # relationships
-    images = db.relationship('Image', backref='project', lazy=True)
-    annotation_classes = db.relationship('AnnotationClass', backref='project', lazy=True)
-    settings = db.relationship("Setting", backref='project', lazy=True)
-    notifications = db.relationship("Notification", backref='project', lazy=True)
+    images = relationship('Image', backref='project', lazy=True)
+    annotation_classes = relationship('AnnotationClass', backref='project', lazy=True)
+    settings = relationship("Setting", backref='project', lazy=True)
+    notifications = relationship("Notification", backref='project', lazy=True)
 
 
-class Image(db.Model):
+class Image(Base):
+    __tablename__ = 'image'
     # primary
     id = Column(Integer, primary_key=True, autoincrement=True)
 
@@ -44,13 +46,14 @@ class Image(db.Model):
     embedding_coord = Column(Geometry('POINT'))
     group_id = Column(Integer)
     split = Column(Integer)
-    datetime = Column(DateTime, server_default=db.func.now())
+    datetime = Column(DateTime, server_default=func.now())
 
     # relationships
-    notifications = db.relationship("Notification", backref='image', lazy=True)
+    notifications = relationship("Notification", backref='image', lazy=True)
 
 
-class AnnotationClass(db.Model):
+class AnnotationClass(Base):
+    __tablename__ = 'annotation_class'
     # primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
 
@@ -64,10 +67,11 @@ class AnnotationClass(db.Model):
     patchsize = Column(Integer, nullable=True)
     tilesize = Column(Integer, nullable=True)
     dl_model_objectref = Column(Text, nullable=True)
-    datetime = Column(DateTime, server_default=db.func.now())
+    datetime = Column(DateTime, server_default=func.now())
 
 
-class Tile(db.Model):
+class Tile(Base):
+    __tablename__ = 'tile'
     # primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
 
@@ -79,11 +83,11 @@ class Tile(db.Model):
     # columns
     seen = Column(Integer, nullable=False, default=0)
     hasgt = Column(Boolean, nullable=False, default=False)
-    datetime = Column(DateTime, server_default=db.func.now())
+    datetime = Column(DateTime, server_default=func.now())
 
     # relationships
-    image = db.relationship('Image', backref='tiles')
-    annotation_class = db.relationship('AnnotationClass', backref='tiles')
+    image = relationship('Image', backref='tiles')
+    annotation_class = relationship('AnnotationClass', backref='tiles')
 
     # indexes
     __table_args__ = (
@@ -91,9 +95,10 @@ class Tile(db.Model):
     )
 
 
-class Annotation(db.Model):
+class Annotation(Base):
     """Each table will follow this naming convention: annotation_{image_id}_{annotation_class_id}_{gt/pred}"""
 
+    __tablename__ = 'annotation'
     # primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
 
@@ -111,7 +116,9 @@ class Annotation(db.Model):
     datetime = Column(DateTime, server_default=func.now())
 
 
-class Notification(db.Model):
+class Notification(Base):
+
+    __tablename__ = 'notification'
     # primary key
     id = Column(Integer, primary_key=True)
 
@@ -123,14 +130,15 @@ class Notification(db.Model):
     message_type = Column(Integer, nullable=False)
     is_read = Column(Boolean, nullable=False)
     message = Column(Text, nullable=False)
-    datetime = Column(DateTime, server_default=db.func.now())
+    datetime = Column(DateTime, server_default=func.now())
 
 
-class Setting(db.Model):
+class Setting(Base):
     """
     The settings table will store all project-level and application-level settings.
     """
 
+    __tablename__ = 'setting'
     # primary key
     id = Column(Integer, primary_key=True)
 

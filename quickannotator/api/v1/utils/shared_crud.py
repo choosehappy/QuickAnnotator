@@ -8,6 +8,7 @@ from sqlalchemy import func, text
 
 from quickannotator.db.utils import create_dynamic_model
 import quickannotator.db.models
+from quickannotator.db import db_session
 
 
 # TODO: Remove session from params
@@ -62,7 +63,7 @@ def get_annotation_query(model) -> Query:
             - datetime: The datetime when the annotation was created or last modified.
     '''
 
-    query = qadb.db.session.query(
+    query = db_session.query(
         model.id,
         model.tile_id,
         func.ST_AsGeoJSON(model.centroid).label('centroid'),

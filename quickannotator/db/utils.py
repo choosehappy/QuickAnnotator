@@ -1,11 +1,11 @@
-from quickannotator.db import Base, db
+from quickannotator.db import Base, engine
 from sqlalchemy import Table
 
 
 def create_dynamic_model(table_name, base=Base):
     class DynamicAnnotation(base):
         __tablename__ = table_name
-        __table__ = Table(table_name, base.metadata, autoload_with=db.engine)
+        __table__ = Table(table_name, base.metadata, autoload_with=engine)
 
     return DynamicAnnotation
 

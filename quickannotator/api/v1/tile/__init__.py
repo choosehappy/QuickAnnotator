@@ -5,10 +5,8 @@ from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from pkg_resources import require
 
 import quickannotator.db as qadb
-from quickannotator.db import db
-from quickannotator.db.models import AnnotationClass
-from quickannotator.db.models import Image
-import quickannotator.db.models
+from quickannotator.db import db_session
+import quickannotator.db.models as models
 from .helper import get_tile, compute_on_tile, upsert_tile, get_tile_ids_within_bbox, point_to_tileid, get_bbox_for_tile, get_tile_ids_intersecting_mask
 from quickannotator.api.v1.image.helper import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
@@ -18,7 +16,7 @@ bp = Blueprint('tile', __name__, description="Tile operations")
 # ------------------------ RESPONSE MODELS ------------------------
 class TileRespSchema(SQLAlchemyAutoSchema):
     class Meta:
-        model = quickannotator.db.models.Tile
+        model = models.Tile
         include_fk = True
 
 class PredictTileRespSchema(Schema):
@@ -67,7 +65,7 @@ class Tile(MethodView):
     def get(self, args):
         """     returns a Tile
         """
-        result = get_tile(db.session, args['annotation_class_id'], args['image_id'], args['tile_id'])
+        result = get_tile(db_session, args['annotation_class_id'], args['image_id'], args['tile_id'])
         return result, 200
 
     @bp.arguments(PostTileArgsSchema, location='query')
@@ -100,8 +98,8 @@ class TileBoundingBox(MethodView):
     def get(self, args):
         """     get the bounding box for a given tile
         """
-        image: Image = get_image_by_id(args['image_id'])
-        annotation_class: AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
+        image: models.Image = get_image_by_id(args['image_id'])
+        annotation_class: models.AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
         bbox = get_bbox_for_tile(annotation_class.tilesize, args['tile_id'], image.width, image.height)
         return {'bbox': bbox}, 200
 
@@ -112,27 +110,27 @@ class TileSearch(MethodView):
     def get(self, args):
         """     get all Tiles within a bounding box
         """
-        image: Image = get_image_by_id(args['image_id'])
-        annotation_class: AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
+        image: models.Image = get_image_by_id(args['image_id'])
+        annotation_class: models.AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
         tile_ids_in_bbox = get_tile_ids_within_bbox(annotation_class.tilesize, (args['x1'], args['y1'], args['x2'], args['y2']), image.width, image.height)
         tile_ids_in_mask, _, _ = get_tile_ids_intersecting_mask(args['image_id'], args['annotation_class_id'], mask_dilation=1)
         ids = set(tile_ids_in_bbox) & set(tile_ids_in_mask)
 
-        query = qadb.db.session.query(quickannotator.db.models.Tile).filter(
-            quickannotator.db.models.Tile.tile_id.in_(ids),
-            quickannotator.db.models.Tile.image_id == args['image_id'],
-            quickannotator.db.models.Tile.annotation_class_id == args['annotation_class_id']
+        query = db_session.query(models.Tile).filter(
+            models.Tile.tile_id.in_(ids),
+            models.Tile.image_id == args['image_id'],
+            models.Tile.annotation_class_id == args['annotation_class_id']
         )
 
         if 'hasgt' in args:
-            query = query.filter(quickannotator.db.models.Tile.hasgt == args['hasgt'])
+            query = query.filter(models.Tile.hasgt == args['hasgt'])
         
         tiles = query.all()
 
         if args['include_placeholder_tiles']:
             existing_ids = set([tile.tile_id for tile in tiles])
             placeholder_tile_ids = ids - existing_ids
-            placeholder_tiles = [quickannotator.db.models.Tile(tile_id=tile_id, image_id=args['image_id'], annotation_class_id=args['annotation_class_id'], seen=0, hasgt=False) for tile_id in placeholder_tile_ids]
+            placeholder_tiles = [models.Tile(tile_id=tile_id, image_id=args['image_id'], annotation_class_id=args['annotation_class_id'], seen=0, hasgt=False) for tile_id in placeholder_tile_ids]
             
             tiles.extend(placeholder_tiles)
         return tiles, 200
@@ -144,10 +142,10 @@ class TileSearchByCoordinates(MethodView):
     def get(self, args):
         """     get a Tile for a given point
         """
-        image: Image = get_image_by_id(args['image_id'])
-        annotation_class: AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
+        image: models.Image = get_image_by_id(args['image_id'])
+        annotation_class: models.AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
         tile_id = point_to_tileid(annotation_class.tilesize, args['x'], args['y'], image.width, image.height)
-        return get_tile(db.session, args['annotation_class_id'], args['image_id'], tile_id), 200
+        return get_tile(db_session, args['annotation_class_id'], args['image_id'], tile_id), 200
 
 @bp.route('/predict')
 class TilePredict(MethodView):

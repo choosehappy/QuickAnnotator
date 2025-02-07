@@ -5,21 +5,15 @@ import shapely.wkt
 from sqlalchemy import Table
 from shapely.geometry import shape, mapping
 import json
-from geojson import Point
-import geojson
 
-import quickannotator.db.models
+import quickannotator.db.models as models
+from quickannotator.db import db_session
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
-from quickannotator.db.models import Image
-
-
 from ..utils.shared_crud import compute_custom_metrics
-import quickannotator.db as qadb
 from .helper import (
     annotations_within_bbox_spatial,
     get_annotations_for_tile
 )
-from quickannotator.db.models import AnnotationClass
 from datetime import datetime
 from quickannotator.api.v1.tile.helper import upsert_tile, point_to_tileid, tile_intersects_mask
 from quickannotator.api.v1.image.helper import get_image_by_id
@@ -35,8 +29,8 @@ class AnnRespSchema(Schema):
     """     Annotation response schema      """
     id = fields.Int()
     tile_id = fields.Int()
-    centroid = quickannotator.db.models.GeometryField()
-    polygon = quickannotator.db.models.GeometryField()
+    centroid = models.GeometryField()
+    polygon = models.GeometryField()
     area = fields.Float()
     custom_metrics = fields.Dict()
 
@@ -53,17 +47,17 @@ class GetAnnSearchArgsSchema(Schema):
     y1 = fields.Int(required=False)
     x2 = fields.Int(required=False)
     y2 = fields.Int(required=False)
-    polygon = quickannotator.db.models.GeometryField(required=False)
+    polygon = models.GeometryField(required=False)
 
 class GetAnnByTileArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
 
 class PostAnnArgsSchema(Schema):
-    polygon = quickannotator.db.models.GeometryField(required=True)
+    polygon = models.GeometryField(required=True)
 
 class OperationArgsSchema(AnnRespSchema):
     operation = fields.Integer(required=True)  # Default 0 for union.
-    polygon2 = quickannotator.db.models.GeometryField(required=True)    # The second polygon
+    polygon2 = models.GeometryField(required=True)    # The second polygon
 
 class PutAnnArgsSchema(AnnRespSchema):
     is_gt = fields.Bool(required=True)
@@ -100,11 +94,11 @@ class Annotation(MethodView):
         
         # Get the tile id.
         # NOTE: The client is aware of the tilesize and image dimensions. Consider passing this information in the request or even calculating the tile_id client-side.
-        image: Image = get_image_by_id(image_id)
-        annotation_class: AnnotationClass = get_annotation_class_by_id(annotation_class_id)
+        image: models.Image = get_image_by_id(image_id)
+        annotation_class: models.AnnotationClass = get_annotation_class_by_id(annotation_class_id)
         tile_id = point_to_tileid(annotation_class.tilesize, poly.centroid.x, poly.centroid.y, image.width, image.height)
         
-        ann = insert_new_annotation(qadb.db.session, image_id, annotation_class_id, True, tile_id, poly)
+        ann = insert_new_annotation(db_session, image_id, annotation_class_id, True, tile_id, poly)
         
         if tile_intersects_mask(image_id, annotation_class_id, tile_id):
             upsert_tile(annotation_class_id, image_id, tile_id, hasgt=True)
@@ -123,7 +117,7 @@ class Annotation(MethodView):
         model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, args['is_gt']))
 
         # We get the full ORM object here so that we can set values.
-        ann: Annotation = qadb.db.session.query(model).filter_by(id=args['id']).first()
+        ann: Annotation = db_session.query(model).filter_by(id=args['id']).first()
         
         if ann: # Update the existing annotation
             ann.centroid = shape(args['centroid']).wkt
@@ -145,8 +139,7 @@ class Annotation(MethodView):
                 tile_id=args['tile_id'],
                 datetime=datetime.now()
             )
-            qadb.db.session.add(ann)
-        qadb.db.session.commit()
+            db_session.add(ann)
 
         result = get_annotation_query(model).filter_by(id=ann.id).first()
         
@@ -159,10 +152,9 @@ class Annotation(MethodView):
         """     delete an annotation
         """
         model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, args['is_gt']))
-        result = qadb.db.session.query(model).filter_by(id=args['annotation_id']).delete()
+        result = db_session.query(model).filter_by(id=args['annotation_id']).delete()
 
         if result:
-            qadb.db.session.commit()
             return {}, 204
         else:
             return {"message": "Annotation not found"}, 404
@@ -179,7 +171,7 @@ class SearchAnnotations(MethodView):
         - Will need to determine the return type. Should it be pure geojson?
         """
         table_name = build_annotation_table_name(image_id, annotation_class_id, args['is_gt'])
-        table = Table(table_name, qadb.db.metadata, autoload_with=qadb.db.engine)
+        table = Table(table_name, db_session.bind.metadata, autoload_with=db_session.bind)
 
         if "polygon" in args:
             # search for annotations within the bounding box
@@ -189,7 +181,7 @@ class SearchAnnotations(MethodView):
             return annotations_within_bbox_spatial(table_name, args['x1'], args['y1'], args['x2'], args['y2']), 200
         else:
             stmt = table.select()
-            result = qadb.db.session.execute(stmt).fetchall()
+            result = db_session.execute(stmt).fetchall()
             return result, 200
         
 @bp.route('/<int:image_id>/<int:annotation_class_id>/<int:tile_id>')

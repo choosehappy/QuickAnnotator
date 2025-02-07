@@ -1,6 +1,6 @@
 import quickannotator.db as qadb
 from sqlalchemy import func, Table
-from quickannotator.db import db
+from quickannotator.db import db_session
 from sqlalchemy.orm import aliased, sessionmaker, Session
 from sqlalchemy import exists, event
 import shapely
@@ -57,8 +57,8 @@ def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: int
         set_=update_fields
     )
     
-    result = qadb.db.session.execute(stmt)
-    qadb.db.session.commit()
+    result = db_session.execute(stmt)
+    db_session.commit()
     
     return result
     
@@ -133,7 +133,7 @@ def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile
 
     bbox = get_bbox_for_tile(tilesize, tile_id, image.width, image.height)
     model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id=1, is_gt=True))
-    mask_annotations = db.session.query(model).all()
+    mask_annotations = db_session.query(model).all()
 
     if mask_annotations:
         bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])

@@ -2,7 +2,7 @@ import os
 import shutil
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
-from quickannotator.db import db
+from quickannotator.db import db_session
 from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
 
 def get_database_path():
@@ -47,6 +47,6 @@ import cv2
 from sqlalchemy import inspect
 
 
-from quickannotator.db import db, SearchCache
+from quickannotator.db import db_session, SearchCache
 
 
