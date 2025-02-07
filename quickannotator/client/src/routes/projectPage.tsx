@@ -1,34 +1,58 @@
 import Nav from 'react-bootstrap/Nav';
 import { Link, useOutletContext, useParams } from "react-router-dom";
-import { useEffect } from 'react';
-import {Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, ListGroup} from "react-bootstrap";
-import { Fullscreen, ArrowCounterclockwise, GearFill, Download, AspectRatioFill, Brush, Magic, Eraser, Heptagon } from 'react-bootstrap-icons';
+import { useEffect, useState} from 'react';
+import { Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, ListGroup } from "react-bootstrap";
+import { Fullscreen, CloudArrowUp, GearFill, Download, AspectRatioFill, Brush, Magic, Eraser, Heptagon, CurrencyBitcoin } from 'react-bootstrap-icons';
 
-import { fetchProject } from "../helpers/api.ts"
-import { OutletContextType } from "../types.ts";
+import { fetchProject, fetchImageByProjectId } from "../helpers/api.ts"
+import { Image, OutletContextType } from "../types.ts";
 import './project.css'
+import ImageTable from '../components/imageTable/imageTable.tsx';
+import FileDropUploader from '../components/fileDropUploader/fileDropUploader.tsx'
+import ExportAnnotationsModal from '../components/exportAnnotationsModal/exportAnnotationsModal.tsx'
 
 const ProjectPage = () => {
-    // const { projectid } = useParams();
-    // const { currentImage, setCurrentImage, setCurrentProject } = useOutletContext<OutletContextType>();
+    const { projectid } = useParams();
+    const { currentProject, setCurrentProject } = useOutletContext<OutletContextType>();
 
-    // const [currentClass, setCurrentClass] = useState<AnnotationClass | null>(null);
-    // const [gts, setGts] = useState<Annotation[]>([]);
-    // const [preds, setPreds] = useState<Annotation[]>([]);
-    // const [currentTool, setCurrentTool] = useState<string | null>('0');
-    // const [action, setAction] = useState<string | null>(null);
-    // const currentAnnotation = useRef<CurrentAnnotation | null>(null);
+    const [images, setImages] = useState<Image[]>([])
 
-    // useEffect(() => {
-    //     fetchProject(parseInt(projectid)).then((resp) => {
-    //         setCurrentProject(resp);
-    //     });
+    const [settingShow, setSettingShow] = useState<boolean>(false)
+    const [embeddingShow, setEmbeddingShow] = useState<boolean>(false)
+    const [exportAnnotationsShow, setExportAnnotationsShow] = useState<boolean>(false)
 
-    //     fetchImage(parseInt(imageid)).then((resp) => {
-    //         setCurrentImage(resp);
-    //     });
-    // }, [])
 
+    useEffect(() => {
+        fetchProject(parseInt(projectid)).then((resp) => {
+            setCurrentProject(resp);
+        });
+        fetchImageByProjectId(parseInt(projectid)).then((resp) => {
+            setImages(resp);
+        });
+
+    }, [])
+
+    const handleExportClose = () => setExportAnnotationsShow(false);
+    const handleExportShow = () => setExportAnnotationsShow(true);
+
+    const handleSettingShow = () => {
+        if (embeddingShow) setEmbeddingShow(false)
+        setSettingShow(!settingShow)
+    };
+
+    const handleEnbeddingShow = () => {
+        if (settingShow) setSettingShow(false)
+        setEmbeddingShow(!embeddingShow)
+    };
+
+    const handleExport = () => {
+        console.log('export Annotation...')
+    }
+
+    // const settingClickHandler = () => {
+    // }
+    // const settingClickHandler = () => {
+    // }
     // const { currentProject, setCurrentProject, currentImage, setCurrentImage } = useOutletContext<OutletContextType>();
     // const imageid = 1;
     // const { projectid } = useParams();
@@ -39,38 +63,67 @@ const ProjectPage = () => {
     //         setCurrentProject(resp);
     //     })
     // }, [])
-
+    console.log('projectid', projectid)
+    console.log('setCurrentProject', currentProject)
     // if (currentProject) {
-        return (
-            <>
-                <Container fluid className="pb-3 bg-dark d-flex flex-column flex-grow-1">
-                    <Row className="d-flex flex-grow-1">
-                        <Col className="d-flex flex-grow-1">
-                            <Card className="flex-grow-1">
-                                <Card.Header >
-                                <ButtonToolbar className="float-end" aria-label="Toolbar with button groups">
-            <ButtonGroup className={"me-2"}>
-                    <Button variant="secondary" title="Show Enbedding"><AspectRatioFill/></Button>
-                    <Button variant="secondary" title="Export Annotations"><Download/></Button>
-                    <Button variant="primary" title="Setting"><GearFill/></Button>
-            </ButtonGroup>
-            </ButtonToolbar>
-                                </Card.Header>
-                                <Card.Body>
-                                    Table
-                                </Card.Body>
-                                <Card.Footer>
-                                    footer<br/>
-                                    footer<br/>
-                                    footer
-                                </Card.Footer>
-                            </Card>
-                        </Col>
-                    </Row>
-                </Container>
-            </>
-        )
-    
+    return (
+        <>
+            <Container fluid className="pb-3 bg-dark d-flex flex-column flex-grow-1">
+                <Row className="d-flex">
+                    <Col>
+                        <nav className="navbar float-end">
+                            <ButtonToolbar aria-label="Toolbar with button groups">
+                                <ButtonGroup className={"me-2"}>
+                                    <Button variant="primary" title="Show Enbedding" className={`${embeddingShow ? 'active' : ''}`}
+                                        onClick={handleEnbeddingShow}
+                                    ><AspectRatioFill /></Button>
+                                    <Button variant="primary" title="Export Annotations" className={`${exportAnnotationsShow ? 'active' : ''}`}
+                                        onClick={handleExportShow}
+                                    ><Download /></Button>
+                                    <Button variant="secondary" title="Setting" className={`${settingShow ? 'active' : ''}`}
+                                        onClick={handleSettingShow}
+                                    ><GearFill /></Button>
+                                </ButtonGroup>
+                            </ButtonToolbar>
+                        </nav>
+                    </Col>
+                </Row>
+                <Row className="d-flex flex-grow-1">
+                    <Col className={"d-flex flex-grow-1"} xs={(!embeddingShow && !settingShow) ? "12" : "6"}>
+                        <Card className="flex-grow-1">
+                            <Card.Body id='img_table'>
+                                <ImageTable containerId='img_table' project={currentProject} images={images} changed={(!embeddingShow && !settingShow)}/>
+                            </Card.Body>
+                            <Card.Footer className='d-flex justify-content-center'>
+                                <FileDropUploader  />
+                            </Card.Footer>
+                        </Card>
+                    </Col>
+
+                    {settingShow && <Col xs={6}>
+                        <Card className="d-flex flex-grow-1 h-100">
+                            <Card.Header as={'h5'}>Setting</Card.Header>
+                            <Card.Body>
+                                <textarea style={{ height: '100%', width: '100%' }}>
+
+                                </textarea>
+                            </Card.Body>
+                        </Card>
+                    </Col>}
+                    {embeddingShow && <Col xs={6}>
+                        <Card className="d-flex flex-grow-1 h-100">
+                            <Card.Header as={'h5'}>Enbedding</Card.Header>
+                            <Card.Body>
+                                embedding view
+                            </Card.Body>
+                        </Card>
+                    </Col>}
+                </Row>
+            </Container>
+            <ExportAnnotationsModal show={exportAnnotationsShow} handleClose={handleExportClose} />
+        </>
+    )
+
 }
 
 export default ProjectPage
