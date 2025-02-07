@@ -1,6 +1,6 @@
 // Generic response type
 type ApiResponse<T> = Promise<T>;
-import { Image, Project, Annotation, AnnotationClass, Tile, PostAnnArgs, PostOperationArgs, PutAnnArgs } from "../types.ts";
+import { Image, Project, Annotation, AnnotationClass, Tile, PostAnnArgs, PostOperationArgs, PutAnnArgs, UploadedFiles } from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
 
 interface FetchOptions extends RequestInit {
@@ -26,15 +26,15 @@ export const get = async <T>(url: string, options: FetchOptions = {}): ApiRespon
 };
 
 // POST request method
-export const post = async <U, T>(url: string, data: U, options: FetchOptions = {}): ApiResponse<T> => {
+export const post = async <U, T>(url: string, data: U, options: FetchOptions = {}, type='str'): ApiResponse<T> => {
     const response = await fetch(`${API_URL}${url}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             ...options.headers,
         },
-        body: JSON.stringify(data),
-        ...options,
+        body: type=='str'?JSON.stringify(data):data,
+        // ...options,
     });
     if (!response.ok) {
         throw new Error(`Error: ${response.status}`);
@@ -76,13 +76,22 @@ export const remove = async <T>(url: string, options: FetchOptions = {}): ApiRes
     const text = await response.text();
     return text ? JSON.parse(text) : {};
 };
-
+export const uploadFiles = async(project_id: number, files: any) => {
+    // const requestBody: UploadedFiles = { project_id: project_id, images:files };
+    // /api/v1/image/upload/{project_id}/files
+    // 'Content-Type': 'multipart/form-data'
+    return await post(`/image/upload/files`, files, {headers:{'Content-Type': 'multipart/form-data'}},'file');
+}
 // Fetch image by ID
 export const fetchImage = async (image_id: number) => {
     const query = new URLSearchParams({ image_id: image_id.toString() });
     return await get<Image>(`/image/?${query}`);
 }
-
+// Fetch image by ID
+export const fetchImageByProjectId = async (project_id: number) => {
+    // const query = new URLSearchParams({ project_id: project_id.toString() });
+    return await get<Image>(`/image/project/${project_id}`);
+}
 // Fetch project by ID
 export const fetchProject = async (project_id: number) => {
     const query = new URLSearchParams({ project_id: project_id.toString() });
