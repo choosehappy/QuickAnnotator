@@ -8,7 +8,7 @@ import quickannotator.db as qadb
 from quickannotator.db import db_session
 import quickannotator.db.models as models
 from .helper import get_tile, compute_on_tile, upsert_tile, get_tile_ids_within_bbox, point_to_tileid, get_bbox_for_tile, get_tile_ids_intersecting_mask
-from quickannotator.api.v1.image.helper import get_image_by_id
+from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 
 bp = Blueprint('tile', __name__, description="Tile operations")

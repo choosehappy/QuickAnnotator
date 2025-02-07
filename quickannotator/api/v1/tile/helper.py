@@ -18,13 +18,12 @@ import math
 import numpy as np
 from sqlalchemy.dialects.sqlite import insert   # NOTE: This import is necessary as there is no dialect-neutral way to call on_conflict()
 from quickannotator.api.v1.utils.shared_crud import get_annotation_query
-from quickannotator.db.models import Annotation
-from quickannotator.api.v1.image.helper import get_image_by_id
+import quickannotator.db.models as models
+from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 import cv2
 
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
-import quickannotator.db.models
 
 def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: int=None, hasgt: bool=None):
     '''
@@ -47,7 +46,7 @@ def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: int
     if hasgt is not None:   # Only update the 'hasgt' field if the value is provided
         update_fields['hasgt'] = hasgt
     
-    stmt = insert(quickannotator.db.models.Tile).values(
+    stmt = insert(models.Tile).values(
         annotation_class_id=annotation_class_id,
         image_id=image_id,
         tile_id=tile_id,
@@ -221,8 +220,8 @@ def remote_compute_on_tile(db_url, annotation_class_id: int, image_id: int, tile
             # Example: load the tile and process
             # breakpoint()
             tile = get_tile(session, annotation_class_id, image_id, tile_id)  # Replace with your actual function to get the tile
-            annotation_class: quickannotator.db.models.AnnotationClass = tile.annotation_class
-            image: quickannotator.db.models.Image = tile.image
+            annotation_class: models.AnnotationClass = tile.annotation_class
+            image: models.Image = tile.image
             image_id: int = tile.image_id
             annotation_class_id: int = tile.annotation_class_id
 
@@ -261,5 +260,5 @@ def reset_all_tiles_seen(session):
         None
     """
 
-    session.query(quickannotator.db.models.Tile).update({quickannotator.db.models.Tile.seen: 0})
+    session.query(models.Tile).update({models.Tile.seen: 0})
     session.commit()

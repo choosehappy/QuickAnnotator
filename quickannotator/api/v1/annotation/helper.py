@@ -53,6 +53,11 @@ def retrieve_annotation_table(session, image_id: int, annotation_class_id: int, 
 
     return Table(table_name, qadb.db.metadata, autoload_with=session.bind)
 
+def create_annotation_table(image_id: int, annotation_class_id: int, is_gt: bool):
+    table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt)
+    table = models.Annotation.__table__.to_metadata(Base.metadata, name=table_name)
+    Base.metadata.create_all(bind=db_session.bind, tables=[table])
+
 def delete_all_annotations(session, image_id: int, annotation_class_id: int, is_gt: bool):
     table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
     model = create_dynamic_model(table_name)

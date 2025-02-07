@@ -11,6 +11,7 @@ from PIL import Image as PILImage
 import scipy.ndimage
 import io
 
+
 def get_database_path():
     return '/opt/QuickAnnotator/quickannotator/instance/quickannotator.db'
 
