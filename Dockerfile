@@ -48,10 +48,10 @@ ENV PATH="/opt/uv_venv/bin:$PATH"
 RUN uv pip install -r <(uv pip compile pyproject.toml)
 
 # Install node dependencies
-COPY ./quickannotator/client/package.json /opt/QuickAnnotator/quickannotator/client/package.json
-COPY ./quickannotator/client/package-lock.json /opt/QuickAnnotator/quickannotator/client/package-lock.json
-WORKDIR /opt/
-RUN npm install QuickAnnotator/quickannotator/client/
+COPY ./quickannotator/client/package.json /opt/package.json
+COPY ./quickannotator/client/package-lock.json /opt/package-lock.json
 ENV NODE_PATH=/opt/node_modules
+WORKDIR /opt
+RUN npm ci
 
 WORKDIR /opt/QuickAnnotator
