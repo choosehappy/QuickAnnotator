@@ -50,10 +50,14 @@ dependencies = [
     "psycopg2-binary~=2.9.10",
     "pymemcache~=4.0.0",
     "albumentations",
+    "torch",
+    "torchvision",
     "segmentation-models-pytorch~=0.4.0",
     "opencv-python-headless~=4.11.0",
     "tqdm",
-    "ipykernel"
+    "ipykernel",
+
+
 ]
 dynamic = ["version"]
 

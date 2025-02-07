@@ -1,4 +1,5 @@
-FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
+FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
+SHELL ["/bin/bash", "-c"]
 
 CMD nvidia-smi
 
@@ -9,6 +10,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
          python3-venv \
          python3-wheel \
          python3-dev \
+         python3-pip \
          python3-setuptools \
          libglib2.0-0 \
          libjpeg-dev \
@@ -41,13 +43,15 @@ COPY ./pyproject.toml /opt/QuickAnnotator/pyproject.toml
 RUN pip install uv
 
 # Create a virtual environment for uv and install all dependencies
-ENV UV_VENV_PATH="/opt/uv_venv"
-RUN source $UV_VENV_PATH/bin/activate
+RUN uv venv /opt/uv_venv
+ENV PATH="/opt/uv_venv/bin:$PATH"
 RUN uv pip install -r <(uv pip compile pyproject.toml)
 
-# # Install node dependencies
-# WORKDIR /opt/
-# RUN npm install QuickAnnotator/quickannotator/client
-# ENV NODE_PATH=/opt/node_modules
+# Install node dependencies
+COPY ./quickannotator/client/package.json /opt/QuickAnnotator/quickannotator/client/package.json
+COPY ./quickannotator/client/package-lock.json /opt/QuickAnnotator/quickannotator/client/package-lock.json
+WORKDIR /opt/
+RUN npm install QuickAnnotator/quickannotator/client/
+ENV NODE_PATH=/opt/node_modules
 
 WORKDIR /opt/QuickAnnotator
