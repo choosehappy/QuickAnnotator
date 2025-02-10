@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "dev": "cd /opt/QuickAnnotator/quickannotator/client && vite --host 0.0.0.0",
+    "build": "cd /opt/QuickAnnotator/quickannotator/client && tsc -b && vite build",
+    "lint": "cd /opt/QuickAnnotator/quickannotator/client && eslint .",
+    "preview": "cd /opt/QuickAnnotator/quickannotator/client && vite preview"
   },
   "dependencies": {
     "@types/geojson": "^7946.0.14",

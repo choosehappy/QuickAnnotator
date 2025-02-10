@@ -11,6 +11,7 @@ export default defineConfig({
         changeOrigin: true,
       }
     }
-  }
+  },
+  cacheDir: '/opt/node_modules/.vite',
 })
 
