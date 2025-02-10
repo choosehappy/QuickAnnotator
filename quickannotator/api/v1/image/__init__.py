@@ -4,6 +4,7 @@ from marshmallow import fields, Schema
 from flask.views import MethodView
 from flask import current_app, request, send_from_directory, send_file
 from werkzeug.datastructures import FileStorage
+from werkzeug.utils import secure_filename
 from datetime import datetime
 import quickannotator.db as qadb
 from quickannotator.db import db
@@ -91,19 +92,67 @@ class ImageSearch(MethodView):
         """
         result = db.session.query(qadb.Image).filter(qadb.Image.project_id == project_id).all()
         return result, 200
+    
+@bp.route('/project/<int:project_id>', endpoint="images")
+class ImageSearch(MethodView):
+    @bp.arguments(SearchImageArgsSchema, location='query')
+    @bp.response(200, ImageRespSchema(many=True))
+    def get(self, args, project_id):
+        """     returns a list of Images
+        """
+        # images = db.session.query(qadb.Image).filter(qadb.Image.project_id == project_id).all()
+        # if images is not None:
+        #     return images
+        # else:
+        #     abort(404, message="Images not found")
+        images = db.session.query(
+            *[getattr(qadb.Image, column.name) for column in qadb.Image.__table__.columns],
+            db.func.ST_AsGeoJSON(qadb.Image.embedding_coord).label('embedding_coord')
+        ).filter(qadb.Image.project_id == project_id).all()
+        if images is not None:
+            return images, 200
+        else:
+            abort(404, message="Image not found")
 
 #################################################################################
+@bp.route('/upload/files', methods=["POST"])
+def upload_files():
+    """Upload a file"""
+    filenames=[]
+    files = request.files.getlist('files')
+    
+    for file in files:
+        filename = secure_filename(file.filename)
+        os.makedirs('./upload', exist_ok=True)
+        filepath = os.path.join('./upload',filename)
+        file.save(filepath)
+        filenames.append(filename)
+        print(filename)
+
+    return 'file uploaded successfully'
+
+
 @bp.route('/<int:image_id>/<int:file_type>/file', endpoint="file")
 class ImageFile(MethodView):
     def get(self, image_id, file_type):
         """     returns an Image file   """
         result = db.session.query(qadb.Image).filter(qadb.Image.id == image_id).first()
-
+        full_path = os.path.join(current_app.root_path, result.path)
         if file_type == 1:  # image file
-            return send_from_directory(result['path'], result['name'])
+            return send_from_directory(full_path, result.name)
         elif file_type == 2:    # thumbnail file
-            # TODO implement thumbnail file
-            pass
+            try:
+                slide = ops.OpenSlide(full_path)
+                thumbnail = slide.get_thumbnail((256, 256))
+            except ops.OpenSlideError as e:
+                print("Error opening slide:", e)
+            # Save thumbnail to bytes buffer
+            img_buffer = io.BytesIO()
+            thumbnail.save(img_buffer, format='PNG')
+            img_buffer.seek(0)
+
+            return send_file(img_buffer, mimetype='image/png')
+
 
 
     @bp.arguments(UploadFileArgsSchema, location='files')
