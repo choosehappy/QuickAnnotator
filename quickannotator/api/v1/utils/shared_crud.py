@@ -12,8 +12,8 @@ from quickannotator.db import db_session
 
 
 # TODO: Remove session from params
-def get_tile(session: Session, annotation_class_id: int, image_id: int, tile_id: int) -> quickannotator.db.models.Tile:
-    result = session.query(quickannotator.db.models.Tile).filter_by(
+def get_tile(annotation_class_id: int, image_id: int, tile_id: int) -> quickannotator.db.models.Tile:
+    result = db_session.query(quickannotator.db.models.Tile).filter_by(
         annotation_class_id=annotation_class_id,
         image_id=image_id,
         tile_id=tile_id
@@ -25,7 +25,7 @@ def compute_custom_metrics() -> dict:
     return {"iou": 0.5}
 
 # TODO: Remove session from params
-def insert_new_annotation(session, image_id, annotation_class_id, is_gt, tile_id, polygon: shapely.geometry.Polygon):
+def insert_new_annotation(image_id, annotation_class_id, is_gt, tile_id, polygon: shapely.geometry.Polygon):
     table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
     model = create_dynamic_model(table_name)
 
@@ -40,8 +40,8 @@ def insert_new_annotation(session, image_id, annotation_class_id, is_gt, tile_id
         custom_metrics=compute_custom_metrics(),
         datetime=datetime.now()
     )
-    session.add(new_annotation)
-    session.commit()
+    db_session.add(new_annotation)
+    db_session.commit()
     return new_annotation
 
 def get_annotation_query(model) -> Query:

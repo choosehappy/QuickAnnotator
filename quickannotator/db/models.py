@@ -102,10 +102,10 @@ class Annotation(Base):
     # primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
 
-    # foreign keys (redundant due to table naming but useful for queries and future proofing)
-    image_id = Column(Integer, ForeignKey('image.id'), nullable=True, default=None)
-    annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=True, default=None)
-    tile_id = Column(Integer, ForeignKey('tile.tile_id'), nullable=True, default=None)
+    image_id = Column(Integer, nullable=True, default=None)
+    annotation_class_id = Column(Integer, nullable=True, default=None)
+
+    tile_id = Column(Integer, nullable=True, default=None)
 
     # columns
     isgt = Column(Boolean, nullable=True, default=None)

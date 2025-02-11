@@ -1,7 +1,6 @@
 import quickannotator.db as qadb
 from sqlalchemy import func, Table
 from quickannotator.db import db_session
-from sqlalchemy.orm import aliased, sessionmaker, Session
 from sqlalchemy import exists, event
 import shapely
 from shapely.geometry import Polygon
@@ -19,6 +18,7 @@ import numpy as np
 from sqlalchemy.dialects.sqlite import insert   # NOTE: This import is necessary as there is no dialect-neutral way to call on_conflict()
 from quickannotator.api.v1.utils.shared_crud import get_annotation_query
 import quickannotator.db.models as models
+from quickannotator.db import get_session
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 import cv2
@@ -31,7 +31,6 @@ def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: int
         The function uses an upsert operation to either insert a new record or update an existing one
         based on the combination of `annotation_class_id`, `image_id`, and `tile_id`.
         Parameters:
-        - session (Session): The database session to use for the operation.
         - annotation_class_id (int): The ID of the annotation class.
         - image_id (int): The ID of the image.
         - tile_id (int): The ID of the tile.
@@ -193,65 +192,40 @@ def generate_random_circle_within_bbox(bbox: Polygon, radius: float) -> shapely.
     return intersection
 
 @ray.remote
-def remote_compute_on_tile(db_url, annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
+def remote_compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
     time.sleep(sleep_time)
     # Create the engine and session for each Ray task
-    engine = create_engine(db_url)
-    Session = sessionmaker(bind=engine)
-
-    # Attach the event listener to the engine (inside the task to ensure it's unique per task)
-    @event.listens_for(engine, "connect")
-    def connect(dbapi_connection, connection_record):
-        try:
-            # Enable the Spatialite extension on the raw SQLite connection
-            if hasattr(dbapi_connection, "enable_load_extension"):
-                dbapi_connection.enable_load_extension(True)
-                dbapi_connection.execute('SELECT load_extension("mod_spatialite")')
-                dbapi_connection.execute("PRAGMA busy_timeout=10000000;")
-                print("Spatialite extension loaded successfully")
-            else:
-                print("Extension loading not supported for this connection")
-        except Exception as e:
-            print(f"Error enabling Spatialite extension: {e}")
-
-    try:
         # Start a session for the task
-        with Session() as session:
-            # Example: load the tile and process
-            # breakpoint()
-            tile = get_tile(session, annotation_class_id, image_id, tile_id)  # Replace with your actual function to get the tile
-            annotation_class: models.AnnotationClass = tile.annotation_class
-            image: models.Image = tile.image
-            image_id: int = tile.image_id
-            annotation_class_id: int = tile.annotation_class_id
+    with get_session() as db_session:
+        # Example: load the tile and process
+        # breakpoint()
+        tile = get_tile(annotation_class_id, image_id, tile_id)  # Replace with your actual function to get the tile
+        if tile is None:
+            raise ValueError(f"Tile not found: {tile_id}")
+        annotation_class: models.AnnotationClass = tile.annotation_class
+        image: models.Image = tile.image
+        image_id: int = tile.image_id
+        annotation_class_id: int = tile.annotation_class_id
 
-            # Process the tile (using shapely for example)
-            bbox = get_bbox_for_tile(annotation_class.tilesize, tile_id, image.width, image.height)
-            bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
-            for _ in range(random.randint(20, 40)):
-                polygon = generate_random_circle_within_bbox(bbox_polygon, 100)
-                insert_new_annotation(session, image_id, annotation_class_id, is_gt=False, tile_id=tile_id, polygon=polygon)
+        # Process the tile (using shapely for example)
+        bbox = get_bbox_for_tile(annotation_class.tilesize, tile_id, image.width, image.height)
+        bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
+        for _ in range(random.randint(20, 40)):
+            polygon = generate_random_circle_within_bbox(bbox_polygon, 100)
+            insert_new_annotation(image_id, annotation_class_id, is_gt=False, tile_id=tile_id, polygon=polygon)
 
-            # Mark tile as processed
-            tile.seen = 2
+        # Mark tile as processed
+        tile.seen = 2
             
-            session.commit()
 
-    except Exception as e:
-        print(f"Error processing tile: {e}")
-
-    finally:
-        # Cleanup: Dispose of the engine when the task is done
-        engine.dispose()
 
 
 def compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
-    db_url = db.engine.url
-    ref = remote_compute_on_tile.remote(str(db_url), annotation_class_id, image_id, tile_id, sleep_time)
+    ref = remote_compute_on_tile.remote(annotation_class_id, image_id, tile_id, sleep_time)
     return ref.hex()
 
 
-def reset_all_tiles_seen(session):
+def reset_all_tiles_seen():
     """
     Resets the 'seen' status of all tiles in the database to 0.
     Args:
@@ -260,5 +234,4 @@ def reset_all_tiles_seen(session):
         None
     """
 
-    session.query(models.Tile).update({models.Tile.seen: 0})
-    session.commit()
+    db_session.query(models.Tile).update({models.Tile.seen: 0})

@@ -48,19 +48,18 @@ def count_annotations_within_bbox(table, x1, y1, x2, y2):
     result = db_session.execute(stmt).scalar()
     return result
 
-def retrieve_annotation_table(session, image_id: int, annotation_class_id: int, is_gt: bool) -> Table:
+def retrieve_annotation_table(image_id: int, annotation_class_id: int, is_gt: bool) -> Table:
     table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
 
-    return Table(table_name, qadb.db.metadata, autoload_with=session.bind)
+    return Table(table_name, qadb.db.metadata, autoload_with=db_session.bind)
 
 def create_annotation_table(image_id: int, annotation_class_id: int, is_gt: bool):
     table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt)
     table = models.Annotation.__table__.to_metadata(Base.metadata, name=table_name)
     Base.metadata.create_all(bind=db_session.bind, tables=[table])
 
-def delete_all_annotations(session, image_id: int, annotation_class_id: int, is_gt: bool):
+def delete_all_annotations(image_id: int, annotation_class_id: int, is_gt: bool):
     table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
     model = create_dynamic_model(table_name)
     
-    session.query(model).delete()
-    session.commit()
+    db_session.query(model).delete()
