@@ -98,7 +98,7 @@ class Annotation(MethodView):
         annotation_class: models.AnnotationClass = get_annotation_class_by_id(annotation_class_id)
         tile_id = point_to_tileid(annotation_class.tilesize, poly.centroid.x, poly.centroid.y, image.width, image.height)
         
-        ann = insert_new_annotation(db_session, image_id, annotation_class_id, True, tile_id, poly)
+        ann = insert_new_annotation(image_id, annotation_class_id, True, tile_id, poly)
         
         if tile_intersects_mask(image_id, annotation_class_id, tile_id):
             upsert_tile(annotation_class_id, image_id, tile_id, hasgt=True)

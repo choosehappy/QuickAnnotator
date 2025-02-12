@@ -65,7 +65,7 @@ class Tile(MethodView):
     def get(self, args):
         """     returns a Tile
         """
-        result = get_tile(db_session, args['annotation_class_id'], args['image_id'], args['tile_id'])
+        result = get_tile(args['annotation_class_id'], args['image_id'], args['tile_id'])
         return result, 200
 
     @bp.arguments(PostTileArgsSchema, location='query')
@@ -145,7 +145,7 @@ class TileSearchByCoordinates(MethodView):
         image: models.Image = get_image_by_id(args['image_id'])
         annotation_class: models.AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
         tile_id = point_to_tileid(annotation_class.tilesize, args['x'], args['y'], image.width, image.height)
-        return get_tile(db_session, args['annotation_class_id'], args['image_id'], tile_id), 200
+        return get_tile(args['annotation_class_id'], args['image_id'], tile_id), 200
 
 @bp.route('/predict')
 class TilePredict(MethodView):
