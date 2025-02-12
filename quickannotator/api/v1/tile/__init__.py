@@ -2,7 +2,6 @@ from flask_smorest import Blueprint
 from marshmallow import fields, Schema
 from flask.views import MethodView
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from pkg_resources import require
 
 import quickannotator.db as qadb
 from quickannotator.db import db_session
