@@ -5,6 +5,9 @@ from marshmallow import fields
 import geojson
 import shapely.wkb as wkb
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import column_property
+from sqlalchemy.sql import func
+from sqlalchemy.ext.hybrid import hybrid_property
 
 db = SQLAlchemy()
 
@@ -14,7 +17,7 @@ def create_dynamic_model(table_name, base=Base):
     class DynamicAnnotation(base):
         __tablename__ = table_name
         __table__ = Table(table_name, base.metadata, autoload_with=db.engine)
-    
+
     return DynamicAnnotation
 
 class Project(db.Model):
@@ -58,7 +61,7 @@ class Image(db.Model):
 
     # relationships
     notifications = db.relationship("Notification", backref='image', lazy=True)
-    tile = db.relationship('Tile', backref='image', lazy=True)
+    # tile = db.relationship('Tile', backref='image', lazy=True)
 
 
 class AnnotationClass(db.Model):
@@ -78,7 +81,7 @@ class AnnotationClass(db.Model):
     datetime = Column(DateTime, server_default=db.func.now())
 
     # relationships
-    db.relationship("Tile", backref='annotation_class', lazy=True)
+    # db.relationship("Tile", backref='annotation_class', lazy=True)
 
 
 class Tile(db.Model):
@@ -95,6 +98,10 @@ class Tile(db.Model):
     hasgt = Column(Boolean, nullable=False, default=False)
     datetime = Column(DateTime, server_default=db.func.now())
 
+    # relationships
+    image = db.relationship('Image', backref='tiles')
+    annotation_class = db.relationship('AnnotationClass', backref='tiles')
+
     # indexes
     __table_args__ = (
         Index('idx_annotation_class_image_tile', 'annotation_class_id', 'image_id', 'tile_id', unique=True),
@@ -102,24 +109,24 @@ class Tile(db.Model):
     
 
 class Annotation(db.Model):
-    """Each table will follow this naming convention: {image_id}_{annotation_class_id}_{gt/pred}"""
+    """Each table will follow this naming convention: annotation_{image_id}_{annotation_class_id}_{gt/pred}"""
 
     # primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
 
-    # foreign keys (these are redundant because the table name encodes the same information. But good for querying and future proofing)
+    # foreign keys (redundant due to table naming but useful for queries and future proofing)
     image_id = Column(Integer, ForeignKey('image.id'), nullable=True, default=None)
     annotation_class_id = Column(Integer, ForeignKey('annotation_class.id'), nullable=True, default=None)
     tile_id = Column(Integer, ForeignKey('tile.tile_id'), nullable=True, default=None)
-    
 
     # columns
     isgt = Column(Boolean, nullable=True, default=None)
-    centroid = Column(Geometry('POINT'))
+    centroid = Column(Geometry('POINT', srid=4326))  # Stored as geometry
     area = Column(Float)
-    polygon = Column(Geometry('POLYGON'))
+    polygon = Column(Geometry('POLYGON', srid=4326))  # Stored as geometry
     custom_metrics = Column(JSON)
-    datetime = Column(DateTime, server_default=db.func.now())
+    datetime = Column(DateTime, server_default=func.now())
+    
 
 def build_annotation_table_name(image_id: int, annotation_class_id: int, is_gt: bool):
     gtpred = 'gt' if is_gt else 'pred'
@@ -179,4 +186,3 @@ class GeometryField(fields.Field):
             return geom
         except Exception as e:
             raise ValueError(f"Invalid geometry format: {e}")
-        

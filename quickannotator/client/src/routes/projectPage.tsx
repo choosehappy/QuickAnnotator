@@ -19,7 +19,7 @@ const ProjectPage = () => {
     useEffect(() => {
         setCurrentImage(null);
         fetchProject(parseInt(projectid)).then((resp) => {
-            setCurrentProject(resp);
+            setCurrentProject(resp.data);
         })
     }, [])
 

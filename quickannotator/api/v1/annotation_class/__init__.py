@@ -4,7 +4,7 @@ from flask.views import MethodView
 import quickannotator.db as qadb
 from quickannotator.db import db
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from .helper import annotation_class_by_id
+from .helper import get_annotation_class_by_id
 
 bp = Blueprint('annotation_class', __name__, description='AnnotationClass operations')
 
@@ -41,7 +41,7 @@ class AnnotationClass(MethodView):
     def get(self, args):
         """     returns an AnnotationClass      """
 
-        result = annotation_class_by_id(db.session, args['annotation_class_id'])
+        result = get_annotation_class_by_id(args['annotation_class_id'])
         if result is not None:
             return result, 200
         else:

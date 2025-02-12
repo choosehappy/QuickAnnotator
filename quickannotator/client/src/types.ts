@@ -15,6 +15,7 @@ export interface AnnotationClass {
 export interface AnnotationResponse {
     id: number;
     annotation_class_id: number;
+    tile_id: number;
     polygon: string;
     centroid: string;
     area: number;
@@ -23,25 +24,25 @@ export interface AnnotationResponse {
 
 export class Annotation {
     id: number;
-    tileId: number | null;
     annotation_class_id: number;
+    tile_id: number | null;
     polygon: string;
     centroid: string;
     area: number;
     custom_metrics: { [key: string]: unknown }
 
-    constructor(annotation: AnnotationResponse, tileId: number | null = null) {
+    constructor(annotation: AnnotationResponse, annotation_class_id: number) {
         this.id = annotation.id;
-        this.tileId = tileId;
-        this.annotation_class_id = annotation.annotation_class_id;
+        this.tile_id = annotation.tile_id;
+        this.annotation_class_id = annotation_class_id;
         this.polygon = annotation.polygon;
         this.centroid = annotation.centroid;
         this.area = annotation.area;
         this.custom_metrics = annotation.custom_metrics;
     }
 
-    setTileId(tileId: number | null) {
-        this.tileId = tileId;
+    setTileId(tile_id: number | null) {
+        this.tile_id = tile_id;
     }
 
     get parsedPolygon(): Polygon {
@@ -90,10 +91,12 @@ export interface Project {
 
 export interface Tile {
     id: number;
-    image_id: number;
     annotation_class_id: number;
-    geom: {};
+    image_id: number;
+    tile_id: number;
     seen: number;
+    hasgt: boolean;
+    date: Date;
 }
 
 export type OutletContextType = {

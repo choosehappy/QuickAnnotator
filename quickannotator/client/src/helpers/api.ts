@@ -9,7 +9,7 @@ interface FetchOptions extends RequestInit {
 const API_URL = '/api/v1';
 
 // GET request method
-export const get = async <T>(url: string, options: FetchOptions = {}): ApiResponse<T> => {
+export const get = async <T>(url: string, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
     const response = await fetch(`${API_URL}${url}`, {
         method: 'GET',
         headers: {
@@ -18,15 +18,13 @@ export const get = async <T>(url: string, options: FetchOptions = {}): ApiRespon
         },
         ...options,
     });
-    if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-    }
     const text = await response.text();
-    return text ? JSON.parse(text) : {};
+    const data = text ? JSON.parse(text) : {};
+    return { data, status: response.status };
 };
 
 // POST request method
-export const post = async <U, T>(url: string, data: U, options: FetchOptions = {}): ApiResponse<T> => {
+export const post = async <U, T>(url: string, data: U, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
     const response = await fetch(`${API_URL}${url}`, {
         method: 'POST',
         headers: {
@@ -36,14 +34,12 @@ export const post = async <U, T>(url: string, data: U, options: FetchOptions = {
         body: JSON.stringify(data),
         ...options,
     });
-    if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-    }
-    return response.json();
+    const responseData = await response.json();
+    return { data: responseData, status: response.status };
 };
 
 // PUT request method
-export const put = async <T, U>(url: string, data: U, options: FetchOptions = {}): ApiResponse<T> => {
+export const put = async <T, U>(url: string, data: U, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
     const response = await fetch(`${API_URL}${url}`, {
         method: 'PUT',
         headers: {
@@ -53,14 +49,12 @@ export const put = async <T, U>(url: string, data: U, options: FetchOptions = {}
         body: JSON.stringify(data),
         ...options,
     });
-    if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-    }
-    return response.json();
+    const responseData = await response.json();
+    return { data: responseData, status: response.status };
 };
 
 // DELETE request method
-export const remove = async <T>(url: string, options: FetchOptions = {}): ApiResponse<T> => {
+export const remove = async <T>(url: string, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
     const response = await fetch(`${API_URL}${url}`, {
         method: 'DELETE',
         headers: {
@@ -69,12 +63,9 @@ export const remove = async <T>(url: string, options: FetchOptions = {}): ApiRes
         },
         ...options,
     });
-    if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-    }
-
     const text = await response.text();
-    return text ? JSON.parse(text) : {};
+    const data = text ? JSON.parse(text) : {};
+    return { data, status: response.status };
 };
 
 // Fetch image by ID
@@ -94,7 +85,7 @@ export const fetchAllAnnotations = async (image_id: number, annotation_class_id:
     return await get<AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/search?is_gt=${is_gt}`);
 }
 
-export const searchAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean, x1: number, y1: number, x2: number, y2: number) => {
+export const spatialSearchAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean, x1: number, y1: number, x2: number, y2: number) => {
     const query = new URLSearchParams({
         is_gt: is_gt.toString(),
         x1: x1.toString(),
@@ -105,30 +96,25 @@ export const searchAnnotations = async (image_id: number, annotation_class_id: n
     return await get<AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/search?${query}`);
 }
 
-export const searchAnnotationsWithinTile = async (tile: Tile, is_gt: boolean) => {
-    const geom = JSON.parse(tile.geom.toString());
+export const getAnnotationsForTile = async (image_id: number, annotation_class_id: number, tile_id: number, is_gt: boolean) => {
+    const query = new URLSearchParams({
+        is_gt: is_gt.toString(),
+    });
 
-    const x1 = Math.round(geom.coordinates[0][0][0]);
-    const y1 = Math.round(geom.coordinates[0][0][1]);
-    const x2 = Math.round(geom.coordinates[0][2][0]);
-    const y2 = Math.round(geom.coordinates[0][2][1]);
-
-    const resp = await searchAnnotations(tile.image_id, tile.annotation_class_id, is_gt, x1, y1, x2, y2)
-    return resp
+    return await get<AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/${tile_id}?${query}`);
 }
 
 // Post annotation
-export const postAnnotation = async (image_id: number, annotation_class_id: number, is_gt: boolean, polygon: Polygon) => {
+export const postAnnotation = async (image_id: number, annotation_class_id: number, polygon: Polygon) => {
     const requestBody: PostAnnArgs = {
-        is_gt: is_gt,
         polygon: JSON.stringify(polygon),
     };
 
     return await post<PostAnnArgs, AnnotationResponse>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);
 }
 
-export const putAnnotation = async (image_id: number, annotation_class_id: number, annotation: Annotation) => {
-    const { tileId, ...rest } = annotation;
+export const putAnnotation = async (image_id: number, annotation: Annotation) => {
+    const { annotation_class_id, ...rest } = annotation;
     const requestBody: PutAnnArgs = {
         ...rest,
         is_gt: true,
@@ -152,39 +138,45 @@ export const fetchAnnotationClassById = async (annotation_class_id: number) => {
     return await get<AnnotationClass>(`/class/?${query}`);
 }
 
-// Fetch annotation by ID
-export const searchTiles = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number) => {
+// Fetch tiles by bounding box
+export const searchTiles = async (image_id: number, annotation_class_id: number, hasgt: boolean, include_placeholder_tiles: boolean, x1: number, y1: number, x2: number, y2: number) => {
     const query = new URLSearchParams({
         image_id: image_id.toString(),
         annotation_class_id: annotation_class_id.toString(),
+        hasgt: hasgt.toString(),
+        include_placeholder_tiles: include_placeholder_tiles.toString(),
         x1: x1.toString(),
         y1: y1.toString(),
         x2: x2.toString(),
         y2: y2.toString(),
     });
-    return await get<Tile[]>(`/tile/search?${query}`);
+    return await get<Tile[]>(`/tile/search/bbox?${query}`);
 }
 
 // Fetch tile by ID
-export const fetchTile = async (tile_id: number) => {
-    const query = new URLSearchParams({ tile_id: tile_id.toString() });
+export const fetchTile = async (image_id: number, annotation_class_id: number, tile_id: number) => {
+    const query = new URLSearchParams({ image_id: image_id.toString(), annotation_class_id: annotation_class_id.toString(), tile_id: tile_id.toString() });
     return await get<Tile>(`/tile?${query}`);
 }
 
 
 export const operateOnAnnotation = async (annotation: Annotation, polygon2: Polygon, operation: number) => {
-    const { tileId, ...rest } = annotation;
+    const { annotation_class_id, ...rest } = annotation;
     const requestBody: PostOperationArgs = {
         ...rest,
         polygon2: JSON.stringify(polygon2),
         operation: operation,
     };
 
-    return await post<PostOperationArgs, Annotation>(`/annotation/operation`, requestBody);
+    return await post<PostOperationArgs, AnnotationResponse>(`/annotation/operation`, requestBody);
 }
 
 // Predict tile
-export const predictTile = async (tile_id: number) => {
-    const requestBody = { tile_id: tile_id };
+export const predictTile = async (image_id: number, annotation_class_id: number, tile_id: number) => {
+    const requestBody = { 
+        image_id: image_id, 
+        annotation_class_id: annotation_class_id, 
+        tile_id: tile_id 
+    };
     return await post<{ tile_id: number }, {object_ref: number}>(`/tile/predict`, requestBody);
 }

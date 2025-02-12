@@ -37,11 +37,11 @@ const AnnotationPage = () => {
     useEffect(() => {
         if (projectid && imageid) {
             fetchProject(parseInt(projectid)).then((resp) => {
-                setCurrentProject(resp);
+                setCurrentProject(resp.data);
             });
     
             fetchImage(parseInt(imageid)).then((resp) => {
-                setCurrentImage(resp);
+                setCurrentImage(resp.data);
             });
         }
     }, [])

@@ -1,16 +1,11 @@
 import quickannotator.db as qadb
 from sqlalchemy import func, select, text, MetaData, Table
-from sqlalchemy.orm import aliased, Session
+from sqlalchemy.orm import aliased, Session, Query
 from typing import List
-import quickannotator.db as qadb
-import shapely.geometry
 from sqlalchemy.ext.declarative import declarative_base
-import time
 from sqlalchemy.types import DateTime
-from datetime import datetime
-import json
-import random
-from quickannotator.db import create_dynamic_model, build_annotation_table_name
+from quickannotator.db import create_dynamic_model, build_annotation_table_name, Annotation
+from quickannotator.api.v1.utils.shared_crud import get_annotation_query
 
 Base = declarative_base()
 
@@ -21,13 +16,13 @@ def annotations_within_bbox(table, x1, y1, x2, y2):
     result = qadb.db.session.execute(stmt).fetchall()
     return result
 
-def get_annotations_for_tile(session: Session, image_id, annotation_class_id, tile_id) -> List[qadb.Annotation]:
-    table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=True)
-    model = create_dynamic_model(table_name)
-    result = session.query(model).filter_by(tile_id=tile_id).all()
+def get_annotations_for_tile(image_id: int, annotation_class_id: int, tile_id: int, is_gt: bool) -> List[Annotation]:
+    model: Annotation = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt))
+    result: List[Annotation] = get_annotation_query(model).filter_by(tile_id=tile_id).all()
+    
     return result
 
-def annotations_within_bbox_spatial(table_name: str, x1: float, y1: float, x2: float, y2: float) -> List[qadb.Annotation]:
+def annotations_within_bbox_spatial(table_name: str, x1: float, y1: float, x2: float, y2: float) -> List[Annotation]:
     stmt = text(f'''
         SELECT ROWID, AsGeoJSON(centroid) as centroid, area, AsGeoJSON(polygon) as polygon, custom_metrics, datetime, annotation_class_id
         FROM "{table_name}"
@@ -52,39 +47,9 @@ def count_annotations_within_bbox(table, x1, y1, x2, y2):
     return result
 
 def retrieve_annotation_table(session, image_id: int, annotation_class_id: int, is_gt: bool) -> Table:
-    gtpred = 'gt' if is_gt else 'pred'
-    table_name = f"{image_id}_{annotation_class_id}_{gtpred}_annotation"
+    table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
 
     return Table(table_name, qadb.db.metadata, autoload_with=session.bind)
-
-def compute_custom_metrics() -> dict:
-    return json.dumps({"iou": 0.5})
-
-def annotation_by_id(table, annotation_id):
-    stmt = table.select().where(table.c.id == annotation_id).with_only_columns(
-        *(col for col in table.c if col.name != "polygon" and col.name != "centroid"),
-        table.c.centroid.ST_AsGeoJSON().label('centroid'),
-        table.c.polygon.ST_AsGeoJSON().label('polygon')
-    )
-    result = qadb.db.session.execute(stmt).first()
-
-    return result
-
-def insert_new_annotation(session, image_id, annotation_class_id, is_gt, polygon: shapely.geometry.Polygon):
-    table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
-    model = create_dynamic_model(table_name)
-
-    new_annotation = model(
-        image_id=image_id,
-        annotation_class_id=annotation_class_id,
-        isgt=is_gt,
-        centroid=polygon.centroid.wkt,
-        area=polygon.area,
-        polygon=polygon.wkt,
-        custom_metrics=compute_custom_metrics(),
-        datetime=datetime.now()
-    )
-    session.add(new_annotation)
 
 def delete_all_annotations(session, image_id: int, annotation_class_id: int, is_gt: bool):
     table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
