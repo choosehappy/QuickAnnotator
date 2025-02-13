@@ -4,6 +4,7 @@ import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs
 import { searchTiles, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTile, predictTile } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 import { Config } from "../helpers/config.ts";
+import { computeTilesToRender } from '../utils/map_tiles.ts';
 
 
 interface Props {
@@ -20,14 +21,6 @@ interface Props {
     setCurrentTool: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
-const computeTilesToRender = (oldTileIds: number[], newTileIds: number[]) => {
-    const a = new Set(oldTileIds)
-    const b = new Set(newTileIds)
-    const tilesToRemove = new Set([...a].filter(x => !b.has(x)));
-    const tilesToRender = new Set([...b].filter(x => !a.has(x)));
-    return { tilesToRemove, tilesToRender }
-}
-
 const useLocalContext = (data: any) => {
     const ctx = React.useRef(data)
     ctx.current = data
@@ -37,7 +30,7 @@ const useLocalContext = (data: any) => {
 const ViewportMap = (props: Props) => {
     const viewRef = useRef(null);
     // const [dlTileQueue, setDlTileQueue] = useState<Tile[] | null>(null);
-    const geojs_map = useRef<geo.map | null>(null);
+    // const geojs_map = useRef<geo.map | null>(null);
     const polygonClicked = useRef<Boolean>(false);  // We need this to ensure polygon clicked and background clicked are mutually exclusive, because geojs does not provide control over event propagation.
     const activeRenderGroundTruthsCall = useRef<number>(0);
     const activeRenderPredictionsCall = useRef<number>(0);
@@ -293,6 +286,7 @@ const ViewportMap = (props: Props) => {
         const currentImage: Image = ctx.current.currentImage;
         const currentClass: AnnotationClass = ctx.current.currentClass;
         const currentAnn: CurrentAnnotation = ctx.current.currentAnnotation;
+        const currentTool: string = ctx.current.currentTool;
 
         if (polygonList.length > 0 && currentImage && currentClass) {
             // 1. Get the polygon from the annotation layer.
@@ -306,7 +300,7 @@ const ViewportMap = (props: Props) => {
             // 2. if currentAnnotation exists, update the currentAnnotation
             if (currentAnn && currentState && currentState.tile_id) {
                 console.log("Current annotation exists. Updating...")
-                // // 1. Get the feature data associated with the CurrentAnnotation
+                // 1. Get the feature data associated with the CurrentAnnotation
                 const feature = getFeatureByTileId(Config.LAYER_KEYS.gt, currentState.tile_id);
                 const data = feature.data();
 
@@ -454,7 +448,7 @@ const ViewportMap = (props: Props) => {
             annotationLayer.geoOn(geo.event.annotation.mode, handleAnnotationModeChange);
             window.onkeydown = (evt) => {
                 if (evt.key === 'Backspace' || evt.key === 'Delete') {
-                    handleDeleteAnnotation(evt);;
+                    handleDeleteAnnotation(evt);
                 }
             }
 
