@@ -368,14 +368,15 @@ const ViewportMap = (props: Props) => {
         // polygonFeature.data(polygonList).draw()
     }
 
-    const handleAnnotationModeChange = (args) => {
-        console.log(`Mode changed from ${args.oldMode} to ${args.mode}`);
+    const handleAnnotationModeChange = (evt) => {
+        console.log(`Mode changed from ${evt.oldMode} to ${evt.mode}`);
         const currentTool = ctx.current.currentTool;
-        if (args.mode === null && args.oldMode === 'polygon' && currentTool !== Config.TOOLBAR_KEYS.pointer) {
+        if (evt.mode === null && evt.oldMode === 'polygon' && currentTool !== Config.TOOLBAR_KEYS.pointer) {
             const annotationLayer = geojs_map.current.layers()[Config.LAYER_KEYS.ann];
             annotationLayer.mode('polygon');
         }
     }
+
 
     const handleZoomPan = () => {
         console.log('Zooming or Panning...');
@@ -393,9 +394,9 @@ const ViewportMap = (props: Props) => {
             renderAnnotations(x1, y1, x2, y2, activeRenderGroundTruthsCall, true).then(() => {
                 console.log("Ground truths rendered.");
             });
-            renderAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall, false).then(() => {
-                console.log("Predictions rendered.");
-            });
+            // renderAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall, false).then(() => {
+            //     console.log("Predictions rendered.");
+            // });
         }, 100); // Adjust this timeout duration as needed
     };
 
