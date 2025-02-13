@@ -4,7 +4,7 @@ import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs
 import { searchTiles, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTile, predictTile } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 import { Config } from "../helpers/config.ts";
-import { computeTilesToRender, getTileFeatureById, redrawTileFeature } from '../utils/map_tiles.ts';
+import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature } from '../utils/map.ts';
 
 interface Props {
     currentImage: Image | null;
@@ -116,7 +116,7 @@ const ViewportMap = (props: Props) => {
                 break;
             case 2:
                 console.log("Tile seen.");
-                drawPredictedPolygons({ tile_id: tile.tile_id }, annotations, layer);
+                createPredTileFeature({ tile_id: tile.tile_id }, annotations, layer);
                 break;
             default:
                 console.log("Invalid tile seen value.");
@@ -126,87 +126,24 @@ const ViewportMap = (props: Props) => {
 
     const processGroundTruthTile = (tile: Tile, annotations: Annotation[], layer: any) => {
         const featureProps = { tile_id: tile.tile_id };
-        drawGroundTruthPolygons(featureProps, annotations, layer);
+        const currentAnnotationId = props.currentAnnotation?.currentState?.id;
+        const feature = createGTTileFeature(featureProps, annotations, layer, currentAnnotationId, props.currentClass?.id);
+        feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon)
     }
 
     const renderTissueMask = async (map: geo.map) => {  // The renderTissueMask function does not currently work...
         if (!props.currentImage || !props.currentClass) return;
         const resp = await fetchAllAnnotations(props.currentImage.id, props.currentClass.id, true);
         const annotations = resp.data.map(annResp => new Annotation(annResp, props.currentClass.id));
-        drawGroundTruthPolygons({}, annotations, map);
+        createGTTileFeature({}, annotations, map);
         props.setGts(annotations);
-    }
-
-    const drawGroundTruthPolygons = async (featureProps: any, annotations: Annotation[], layer: any, annotationClassId: number = 1) => {
-        const feature = layer.createFeature('polygon');
-        feature.props = featureProps;
-
-        feature
-            .position((d: Position) => {
-                return {
-                    x: d[0], y: d[1]
-                };
-            })
-            .polygon((a: Annotation) => {
-                const polygon = a.parsedPolygon;
-                return polygon.coordinates[0];
-            })
-            .data(annotations)
-            .style('fill', true)
-            .style('fillColor', 'lime')
-            .style('fillOpacity', 0.5)
-            // .style('stroke', (a: Annotation) => {
-            //     if (a.id === props.currentAnnotation?.currentState?.id) {
-            //         console.log("Change stroke of polygon.")
-            //         return true
-            //     }
-            //     return false; // Default to no stroke
-            // })
-            .style('strokeColor', 'black')
-            .style('strokeWidth', 2)
-            .geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon)
-
-        const originalDraw = feature.draw;
-        feature.draw = (options = { currentAnnotationId: null }) => {
-            feature.style('stroke', (a: Annotation) => {
-                return a.id === options.currentAnnotationId
-            });
-            originalDraw.call(feature);
-        }
-        console.log('Drew ground truth polygons.')
-
-        feature.draw({ currentAnnotationId: props.currentAnnotation?.currentState?.id });
-    }
-
-    const drawPredictedPolygons = async (featureProps: any, annotations: Annotation[], layer: any, annotationClassId: number = 1) => {
-        const feature = layer.createFeature('polygon');
-        feature.props = featureProps;
-
-        feature
-            .position((d: Position) => {
-                return {
-                    x: d[0], y: d[1]
-                };
-            })
-            .polygon((a: Annotation) => {
-                const polygon = a.parsedPolygon;
-                return polygon.coordinates[0];
-            })
-            .data(annotations)
-            .style('fill', true)
-            .style('fillColor', 'lime')
-            .style('fillOpacity', 0.5)
-            .style('stroke', true)
-            .style('strokeColor', 'white')
-            .draw();
-        console.log('Drew predicted polygons.')
     }
 
     const drawCentroids = (annotations: Annotation[], map: geo.map) => {
         return;
     }
 
-    function handleMousedownOnPolygon(evt) {    // TODO: Clean up this function. There is redundant code.
+    function handleMousedownOnPolygon(evt) {
         console.log("Polygon clicked.")
         console.log(evt.data)
         polygonClicked.current = true;
@@ -236,7 +173,7 @@ const ViewportMap = (props: Props) => {
                 props.setCurrentAnnotation(null);
             }
         }
-    };
+    }
 
     function handleDeleteAnnotation(evt) {
         console.log("Delete annotation detected.")
@@ -319,29 +256,18 @@ const ViewportMap = (props: Props) => {
                             const updatedData = data.concat(annotation);
                             redrawTileFeature(feature, {}, updatedData);
                         } else {
-                            drawGroundTruthPolygons({}, [annotation], geojs_map.current.layers()[Config.LAYER_KEYS.gt], currentClass.id);
+                            const feature = createGTTileFeature({}, [annotation], geojs_map.current.layers()[Config.LAYER_KEYS.gt], currentClass.id);
+                            feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
                         }
                         props.setGts((prev: Annotation[]) => prev.concat(annotation));
                     }
                 });
-
             }
 
             annotationLayer.mode(null);
             annotationLayer.removeAllAnnotations();
-            // annotationLayer.mode('polygon');
-            // annotationLayer.geoOnce(geo.event.annotation.mode, () => {
-            //     console.log("Annotation mode reset.")
-            // });
-            annotationLayer.onIdle(() => {
-                console.log("Annotation layer idle.")
-                annotationLayer.mode('polygon');
-            });
-
             console.log("Annotation layer cleared.")
         }
-
-        // polygonFeature.data(polygonList).draw()
     }
 
     const handleAnnotationModeChange = (evt) => {
@@ -352,7 +278,6 @@ const ViewportMap = (props: Props) => {
             annotationLayer.mode('polygon');
         }
     }
-
 
     const handleZoomPan = () => {
         console.log('Zooming or Panning...');
