@@ -74,6 +74,7 @@ const AnnotationPage = () => {
                                                     preds, 
                                                     setPreds, 
                                                     currentTool, 
+                                                    setCurrentTool,
                                                     currentAnnotation, 
                                                     setCurrentAnnotation, 
                                                     prevCurrentAnnotation }} />
