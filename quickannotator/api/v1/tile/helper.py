@@ -22,10 +22,11 @@ from quickannotator.db import get_session
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 import cv2
+from quickannotator.constants import TileStatus
 
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 
-def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: int=None, hasgt: bool=None):
+def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: TileStatus=None, hasgt: bool=None):
     '''
         Inserts a new tile record into the database or updates an existing one based on the given parameters.
         The function uses an upsert operation to either insert a new record or update an existing one
@@ -234,4 +235,4 @@ def reset_all_tiles_seen():
         None
     """
 
-    db_session.query(models.Tile).update({models.Tile.seen: 0})
+    db_session.query(models.Tile).update({models.Tile.seen: TileStatus.UNSEEN.value})

@@ -14,6 +14,7 @@ from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_
 from quickannotator.dl.database import create_db_engine, get_database_path, get_session_aj
 import cv2
 from sqlalchemy import Table
+from quickannotator.constants import TileStatus
 
 
 def load_image_from_cache(cache_key): ## probably doesn't need to be a function...
@@ -94,7 +95,7 @@ def getTileStatus(classid):
     from quickannotator.db import db_session, SearchCache
 
     session = get_session_aj(create_db_engine(get_database_path()))
-    stmt = session.query(Tile).filter(Tile.annotation_class_id == classid, Tile.seen == 1)
+    stmt = session.query(Tile).filter(Tile.annotation_class_id == classid, Tile.seen == TileStatus.UNSEEN.value)
     
     result = stmt.all()
     

@@ -5,7 +5,8 @@ from quickannotator.db import Base
 from sqlalchemy.orm import relationship
 import geojson
 from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, Text, func
-
+from ..constants import TileStatus
+from sqlalchemy import Enum
 
 class Project(Base):
     """
@@ -81,7 +82,7 @@ class Tile(Base):
     tile_id = Column(Integer, nullable=False)
 
     # columns
-    seen = Column(Integer, nullable=False, default=0)
+    seen = Column(Integer, nullable=False, default=TileStatus.UNSEEN.value)
     hasgt = Column(Boolean, nullable=False, default=False)
     datetime = Column(DateTime, server_default=func.now())
 
@@ -162,10 +163,6 @@ class GeometryField(fields.Field):
         super().__init__(*args, **kwargs)
 
     def _serialize(self, value, attr, obj, **kwargs):
-        if value is None:
-            return None
-        # if isinstance(value, str):
-        #     return geojson.loads(value)
         return value
 
     def _deserialize(self, value, attr, data, **kwargs):
