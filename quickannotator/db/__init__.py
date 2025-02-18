@@ -31,7 +31,7 @@ class Project(db.Model):
     name = Column(Text, nullable=False, unique=True)
 
     description = Column(Text, default="")
-    is_dataset_large = Column(Boolean, default=False)
+    is_dataset_large = Column(Boolean, default=False)   # Placeholder project setting that currently has no use. "large" means e.g., > 1000 images.
     datetime = Column(DateTime, server_default=db.func.now())
 
     # relationships
