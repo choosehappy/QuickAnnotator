@@ -46,7 +46,6 @@ import cv2
 
 from sqlalchemy import inspect
 
-
-from quickannotator.db import db_session, SearchCache
+from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation
 
 

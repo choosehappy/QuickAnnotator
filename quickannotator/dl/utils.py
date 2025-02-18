@@ -44,5 +44,5 @@ def decompress_from_jpeg(jpeg_bytes):
 from pymemcache.client.base import PooledClient
 from pymemcache import serde
 def get_memcached_client():
-    client = PooledClient(('localhost', 11211),serde=serde.pickle_serde, max_pool_size=4)
+    client = PooledClient(('localhost', 11211),serde=serde.pickle_serde, max_pool_size=4) #TODO: will need to get this info from the config file
     return client
