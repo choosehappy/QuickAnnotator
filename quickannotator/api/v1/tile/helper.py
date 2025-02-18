@@ -62,7 +62,7 @@ def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: Til
     return result
     
 
-def get_tile_ids_within_bbox(tile_size: int, bbox: list[int], image_width: int, image_height: int) -> list:
+def get_tile_ids_within_bbox(tile_size: int, image_width: int, image_height: int, bbox: list[int]) -> list:
     # Force the bounding box to be within the image dimensions for robustness.
     x1 = max(0, min(bbox[0], image_width))
     y1 = max(0, min(bbox[1], image_height))
@@ -90,20 +90,20 @@ def get_tile_ids_within_bbox(tile_size: int, bbox: list[int], image_width: int, 
 
     return tile_ids
 
-def point_to_tileid(tile_size: int, x: int, y: int, image_width: int, image_height: int) -> int:
+def point_to_tileid(tile_size: int, image_width: int, image_height: int, x: int, y: int) -> int:
     if not (0 <= x < image_width and 0 <= y < image_height):
         raise ValueError(f"Point {x}, {y} is out of image dimensions (0, 0, {image_width}, {image_height})")
 
     col = x // tile_size
     row = y // tile_size
-    tile_id = rc_to_tileid(tile_size, row, col, image_width, image_height)
+    tile_id = rc_to_tileid(tile_size, image_width, image_height, row, col)
     return tile_id
 
-def rc_to_tileid(tile_size: int, row: int, col: int, image_width: int, image_height: int) -> int:
+def rc_to_tileid(tile_size: int, image_width: int, image_height: int, row: int, col: int) -> int:
     tile_id = row * math.ceil(image_width / tile_size) + col
     return tile_id
 
-def tileid_to_rc(tile_size: int, tile_id: int, image_width: int, image_height: int) -> tuple:
+def tileid_to_rc(tile_size: int, image_width: int, image_height: int, tile_id: int) -> tuple:
     tiles_per_row = math.ceil(image_width / tile_size)
     row = tile_id // tiles_per_row
     col = tile_id % tiles_per_row
@@ -113,11 +113,11 @@ def get_all_tile_ids_for_image(tile_size: int, image_width: int, image_height: i
     total_tiles = math.ceil(image_width / tile_size) * math.ceil(image_height / tile_size)
     return list(range(total_tiles))
 
-def get_bbox_for_tile(tile_size: int, tile_id: int, image_width: int, image_height: int) -> tuple:
+def get_bbox_for_tile(tile_size: int, image_width: int, image_height: int, tile_id: int) -> tuple:
     if tile_id < 1:
         raise ValueError(f"Tile ID must be greater than or equal to 1: {tile_id}")
 
-    row, col = tileid_to_rc(tile_size, tile_id, image_width, image_height)
+    row, col = tileid_to_rc(tile_size, image_width, image_height, tile_id)
 
     x1 = col * tile_size
     y1 = row * tile_size
@@ -130,7 +130,7 @@ def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile
     image = get_image_by_id(image_id)
     tilesize = get_annotation_class_by_id(annotatation_class_id).tilesize
 
-    bbox = get_bbox_for_tile(tilesize, tile_id, image.width, image.height)
+    bbox = get_bbox_for_tile(tilesize, image.width, image.height, tile_id)
     model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id=1, is_gt=True))
     mask_annotations = db_session.query(model).all()
 
@@ -178,7 +178,7 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
     filled_rows, filled_cols = np.nonzero(mask)
     
     # Convert pixel coordinates to tile IDs
-    tile_ids = [rc_to_tileid(tilesize, row, col, image.width, image.height) for row, col in zip(filled_rows, filled_cols)]
+    tile_ids = [rc_to_tileid(tilesize, image.width, image.height, row, col) for row, col in zip(filled_rows, filled_cols)]
 
     return tile_ids, mask, polygons
 
@@ -209,7 +209,7 @@ def remote_compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int
         annotation_class_id: int = tile.annotation_class_id
 
         # Process the tile (using shapely for example)
-        bbox = get_bbox_for_tile(annotation_class.tilesize, tile_id, image.width, image.height)
+        bbox = get_bbox_for_tile(annotation_class.tilesize, image.width, image.height, tile_id)
         bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
         for _ in range(random.randint(20, 40)):
             polygon = generate_random_circle_within_bbox(bbox_polygon, 100)
