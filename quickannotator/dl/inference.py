@@ -13,7 +13,7 @@ from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_
 from quickannotator.dl.database import create_db_engine, get_database_path, get_session_aj
 import cv2, os
 from sqlalchemy import Table
-
+import ray
 
 def load_image_from_cache(cache_key): ## probably doesn't need to be a function...
     client = get_memcached_client() ## client should be a "self" variable
@@ -92,17 +92,35 @@ def getPendingInferenceTiles(classid):
     from quickannotator.dl.database import create_db_engine, get_database_path, get_session_aj
     from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation
 
-    session = get_session_aj(create_db_engine(get_database_path()))
-    stmt = session.query(Tile).filter(Tile.annotation_class_id == classid, Tile.seen == 1) #TODO: ==1 should be converted to a named  ENUM
+    with get_session_aj(create_db_engine(get_database_path())) as session:
     
-    result = stmt.all()
     
-    session.close()
+        tiles = session.query(Tile)\
+                        .filter(Tile.annotation_class_id == classid, Tile.seen == 1)\
+                        .order_by(Tile.datetime.desc())\
+                        .all() 
+    
+    world_size= ray.train.get_context().get_world_size()
+    world_rank= ray.train.get_context().get_world_rank()
+    
+    if world_size > 1: #filter down to entire list of tiles which should be seen by this GPU
+        worker_tiles= [tile for idx, tile in enumerate(tiles) if idx % world_size == world_rank]
+    else:
+        worker_tiles = tiles
 
-    return result
+    pytorch_worker_info = torch.utils.data.get_worker_info()
+    if pytorch_worker_info is None:  # single-process data loading, return the full iterator
+        final_tiles= worker_tiles
+    else: #further filter down to tiles which should be seen by *this* pytorch worker
+        num_workers = pytorch_worker_info.num_workers
+        worker_id = pytorch_worker_info.id
+        final_tiles = [worker_tile for idx, worker_tile in enumerate(worker_tiles) if idx % num_workers == worker_id]
+
+    return final_tiles
 
 
 def batch_iterable(iterable, tile_batch_size): #TODO: check version of python in container -- a function like this is avaialble  in itertools and should be used instead
+    #needs python 3.12
     for i in range(0, len(iterable), tile_batch_size):
         yield iterable[i:i + tile_batch_size]
 

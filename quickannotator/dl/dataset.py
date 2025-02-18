@@ -27,6 +27,10 @@ class TileDataset(IterableDataset):
         #note that we sort by reverse datetime - and then "pull out" alternating tiles based on worker ID
         #this in theory means if there are 6 new tiles, and 6 GPUs, each GPU will get one of the new tiles before moving to "less recent"
         session = get_session_aj(create_db_engine(get_database_path()))
+
+        #TODO: this should be generalized and refactoreed into a utility function - something
+        #very similar is being done in inference.py getPendingInferenceTiles. the needed
+        #function should take a list of tiles and return the ones that should be seen by the current worker
         tiles = session.query(Tile)\
                     .filter(Tile.annotation_class_id == self.classid, Tile.hasgt == True)\
                     .order_by(Tile.datetime.desc())\

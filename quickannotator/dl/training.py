@@ -11,6 +11,7 @@ import io
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import cv2
+from safetensors.torch import save_file
 
 def get_transforms(tile_size): #probably goes...elsewhere
     transforms = A.Compose([
@@ -97,6 +98,7 @@ def train_model(config):
     for epoch in range(num_epochs):
         model.train()
         running_loss = []
+        last_save = 0
         for images, masks, weights in tqdm(dataloader):
 
 
@@ -128,7 +130,13 @@ def train_model(config):
             running_loss.append(loss_total.item())
             
             print("losses:\t",loss_total,positive_mask.sum(),positive_loss,unlabeled_loss)
-            #TODO: add a timer here to save the model every so often
+            
+            last_save+=1
+            if last_save>100:
+                print("saving!")
+                save_file(model.state_dict(), f"/tmp/model.safetensors") #TODO: needs to go somewhere reasonable maybe /projid/models/classid/ ? or something
+                last_save = 0
+            
 
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {sum(running_loss)/len(running_loss)}")
         running_loss=[]
