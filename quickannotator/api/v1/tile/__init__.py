@@ -130,7 +130,7 @@ class TileSearch(MethodView):
         if args['include_placeholder_tiles']:
             existing_ids = set([tile.tile_id for tile in tiles])
             placeholder_tile_ids = ids - existing_ids
-            placeholder_tiles = [models.Tile(tile_id=tile_id, image_id=args['image_id'], annotation_class_id=args['annotation_class_id'], seen=TileStatus.UNSEEN.value, hasgt=False) for tile_id in placeholder_tile_ids]
+            placeholder_tiles = [models.Tile(tile_id=tile_id, image_id=args['image_id'], annotation_class_id=args['annotation_class_id'], seen=TileStatus.UNSEEN, hasgt=False) for tile_id in placeholder_tile_ids]
             
             tiles.extend(placeholder_tiles)
         return tiles, 200
@@ -154,7 +154,7 @@ class TilePredict(MethodView):
     def post(self, args):
         """     predict tiles for a given image & class
         """
-        upsert_tile(args['annotation_class_id'], args['image_id'], args['tile_id'], seen=TileStatus.PROCESSING.value)
+        upsert_tile(args['annotation_class_id'], args['image_id'], args['tile_id'], seen=TileStatus.PROCESSING)
 
         object_ref = compute_on_tile(args['annotation_class_id'], args['image_id'], tile_id=args['tile_id'], sleep_time=5)
         return {'object_ref': object_ref}, 201

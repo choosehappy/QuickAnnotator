@@ -235,4 +235,4 @@ def reset_all_tiles_seen():
         None
     """
 
-    db_session.query(models.Tile).update({models.Tile.seen: TileStatus.UNSEEN.value})
+    db_session.query(models.Tile).update({models.Tile.seen: TileStatus.UNSEEN})

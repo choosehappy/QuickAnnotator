@@ -95,7 +95,7 @@ def getTileStatus(classid):
     from quickannotator.db import db_session, SearchCache
 
     session = get_session_aj(create_db_engine(get_database_path()))
-    stmt = session.query(Tile).filter(Tile.annotation_class_id == classid, Tile.seen == TileStatus.UNSEEN.value)
+    stmt = session.query(Tile).filter(Tile.annotation_class_id == classid, Tile.seen == TileStatus.UNSEEN)
     
     result = stmt.all()
     

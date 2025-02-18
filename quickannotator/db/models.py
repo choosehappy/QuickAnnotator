@@ -82,7 +82,7 @@ class Tile(Base):
     tile_id = Column(Integer, nullable=False)
 
     # columns
-    seen = Column(Integer, nullable=False, default=TileStatus.UNSEEN.value)
+    seen = Column(Integer, nullable=False, default=TileStatus.UNSEEN)
     hasgt = Column(Boolean, nullable=False, default=False)
     datetime = Column(DateTime, server_default=func.now())
 

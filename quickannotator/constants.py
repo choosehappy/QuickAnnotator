@@ -1,6 +1,6 @@
 import enum
 
-class TileStatus(enum.Enum):
+class TileStatus(enum.IntEnum):
     UNSEEN = 0
     PROCESSING = 1
     SEEN = 2
