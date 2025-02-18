@@ -3,6 +3,7 @@ from sqlalchemy import func, Table
 from quickannotator.db import db_session
 from sqlalchemy import exists, event
 import shapely
+from shapely.affinity import scale
 from shapely.geometry import Polygon
 import shapely.wkb as wkb
 import random
@@ -114,9 +115,6 @@ def get_all_tile_ids_for_image(tile_size: int, image_width: int, image_height: i
     return list(range(total_tiles))
 
 def get_bbox_for_tile(tile_size: int, image_width: int, image_height: int, tile_id: int) -> tuple:
-    if tile_id < 1:
-        raise ValueError(f"Tile ID must be greater than or equal to 1: {tile_id}")
-
     row, col = tileid_to_rc(tile_size, image_width, image_height, tile_id)
 
     x1 = col * tile_size
@@ -156,10 +154,11 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
 
     polygons = []
 
+    scale_factor = 1/tilesize
     for annotation in mask_geojson:
-        polygon = np.array(shapely.from_geojson(annotation.polygon).exterior.coords).astype(np.float64)
-        scaled_polygon = np.floor(polygon / tilesize).astype(np.int32)
-        polygons.append(scaled_polygon)
+        shapely_polygon = shapely.from_geojson(annotation.polygon)
+        scaled_polygon = scale(shapely_polygon, xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
+        polygons.append(np.floor(scaled_polygon.exterior.coords).astype(np.int32))
 
 
     # Create empty mask image
