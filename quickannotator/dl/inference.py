@@ -1,3 +1,4 @@
+from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
 import torch
 import numpy as np
 import shapely.wkb
@@ -13,6 +14,7 @@ from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_
 from quickannotator.dl.database import create_db_engine, get_database_path, get_session_aj
 import cv2, os
 from sqlalchemy import Table
+from quickannotator.constants import TileStatus
 import ray
 
 def load_image_from_cache(cache_key): ## probably doesn't need to be a function...
@@ -90,8 +92,10 @@ def save_annotations(tile,polygons): #TODO: i feel like this function likely exi
 def getPendingInferenceTiles(classid):
     import sqlalchemy, datetime #gross - but i'm afraid of removing and breaeking something :)
     from quickannotator.dl.database import create_db_engine, get_database_path, get_session_aj
+    from quickannotator.db import db_session, SearchCache
+    session = get_session_aj(create_db_engine(get_database_path()))
+    stmt = session.query(Tile).filter(Tile.annotation_class_id == classid, Tile.seen == TileStatus.UNSEEN)
     from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation
-
     with get_session_aj(create_db_engine(get_database_path())) as session:
     
     

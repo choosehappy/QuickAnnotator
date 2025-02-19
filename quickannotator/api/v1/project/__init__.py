@@ -1,8 +1,8 @@
 from flask_smorest import Blueprint, abort
 from marshmallow import fields, Schema
 from flask.views import MethodView
-from quickannotator.db import db
-import quickannotator.db as qadb
+from quickannotator.db import db_session
+import quickannotator.db.models as models
 
 bp = Blueprint('project', __name__, description='Project operations')
 
@@ -44,7 +44,7 @@ class Project(MethodView):
         """     returns a Project
         """
         project_id = args['project_id']
-        project = db.session.query(qadb.Project).filter(qadb.Project.id == project_id).first()
+        project = db_session.query(models.Project).filter(models.Project.id == project_id).first()
         if project is not None:
             return project
         else:
@@ -56,8 +56,7 @@ class Project(MethodView):
         """     create a new Project
         """
 
-        db.session.add(qadb.Project(name=args['name'], description=args['description'], is_dataset_large=args['is_dataset_large']))
-        db.session.commit()
+        db_session.add(models.Project(name=args['name'], description=args['description'], is_dataset_large=args['is_dataset_large']))
         return 200
 
 
@@ -87,5 +86,5 @@ class SearchProject(MethodView):
     @bp.arguments(SearchProjectArgsSchema, location='query')
     @bp.response(200, ProjectRespSchema(many=True))
     def get(self, args):
-        result = db.session.query(qadb.Project).all()
+        result = db_session.query(models.Project).all()
         return result

@@ -1,8 +1,8 @@
-import quickannotator.db as qadb
-from quickannotator.db import AnnotationClass
+from quickannotator.db import db_session
+import quickannotator.db.models as models
 from sqlalchemy import func, Table
-from sqlalchemy.orm import Session
 
-def get_annotation_class_by_id(annotation_class_id: int) -> AnnotationClass:
-    return qadb.db.session.query(AnnotationClass).get(annotation_class_id)
+
+def get_annotation_class_by_id(annotation_class_id: int) -> models.AnnotationClass:
+    return db_session.query(models.AnnotationClass).get(annotation_class_id)
 

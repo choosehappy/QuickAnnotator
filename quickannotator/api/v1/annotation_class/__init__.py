@@ -1,8 +1,8 @@
 from flask_smorest import Blueprint, abort
 from marshmallow import fields, Schema
 from flask.views import MethodView
-import quickannotator.db as qadb
-from quickannotator.db import db
+import quickannotator.db.models as models
+from quickannotator.db import db_session
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from .helper import get_annotation_class_by_id
 
@@ -11,7 +11,7 @@ bp = Blueprint('annotation_class', __name__, description='AnnotationClass operat
 # ------------------------ RESPONSE MODELS ------------------------
 class AnnClassRespSchema(SQLAlchemyAutoSchema):
     class Meta:
-        model = qadb.AnnotationClass
+        model = models.AnnotationClass
 
 
 class GetAnnClassArgsSchema(Schema):
@@ -53,7 +53,7 @@ class AnnotationClass(MethodView):
     def post(self, args):
         """     create a new AnnotationClass and instantiate a DL model    """
 
-        annotation = qadb.AnnotationClass(project_id=args['project_id'],
+        annotation = models.AnnotationClass(project_id=args['project_id'],
                                           name=args['name'],
                                           color=args['color'],
                                           magnification=args['magnification'],
@@ -61,8 +61,7 @@ class AnnotationClass(MethodView):
                                           tilesize=2048,
                                           dl_model_objectref=None
                                           )
-        db.session.add(annotation)
-        db.session.commit()
+        db_session.add(annotation)
         return {'annotation_class_id':annotation.id}, 200
 
 
@@ -76,7 +75,7 @@ class AnnotationClass(MethodView):
     @bp.response(204, description="AnnotationClass deleted")
     def delete(self, args):
         """     delete an ObjectClass      """
-        return db.session.query(qadb.AnnotationClass).filter(qadb.AnnotationClass.id == args['annotation_class_id']).delete(), 204
+        return db_session.query(models.AnnotationClass).filter(models.AnnotationClass.id == args['annotation_class_id']).delete(), 204
 
 ####################################################################################################
 
@@ -87,11 +86,11 @@ class SearchAnnotationClass(MethodView):
     def get(self, args):
         """     search for an AnnotationClass by name or project_id     """
         if 'name' in args:
-            result = db.session.query(qadb.AnnotationClass).filter(qadb.AnnotationClass.name == args['name']).all()
+            result = db_session.query(models.AnnotationClass).filter(models.AnnotationClass.name == args['name']).all()
         elif 'project_id' in args:
-            result = db.session.query(qadb.AnnotationClass).filter(qadb.AnnotationClass.project_id == args['project_id']).all()
+            result = db_session.query(models.AnnotationClass).filter(models.AnnotationClass.project_id == args['project_id']).all()
         else:
-            result = db.session.query(qadb.AnnotationClass).all()
+            result = db_session.query(models.AnnotationClass).all()
         return result, 200
 
 ####################################################################################################

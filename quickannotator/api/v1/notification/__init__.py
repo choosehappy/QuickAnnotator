@@ -2,14 +2,14 @@ from flask_smorest import Blueprint, abort
 from marshmallow import fields, Schema
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from flask.views import MethodView
-from quickannotator.db import db
-import quickannotator.db as qadb
+from quickannotator.db import db_session
+import quickannotator.db.models as models
 
 bp = Blueprint('notification', __name__, description='Notification operations')
 # ------------------------ RESPONSE MODELS ------------------------
 class NotificationRespSchema(SQLAlchemyAutoSchema):
     class Meta:
-        model = qadb.Notification
+        model = models.Notification
 
 class GetNotificationArgsSchema(Schema):
     notification_id = fields.Int()
