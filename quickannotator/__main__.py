@@ -1,16 +1,17 @@
+import os
+
+os.environ['TESTING'] = 'false'  # need to set this before importing the db module
+
+from quickannotator.api import init_api
 import shutil
 from flask import Flask
-from flask_smorest import Api, Blueprint
+from flask_smorest import Blueprint
 import argparse
 from waitress import serve
 from quickannotator.config import config
-from quickannotator.config import get_database_uri, get_database_path, get_ray_dashboard_host, get_ray_dashboard_port
+from quickannotator.config import get_database_uri, get_database_path, get_ray_dashboard_host, get_ray_dashboard_port, get_api_version
 from geoalchemy2 import load_spatialite
-from sqlalchemy import event
-import os
-from quickannotator.api.v1 import annotation, project, image, annotation_class, notification, tile, setting, misc
 import ray
-
 from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
 from quickannotator.db import init_db, db_session
 
@@ -36,6 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('-a', '--cluster_address', type=str, default=None)
     args = parser.parse_args()
     os.environ['SPATIALITE_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu/mod_spatialite.so'  # TODO: set with a function
+
 
     # ------------------------ APP SETUP ------------------------
     app = Flask(__name__)
@@ -69,27 +71,7 @@ if __name__ == '__main__':
     print(f"Ray dashboard available at {context.dashboard_url}")
 
     # ------------------------ API SETUP ------------------------
-    app.config["V1_API_TITLE"] = "QuickAnnotator_API"
-    app.config["V1_API_VERSION"] = "v1"
-    app.config["V1_OPENAPI_VERSION"] = "3.0.2"
-    app.config["V1_OPENAPI_URL_PREFIX"] = "/api/v1"
-    app.config["V1_OPENAPI_SWAGGER_UI_PATH"] = ""
-    app.config["V1_OPENAPI_SWAGGER_UI_URL"] = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.24.2/"
-    api = Api(app, config_prefix="V1_", )
-    blueprints = [
-        (annotation.bp, "/annotation"),
-        (annotation_class.bp, "/class"),
-        (project.bp, "/project"),
-        (image.bp, "/image"),
-        (notification.bp, "/notification"),
-        (setting.bp, "/setting"),
-        (tile.bp, "/tile"),
-        (misc.bp, "/misc"),
-    ]
-
-    prefix = app.config["V1_OPENAPI_URL_PREFIX"]
-    for bp, url in blueprints:
-        api.register_blueprint(bp, url_prefix=prefix + url)
+    init_api(app, get_api_version())
 
     # serve_quickannotator(app)
     serve_quickannotator_dev(app)

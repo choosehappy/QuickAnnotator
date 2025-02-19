@@ -2,8 +2,8 @@ from flask import Flask
 import os
 import pytest
 from quickannotator.api.v1.tile import bp as tile_bp
-from quickannotator.db import db, Tile
 from quickannotator.api.v1.tile.helper import upsert_tile
+from quickannotator.constants import TileStatus
 
 
 def test_get_tile(test_client):
@@ -17,10 +17,12 @@ def test_get_tile(test_client):
     annotation_class_id = 1
     image_id = 1
     tile_id = 1
-    upsert_tile(annotation_class_id, image_id, tile_id, seen=1)
+    seen = TileStatus.UNSEEN
+
+    upsert_tile(annotation_class_id, image_id, tile_id, seen=seen)
 
     # Act
-    response = test_client.get(f'/tile?annotation_class_id={annotation_class_id}&image_id={image_id}&tile_id={tile_id}')
+    response = test_client.get(f'/api/v1/tile?annotation_class_id={annotation_class_id}&image_id={image_id}&tile_id={tile_id}')
 
     # Assert
     assert response.status_code == 200
@@ -28,7 +30,7 @@ def test_get_tile(test_client):
     assert data['annotation_class_id'] == annotation_class_id
     assert data['image_id'] == image_id
     assert data['tile_id'] == tile_id
-    assert data['seen'] == 1
+    assert data['seen'] == seen
 
 
 def test_get_tile_bbox(test_client):
