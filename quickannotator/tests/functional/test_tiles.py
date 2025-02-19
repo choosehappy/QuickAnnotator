@@ -36,7 +36,7 @@ def test_get_tile(test_client, seed, db_session):
     assert data['tile_id'] == tile_id
     assert data['seen'] == seen
 
-# TODO: need to add annotation_1_1_gt and a tissue mask annotation for this to work
+
 def test_get_tile_bbox(test_client, seed, db_session):
     """
     GIVEN a test client and a tile with specific annotation_class_id, image_id, and tile_id
@@ -63,7 +63,7 @@ def test_get_tile_bbox(test_client, seed, db_session):
     data = response.get_json()
     assert 'bbox' in data
 
-
+# NOTE: need to add annotation_1_1_gt and a tissue mask annotation for this to work
 def test_search_tiles_within_bbox(test_client, seed, db_session):
     """
     GIVEN a test client and tiles within a specific bounding box
