@@ -20,7 +20,9 @@ class Project(Base):
     name = Column(Text, nullable=False, unique=True)
 
     description = Column(Text, default="")
-    is_dataset_large = Column(Boolean, default=False)   # Placeholder project setting that currently has no use. "large" means e.g., > 1000 images.
+    # is_dataset_large project setting that currently has no use.
+    # a "large" dataset might have e.g., > 100 million total histologic object annotations
+    is_dataset_large = Column(Boolean, default=False)   
     datetime = Column(DateTime, server_default=func.now())
 
     # relationships
