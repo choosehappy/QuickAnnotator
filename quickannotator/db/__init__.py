@@ -25,6 +25,10 @@ def init_db():
     tables = [table for table in Base.metadata.tables.values() if table.name != 'annotation']
     Base.metadata.create_all(bind=engine, tables=tables)
 
+def drop_db():
+    # Drop all tables in the database
+    Base.metadata.drop_all(bind=engine)
+
 @contextmanager
 def get_session():
     """Provides a transactional scope for db_session outside Flask."""

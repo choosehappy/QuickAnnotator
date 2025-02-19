@@ -6,7 +6,7 @@ from quickannotator.api.v1.tile.helper import upsert_tile
 from quickannotator.constants import TileStatus
 
 
-def test_get_tile(test_client):
+def test_get_tile(test_client, seed, db_session):
     """
     GIVEN a test client and a tile with specific annotation_class_id, image_id, and tile_id
     WHEN the client requests the tile using a GET request
@@ -33,7 +33,7 @@ def test_get_tile(test_client):
     assert data['seen'] == seen
 
 
-def test_get_tile_bbox(test_client):
+def test_get_tile_bbox(test_client, seed, db_session):
     """
     GIVEN a test client and a tile with specific annotation_class_id, image_id, and tile_id
     WHEN the client requests the bounding box of the tile using a GET request
@@ -44,7 +44,8 @@ def test_get_tile_bbox(test_client):
     annotation_class_id = 1
     image_id = 1
     tile_id = 1
-    upsert_tile(annotation_class_id, image_id, tile_id, seen=1)
+    seen = TileStatus.UNSEEN
+    upsert_tile(annotation_class_id, image_id, tile_id, seen=seen)
 
     # Act
     response = test_client.get(f'/tile/bbox?annotation_class_id={annotation_class_id}&image_id={image_id}&tile_id={tile_id}')
@@ -55,7 +56,7 @@ def test_get_tile_bbox(test_client):
     assert 'bbox' in data
 
 
-def test_search_tiles_within_bbox(test_client):
+def test_search_tiles_within_bbox(test_client, seed, db_session):
     """
     GIVEN a test client and tiles within a specific bounding box
     WHEN the client requests the tiles within the bounding box using a GET request
@@ -66,7 +67,9 @@ def test_search_tiles_within_bbox(test_client):
     annotation_class_id = 1
     image_id = 1
     tile_id = 1
-    upsert_tile(annotation_class_id, image_id, tile_id, seen=1)
+    seen = TileStatus.UNSEEN
+
+    upsert_tile(annotation_class_id, image_id, tile_id, seen=seen)
 
     bbox = {'x1': 0, 'y1': 0, 'x2': 100, 'y2': 100}
 
@@ -80,7 +83,7 @@ def test_search_tiles_within_bbox(test_client):
     assert len(data) > 0
 
 
-def test_search_tile_by_coordinates(test_client):
+def test_search_tile_by_coordinates(test_client, seed, db_session):
     """
     GIVEN a test client and a tile with specific coordinates
     WHEN the client requests the tile using the coordinates with a GET request
@@ -91,7 +94,8 @@ def test_search_tile_by_coordinates(test_client):
     annotation_class_id = 1
     image_id = 1
     tile_id = 1
-    upsert_tile(annotation_class_id, image_id, tile_id, seen=1)
+    seen = TileStatus.UNSEEN
+    upsert_tile(annotation_class_id, image_id, tile_id, seen=seen)
 
     x, y = 50, 50
 
@@ -104,10 +108,10 @@ def test_search_tile_by_coordinates(test_client):
     assert data['annotation_class_id'] == annotation_class_id
     assert data['image_id'] == image_id
     assert data['tile_id'] == tile_id
-    assert data['seen'] == 1
+    assert data['seen'] == seen
 
 
-def test_predict_tile(test_client):
+def test_predict_tile(test_client, seed, db_session):
     """
     GIVEN a test client and a tile with specific annotation_class_id, image_id, and tile_id
     WHEN the client requests to predict the tile using a POST request
@@ -118,7 +122,8 @@ def test_predict_tile(test_client):
     annotation_class_id = 1
     image_id = 1
     tile_id = 1
-    upsert_tile(annotation_class_id, image_id, tile_id, seen=1)
+    seen = TileStatus.UNSEEN
+    upsert_tile(annotation_class_id, image_id, tile_id, seen=seen)
 
     # Act
     response = test_client.post('/tile/predict', json={

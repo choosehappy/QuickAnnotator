@@ -2,9 +2,17 @@ import os
 import pytest
 from flask import Flask
 os.environ['TESTING'] = 'true'
-from quickannotator.db import init_db, db_session
+from quickannotator.db import init_db, drop_db, db_session, Base, get_session
 from quickannotator.api import init_api
 from quickannotator.config import get_database_uri, get_api_version
+from quickannotator.db import models
+from quickannotator.api.v1.project.utils import add_project
+from quickannotator.api.v1.image.utils import add_image_by_path
+from quickannotator.api.v1.annotation_class.helper import insert_annotation_class
+from quickannotator.api.v1.utils.shared_crud import insert_new_annotation
+from quickannotator.api.v1.tile.helper import upsert_tile
+from quickannotator.constants import TileStatus
+
 
 @pytest.fixture(scope='module')
 def test_client():
@@ -15,9 +23,6 @@ def test_client():
     app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     init_api(app, get_api_version())
-    # Initialize the database
-    with app.app_context():
-        init_db()
 
     # Create a test client using the Flask application configured for testing
     with app.test_client() as testing_client:
@@ -37,3 +42,55 @@ def test_client():
                 db_session.rollback()
                 raise
         db_session.remove()
+
+@pytest.fixture(scope="function")
+def db_session():
+
+    init_db()
+
+    try:
+        with get_session() as db_session:
+            yield db_session
+    finally:
+        drop_db()
+
+@pytest.fixture(scope="function")
+def seed(db_session):   # here db_session is the fixture
+    # Add a project
+    add_project(name="Test Project", description="A test project", is_dataset_large=False)
+    
+    # Add an image
+    add_image_by_path(
+                    project_id=1,
+                    full_path="quickannotator/data/test_ndpi/13_266069_040_003 L02 PAS.ndpi"    # TODO: add test data
+                    )
+    
+    # Add an annotation class
+    insert_annotation_class(
+                        project_id=None,
+                        name="Tissue Mask",
+                        color="black",
+                        magnification=None,
+                        patchsize=None,
+                        tilesize=None,
+                        dl_model_objectref=None)
+    
+    # Add a second annotation class
+    insert_annotation_class(
+                        project_id=1,
+                        name="Fake Class",
+                        color="red",
+                        magnification=10,
+                        patchsize=256,
+                        tilesize=2048,
+                        dl_model_objectref=None)
+
+    # Add a tile
+    upsert_tile(
+        annotation_class_id=1,
+        image_id=1,
+        tile_id=1,
+        seen=TileStatus.UNSEEN
+    )
+
+    db_session.commit()
