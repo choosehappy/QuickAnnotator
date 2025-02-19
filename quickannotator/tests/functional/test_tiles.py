@@ -131,7 +131,7 @@ def test_search_tile_by_coordinates(test_client, seed, db_session):
     assert data['tile_id'] == tile_id
     assert data['seen'] == seen
 
-
+# NOTE: Although the object ref is created, the prediction job fails because ray doesn't have access to the in-memory db
 def test_predict_tile(test_client, seed, db_session):
     """
     GIVEN a test client and a tile with specific annotation_class_id, image_id, and tile_id
