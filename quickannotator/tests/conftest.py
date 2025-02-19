@@ -87,10 +87,11 @@ def seed(db_session):   # here db_session is the fixture
 
     # Add a tile
     upsert_tile(
-        annotation_class_id=1,
+        annotation_class_id=2,
         image_id=1,
-        tile_id=1,
-        seen=TileStatus.UNSEEN
+        tile_id=0,
+        seen=TileStatus.UNSEEN,
+        hasgt=False
     )
 
     db_session.commit()

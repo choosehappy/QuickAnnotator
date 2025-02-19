@@ -4,6 +4,7 @@ import pytest
 from quickannotator.api.v1.tile import bp as tile_bp
 from quickannotator.api.v1.tile.helper import upsert_tile
 from quickannotator.constants import TileStatus
+from quickannotator.db import models
 
 
 def test_get_tile(test_client, seed, db_session):
@@ -14,15 +15,18 @@ def test_get_tile(test_client, seed, db_session):
     """
 
     # Arrange
-    annotation_class_id = 1
+    annotation_class_id = 2
     image_id = 1
-    tile_id = 1
+    tile_id = 0
     seen = TileStatus.UNSEEN
 
-    upsert_tile(annotation_class_id, image_id, tile_id, seen=seen)
-
     # Act
-    response = test_client.get(f'/api/v1/tile?annotation_class_id={annotation_class_id}&image_id={image_id}&tile_id={tile_id}')
+    params = {
+        'annotation_class_id': annotation_class_id,
+        'image_id': image_id,
+        'tile_id': tile_id
+    }
+    response = test_client.get('/api/v1/tile', query_string=params)
 
     # Assert
     assert response.status_code == 200
@@ -32,7 +36,7 @@ def test_get_tile(test_client, seed, db_session):
     assert data['tile_id'] == tile_id
     assert data['seen'] == seen
 
-
+# TODO: need to add annotation_1_1_gt and a tissue mask annotation for this to work
 def test_get_tile_bbox(test_client, seed, db_session):
     """
     GIVEN a test client and a tile with specific annotation_class_id, image_id, and tile_id
@@ -41,14 +45,18 @@ def test_get_tile_bbox(test_client, seed, db_session):
     """
 
     # Arrange
-    annotation_class_id = 1
+    annotation_class_id = 2
     image_id = 1
-    tile_id = 1
+    tile_id = 0
     seen = TileStatus.UNSEEN
-    upsert_tile(annotation_class_id, image_id, tile_id, seen=seen)
 
     # Act
-    response = test_client.get(f'/tile/bbox?annotation_class_id={annotation_class_id}&image_id={image_id}&tile_id={tile_id}')
+    params = {
+        'annotation_class_id': annotation_class_id,
+        'image_id': image_id,
+        'tile_id': tile_id
+    }
+    response = test_client.get('/api/v1/tile/bbox', query_string=params)
 
     # Assert
     assert response.status_code == 200
@@ -64,17 +72,25 @@ def test_search_tiles_within_bbox(test_client, seed, db_session):
     """
 
     # Arrange
-    annotation_class_id = 1
+    annotation_class_id = 2
     image_id = 1
-    tile_id = 1
+    tile_id = 0
+    include_placeholder_tiles = 'true'
     seen = TileStatus.UNSEEN
-
-    upsert_tile(annotation_class_id, image_id, tile_id, seen=seen)
 
     bbox = {'x1': 0, 'y1': 0, 'x2': 100, 'y2': 100}
 
     # Act
-    response = test_client.get(f'/tile/search/bbox?annotation_class_id={annotation_class_id}&image_id={image_id}&x1={bbox["x1"]}&y1={bbox["y1"]}&x2={bbox["x2"]}&y2={bbox["y2"]}')
+    params = {
+        'annotation_class_id': annotation_class_id,
+        'image_id': image_id,
+        'x1': bbox['x1'],
+        'y1': bbox['y1'],
+        'x2': bbox['x2'],
+        'y2': bbox['y2'],
+        'include_placeholder_tiles': include_placeholder_tiles
+    }
+    response = test_client.get('/api/v1/tile/search/bbox', query_string=params)
 
     # Assert
     assert response.status_code == 200
@@ -91,16 +107,21 @@ def test_search_tile_by_coordinates(test_client, seed, db_session):
     """
 
     # Arrange
-    annotation_class_id = 1
+    annotation_class_id = 2
     image_id = 1
-    tile_id = 1
+    tile_id = 0
     seen = TileStatus.UNSEEN
-    upsert_tile(annotation_class_id, image_id, tile_id, seen=seen)
 
     x, y = 50, 50
 
     # Act
-    response = test_client.get(f'/tile/search/coordinates?annotation_class_id={annotation_class_id}&image_id={image_id}&x={x}&y={y}')
+    params = {
+        'annotation_class_id': annotation_class_id,
+        'image_id': image_id,
+        'x': x,
+        'y': y
+    }
+    response = test_client.get('/api/v1/tile/search/coordinates', query_string=params)
 
     # Assert
     assert response.status_code == 200
@@ -119,14 +140,13 @@ def test_predict_tile(test_client, seed, db_session):
     """
 
     # Arrange
-    annotation_class_id = 1
+    annotation_class_id = 2
     image_id = 1
-    tile_id = 1
+    tile_id = 0
     seen = TileStatus.UNSEEN
-    upsert_tile(annotation_class_id, image_id, tile_id, seen=seen)
 
     # Act
-    response = test_client.post('/tile/predict', json={
+    response = test_client.post('/api/v1/tile/predict', json={
         'annotation_class_id': annotation_class_id,
         'image_id': image_id,
         'tile_id': tile_id
