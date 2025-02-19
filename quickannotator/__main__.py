@@ -4,13 +4,15 @@ from flask_smorest import Api, Blueprint
 import argparse
 from waitress import serve
 from quickannotator.config import config
-from quickannotator.db import db, Project, Image, AnnotationClass, Notification, Tile, Setting, Annotation
 from quickannotator.config import get_database_uri, get_database_path, get_ray_dashboard_host, get_ray_dashboard_port
 from geoalchemy2 import load_spatialite
 from sqlalchemy import event
 import os
 from quickannotator.api.v1 import annotation, project, image, annotation_class, notification, tile, setting, misc
 import ray
+
+from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
+from quickannotator.db import init_db, db_session
 
 def serve_quickannotator(app):
     # NOTE: Will need to account for reverse proxy scenarios: https://docs.pylonsproject.org/projects/waitress/en/stable/reverse-proxy.html
@@ -45,13 +47,20 @@ if __name__ == '__main__':
         if os.path.exists(db_path):
             shutil.rmtree(db_path)
 
-    models = [Project, Image, AnnotationClass, Notification, Tile, Setting]
-    db.app = app
-    db.init_app(app)
-    with app.app_context():
-        event.listen(db.engine, 'connect', load_spatialite)
-        print(f"Creating tables")
-        db.metadata.create_all(bind=db.engine, tables=[item.__table__ for item in models])
+    init_db()
+
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        if exception:
+            db_session.rollback()
+        else:
+            try:
+                db_session.commit()
+            except Exception:
+                db_session.rollback()
+                raise
+        db_session.remove()
+        
 
     # ------------------------ RAY SETUP ------------------------
     print(f"Connecting to Ray cluster")
@@ -67,15 +76,20 @@ if __name__ == '__main__':
     app.config["V1_OPENAPI_SWAGGER_UI_PATH"] = ""
     app.config["V1_OPENAPI_SWAGGER_UI_URL"] = "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/3.24.2/"
     api = Api(app, config_prefix="V1_", )
+    blueprints = [
+        (annotation.bp, "/annotation"),
+        (annotation_class.bp, "/class"),
+        (project.bp, "/project"),
+        (image.bp, "/image"),
+        (notification.bp, "/notification"),
+        (setting.bp, "/setting"),
+        (tile.bp, "/tile"),
+        (misc.bp, "/misc"),
+    ]
+
     prefix = app.config["V1_OPENAPI_URL_PREFIX"]
-    api.register_blueprint(annotation.bp, url_prefix=prefix + "/annotation")
-    api.register_blueprint(annotation_class.bp, url_prefix=prefix + "/class")
-    api.register_blueprint(project.bp, url_prefix=prefix + "/project")
-    api.register_blueprint(image.bp, url_prefix=prefix + "/image")
-    api.register_blueprint(notification.bp, url_prefix=prefix + "/notification")
-    api.register_blueprint(setting.bp, url_prefix=prefix + "/setting")
-    api.register_blueprint(tile.bp, url_prefix=prefix + "/tile")
-    api.register_blueprint(misc.bp, url_prefix=prefix + "/misc")
+    for bp, url in blueprints:
+        api.register_blueprint(bp, url_prefix=prefix + url)
 
     # serve_quickannotator(app)
     serve_quickannotator_dev(app)

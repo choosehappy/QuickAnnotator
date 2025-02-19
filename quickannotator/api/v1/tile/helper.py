@@ -1,9 +1,9 @@
 import quickannotator.db as qadb
 from sqlalchemy import func, Table
-from quickannotator.db import db
-from sqlalchemy.orm import aliased, sessionmaker, Session
+from quickannotator.db import db_session
 from sqlalchemy import exists, event
 import shapely
+from shapely.affinity import scale
 from shapely.geometry import Polygon
 import shapely.wkb as wkb
 import random
@@ -18,18 +18,21 @@ import math
 import numpy as np
 from sqlalchemy.dialects.sqlite import insert   # NOTE: This import is necessary as there is no dialect-neutral way to call on_conflict()
 from quickannotator.api.v1.utils.shared_crud import get_annotation_query
-from quickannotator.db import build_annotation_table_name, create_dynamic_model, Annotation
-from quickannotator.api.v1.image.helper import get_image_by_id
+import quickannotator.db.models as models
+from quickannotator.db import get_session
+from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 import cv2
+from quickannotator.constants import TileStatus
 
-def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: int=None, hasgt: bool=None):
+from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+
+def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: TileStatus=None, hasgt: bool=None):
     '''
         Inserts a new tile record into the database or updates an existing one based on the given parameters.
         The function uses an upsert operation to either insert a new record or update an existing one
         based on the combination of `annotation_class_id`, `image_id`, and `tile_id`.
         Parameters:
-        - session (Session): The database session to use for the operation.
         - annotation_class_id (int): The ID of the annotation class.
         - image_id (int): The ID of the image.
         - tile_id (int): The ID of the tile.
@@ -44,7 +47,7 @@ def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: int
     if hasgt is not None:   # Only update the 'hasgt' field if the value is provided
         update_fields['hasgt'] = hasgt
     
-    stmt = insert(qadb.Tile).values(
+    stmt = insert(models.Tile).values(
         annotation_class_id=annotation_class_id,
         image_id=image_id,
         tile_id=tile_id,
@@ -54,13 +57,13 @@ def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: int
         set_=update_fields
     )
     
-    result = qadb.db.session.execute(stmt)
-    qadb.db.session.commit()
+    result = db_session.execute(stmt)
+    db_session.commit()
     
     return result
     
 
-def get_tile_ids_within_bbox(tile_size: int, bbox: list[int], image_width: int, image_height: int) -> list:
+def get_tile_ids_within_bbox(tile_size: int, image_width: int, image_height: int, bbox: list[int]) -> list:
     # Force the bounding box to be within the image dimensions for robustness.
     x1 = max(0, min(bbox[0], image_width))
     y1 = max(0, min(bbox[1], image_height))
@@ -88,20 +91,20 @@ def get_tile_ids_within_bbox(tile_size: int, bbox: list[int], image_width: int, 
 
     return tile_ids
 
-def point_to_tileid(tile_size: int, x: int, y: int, image_width: int, image_height: int) -> int:
+def point_to_tileid(tile_size: int, image_width: int, image_height: int, x: int, y: int) -> int:
     if not (0 <= x < image_width and 0 <= y < image_height):
         raise ValueError(f"Point {x}, {y} is out of image dimensions (0, 0, {image_width}, {image_height})")
 
     col = x // tile_size
     row = y // tile_size
-    tile_id = rc_to_tileid(tile_size, row, col, image_width, image_height)
+    tile_id = rc_to_tileid(tile_size, image_width, image_height, row, col)
     return tile_id
 
-def rc_to_tileid(tile_size: int, row: int, col: int, image_width: int, image_height: int) -> int:
+def rc_to_tileid(tile_size: int, image_width: int, image_height: int, row: int, col: int) -> int:
     tile_id = row * math.ceil(image_width / tile_size) + col
     return tile_id
 
-def tileid_to_rc(tile_size: int, tile_id: int, image_width: int, image_height: int) -> tuple:
+def tileid_to_rc(tile_size: int, image_width: int, image_height: int, tile_id: int) -> tuple:
     tiles_per_row = math.ceil(image_width / tile_size)
     row = tile_id // tiles_per_row
     col = tile_id % tiles_per_row
@@ -111,11 +114,8 @@ def get_all_tile_ids_for_image(tile_size: int, image_width: int, image_height: i
     total_tiles = math.ceil(image_width / tile_size) * math.ceil(image_height / tile_size)
     return list(range(total_tiles))
 
-def get_bbox_for_tile(tile_size: int, tile_id: int, image_width: int, image_height: int) -> tuple:
-    if tile_id < 1:
-        raise ValueError(f"Tile ID must be greater than or equal to 1: {tile_id}")
-
-    row, col = tileid_to_rc(tile_size, tile_id, image_width, image_height)
+def get_bbox_for_tile(tile_size: int, image_width: int, image_height: int, tile_id: int) -> tuple:
+    row, col = tileid_to_rc(tile_size, image_width, image_height, tile_id)
 
     x1 = col * tile_size
     y1 = row * tile_size
@@ -128,9 +128,9 @@ def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile
     image = get_image_by_id(image_id)
     tilesize = get_annotation_class_by_id(annotatation_class_id).tilesize
 
-    bbox = get_bbox_for_tile(tilesize, tile_id, image.width, image.height)
+    bbox = get_bbox_for_tile(tilesize, image.width, image.height, tile_id)
     model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id=1, is_gt=True))
-    mask_annotations = db.session.query(model).all()
+    mask_annotations = db_session.query(model).all()
 
     if mask_annotations:
         bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
@@ -154,10 +154,11 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
 
     polygons = []
 
+    scale_factor = 1/tilesize
     for annotation in mask_geojson:
-        polygon = np.array(shapely.from_geojson(annotation.polygon).exterior.coords).astype(np.float64)
-        scaled_polygon = np.floor(polygon / tilesize).astype(np.int32)
-        polygons.append(scaled_polygon)
+        shapely_polygon = shapely.from_geojson(annotation.polygon)
+        scaled_polygon = scale(shapely_polygon, xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
+        polygons.append(np.floor(scaled_polygon.exterior.coords).astype(np.int32))
 
 
     # Create empty mask image
@@ -176,7 +177,7 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
     filled_rows, filled_cols = np.nonzero(mask)
     
     # Convert pixel coordinates to tile IDs
-    tile_ids = [rc_to_tileid(tilesize, row, col, image.width, image.height) for row, col in zip(filled_rows, filled_cols)]
+    tile_ids = [rc_to_tileid(tilesize, image.width, image.height, row, col) for row, col in zip(filled_rows, filled_cols)]
 
     return tile_ids, mask, polygons
 
@@ -191,65 +192,40 @@ def generate_random_circle_within_bbox(bbox: Polygon, radius: float) -> shapely.
     return intersection
 
 @ray.remote
-def remote_compute_on_tile(db_url, annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
+def remote_compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
     time.sleep(sleep_time)
     # Create the engine and session for each Ray task
-    engine = create_engine(db_url)
-    Session = sessionmaker(bind=engine)
-
-    # Attach the event listener to the engine (inside the task to ensure it's unique per task)
-    @event.listens_for(engine, "connect")
-    def connect(dbapi_connection, connection_record):
-        try:
-            # Enable the Spatialite extension on the raw SQLite connection
-            if hasattr(dbapi_connection, "enable_load_extension"):
-                dbapi_connection.enable_load_extension(True)
-                dbapi_connection.execute('SELECT load_extension("mod_spatialite")')
-                dbapi_connection.execute("PRAGMA busy_timeout=10000000;")
-                print("Spatialite extension loaded successfully")
-            else:
-                print("Extension loading not supported for this connection")
-        except Exception as e:
-            print(f"Error enabling Spatialite extension: {e}")
-
-    try:
         # Start a session for the task
-        with Session() as session:
-            # Example: load the tile and process
-            # breakpoint()
-            tile = get_tile(session, annotation_class_id, image_id, tile_id)  # Replace with your actual function to get the tile
-            annotation_class: qadb.AnnotationClass = tile.annotation_class
-            image: qadb.Image = tile.image
-            image_id: int = tile.image_id
-            annotation_class_id: int = tile.annotation_class_id
+    with get_session() as db_session:
+        # Example: load the tile and process
+        # breakpoint()
+        tile = get_tile(annotation_class_id, image_id, tile_id)  # Replace with your actual function to get the tile
+        if tile is None:
+            raise ValueError(f"Tile not found: {tile_id}")
+        annotation_class: models.AnnotationClass = tile.annotation_class
+        image: models.Image = tile.image
+        image_id: int = tile.image_id
+        annotation_class_id: int = tile.annotation_class_id
 
-            # Process the tile (using shapely for example)
-            bbox = get_bbox_for_tile(annotation_class.tilesize, tile_id, image.width, image.height)
-            bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
-            for _ in range(random.randint(20, 40)):
-                polygon = generate_random_circle_within_bbox(bbox_polygon, 100)
-                insert_new_annotation(session, image_id, annotation_class_id, is_gt=False, tile_id=tile_id, polygon=polygon)
+        # Process the tile (using shapely for example)
+        bbox = get_bbox_for_tile(annotation_class.tilesize, image.width, image.height, tile_id)
+        bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
+        for _ in range(random.randint(20, 40)):
+            polygon = generate_random_circle_within_bbox(bbox_polygon, 100)
+            insert_new_annotation(image_id, annotation_class_id, is_gt=False, tile_id=tile_id, polygon=polygon)
 
-            # Mark tile as processed
-            tile.seen = 2
+        # Mark tile as processed
+        tile.seen = 2
             
-            session.commit()
 
-    except Exception as e:
-        print(f"Error processing tile: {e}")
-
-    finally:
-        # Cleanup: Dispose of the engine when the task is done
-        engine.dispose()
 
 
 def compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
-    db_url = db.engine.url
-    ref = remote_compute_on_tile.remote(str(db_url), annotation_class_id, image_id, tile_id, sleep_time)
+    ref = remote_compute_on_tile.remote(annotation_class_id, image_id, tile_id, sleep_time)
     return ref.hex()
 
 
-def reset_all_tiles_seen(session):
+def reset_all_tiles_seen():
     """
     Resets the 'seen' status of all tiles in the database to 0.
     Args:
@@ -258,5 +234,4 @@ def reset_all_tiles_seen(session):
         None
     """
 
-    session.query(qadb.Tile).update({qadb.Tile.seen: 0})
-    session.commit()
+    db_session.query(models.Tile).update({models.Tile.seen: TileStatus.UNSEEN})
