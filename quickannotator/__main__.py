@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
     # ------------------------ RAY SETUP ------------------------
     print(f"Connecting to Ray cluster")
-    context = ray.init(address=args.cluster_address, dashboard_host=get_ray_dashboard_host(), dashboard_port=get_ray_dashboard_port())
+    context = ray.init(address=args.cluster_address, namespace="quick_annotator", dashboard_host=get_ray_dashboard_host(), dashboard_port=get_ray_dashboard_port())
     
     print(f"Ray dashboard available at {context.dashboard_url}")
 
