@@ -8,6 +8,7 @@ import quickannotator.db.models as models
 from quickannotator.db import db_session
 from quickannotator.api.v1.utils.shared_crud import get_annotation_query
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+import geojson
 
 Base = declarative_base()
 
@@ -23,6 +24,9 @@ def get_annotations_for_tile(image_id: int, annotation_class_id: int, tile_id: i
     result: List[models.Annotation] = get_annotation_query(model).filter_by(tile_id=tile_id).all()
     
     return result
+
+def get_annotations_within_poly(image_id: int, annotation_class_id: int, is_gt: bool, polygon: geojson.Polygon) -> List[models.Annotation]:
+    
 
 def annotations_within_bbox_spatial(table_name: str, x1: float, y1: float, x2: float, y2: float) -> List[models.Annotation]:
     stmt = text(f'''

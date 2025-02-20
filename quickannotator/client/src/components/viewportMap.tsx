@@ -42,7 +42,7 @@ const ViewportMap = (props: Props) => {
         if (!props.currentImage || !props.currentClass) return;
 
         const currentCallToken = ++activeCallRef.current;
-        const resp = await searchTiles(props.currentImage.id, props.currentClass.id, is_gt, !is_gt, x1, y1, x2, y2);  // Tiles may be shared by both layers. Consider pushing this to a shared state.
+        const resp = await searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2, !is_gt, is_gt || undefined);  // Tiles may be shared by both layers. Consider pushing this to a shared state.
         const tiles = resp.data;
         const layerIdx = is_gt ? LAYER_KEYS.GT : LAYER_KEYS.PRED;
         const layer = geojs_map.current.layers()[layerIdx];
@@ -275,6 +275,13 @@ const ViewportMap = (props: Props) => {
                 addAnnotation(polygon2);
             }
         } else if (currentTool === TOOLBAR_KEYS.IMPORT) {
+            // 1. Get tiles intersecting the drawn polygon's bounding box. Filter by seen state
+            // 2. Get the predictions for these tiles. Each prediction should be filtered by whether or not it intersects the drawn 
+
+            // 2. Highlight these polygons
+            // 3. Show a confirmation panel
+            // 4. If confirmed, POST the new ground truths and DELETE the predictions.
+            // 5. Redraw the respective ground truth and prediction tiles.
             
         }
 
@@ -398,6 +405,9 @@ const ViewportMap = (props: Props) => {
                 break;
             case TOOLBAR_KEYS.POLYGON:   // polygon tool
                 // layer.active(true)
+                layer.mode('polygon');
+                break;
+            case TOOLBAR_KEYS.IMPORT:    // import tool
                 layer.mode('polygon');
                 break;
             default:

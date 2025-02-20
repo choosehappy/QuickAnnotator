@@ -49,6 +49,10 @@ class GetAnnSearchArgsSchema(Schema):
     y2 = fields.Int(required=False)
     polygon = models.GeometryField(required=False)
 
+class GetAnnWithinPolyArgsSchema(Schema):
+    is_gt = fields.Bool(required=True)
+    polygon = models.GeometryField(required=True)
+
 class GetAnnByTileArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
 
@@ -186,12 +190,22 @@ class SearchAnnotations(MethodView):
         
 @bp.route('/<int:image_id>/<int:annotation_class_id>/<int:tile_id>')
 class AnnotationByTile(MethodView):
-    @bp.arguments(GetAnnByTileArgsSchema, location='query')
+    @bp.arguments(GetAnnWithinPolyArgsSchema, location='query')
     @bp.response(200, AnnRespSchema(many=True))
     def get(self, args, image_id, annotation_class_id, tile_id):
         """     get all annotations for a given tile
         """
         result = get_annotations_for_tile(image_id, annotation_class_id, tile_id, args['is_gt'])
+        return result, 200
+    
+@bp.route('/<int:image_id>/<int:annotation_class_id>/withinpoly')
+class AnnotationsWithinPolygon(MethodView):
+    @bp.arguments(GetAnnSearchArgsSchema, location='query')
+    @bp.response(200, AnnRespSchema(many=True))
+    def get(self, args, image_id, annotation_class_id):
+        """     get all annotations within a polygon
+        """
+        result = 
         return result, 200
         
 @bp.route('/<int:annotation_class_id>/dryrun')
