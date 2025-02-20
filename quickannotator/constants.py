@@ -2,5 +2,6 @@ import enum
 
 class TileStatus(enum.IntEnum):
     UNSEEN = 0
-    PROCESSING = 1
-    SEEN = 2
+    STARTPROCESSING = 1
+    PROCESSING = 2
+    DONEPROCESSING = 3
