@@ -1,5 +1,5 @@
 import configparser
-import os
+import sys
 
 # initialize a new config file:
 config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
@@ -7,7 +7,7 @@ config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolat
 config.read("quickannotator/config/config.ini")
 
 def get_database_uri():
-  if os.getenv('TESTING', 'false').lower() == 'true':
+  if "pytest" in sys.modules:
     return config.get('sqlalchemy', 'test_database_uri', fallback='sqlite:///:memory:')
   else:
     return config.get('sqlalchemy', 'database_uri', fallback='sqlite:////opt/QuickAnnotator/quickannotator/instance/quickannotator.db')

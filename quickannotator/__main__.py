@@ -1,7 +1,4 @@
 import os
-
-os.environ['TESTING'] = 'false'  # need to set this before importing the db module
-
 from quickannotator.api import init_api
 import shutil
 from flask import Flask

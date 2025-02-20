@@ -1,7 +1,6 @@
 import os
 import pytest
 from flask import Flask
-os.environ['TESTING'] = 'true'
 from quickannotator.db import init_db, drop_db, db_session, Base, get_session
 from quickannotator.api import init_api
 from quickannotator.config import get_database_uri, get_api_version
