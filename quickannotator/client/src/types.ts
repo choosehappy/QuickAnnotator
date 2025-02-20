@@ -1,4 +1,5 @@
 import {Point, Polygon, Feature} from "geojson"
+import { TILE_STATUS } from "./helpers/config";
 
 export interface AnnotationClass {
     id: number;
@@ -94,7 +95,7 @@ export interface Tile {
     annotation_class_id: number;
     image_id: number;
     tile_id: number;
-    seen: number;
+    seen: TILE_STATUS;
     hasgt: boolean;
     date: Date;
 }
