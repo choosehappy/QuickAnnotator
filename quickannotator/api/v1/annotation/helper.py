@@ -26,7 +26,7 @@ def get_annotations_for_tile(image_id: int, annotation_class_id: int, tile_id: i
     return result
 
 def get_annotations_within_poly(image_id: int, annotation_class_id: int, is_gt: bool, polygon: geojson.Polygon) -> List[models.Annotation]:
-    
+    pass
 
 def annotations_within_bbox_spatial(table_name: str, x1: float, y1: float, x2: float, y2: float) -> List[models.Annotation]:
     stmt = text(f'''
