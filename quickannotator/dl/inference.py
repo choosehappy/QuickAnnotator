@@ -4,7 +4,7 @@ import numpy as np
 import shapely.wkb
 import shapely.geometry
 import shapely.affinity
-import openslide
+import large_image
 #import matplotlib.pyplot as plt
 from sqlalchemy.orm import sessionmaker
 from .dataset import TileDataset
@@ -30,15 +30,19 @@ def load_image_from_slide(tile): #TODO: i suspect this sort of function exists e
         image = db_session.query(Image).filter_by(id=tile.image_id).first()
     
     image_path = image.path
-    slide = openslide.OpenSlide(os.path.join("/opt/QuickAnnotator/quickannotator", image_path)) #TODO: JANKY
+    
+    ts = large_image.getTileSource(os.path.join("/opt/QuickAnnotator/quickannotator", image_path)) #TODO: JANKY
 
     tpoly = shapely.wkb.loads(tile.geom.data)
     minx, miny, maxx, maxy = tpoly.bounds #TODO: this seems incorrect - i feel like this information should be pulled from a system table and readily avaialble and not needing to be computed on a per tile basis
     width = int(maxx - minx)
     height = int(maxy - miny)
 
-    region = slide.read_region((int(minx), int(miny)), 0, (width, height))
-    return np.array(region.convert("RGB"))
+    #region = slide.read_region((int(minx), int(miny)), 0, (width, height))
+    region, _ = ts.getRegion(region=dict(left=minx, top=miny, width=width, height=height, units='base_pixels'),format=large_image.tilesource.TILE_FORMAT_NUMPY)
+    image = region[:,:,:3]
+    
+    return image #np.array(region.convert("RGB"))
 
 def preprocess_image(io_image, device):
     io_image = io_image / 255.0

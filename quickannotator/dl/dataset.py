@@ -11,7 +11,7 @@ from quickannotator.db import get_session
 from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client
 
 
-import openslide
+import large_image
 import numpy as np
 from PIL import Image as PILImage
 import scipy.ndimage
@@ -87,7 +87,7 @@ class TileDataset(IterableDataset):
             with get_session() as db_session:
                 annotations = db_session.query(table).filter(table.tile_id==tile_id).all()
                 db_session.expunge_all()
-                
+
             if len(annotations) == 0: # would be strange given how things are set up?
                 continue
             #----
@@ -103,16 +103,21 @@ class TileDataset(IterableDataset):
                 if not image:
                     continue
                 image_path = image.path
-                slide = openslide.OpenSlide("/opt/QuickAnnotator/quickannotator/"+image_path) #TODO: janky 
 
+
+
+                ts = large_image.getTileSource("/opt/QuickAnnotator/quickannotator/"+image_path) #TODO: janky 
 
                 #TODO: should be moved to a project wide available utility function
                 tiles_per_row = np.ceil(image.width / self.tile_size) #width comes from DB
                 row = tile_id // (tiles_per_row) * self.tile_size #seems right - but should check
                 col = tile_id % (tiles_per_row) * self.tile_size
 
-                region = slide.read_region((int(col), int(row)), 0, (self.tile_size, self.tile_size)) #note: row/col swap is intentional, read_region is  x,y
-                io_image = np.array(region.convert("RGB"))
+                #region = slide.read_region((int(col), int(row)), 0, (self.tile_size, self.tile_size)) #note: row/col swap is intentional, read_region is  x,y
+                region, _ = ts.getRegion(region=dict(left=col, top=row, width=self.tile_size, height=self.tile_size, units='base_pixels'),format=large_image.tilesource.TILE_FORMAT_NUMPY)
+
+                io_image = region[:,:,:3] #np.array(region.convert("RGB"))
+                
                 client.set(img_cache_key, [compress_to_jpeg(io_image), (row,col)])
             
 
