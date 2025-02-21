@@ -25,6 +25,12 @@ def get_annotations_for_tile(image_id: int, annotation_class_id: int, tile_id: i
     
     return result
 
+def get_annotations_for_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], is_gt: bool) -> List[models.Annotation]:
+    model: models.Annotation = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt))
+    result: List[models.Annotation] = get_annotation_query(model).filter(model.tile_id.in_(tile_ids)).all()
+    
+    return result
+
 def get_annotations_within_poly(image_id: int, annotation_class_id: int, is_gt: bool, polygon: geojson.Polygon) -> List[models.Annotation]:
     pass
 
@@ -67,3 +73,9 @@ def delete_all_annotations(image_id: int, annotation_class_id: int, is_gt: bool)
     model = create_dynamic_model(table_name)
     
     db_session.query(model).delete()
+
+def get_annotation_by_id(image_id: int, annotation_class_id: int, is_gt: bool, annotation_id: int):
+    table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
+    model = create_dynamic_model(table_name)
+    
+    return get_annotation_query(model).filter_by(id=annotation_id).first()

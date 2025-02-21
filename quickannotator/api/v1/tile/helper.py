@@ -4,7 +4,7 @@ from quickannotator.db import db_session
 from sqlalchemy import exists, event
 import shapely
 from shapely.affinity import scale
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, shape
 import shapely.wkb as wkb
 import random
 import geojson
@@ -23,8 +23,7 @@ from quickannotator.db import get_session
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 import cv2
-from quickannotator.constants import TileStatus
-from constants import MASK_DILATION
+from quickannotator.constants import TileStatus, MASK_DILATION
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 
 def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: TileStatus=None, hasgt: bool=None):
@@ -91,12 +90,12 @@ def get_tile_ids_within_bbox(tile_size: int, image_width: int, image_height: int
 
     return tile_ids
 
-def point_to_tileid(tile_size: int, image_width: int, image_height: int, x: int, y: int) -> int:
+def point_to_tileid(tile_size: int, image_width: int, image_height: int, x: float, y: float) -> int:
     if not (0 <= x < image_width and 0 <= y < image_height):
         raise ValueError(f"Point {x}, {y} is out of image dimensions (0, 0, {image_width}, {image_height})")
 
-    col = x // tile_size
-    row = y // tile_size
+    col = int(x // tile_size)
+    row = int(y // tile_size)
     tile_id = rc_to_tileid(tile_size, image_width, image_height, row, col)
     return tile_id
 
@@ -151,17 +150,17 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
     
     # Load GeoJSON mask (assuming polygon)
     model = create_dynamic_model(build_annotation_table_name(image_id, 1, is_gt=True))
-    mask_geojson: list[Polygon] = [annotation.polygon for annotation in get_annotation_query(model).all()]
+    mask_geojson: list[geojson.Polygon] = [annotation.polygon for annotation in get_annotation_query(model).all()]
 
     tile_ids, mask, processed_polygons = get_tile_ids_intersecting_polygons(tilesize, image.width, image.height, mask_geojson, mask_dilation)
 
     return tile_ids, mask, processed_polygons
 
-def get_tile_ids_intersecting_polygons(tilesize: int, image_width: int, image_height: int, polygons: list[Polygon], mask_dilation: int) -> list[int]:
+def get_tile_ids_intersecting_polygons(tilesize: int, image_width: int, image_height: int, polygons: list[geojson.Polygon], mask_dilation: int):
     processed_polygons = []
     scale_factor = 1/tilesize
     for polygon in polygons:
-        shapely_polygon = shapely.from_geojson(polygon)
+        shapely_polygon = shape(polygon)
         scaled_polygon = scale(shapely_polygon, xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
         processed_polygons.append(np.floor(scaled_polygon.exterior.coords).astype(np.int32))
 
@@ -181,7 +180,7 @@ def get_tile_ids_intersecting_polygons(tilesize: int, image_width: int, image_he
     filled_rows, filled_cols = np.nonzero(mask)
     
     # Convert pixel coordinates to tile IDs
-    tile_ids = [rc_to_tileid(tilesize, image_width, image_height, row, col) for row, col in zip(filled_rows, filled_cols)]
+    tile_ids = [int(rc_to_tileid(tilesize, image_width, image_height, row, col)) for row, col in zip(filled_rows, filled_cols)]
 
     return tile_ids, mask, processed_polygons
 

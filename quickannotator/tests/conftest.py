@@ -6,11 +6,14 @@ from quickannotator.api import init_api
 from quickannotator.config import get_database_uri, get_api_version
 from quickannotator.db import models
 from quickannotator.api.v1.project.utils import add_project
-from quickannotator.api.v1.image.utils import add_image_by_path
+from quickannotator.api.v1.image.utils import add_image_by_path, get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import insert_annotation_class
 from quickannotator.api.v1.utils.shared_crud import insert_new_annotation
 from quickannotator.api.v1.tile.helper import upsert_tile
 from quickannotator.constants import TileStatus
+from shapely.geometry import Polygon
+from quickannotator.api.v1.tile.helper import point_to_tileid, upsert_tile
+from quickannotator.api.v1.annotation.helper import create_annotation_table, get_annotation_by_id
 
 
 @pytest.fixture(scope='module')
@@ -92,5 +95,32 @@ def seed(db_session):   # here db_session is the fixture
         seen=TileStatus.UNSEEN,
         hasgt=False
     )
+
+    db_session.commit()
+
+@pytest.fixture(scope="function")
+def annotations_seed(db_session, seed):
+    image_id = 1
+    annotation_class_id = 2
+    is_gt = True
+    tilesize = 2048
+
+    # Create the annotation table
+    create_annotation_table(image_id, annotation_class_id, is_gt)
+
+    image = get_image_by_id(image_id)
+
+    for i in range(10):
+        # Create a simple square polygon
+        poly = Polygon([(i, i), (i + 1, i), (i + 1, i + 1), (i, i + 1), (i, i)])
+        
+        # Calculate the tile_id
+        tile_id = point_to_tileid(tilesize, image.width, image.height, poly.centroid.x, poly.centroid.y)
+        
+        # Insert the annotation
+        insert_new_annotation(image_id, annotation_class_id, is_gt, tile_id, poly)
+        
+        # Upsert the tile
+        upsert_tile(annotation_class_id, image_id, tile_id, hasgt=True)
 
     db_session.commit()

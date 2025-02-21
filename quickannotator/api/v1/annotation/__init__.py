@@ -13,14 +13,16 @@ from quickannotator.db.utils import build_annotation_table_name, create_dynamic_
 from ..utils.shared_crud import compute_custom_metrics
 from .helper import (
     annotations_within_bbox_spatial,
-    get_annotations_for_tile
+    get_annotations_for_tile,
+    get_annotations_for_tiles,
+    get_annotation_by_id
 )
 from datetime import datetime
 from quickannotator.api.v1.tile.helper import upsert_tile, point_to_tileid, tile_intersects_mask, get_tile_ids_intersecting_polygons
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_annotation_query
-import constants
+import quickannotator.constants as constants
 from shapely.strtree import STRtree
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
@@ -85,8 +87,7 @@ class Annotation(MethodView):
     def get(self, args, image_id, annotation_class_id):
         """     returns an Annotation
         """
-        model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, args['is_gt']))
-        result = get_annotation_query(model).filter_by(id=args['annotation_id']).first()
+        result = get_annotation_by_id(image_id, annotation_class_id, args['is_gt'], args['annotation_id'])
         return result, 200
 
     @bp.arguments(PostAnnArgsSchema, location='json')
@@ -210,14 +211,15 @@ class AnnotationsWithinPolygon(MethodView):
         image = get_image_by_id(image_id)
         tilesize = get_annotation_class_by_id(annotation_class_id).tilesize
         # 1. Get all tiles intersecting the polygon
-        tile_ids = get_tile_ids_intersecting_polygons(tilesize, image.width, image.height, [args['polygon']], constants.MASK_DILATION)
+        tile_ids, _, _ = get_tile_ids_intersecting_polygons(tilesize, image.width, image.height, [args['polygon']], constants.MASK_DILATION)
 
         # Collect all annotations from the intersecting tiles
         # TODO: consider a function get_annotations_for_tiles which uses tile_id.in_(tile_ids)
-        all_annotations = [get_annotations_for_tile(image_id, annotation_class_id, id, args['is_gt']) for id in tile_ids]
+
+        annotations = get_annotations_for_tiles(image_id, annotation_class_id, tile_ids, args['is_gt'])
 
         # Create a spatial index for the annotations
-        polygons = [shape(ann.polygon) for ann in all_annotations]
+        polygons = [shapely.from_geojson(ann.polygon) for ann in annotations]
         spatial_index = STRtree(polygons)
 
         # Query the spatial index for annotations intersecting the polygon
@@ -225,7 +227,7 @@ class AnnotationsWithinPolygon(MethodView):
         intersecting_polygons = spatial_index.query(query_polygon)  # List of polygon indices that intersect the query polygon
 
         # Filter annotations that intersect the polygon
-        filtered_anns = [ann for ann, poly in zip(all_annotations, polygons) if poly in intersecting_polygons]
+        filtered_anns = [annotations[i] for i in intersecting_polygons]
         
         return filtered_anns, 200
         
