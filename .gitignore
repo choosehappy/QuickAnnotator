@@ -13,3 +13,4 @@ _version.py
 *.sqlite
 build/
 *.egg-info/
+.coverage*

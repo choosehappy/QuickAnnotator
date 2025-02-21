@@ -4,8 +4,9 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import column_property, scoped_session, sessionmaker, declarative_base
 from sqlalchemy.ext.hybrid import hybrid_property
 from contextlib import contextmanager
+from quickannotator.config import get_database_uri
 
-engine = create_engine('sqlite:////opt/QuickAnnotator/quickannotator/instance/quickannotator.db')
+engine = create_engine(get_database_uri())
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 Base = declarative_base()
@@ -23,6 +24,10 @@ def init_db():
     # Exclude model.Annotation from table creation
     tables = [table for table in Base.metadata.tables.values() if table.name != 'annotation']
     Base.metadata.create_all(bind=engine, tables=tables)
+
+def drop_db():
+    # Drop all tables in the database
+    Base.metadata.drop_all(bind=engine)
 
 @contextmanager
 def get_session():
