@@ -24,7 +24,7 @@ from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 import cv2
 from quickannotator.constants import TileStatus
-
+from constants import MASK_DILATION
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 
 def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: TileStatus=None, hasgt: bool=None):
@@ -124,6 +124,7 @@ def get_bbox_for_tile(tile_size: int, image_width: int, image_height: int, tile_
 
     return (x1, y1, x2, y2)
 
+# deprecated
 def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile_id: int) -> bool:
     image = get_image_by_id(image_id)
     tilesize = get_annotation_class_by_id(annotatation_class_id).tilesize
@@ -141,7 +142,7 @@ def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile
     return False
 
 def tile_intersects_mask(image_id: int, annotation_class_id: int, tile_id: int) -> bool:
-    tileids, _, _ = get_tile_ids_intersecting_mask(image_id, annotation_class_id, mask_dilation=1)
+    tileids, _, _ = get_tile_ids_intersecting_mask(image_id, annotation_class_id, mask_dilation=MASK_DILATION)
     return tile_id in set(tileids)
 
 def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask_dilation: int) -> tuple[list, np.ndarray, list]:
@@ -150,23 +151,26 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
     
     # Load GeoJSON mask (assuming polygon)
     model = create_dynamic_model(build_annotation_table_name(image_id, 1, is_gt=True))
-    mask_geojson = get_annotation_query(model).all()
+    mask_geojson: list[Polygon] = [annotation.polygon for annotation in get_annotation_query(model).all()]
 
-    polygons = []
+    tile_ids, mask, processed_polygons = get_tile_ids_intersecting_polygons(tilesize, image.width, image.height, mask_geojson, mask_dilation)
 
+    return tile_ids, mask, processed_polygons
+
+def get_tile_ids_intersecting_polygons(tilesize: int, image_width: int, image_height: int, polygons: list[Polygon], mask_dilation: int) -> list[int]:
+    processed_polygons = []
     scale_factor = 1/tilesize
-    for annotation in mask_geojson:
-        shapely_polygon = shapely.from_geojson(annotation.polygon)
+    for polygon in polygons:
+        shapely_polygon = shapely.from_geojson(polygon)
         scaled_polygon = scale(shapely_polygon, xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
-        polygons.append(np.floor(scaled_polygon.exterior.coords).astype(np.int32))
+        processed_polygons.append(np.floor(scaled_polygon.exterior.coords).astype(np.int32))
 
-
-    # Create empty mask image
-    mask_shape = np.ceil(np.array([image.height, image.width]) / tilesize).astype(np.int32)
+        # Create empty mask image
+    mask_shape = np.ceil(np.array([image_height, image_width]) / tilesize).astype(np.int32)
     mask = np.zeros(mask_shape, dtype=np.uint8)
     
     # Draw filled mask
-    cv2.fillPoly(mask, polygons, 255, lineType=cv2.LINE_4)
+    cv2.fillPoly(mask, processed_polygons, 255, lineType=cv2.LINE_4)
     
     # Dilate mask
     # kernel = np.ones((3, 3), np.uint8)
@@ -177,10 +181,9 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
     filled_rows, filled_cols = np.nonzero(mask)
     
     # Convert pixel coordinates to tile IDs
-    tile_ids = [rc_to_tileid(tilesize, image.width, image.height, row, col) for row, col in zip(filled_rows, filled_cols)]
+    tile_ids = [rc_to_tileid(tilesize, image_width, image_height, row, col) for row, col in zip(filled_rows, filled_cols)]
 
-    return tile_ids, mask, polygons
-
+    return tile_ids, mask, processed_polygons
 
 def generate_random_circle_within_bbox(bbox: Polygon, radius: float) -> shapely.geometry.Polygon:
     minx, miny, maxx, maxy = bbox.bounds

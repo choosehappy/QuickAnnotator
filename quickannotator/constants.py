@@ -5,3 +5,5 @@ class TileStatus(enum.IntEnum):
     STARTPROCESSING = 1
     PROCESSING = 2
     DONEPROCESSING = 3
+
+MASK_DILATION = 1
