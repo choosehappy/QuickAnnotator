@@ -55,7 +55,8 @@ dependencies = [
     "opencv-python-headless~=4.11.0",
     "tqdm",
     "ipykernel",
-
+    "pytest~=8.3.4",
+    "pytest-cov~=6.0.0"
 
 ]
 dynamic = ["version"]
