@@ -5,7 +5,7 @@ import os
 
 def add_image_by_path(project_id, full_path):
     path = full_path.split("quickannotator/")[1]
-    slide = large_image.getTileSource(path)
+    slide = large_image.getTileSource(full_path)
     name = os.path.basename(full_path)
 
     image = models.Image(project_id=project_id,
