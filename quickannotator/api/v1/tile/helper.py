@@ -150,7 +150,7 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
     
     # Load GeoJSON mask (assuming polygon)
     model = create_dynamic_model(build_annotation_table_name(image_id, 1, is_gt=True))
-    mask_geojson: list[geojson.Polygon] = [annotation.polygon for annotation in get_annotation_query(model).all()]
+    mask_geojson: list[geojson.Polygon] = [geojson.loads(annotation.polygon) for annotation in get_annotation_query(model).all()]
 
     tile_ids, mask, processed_polygons = get_tile_ids_intersecting_polygons(tilesize, image.width, image.height, mask_geojson, mask_dilation)
 
