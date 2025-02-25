@@ -14,7 +14,7 @@ from sqlalchemy import Table, func
 from quickannotator.constants import TileStatus
 import ray
 from quickannotator.db import get_session
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model, load_tile
 
 
 
@@ -25,40 +25,6 @@ def load_image_from_cache(cache_key): ## probably doesn't need to be a function.
             
 
 
-def load_image_from_slide(tile): #TODO: i suspect this sort of function exists elsewhere within QA to serve tiles to the front end? change to merge functionality?
-    with get_session() as db_session:
-        image = db_session.query(Image).filter_by(id=tile.image_id).first()
-    
-    image_path = image.path
-    
-    ts = large_image.getTileSource(os.path.join("/opt/QuickAnnotator/quickannotator", image_path)) #TODO: JANKY
-
-    tpoly = shapely.wkb.loads(tile.geom.data)
-    minx, miny, maxx, maxy = tpoly.bounds #TODO: this seems incorrect - i feel like this information should be pulled from a system table and readily avaialble and not needing to be computed on a per tile basis
-    width = int(maxx - minx)
-    height = int(maxy - miny)
-
-    #------------------ this is now sufficiently complex to be a function
-    #region = slide.read_region((int(minx), int(miny)), 0, (width, height))
-    region, _ = ts.getRegion(region=dict(left=minx, top=miny, width=width, height=height, units='base_pixels'),format=large_image.tilesource.TILE_FORMAT_NUMPY)
-    image = region[:,:,:3]
-    
-    # Get actual height and width
-    actual_height, actual_width, _ = io_image.shape
-
-    # Compute padding amounts
-    pad_height = max(0, self.tile_size - actual_height)
-    pad_width = max(0, self.tile_size - actual_width)
-
-    # Apply padding (black is default since mode='constant' and constant_values=0)
-    io_image = np.pad(io_image, 
-                    ((0, pad_height), (0, pad_width), (0, 0)), 
-                    mode='constant', 
-                    constant_values=0)
-
-    #---------------
-
-    return image #np.array(region.convert("RGB"))
 
 def preprocess_image(io_image, device):
     io_image = io_image / 255.0
@@ -164,7 +130,7 @@ def run_inference(model, tiles, device):
             if cache_val:
                 io_image, mask_image, weight = [decompress_from_jpeg(i) for i in cache_val]
             else:
-                io_image = load_image_from_slide(tile) #TODO: Util function with large_image
+                io_image = load_tile(tile) #TODO: Util function with large_image
             io_images.append(io_image)
 
         io_images = [preprocess_image(io_image, device) for io_image in io_images]
@@ -178,7 +144,6 @@ def run_inference(model, tiles, device):
 
             for j, output in enumerate(outputs):
                 polygons = postprocess_output(output) #some parmaeters here should be added to the class level config -- see function prototype
-                #TODO: !!!! need to upscale polygons to base magnification size
                 save_annotations(tile_batch[j],polygons)
 
         update_tile_status(tile_batch, TileStatus.DONEPROCESSING) #now taht the batch is done, need to update tile status

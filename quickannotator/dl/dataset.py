@@ -2,7 +2,7 @@ import shapely.wkb
 import numpy as np
 import cv2
 from sqlalchemy import Table, inspect
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model, load_tile
 from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
 from torch.utils.data import IterableDataset
 
@@ -105,48 +105,8 @@ class TileDataset(IterableDataset):
                 x,y = img_cache_val[1]
             else:
 
-                with get_session() as db_session:
-                    image = db_session.query(Image).filter_by(id=image_id).first()
-                    db_session.expunge_all()
-                if not image:
-                    continue
-                image_path = image.path
+                io_image,x,y = load_tile(tile)
 
-
-                #--- move to helper function to reduce errors --- readregion(filename,magnification,tilesize,tileid)
-                ts = large_image.getTileSource("/opt/QuickAnnotator/quickannotator/"+image_path) #TODO: janky 
-                sizeXtargetmag, sizeYtargetmag= ts.getPointAtAnotherScale((ts.sizeX,ts.sizeY),
-                                                                           targetScale={'magnification': self.magnification}, 
-                                                                           targetUnits='mag_pixels') 
-                
-                x,y=tileid_to_point(self.tile_size,sizeXtargetmag,sizeYtargetmag,tile_id)   #x,y at target mag
-
-                region, _ = ts.getRegion(region=dict(left=x, top=y, width=self.tile_size, height=self.tile_size, 
-                                                     scale={'magnification':self.magnification},
-                                                     units='pixels'),format=large_image.tilesource.TILE_FORMAT_NUMPY)
-
-                io_image = region[:,:,:3] #np.array(region.convert("RGB"))
-                
-
-                # Get actual height and width
-                actual_height, actual_width, _ = io_image.shape
-
-                # Compute padding amounts
-                pad_height = max(0, self.tile_size - actual_height)
-                pad_width = max(0, self.tile_size - actual_width)
-
-                # Apply padding (black is default since mode='constant' and constant_values=0)
-                io_image = np.pad(io_image, 
-                                ((0, pad_height), (0, pad_width), (0, 0)), 
-                                mode='constant', 
-                                constant_values=0)
-
-                #print(tile.id,tile.image_id,tile.tile_id,x,y,self.tile_size,ts.sizeX,ts.sizeY)
-                #region = slide.read_region((int(col), int(row)), 0, (self.tile_size, self.tile_size)) #note: row/col swap is intentional, read_region is  x,y
-                
-                #------------------ end helper function 
-
-                
                 
                 try: #if memcache isn't working, no problem, just keep going
                     client.set(img_cache_key, [compress_to_jpeg(io_image), (x,y)])
