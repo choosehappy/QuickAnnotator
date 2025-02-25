@@ -100,7 +100,7 @@ class TileBoundingBox(MethodView):
         """
         image: models.Image = get_image_by_id(args['image_id'])
         annotation_class: models.AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
-        bbox = get_bbox_for_tile(annotation_class.tilesize, image.width, image.height, args['tile_id'])
+        bbox = get_bbox_for_tile(annotation_class.tilesize, image.base_width, image.base_height, args['tile_id'])
         return {'bbox': bbox}, 200
 
 @bp.route('/search/bbox')
@@ -112,7 +112,7 @@ class TileSearch(MethodView):
         """
         image: models.Image = get_image_by_id(args['image_id'])
         annotation_class: models.AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
-        tile_ids_in_bbox = get_tile_ids_within_bbox(annotation_class.tilesize, image.width, image.height, (args['x1'], args['y1'], args['x2'], args['y2']))
+        tile_ids_in_bbox = get_tile_ids_within_bbox(annotation_class.tilesize, image.base_width, image.base_height, (args['x1'], args['y1'], args['x2'], args['y2']))
         tile_ids_in_mask, _, _ = get_tile_ids_intersecting_mask(args['image_id'], args['annotation_class_id'], mask_dilation=1)
         ids = set(tile_ids_in_bbox) & set(tile_ids_in_mask)
 
@@ -144,7 +144,7 @@ class TileSearchByCoordinates(MethodView):
         """
         image: models.Image = get_image_by_id(args['image_id'])
         annotation_class: models.AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
-        tile_id = point_to_tileid(annotation_class.tilesize, image.width, image.height, args['x'], args['y'])
+        tile_id = point_to_tileid(annotation_class.tilesize, image.base_width, image.base_height, args['x'], args['y'])
         return get_tile(args['annotation_class_id'], args['image_id'], tile_id), 200
 
 @bp.route('/predict')

@@ -96,7 +96,7 @@ class Annotation(MethodView):
         # NOTE: The client is aware of the tilesize and image dimensions. Consider passing this information in the request or even calculating the tile_id client-side.
         image: models.Image = get_image_by_id(image_id)
         annotation_class: models.AnnotationClass = get_annotation_class_by_id(annotation_class_id)
-        tile_id = point_to_tileid(annotation_class.tilesize, image.width, image.height, poly.centroid.x, poly.centroid.y)
+        tile_id = point_to_tileid(annotation_class.tilesize, image.base_width, image.base_height, poly.centroid.x, poly.centroid.y)
         
         ann = insert_new_annotation(image_id, annotation_class_id, True, tile_id, poly)
         

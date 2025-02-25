@@ -135,7 +135,7 @@ def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile
     image = get_image_by_id(image_id)
     tilesize = get_annotation_class_by_id(annotatation_class_id).tilesize
 
-    bbox = get_bbox_for_tile(tilesize, image.width, image.height, tile_id)
+    bbox = get_bbox_for_tile(tilesize, image.base_width, image.base_height, tile_id)
     model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id=1, is_gt=True))
     mask_annotations = db_session.query(model).all()
 
@@ -169,7 +169,7 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
 
 
     # Create empty mask image
-    mask_shape = np.ceil(np.array([image.height, image.width]) / tilesize).astype(np.int32)
+    mask_shape = np.ceil(np.array([image.base_height, image.base_width]) / tilesize).astype(np.int32)
     mask = np.zeros(mask_shape, dtype=np.uint8)
     
     # Draw filled mask
@@ -184,7 +184,7 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
     filled_rows, filled_cols = np.nonzero(mask)
     
     # Convert pixel coordinates to tile IDs
-    tile_ids = [rc_to_tileid(tilesize, image.width, image.height, row, col) for row, col in zip(filled_rows, filled_cols)]
+    tile_ids = [rc_to_tileid(tilesize, image.base_width, image.base_height, row, col) for row, col in zip(filled_rows, filled_cols)]
 
     return tile_ids, mask, polygons
 
@@ -215,7 +215,7 @@ def remote_compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int
         annotation_class_id: int = tile.annotation_class_id
 
         # Process the tile (using shapely for example)
-        bbox = get_bbox_for_tile(annotation_class.tilesize, image.width, image.height, tile_id)
+        bbox = get_bbox_for_tile(annotation_class.tilesize, image.base_width, image.base_height, tile_id)
         bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
         for _ in range(random.randint(20, 40)):
             polygon = generate_random_circle_within_bbox(bbox_polygon, 100)

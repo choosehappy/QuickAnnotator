@@ -439,7 +439,7 @@ const ViewportMap = (props: Props) => {
             const img = props.currentImage;
 
             const params = geo.util.pixelCoordinateParams(
-                viewRef.current, img.width, img.height, img.dz_tilesize, img.dz_tilesize);
+                viewRef.current, img.base_width, img.base_height, img.dz_tilesize, img.dz_tilesize);
             const interactor = geo.mapInteractor({alwaysTouch: true});
             const map = geo.map({...params.map, interactor: interactor});
             // map.interactor(geo.mapInteractor({alwaysTouch: true}))

@@ -10,7 +10,7 @@ import large_image
 import os
 import io
 
-import quickannotator.db.models
+import quickannotator.db.models as models
 # from .helper import getTile
 
 
@@ -20,9 +20,9 @@ bp = Blueprint('image', __name__, description='Image operations')
 class ImageRespSchema(SQLAlchemyAutoSchema):
     """     Image response schema      """
     class Meta:
-        model = quickannotator.db.models.Image
+        model = models.Image
 
-    embedding_coord = quickannotator.db.models.GeometryField()
+    embedding_coord = models.GeometryField()
 
 class GetImageArgsSchema(Schema):
     image_id = fields.Int(required=True)
@@ -52,9 +52,9 @@ class Image(MethodView):
         """     returns an Image
         """
         result = db_session.query(
-            *[getattr(quickannotator.db.models.Image, column.name) for column in quickannotator.db.models.Image.__table__.columns],
-            func.ST_AsGeoJSON(quickannotator.db.models.Image.embedding_coord).label('embedding_coord')
-        ).filter(quickannotator.db.models.Image.id == args['image_id']).first()
+            *[getattr(models.Image, column.name) for column in models.Image.__table__.columns],
+            func.ST_AsGeoJSON(models.Image.embedding_coord).label('embedding_coord')
+        ).filter(models.Image.id == args['image_id']).first()
         if result is not None:
             return result, 200
         else:
@@ -76,7 +76,7 @@ class Image(MethodView):
     def delete(self, args):
         """     delete an Image   """
 
-        db_session.query(quickannotator.db.models.Image).filter(id=args['image_id']).delete()
+        db_session.query(models.Image).filter(id=args['image_id']).delete()
         return 204
 
 #################################################################################
@@ -87,7 +87,7 @@ class ImageSearch(MethodView):
     def get(self, args, project_id):
         """     returns a list of Images
         """
-        result = db_session.query(quickannotator.db.models.Image).filter(quickannotator.db.models.Image.project_id == project_id).all()
+        result = db_session.query(models.Image).filter(models.Image.project_id == project_id).all()
         return result, 200
 
 #################################################################################
@@ -95,7 +95,7 @@ class ImageSearch(MethodView):
 class ImageFile(MethodView):
     def get(self, image_id, file_type):
         """     returns an Image file   """
-        result = db_session.query(quickannotator.db.models.Image).filter(quickannotator.db.models.Image.id == image_id).first()
+        result = db_session.query(models.Image).filter(models.Image.id == image_id).first()
 
         if file_type == 1:  # image file
             return send_from_directory(result['path'], result['name'])
@@ -115,7 +115,7 @@ class ImageFile(MethodView):
     def delete(self, image_id, file_type):
         """     delete an Image file   """
 
-        result = db_session.query(quickannotator.db.models.Image).filter(quickannotator.db.models.Image.id == image_id).first()
+        result = db_session.query(models.Image).filter(models.Image.id == image_id).first()
 
         if file_type == 1:  # image file
             # TODO implement image file deletion
@@ -132,7 +132,7 @@ class PatchFile(MethodView):
     def get(self, image_id, level, col, row, file_format):
         """     returns a patch file   """
 
-        path = quickannotator.db.models.Image.query.get(image_id).path
+        path = models.Image.query.get(image_id).path
         full_path = os.path.join(current_app.root_path, path)
         img = large_image.open(full_path)
 

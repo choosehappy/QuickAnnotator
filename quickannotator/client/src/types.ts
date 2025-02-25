@@ -73,8 +73,8 @@ export interface Image {
     project_id: number;
     name: string;
     path: string;
-    height: number;
-    width: number;
+    base_height: number;
+    base_width: number;
     dz_tilesize: number;
     embeddingCoord: string;
     group_id: number;

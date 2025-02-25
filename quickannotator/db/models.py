@@ -43,8 +43,8 @@ class Image(Base):
     # columns
     name = Column(Text, nullable=False)
     path = Column(Text)
-    height = Column(Integer)
-    width = Column(Integer)
+    base_height = Column(Integer)
+    base_width = Column(Integer)
     dz_tilesize = Column(Integer)
     embedding_coord = Column(Geometry('POINT'))
     group_id = Column(Integer)
