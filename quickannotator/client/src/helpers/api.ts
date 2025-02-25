@@ -175,6 +175,15 @@ export const operateOnAnnotation = async (annotation: Annotation, polygon2: Poly
     return await post<PostOperationArgs, AnnotationResponse>(`/annotation/operation`, requestBody);
 }
 
+export const getAnnotationsWithinPolygon = async (image_id: number, annotation_class_id: number, is_gt: boolean, polygon: Polygon) => {
+    const requestBody: PostAnnArgs = {
+        is_gt: is_gt,
+        polygon: JSON.stringify(polygon),
+    };
+
+    return await post<PostAnnArgs, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/withinpoly`, requestBody);
+}
+
 // Predict tile
 export const predictTile = async (image_id: number, annotation_class_id: number, tile_id: number) => {
     const requestBody = { 

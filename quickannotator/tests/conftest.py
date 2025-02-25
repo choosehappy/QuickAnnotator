@@ -124,3 +124,10 @@ def annotations_seed(db_session, seed):
         upsert_tile(annotation_class_id, image_id, tile_id, hasgt=True)
 
     db_session.commit()
+
+def assert_geojson_equal(geojson1, geojson2):
+    """
+    Custom assertion to compare two geojson objects for equality.
+    """
+    assert geojson1['type'] == geojson2['type'], f"Types do not match: {geojson1['type']} != {geojson2['type']}"
+    assert geojson1['coordinates'] == geojson2['coordinates'], f"Coordinates do not match: {geojson1['coordinates']} != {geojson2['coordinates']}"

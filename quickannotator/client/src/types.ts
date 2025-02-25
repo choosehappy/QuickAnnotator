@@ -15,12 +15,12 @@ export interface AnnotationClass {
 
 export interface AnnotationResponse {
     id: number;
-    annotation_class_id: number;
     tile_id: number;
     polygon: string;
     centroid: string;
     area: number;
     custom_metrics: { [key: string]: unknown }
+    datetime: Date;
 }
 
 export class Annotation {
@@ -31,6 +31,7 @@ export class Annotation {
     centroid: string;
     area: number;
     custom_metrics: { [key: string]: unknown }
+    datetime: Date;
 
     constructor(annotation: AnnotationResponse, annotation_class_id: number) {
         this.id = annotation.id;
@@ -40,6 +41,7 @@ export class Annotation {
         this.centroid = annotation.centroid;
         this.area = annotation.area;
         this.custom_metrics = annotation.custom_metrics;
+        this.datetime = annotation.datetime;
     }
 
     setTileId(tile_id: number | null) {

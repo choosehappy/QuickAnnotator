@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse } from "../types.ts"
-import { searchTiles, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTile, predictTile, post } from "../helpers/api.ts";
+import { searchTiles, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTile, predictTile, getAnnotationsWithinPolygon } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 import { TOOLBAR_KEYS, LAYER_KEYS, TILE_STATUS } from "../helpers/config.ts";
 import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature } from '../utils/map.ts';
@@ -275,8 +275,15 @@ const ViewportMap = (props: Props) => {
                 addAnnotation(polygon2);
             }
         } else if (currentTool === TOOLBAR_KEYS.IMPORT) {
-            // 1. Get tiles intersecting the drawn polygon's bounding box. Filter by seen state
-            // 2. Get the predictions for these tiles. Each prediction should be filtered by whether or not it intersects the drawn 
+            getAnnotationsWithinPolygon(currentImage.id, currentClass.id, false, polygon2).then((resp) => {
+                // get the predicted annotation ids
+                if (resp.status === 200) {
+                    const annotationIds = resp.data.map((annResp: AnnotationResponse) => annResp.id);
+                } else {
+                    console.log("No annotations found within the polygon.")
+                }
+
+            })
 
             // 2. Highlight these polygons
             // 3. Show a confirmation panel
@@ -450,6 +457,7 @@ const ViewportMap = (props: Props) => {
             redrawTileFeature(feature);
         }
 
+        
         if (prevAnnotationId && prevAnnotationId !== annotationId && props.currentImage && props.currentClass) {
             putAnnotation(props.currentImage.id, prevState).then(() => {
                 console.log("Annotation updated.")

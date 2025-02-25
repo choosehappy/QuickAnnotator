@@ -39,7 +39,6 @@ class AnnRespSchema(Schema):
     custom_metrics = fields.Dict()
 
     datetime = fields.DateTime(format='iso')
-    message = fields.Str()
 
 class GetAnnArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
@@ -133,26 +132,14 @@ class Annotation(MethodView):
             ann.custom_metrics = args['custom_metrics']
             ann.tile_id = args['tile_id']
             ann.datetime = datetime.now()
+            db_session.commit()
+            result = get_annotation_query(model).filter_by(id=ann.id).first()
+            return result, 201
 
         else: # Create a new annotation
-            ann = model(
-                image_id=None,
-                annotation_class_id=None,
-                isgt=None,
-                centroid=args['centroid'],
-                area=args['area'],
-                polygon=args['polygon'],
-                custom_metrics=args['custom_metrics'],
-                tile_id=args['tile_id'],
-                datetime=datetime.now()
-            )
-            db_session.add(ann)
+            return {"message": "Annotation not found"}, 404
 
-        result = get_annotation_query(model).filter_by(id=ann.id).first()
-        
-        upsert_tile(annotation_class_id, image_id, args['tile_id'], hasgt=True)
 
-        return result, 201
 
     @bp.arguments(DeleteAnnArgsSchema, location='query')
     def delete(self, args, image_id, annotation_class_id):
@@ -203,9 +190,9 @@ class AnnotationByTile(MethodView):
     
 @bp.route('/<int:image_id>/<int:annotation_class_id>/withinpoly')
 class AnnotationsWithinPolygon(MethodView):
-    @bp.arguments(GetAnnWithinPolyArgsSchema, location='query')
+    @bp.arguments(GetAnnWithinPolyArgsSchema, location='json')
     @bp.response(200, AnnRespSchema(many=True))
-    def get(self, args, image_id, annotation_class_id):
+    def post(self, args, image_id, annotation_class_id):
         """     get all annotations within a polygon
         """
         image = get_image_by_id(image_id)
@@ -219,6 +206,7 @@ class AnnotationsWithinPolygon(MethodView):
         annotations = get_annotations_for_tiles(image_id, annotation_class_id, tile_ids, args['is_gt'])
 
         # Create a spatial index for the annotations
+        # TODO: Consider using the database spatial index for this task.
         polygons = [shapely.from_geojson(ann.polygon) for ann in annotations]
         spatial_index = STRtree(polygons)
 
