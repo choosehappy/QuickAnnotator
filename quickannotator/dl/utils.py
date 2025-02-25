@@ -1,3 +1,4 @@
+import large_image
 from pymemcache.client.base import PooledClient
 from pymemcache import serde
 import os, io 
@@ -21,6 +22,15 @@ def decompress_from_jpeg(jpeg_bytes):
         # Convert image back to NumPy array
         matrix = np.array(image)
     return matrix
+
+
+
+# def getTilesizeAtTargetMag(fname,tile_size40x,magnification):
+#     ts = large_image.getTileSource(fname)
+#     tilesizeTmag = ts.getPointAtAnotherScale((tile_size40x,tile_size40x), 
+#                                              targetScale={'magnification': magnification}, 
+#                                              targetUnits='mag_pixels') 
+#     return tilesizeTmag
 
 
 #-----

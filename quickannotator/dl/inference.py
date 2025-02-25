@@ -38,10 +38,26 @@ def load_image_from_slide(tile): #TODO: i suspect this sort of function exists e
     width = int(maxx - minx)
     height = int(maxy - miny)
 
+    #------------------ this is now sufficiently complex to be a function
     #region = slide.read_region((int(minx), int(miny)), 0, (width, height))
     region, _ = ts.getRegion(region=dict(left=minx, top=miny, width=width, height=height, units='base_pixels'),format=large_image.tilesource.TILE_FORMAT_NUMPY)
     image = region[:,:,:3]
     
+    # Get actual height and width
+    actual_height, actual_width, _ = io_image.shape
+
+    # Compute padding amounts
+    pad_height = max(0, self.tile_size - actual_height)
+    pad_width = max(0, self.tile_size - actual_width)
+
+    # Apply padding (black is default since mode='constant' and constant_values=0)
+    io_image = np.pad(io_image, 
+                    ((0, pad_height), (0, pad_width), (0, 0)), 
+                    mode='constant', 
+                    constant_values=0)
+
+    #---------------
+
     return image #np.array(region.convert("RGB"))
 
 def preprocess_image(io_image, device):
@@ -102,7 +118,7 @@ def getPendingInferenceTiles(classid):
     
     update_tile_status(tiles,TileStatus.PROCESSING)
 
-
+    #TODO: turn into util function with data loader, for distirubting tile to workers
     world_size= ray.train.get_context().get_world_size()
     world_rank= ray.train.get_context().get_world_rank()
     
@@ -148,7 +164,7 @@ def run_inference(model, tiles, device):
             if cache_val:
                 io_image, mask_image, weight = [decompress_from_jpeg(i) for i in cache_val]
             else:
-                io_image = load_image_from_slide(tile)
+                io_image = load_image_from_slide(tile) #TODO: Util function with large_image
             io_images.append(io_image)
 
         io_images = [preprocess_image(io_image, device) for io_image in io_images]
@@ -157,11 +173,12 @@ def run_inference(model, tiles, device):
         
         model.eval()
         with torch.no_grad():
-            outputs = model(io_images)
+            outputs = model(io_images)  #output at target magnification level!
             outputs = outputs[:, :, 32:-32, 32:-32]
 
             for j, output in enumerate(outputs):
                 polygons = postprocess_output(output) #some parmaeters here should be added to the class level config -- see function prototype
+                #TODO: !!!! need to upscale polygons to base magnification size
                 save_annotations(tile_batch[j],polygons)
 
         update_tile_status(tile_batch, TileStatus.DONEPROCESSING) #now taht the batch is done, need to update tile status

@@ -100,6 +100,13 @@ def point_to_tileid(tile_size: int, image_width: int, image_height: int, x: int,
     tile_id = rc_to_tileid(tile_size, image_width, image_height, row, col)
     return tile_id
 
+
+def tileid_to_point(tile_size: int, image_width_at_target_mag: int, image_height_at_target_mag: int, tile_id: int) -> tuple:
+    row, col = tileid_to_rc(tile_size, image_width_at_target_mag, image_height_at_target_mag, tile_id)
+    x = col * tile_size
+    y = row * tile_size
+    return (x, y)
+
 def rc_to_tileid(tile_size: int, image_width: int, image_height: int, row: int, col: int) -> int:
     tile_id = row * math.ceil(image_width / tile_size) + col
     return tile_id
