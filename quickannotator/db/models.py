@@ -66,9 +66,8 @@ class AnnotationClass(Base):
     # columns
     name = Column(Text, nullable=False, unique=True)
     color = Column(Text, nullable=False)
-    magnification = Column(Integer, nullable=True)
-    patchsize = Column(Integer, nullable=True)
-    tilesize = Column(Integer, nullable=True)
+    work_mag = Column(Integer, nullable=True)
+    work_tilesize = Column(Integer, nullable=True)
     dl_model_objectref = Column(Text, nullable=True)
     datetime = Column(DateTime, server_default=func.now())
 

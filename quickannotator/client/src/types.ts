@@ -5,9 +5,8 @@ export interface AnnotationClass {
     project_id: number;
     name: string;
     color: string;
-    magnification: number;
-    patchsize: number;
-    tilesize: number;
+    work_mag: number;
+    work_tilesize: number;
     date: Date;
     dl_model_objectref: string;
 }

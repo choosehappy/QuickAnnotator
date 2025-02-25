@@ -69,9 +69,8 @@ def seed(db_session):   # here db_session is the fixture
                         project_id=None,
                         name="Tissue Mask",
                         color="black",
-                        magnification=None,
-                        patchsize=None,
-                        tilesize=None,
+                        work_mag=None,
+                        work_tilesize=None,
                         dl_model_objectref=None)
     
     # Add a second annotation class
@@ -79,9 +78,8 @@ def seed(db_session):   # here db_session is the fixture
                         project_id=1,
                         name="Fake Class",
                         color="red",
-                        magnification=10,
-                        patchsize=256,
-                        tilesize=2048,
+                        work_mag=10,
+                        work_tilesize=2048,
                         dl_model_objectref=None)
 
     # Add a tile
