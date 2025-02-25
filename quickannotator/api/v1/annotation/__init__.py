@@ -18,7 +18,7 @@ from .helper import (
     get_annotation_by_id
 )
 from datetime import datetime
-from quickannotator.api.v1.tile.helper import upsert_tile, point_to_tileid, tile_intersects_mask, get_tile_ids_intersecting_polygons
+from quickannotator.api.v1.tile.helper import upsert_tile, point_to_tileid, tile_intersects_mask, get_tile_ids_intersecting_polygons, get_tile_ids_intersecting_mask
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_annotation_query
@@ -198,10 +198,9 @@ class AnnotationsWithinPolygon(MethodView):
         image = get_image_by_id(image_id)
         tilesize = get_annotation_class_by_id(annotation_class_id).tilesize
         # 1. Get all tiles intersecting the polygon
-        tile_ids, _, _ = get_tile_ids_intersecting_polygons(tilesize, image.width, image.height, [args['polygon']], constants.MASK_DILATION)
-
-        # Collect all annotations from the intersecting tiles
-        # TODO: consider a function get_annotations_for_tiles which uses tile_id.in_(tile_ids)
+        tiles_ids_within_mask, _, _ = get_tile_ids_intersecting_mask(image_id, annotation_class_id, constants.MASK_DILATION)
+        tile_ids_intersecting_polygons, _, _ = get_tile_ids_intersecting_polygons(tilesize, image.width, image.height, [args['polygon']], constants.MASK_DILATION)
+        tile_ids = set(tile_ids_intersecting_polygons) & set(tiles_ids_within_mask)
 
         annotations = get_annotations_for_tiles(image_id, annotation_class_id, tile_ids, args['is_gt'])
 

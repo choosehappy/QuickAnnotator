@@ -457,7 +457,7 @@ const ViewportMap = (props: Props) => {
             redrawTileFeature(feature);
         }
 
-        
+        // TODO: PUT is called even when the annotation has been deleted. The PUT fails, which is fine, but it's not efficient.
         if (prevAnnotationId && prevAnnotationId !== annotationId && props.currentImage && props.currentClass) {
             putAnnotation(props.currentImage.id, prevState).then(() => {
                 console.log("Annotation updated.")

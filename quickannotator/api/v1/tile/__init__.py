@@ -135,6 +135,8 @@ class TileSearch(MethodView):
             tiles.extend(placeholder_tiles)
         return tiles, 200
     
+@bp.route('/search/polygon')
+    
 @bp.route('/search/coordinates')
 class TileSearchByCoordinates(MethodView):
     @bp.arguments(SearchTileByCoordinatesArgsSchema, location='query')
