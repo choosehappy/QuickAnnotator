@@ -16,15 +16,7 @@ import ray
 from quickannotator.db import get_session
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model, load_tile
 
-
-
-def load_image_from_cache(cache_key): ## probably doesn't need to be a function...
-    client = get_memcached_client() ## client should be a "self" variable
-    cache_val = client.get(cache_key) ## COnsider here storing/retreiving images and masks seperately -- one can query multiple keys at the same time, so there isn't additional overhead but may make things more modular for future usage
-    return cache_val
             
-
-
 
 def preprocess_image(io_image, device):
     io_image = io_image / 255.0
@@ -120,17 +112,22 @@ def update_tile_status(tile_batch,status):
 
 def run_inference(model, tiles, device):
     infer_tile_batch_size = 2  #TODO: need to get from project setting
-    
+    client = get_memcached_client()
     for tile_batch in batch_iterable(tiles, infer_tile_batch_size):
         io_images = []
         infertiles = []
         for tile in tile_batch:
-            cache_key = f"{tile.image_id}_{tile.id}" ##TODO: This further suggests that we should be storing the IMAGE and the MASK seperately
-            cache_val = load_image_from_cache(cache_key)
+            img_cache_key = f"{tile.image_id}_{tile.id}" ##TODO: This further suggests that we should be storing the IMAGE and the MASK seperately
+            try: #if memcache isn't working, no problem, just keep going
+                cache_val = client.get(img_cache_key) or {}
+            except:
+                cache_val = {}
+            
             if cache_val:
                 io_image, mask_image, weight = [decompress_from_jpeg(i) for i in cache_val]
             else:
-                io_image = load_tile(tile) #TODO: Util function with large_image
+                io_image = load_tile(tile)
+
             io_images.append(io_image)
 
         io_images = [preprocess_image(io_image, device) for io_image in io_images]
