@@ -11,6 +11,7 @@ from quickannotator.api.v1.annotation_class.helper import insert_annotation_clas
 from quickannotator.api.v1.utils.shared_crud import insert_new_annotation
 from quickannotator.api.v1.tile.helper import upsert_tile
 from quickannotator.constants import TileStatus
+from quickannotator.api.v1.tile.helper import TileSpace
 
 
 @pytest.fixture(scope='module')
@@ -92,3 +93,9 @@ def seed(db_session):   # here db_session is the fixture
     )
 
     db_session.commit()
+
+
+
+@pytest.fixture
+def tilespace():
+    return TileSpace(work_tilesize=256, image_width_at_work_mag=1024, image_height_at_work_mag=1024)

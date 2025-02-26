@@ -63,73 +63,78 @@ def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: Til
     return result
     
 
-def get_tile_ids_within_bbox(tile_size: int, image_width: int, image_height: int, bbox: list[int]) -> list:
-    # Force the bounding box to be within the image dimensions for robustness.
-    x1 = max(0, min(bbox[0], image_width))
-    y1 = max(0, min(bbox[1], image_height))
-    x2 = max(0, min(bbox[2], image_width))
-    y2 = max(0, min(bbox[3], image_height))
+class TileSpace:
+    def __init__(self, work_tilesize: int, image_width_at_work_mag: int, image_height_at_work_mag: int):
+        self.ts = work_tilesize
+        self.w = image_width_at_work_mag
+        self.h = image_height_at_work_mag
 
-    # Verify that the bounding box is within the image dimensions
-    if not (x1 < x2 and y1 < y2):
-        raise ValueError(f"Bounding box coordinates must be monotonically increasing: {bbox}")
+    def get_tile_ids_within_bbox(self, bbox: list[int]) -> list:
+        # Force the bounding box to be within the image dimensions for robustness.
+        x1 = max(0, min(bbox[0], self.w))
+        y1 = max(0, min(bbox[1], self.h))
+        x2 = max(0, min(bbox[2], self.w))
+        y2 = max(0, min(bbox[3], self.h))
 
-    # Calculate the number of tiles per row
-    tiles_per_row = math.ceil(image_width / tile_size)
+        # Verify that the bounding box is within the image dimensions
+        if not (x1 < x2 and y1 < y2):
+            raise ValueError(f"Bounding box coordinates must be monotonically increasing: {bbox}")
 
-    # Determine the tile range
-    start_col = x1 // tile_size
-    end_col = math.ceil(x2 / tile_size) - 1
-    start_row = y1 // tile_size
-    end_row = math.ceil(y2 / tile_size) - 1
-    
-    # Create a mesh grid of tile coordinates
-    cols, rows = np.meshgrid(np.arange(start_col, end_col + 1), np.arange(start_row, end_row + 1))
+        # Calculate the number of tiles per row
+        tiles_per_row = math.ceil(self.w / self.ts)
 
-    # Flatten the mesh grid and calculate tile IDs
-    tile_ids = (rows * tiles_per_row + cols).flatten().tolist()
+        # Determine the tile range
+        start_col = x1 // self.ts
+        end_col = math.ceil(x2 / self.ts) - 1
+        start_row = y1 // self.ts
+        end_row = math.ceil(y2 / self.ts) - 1
+        
+        # Create a mesh grid of tile coordinates
+        cols, rows = np.meshgrid(np.arange(start_col, end_col + 1), np.arange(start_row, end_row + 1))
 
-    return tile_ids
+        # Flatten the mesh grid and calculate tile IDs
+        tile_ids = (rows * tiles_per_row + cols).flatten().tolist()
 
-def point_to_tileid(tile_size: int, image_width: int, image_height: int, x: int, y: int) -> int:
-    if not (0 <= x < image_width and 0 <= y < image_height):
-        raise ValueError(f"Point {x}, {y} is out of image dimensions (0, 0, {image_width}, {image_height})")
+        return tile_ids
 
-    col = x // tile_size
-    row = y // tile_size
-    tile_id = rc_to_tileid(tile_size, image_width, image_height, row, col)
-    return tile_id
+    def point_to_tileid(self, x: int, y: int) -> int:
+        if not (0 <= x < self.w and 0 <= y < self.h):
+            raise ValueError(f"Point {x}, {y} is out of image dimensions (0, 0, {self.w}, {self.h})")
 
+        col = x // self.ts
+        row = y // self.ts
+        tile_id = self.rc_to_tileid(row, col)
+        return tile_id
 
-def tileid_to_point(tile_size: int, image_width_at_target_mag: int, image_height_at_target_mag: int, tile_id: int) -> tuple:
-    row, col = tileid_to_rc(tile_size, image_width_at_target_mag, image_height_at_target_mag, tile_id)
-    x = col * tile_size
-    y = row * tile_size
-    return (x, y)
+    def tileid_to_point(self, tile_id: int) -> tuple:
+        row, col = self.tileid_to_rc(tile_id)
+        x = col * self.ts
+        y = row * self.ts
+        return (x, y)
 
-def rc_to_tileid(tile_size: int, image_width: int, image_height: int, row: int, col: int) -> int:
-    tile_id = row * math.ceil(image_width / tile_size) + col
-    return tile_id
+    def rc_to_tileid(self, row: int, col: int) -> int:
+        tile_id = row * math.ceil(self.w / self.ts) + col
+        return tile_id
 
-def tileid_to_rc(tile_size: int, image_width: int, image_height: int, tile_id: int) -> tuple:
-    tiles_per_row = math.ceil(image_width / tile_size)
-    row = tile_id // tiles_per_row
-    col = tile_id % tiles_per_row
-    return (row, col)
+    def tileid_to_rc(self, tile_id: int) -> tuple:
+        tiles_per_row = math.ceil(self.w / self.ts)
+        row = tile_id // tiles_per_row
+        col = tile_id % tiles_per_row
+        return (row, col)
 
-def get_all_tile_ids_for_image(tile_size: int, image_width: int, image_height: int) -> list:
-    total_tiles = math.ceil(image_width / tile_size) * math.ceil(image_height / tile_size)
-    return list(range(total_tiles))
+    def get_all_tile_ids_for_image(self) -> list:
+        total_tiles = math.ceil(self.w / self.ts) * math.ceil(self.h / self.ts)
+        return list(range(total_tiles))
 
-def get_bbox_for_tile(tile_size: int, image_width: int, image_height: int, tile_id: int) -> tuple:
-    row, col = tileid_to_rc(tile_size, image_width, image_height, tile_id)
+    def get_bbox_for_tile(self, tile_id: int) -> tuple:
+        row, col = self.tileid_to_rc(tile_id)
 
-    x1 = col * tile_size
-    y1 = row * tile_size
-    x2 = x1 + tile_size
-    y2 = y1 + tile_size
+        x1 = col * self.ts
+        y1 = row * self.ts
+        x2 = x1 + self.ts
+        y2 = y1 + self.ts
 
-    return (x1, y1, x2, y2)
+        return (x1, y1, x2, y2)
 
 def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile_id: int) -> bool:
     image = get_image_by_id(image_id)
