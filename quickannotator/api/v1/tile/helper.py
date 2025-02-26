@@ -17,7 +17,7 @@ from sqlalchemy.orm import sessionmaker
 import math
 import numpy as np
 from sqlalchemy.dialects.sqlite import insert   # NOTE: This import is necessary as there is no dialect-neutral way to call on_conflict()
-from quickannotator.api.v1.utils.shared_crud import get_annotation_query
+from quickannotator.api.v1.utils.shared_crud import get_annotation_query, base_to_work_scaling_factor
 import quickannotator.db.models as models
 from quickannotator.db import get_session
 from quickannotator.api.v1.image.utils import get_image_by_id
@@ -229,21 +229,34 @@ class TileSpace:
 
         return (x1, y1, x2, y2)
 
-def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile_id: int) -> bool:
+def get_tilespace(image_id: int, annotation_class_id: int, in_work_mag: bool=True) -> TileSpace:
     image = get_image_by_id(image_id)
-    work_tilesize = get_annotation_class_by_id(annotatation_class_id).work_tilesize
+    annotation_class = get_annotation_class_by_id(annotation_class_id)
+    r = base_to_work_scaling_factor(image_id, annotation_class_id)
+    if in_work_mag:
+        image_work_width = image.base_width * r
+        image_work_height = image.base_height * r
+        return TileSpace(annotation_class.work_tilesize, image_work_width, image_work_height)
+    else:   # return
+        base_tilesize = annotation_class.work_tilesize / r
+        return TileSpace(base_tilesize, image.base_width, image.base_height)
 
-    bbox = get_bbox_for_tile(work_tilesize, image.base_width, image.base_height, tile_id)
-    model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id=1, is_gt=True))
-    mask_annotations = db_session.query(model).all()
+# DEPRECATED
+# def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile_id: int) -> bool:
+#     image = get_image_by_id(image_id)
+#     work_tilesize = get_annotation_class_by_id(annotatation_class_id).work_tilesize
 
-    if mask_annotations:
-        bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
-        for ann in mask_annotations:
-            if bbox_polygon.intersects(wkb.loads(ann.polygon.data)):
-                return True
+#     bbox = get_bbox_for_tile(work_tilesize, image.base_width, image.base_height, tile_id)
+#     model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id=1, is_gt=True))
+#     mask_annotations = db_session.query(model).all()
+
+#     if mask_annotations:
+#         bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
+#         for ann in mask_annotations:
+#             if bbox_polygon.intersects(wkb.loads(ann.polygon.data)):
+#                 return True
     
-    return False
+#     return False
 
 def tile_intersects_mask(image_id: int, annotation_class_id: int, tile_id: int) -> bool:
     tileids, _, _ = get_tile_ids_intersecting_mask(image_id, annotation_class_id, mask_dilation=1)
@@ -267,7 +280,7 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
 
 
     # Create empty mask image
-    mask_shape = np.ceil(np.array([image.base_height, image.base_width]) / work_tilesize).astype(np.int32)
+    mask_shape = np.ceil(np.array([image.base_height, image.base_width]) * scale_factor).astype(np.int32)
     mask = np.zeros(mask_shape, dtype=np.uint8)
     
     # Draw filled mask
@@ -280,9 +293,11 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
 
     # Get non-zero (filled) pixels
     filled_rows, filled_cols = np.nonzero(mask)
+
+    tilespace = get_tilespace(image_id, annotation_class_id, in_work_mag=False)
     
     # Convert pixel coordinates to tile IDs
-    tile_ids = [rc_to_tileid(work_tilesize, image.base_width, image.base_height, row, col) for row, col in zip(filled_rows, filled_cols)]
+    tile_ids = [tilespace.rc_to_tileid(row, col) for row, col in zip(filled_rows, filled_cols)]
 
     return tile_ids, mask, polygons
 

@@ -19,7 +19,7 @@ from datetime import datetime
 from quickannotator.api.v1.tile.helper import upsert_tile, point_to_tileid, tile_intersects_mask
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
-from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_annotation_query, base_to_work_ratio
+from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_annotation_query, base_to_work_scaling_factor
 
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
@@ -92,7 +92,7 @@ class Annotation(MethodView):
         This method is primarily used for ground truth annotations. Predictions should only by saved by the model.
         """
         # scale the polygon to the working magnification
-        scale_factor = base_to_work_ratio(image_id, annotation_class_id)
+        scale_factor = base_to_work_scaling_factor(image_id, annotation_class_id)
         poly = scale(geom=shape(args['polygon']), xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
         
         
@@ -120,7 +120,7 @@ class Annotation(MethodView):
         """
         model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, args['is_gt']))
 
-        scale_factor = base_to_work_ratio(image_id, annotation_class_id)
+        scale_factor = base_to_work_scaling_factor(image_id, annotation_class_id)
         poly = scale(geom=shape(args['polygon']), xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
         centroid = scale(geom=shape(args['centroid']), xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
 

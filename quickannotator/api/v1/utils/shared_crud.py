@@ -103,10 +103,10 @@ def get_basemag_annotation_query(model, image_id, annotation_class_id):
         Query: A query object for retrieving annotations scaled to the appropriate magnification.
     """
     
-    scale_factor = base_to_work_ratio(image_id, annotation_class_id)
+    scale_factor = base_to_work_scaling_factor(image_id, annotation_class_id)
     return get_annotation_query(model, scale_factor)
 
-def base_to_work_ratio(image_id: int, annotation_class_id: int) -> float:
+def base_to_work_scaling_factor(image_id: int, annotation_class_id: int) -> float:
     """
     Get the scale factor for annotations based on the base and working magnifications.
     Args:
@@ -118,6 +118,6 @@ def base_to_work_ratio(image_id: int, annotation_class_id: int) -> float:
     path = get_image_by_id(image_id).path
     full_path = os.path.join(BASE_PATH, path)   # NOTE: Consider adding base_mag to the image table.
     ts = large_image.getTileSource(full_path)
-    base_mag = ts.getMetadata()['magnification']
-    work_mag = get_annotation_class_by_id(annotation_class_id).work_mag
-    return base_mag / work_mag
+    base_mag = float(ts.getMetadata()['magnification'])
+    work_mag = float(get_annotation_class_by_id(annotation_class_id).work_mag)
+    return work_mag / base_mag
