@@ -66,10 +66,20 @@ def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: Til
     
 
 class TileSpace:
-    def __init__(self, work_tilesize: int, image_width_at_work_mag: int, image_height_at_work_mag: int):
-        self.ts = work_tilesize
-        self.w = image_width_at_work_mag
-        self.h = image_height_at_work_mag
+    def __init__(self, tilesize: int, image_width: int, image_height: int):
+        """
+        Initializes the helper class with the given parameters.
+
+        All arguments are expected to be in the same coordinate space (e.g., either the working magnification space or the base magnification space).
+
+        Args:
+            work_tilesize (int): The size of the work tile.
+            image_width_at_work_mag (int): The width of the image at work magnification.
+            image_height_at_work_mag (int): The height of the image at work magnification.
+        """
+        self.ts = tilesize
+        self.w = image_width
+        self.h = image_height
 
     def get_tile_ids_within_bbox(self, bbox: list[int]) -> list:
         """
@@ -79,7 +89,7 @@ class TileSpace:
         within the image dimensions.
         Args:
             bbox (list[int]): A list of four integers representing the bounding box
-                              coordinates [x1, y1, x2, y2]. Each coordinate must be in the working magnification space.
+                              coordinates [x1, y1, x2, y2]. Coordinates are expected to be in the workmag space, unless another scale factor is provided.
         Returns:
             list: A list of tile IDs that fall within the specified bounding box.
         Raises:
@@ -117,8 +127,8 @@ class TileSpace:
         """
         Convert a point (x, y) to a tile ID.
         Args:
-            x (int): The x-coordinate of the point.in the workmag space.
-            y (int): The y-coordinate of the point.in the workmag space.
+            x (int): The x-coordinate of the point.
+            y (int): The y-coordinate of the point.
         Returns:
             int: The tile ID corresponding to the given point.
         Raises:
@@ -139,7 +149,7 @@ class TileSpace:
         Args:
             tile_id (int): The ID of the tile to convert.
         Returns:
-            tuple: A tuple (x, y) representing the coordinates of the tile in the workmag space.
+            tuple: A tuple (x, y) representing the coordinates of the tile
         """
 
         row, col = self.tileid_to_rc(tile_id)
@@ -193,7 +203,7 @@ class TileSpace:
         Args:
             tile_id (int): The unique identifier for the tile.
         Returns:
-            tuple: A tuple containing the coordinates (x1, y1, x2, y2) of the bounding box, in the workmag space.
+            tuple: A tuple containing the coordinates (x1, y1, x2, y2) of the bounding box.
         """
 
         row, col = self.tileid_to_rc(tile_id)

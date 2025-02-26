@@ -98,4 +98,4 @@ def seed(db_session):   # here db_session is the fixture
 
 @pytest.fixture
 def tilespace():
-    return TileSpace(work_tilesize=256, image_width_at_work_mag=1024, image_height_at_work_mag=1024)
+    return TileSpace(tilesize=256, image_width=1024, image_height=1024)
