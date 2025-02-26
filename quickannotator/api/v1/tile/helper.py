@@ -70,6 +70,20 @@ class TileSpace:
         self.h = image_height_at_work_mag
 
     def get_tile_ids_within_bbox(self, bbox: list[int]) -> list:
+        """
+        Get the tile IDs within a specified bounding box.
+        This method calculates the tile IDs that fall within the given bounding box
+        coordinates. The bounding box coordinates are adjusted to ensure they are
+        within the image dimensions.
+        Args:
+            bbox (list[int]): A list of four integers representing the bounding box
+                              coordinates [x1, y1, x2, y2]. Each coordinate must be in the working magnification space.
+        Returns:
+            list: A list of tile IDs that fall within the specified bounding box.
+        Raises:
+            ValueError: If the bounding box coordinates are not monotonically increasing.
+        """
+
         # Force the bounding box to be within the image dimensions for robustness.
         x1 = max(0, min(bbox[0], self.w))
         y1 = max(0, min(bbox[1], self.h))
@@ -98,6 +112,17 @@ class TileSpace:
         return tile_ids
 
     def point_to_tileid(self, x: int, y: int) -> int:
+        """
+        Convert a point (x, y) to a tile ID.
+        Args:
+            x (int): The x-coordinate of the point.in the workmag space.
+            y (int): The y-coordinate of the point.in the workmag space.
+        Returns:
+            int: The tile ID corresponding to the given point.
+        Raises:
+            ValueError: If the point (x, y) is out of the image dimensions.
+        """
+        
         if not (0 <= x < self.w and 0 <= y < self.h):
             raise ValueError(f"Point {x}, {y} is out of image dimensions (0, 0, {self.w}, {self.h})")
 
@@ -107,26 +132,68 @@ class TileSpace:
         return tile_id
 
     def tileid_to_point(self, tile_id: int) -> tuple:
+        """
+        Convert a tile ID to a point (x, y) in the coordinate system.
+        Args:
+            tile_id (int): The ID of the tile to convert.
+        Returns:
+            tuple: A tuple (x, y) representing the coordinates of the tile in the workmag space.
+        """
+
         row, col = self.tileid_to_rc(tile_id)
         x = col * self.ts
         y = row * self.ts
         return (x, y)
 
     def rc_to_tileid(self, row: int, col: int) -> int:
+        """
+        Convert row and column indices to a tile ID.
+        Args:
+            row (int): The row index.
+            col (int): The column index.
+        Returns:
+            int: The tile ID corresponding to the given row and column.
+        """
+
         tile_id = row * math.ceil(self.w / self.ts) + col
         return tile_id
 
     def tileid_to_rc(self, tile_id: int) -> tuple:
+        """
+        Convert a tile ID to its corresponding row and column indices.
+        Args:
+            tile_id (int): The ID of the tile.
+        Returns:
+            tuple: A tuple containing the row and column indices (row, col).
+        """
+
         tiles_per_row = math.ceil(self.w / self.ts)
         row = tile_id // tiles_per_row
         col = tile_id % tiles_per_row
         return (row, col)
 
     def get_all_tile_ids_for_image(self) -> list:
+        """
+        Calculate and return a list of all tile IDs for the image.
+        The method computes the total number of tiles required to cover the image
+        based on the image width (self.w), image height (self.h), and tile size (self.ts).
+        It then returns a list of tile IDs ranging from 0 to total_tiles - 1.
+        Returns:
+            list: A list of integers representing the tile IDs.
+        """
+
         total_tiles = math.ceil(self.w / self.ts) * math.ceil(self.h / self.ts)
         return list(range(total_tiles))
 
     def get_bbox_for_tile(self, tile_id: int) -> tuple:
+        """
+        Calculate the bounding box coordinates for a given tile.
+        Args:
+            tile_id (int): The unique identifier for the tile.
+        Returns:
+            tuple: A tuple containing the coordinates (x1, y1, x2, y2) of the bounding box, in the workmag space.
+        """
+
         row, col = self.tileid_to_rc(tile_id)
 
         x1 = col * self.ts
