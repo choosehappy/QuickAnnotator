@@ -15,7 +15,7 @@ from quickannotator.db import db_session
 from flask import current_app
 import os
 import large_image
-
+from quickannotator.constants import BASE_PATH
 
 
 def get_tile(annotation_class_id: int, image_id: int, tile_id: int) -> quickannotator.db.models.Tile:
@@ -116,7 +116,7 @@ def base_to_work_ratio(image_id: int, annotation_class_id: int) -> float:
         float: The scale factor to apply to the annotations.
     """
     path = get_image_by_id(image_id).path
-    full_path = os.path.join(current_app.root_path, path)   # NOTE: This only works within the app context. Consider adding base_mag to the image table.
+    full_path = os.path.join(BASE_PATH, path)   # NOTE: Consider adding base_mag to the image table.
     ts = large_image.getTileSource(full_path)
     base_mag = ts.getMetadata()['magnification']
     work_mag = get_annotation_class_by_id(annotation_class_id).work_mag
