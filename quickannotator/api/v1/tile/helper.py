@@ -66,16 +66,30 @@ def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: Til
     
 
 class TileSpace:
+    """
+    A helper class for working with an image divided into tiles.
+
+    **Important:** All inputs (tilesize, image dimensions, bounding boxes, and coordinates)
+    must be provided in the same coordinate space. If your system has multiple magnifications
+    or transformations, ensure consistency before using this class.
+
+    This class provides methods to:
+    - Convert between points, tiles, and bounding boxes.
+    - Retrieve tile IDs within a given bounding box.
+    - Handle image boundaries safely.
+    """
     def __init__(self, tilesize: int, image_width: int, image_height: int):
         """
-        Initializes the helper class with the given parameters.
+        Initializes the TileSpace with the given tile size and image dimensions.
 
-        All arguments are expected to be in the same coordinate space (e.g., either the working magnification space or the base magnification space).
+        **All parameters must be in the same coordinate space (e.g., either the working magnification
+        space or the base magnification space).** Using mixed coordinate spaces may lead to incorrect
+        calculations.
 
         Args:
-            work_tilesize (int): The size of the work tile.
-            image_width_at_work_mag (int): The width of the image at work magnification.
-            image_height_at_work_mag (int): The height of the image at work magnification.
+            tilesize (int): The size of each tile in the given coordinate space.
+            image_width (int): The width of the image in the same coordinate space.
+            image_height (int): The height of the image in the same coordinate space.
         """
         self.ts = tilesize
         self.w = image_width
@@ -89,7 +103,7 @@ class TileSpace:
         within the image dimensions.
         Args:
             bbox (list[int]): A list of four integers representing the bounding box
-                              coordinates [x1, y1, x2, y2]. Coordinates are expected to be in the workmag space, unless another scale factor is provided.
+                              coordinates [x1, y1, x2, y2].
         Returns:
             list: A list of tile IDs that fall within the specified bounding box.
         Raises:
