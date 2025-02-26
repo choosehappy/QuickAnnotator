@@ -28,19 +28,21 @@ from quickannotator.constants import TileStatus
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 
 def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: TileStatus=None, hasgt: bool=None):
-    '''
-        Inserts a new tile record into the database or updates an existing one based on the given parameters.
-        The function uses an upsert operation to either insert a new record or update an existing one
-        based on the combination of `annotation_class_id`, `image_id`, and `tile_id`.
-        Parameters:
-        - annotation_class_id (int): The ID of the annotation class.
-        - image_id (int): The ID of the image.
-        - tile_id (int): The ID of the tile.
-        - seen (int): The seen status of the tile.
-        - hasgt (bool): A flag indicating whether the tile is ground truth (True) or not (False).
-        Returns:
-        - result: The result of the executed statement.
-    '''
+    """
+    Inserts a new tile or updates an existing tile in the database.
+    This function attempts to insert a new tile with the given annotation_class_id, image_id, and tile_id.
+    If a tile with the same annotation_class_id, image_id, and tile_id already exists, it updates the 'seen'
+    and 'hasgt' fields if their values are provided.
+    Args:
+        annotation_class_id (int): The ID of the annotation class.
+        image_id (int): The ID of the image.
+        tile_id (int): The ID of the tile.
+        seen (TileStatus, optional): The status indicating if the tile has been seen. Defaults to None.
+        hasgt (bool, optional): A flag indicating if the tile has ground truth. Defaults to None.
+    Returns:
+        ResultProxy: The result of the database execution.
+    """
+
     update_fields = {}
     if seen is not None:    # Only update the 'seen' field if the value is provided
         update_fields['seen'] = seen
