@@ -5,6 +5,7 @@ import shapely.wkt
 from sqlalchemy import Table
 from shapely.geometry import shape, mapping
 import json
+from shapely.affinity import scale
 
 import quickannotator.db.models as models
 from quickannotator.db import db_session
@@ -18,7 +19,7 @@ from datetime import datetime
 from quickannotator.api.v1.tile.helper import upsert_tile, point_to_tileid, tile_intersects_mask
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
-from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_annotation_query
+from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_annotation_query, base_to_work_ratio
 
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
@@ -90,7 +91,10 @@ class Annotation(MethodView):
         
         This method is primarily used for ground truth annotations. Predictions should only by saved by the model.
         """
-        poly: shapely.geometry.base.BaseGeometry = shape(args['polygon'])
+        # scale the polygon to the working magnification
+        scale_factor = base_to_work_ratio(image_id, annotation_class_id)
+        poly = scale(geom=shape(args['polygon']), xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
+        
         
         # Get the tile id.
         # NOTE: The client is aware of the tilesize and image dimensions. Consider passing this information in the request or even calculating the tile_id client-side.
@@ -116,36 +120,25 @@ class Annotation(MethodView):
         """
         model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, args['is_gt']))
 
+        scale_factor = base_to_work_ratio(image_id, annotation_class_id)
+        poly = scale(geom=shape(args['polygon']), xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
+        centroid = scale(geom=shape(args['centroid']), xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
+
         # We get the full ORM object here so that we can set values.
         ann: Annotation = db_session.query(model).filter_by(id=args['id']).first()
-        
         if ann: # Update the existing annotation
-            ann.centroid = shape(args['centroid']).wkt
+            ann.centroid = centroid.wkt
             ann.area = args['area']
-            ann.polygon = shape(args['polygon']).wkt
+            ann.polygon = poly.wkt
             ann.custom_metrics = args['custom_metrics']
             ann.tile_id = args['tile_id']
             ann.datetime = datetime.now()
+            db_session.commit()
+            result = get_annotation_query(model).filter_by(id=ann.id).first()
+            return result, 201
 
         else: # Create a new annotation
-            ann = model(
-                image_id=None,
-                annotation_class_id=None,
-                isgt=None,
-                centroid=args['centroid'],
-                area=args['area'],
-                polygon=args['polygon'],
-                custom_metrics=args['custom_metrics'],
-                tile_id=args['tile_id'],
-                datetime=datetime.now()
-            )
-            db_session.add(ann)
-
-        result = get_annotation_query(model).filter_by(id=ann.id).first()
-        
-        upsert_tile(annotation_class_id, image_id, args['tile_id'], hasgt=True)
-
-        return result, 201
+            return {"message": "Annotation not found"}, 404
 
     @bp.arguments(DeleteAnnArgsSchema, location='query')
     def delete(self, args, image_id, annotation_class_id):

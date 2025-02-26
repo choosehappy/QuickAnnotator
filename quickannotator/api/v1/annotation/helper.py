@@ -8,6 +8,12 @@ import quickannotator.db.models as models
 from quickannotator.db import db_session
 from quickannotator.api.v1.utils.shared_crud import get_annotation_query
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from shapely.geometry import Polygon
+
+from shapely.affinity import scale
+import constants
+from shapely.geometry.base import BaseGeometry
+
 
 Base = declarative_base()
 
