@@ -11,7 +11,6 @@ from quickannotator.db.utils import build_annotation_table_name, create_dynamic_
 from shapely.geometry import Polygon
 
 from shapely.affinity import scale
-import constants
 from shapely.geometry.base import BaseGeometry
 
 
