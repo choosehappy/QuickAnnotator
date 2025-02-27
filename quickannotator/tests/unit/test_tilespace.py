@@ -1,5 +1,5 @@
 import pytest
-from quickannotator.api.v1.tile.helper import TileSpace
+from quickannotator.api.v1.utils.coordinate_space import TileSpace
 
 def test_get_tile_ids_within_bbox(tilespace):
     bbox = [100, 100, 500, 500]

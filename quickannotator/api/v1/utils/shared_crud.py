@@ -1,21 +1,17 @@
 from datetime import datetime
 from sqlalchemy.orm import aliased, sessionmaker, Session, Query, DeclarativeBase
+from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
 import quickannotator.db as qadb
 from quickannotator.db.utils import build_annotation_table_name
 import shapely
 import json
 from sqlalchemy import func, text
 
-from quickannotator.api.v1.image.utils import get_image_by_id
-from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 
 from quickannotator.db.utils import create_dynamic_model
 import quickannotator.db.models
 from quickannotator.db import db_session
 from flask import current_app
-import os
-import large_image
-from quickannotator.constants import BASE_PATH
 
 
 def get_tile(annotation_class_id: int, image_id: int, tile_id: int) -> quickannotator.db.models.Tile:
@@ -106,18 +102,3 @@ def get_basemag_annotation_query(model, image_id, annotation_class_id):
     scale_factor = base_to_work_scaling_factor(image_id, annotation_class_id)
     return get_annotation_query(model, scale_factor)
 
-def base_to_work_scaling_factor(image_id: int, annotation_class_id: int) -> float:
-    """
-    Get the scale factor for annotations based on the base and working magnifications.
-    Args:
-        image_id (int): The ID of the image to retrieve.
-        annotation_class_id (int): The ID of the annotation class to use for scaling.
-    Returns:
-        float: The scale factor to apply to the annotations.
-    """
-    path = get_image_by_id(image_id).path
-    full_path = os.path.join(BASE_PATH, path)   # NOTE: Consider adding base_mag to the image table.
-    ts = large_image.getTileSource(full_path)
-    base_mag = float(ts.getMetadata()['magnification'])
-    work_mag = float(get_annotation_class_by_id(annotation_class_id).work_mag)
-    return work_mag / base_mag

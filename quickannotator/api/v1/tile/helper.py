@@ -1,31 +1,25 @@
-import quickannotator.db as qadb
-from sqlalchemy import func, Table
 from quickannotator.db import db_session
-from sqlalchemy import exists, event
 import shapely
 from shapely.affinity import scale
 from shapely.geometry import Polygon
 import shapely.wkb as wkb
 import random
-import geojson
-from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_tile
-from multiprocessing import Process, current_process
 import time
 import ray
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-import math
 import numpy as np
+import cv2
+
 from sqlalchemy.dialects.sqlite import insert   # NOTE: This import is necessary as there is no dialect-neutral way to call on_conflict()
-from quickannotator.api.v1.utils.shared_crud import get_annotation_query, base_to_work_scaling_factor
+from quickannotator.api.v1.utils.shared_crud import get_annotation_query
 import quickannotator.db.models as models
 from quickannotator.db import get_session
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
-import cv2
+from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_tile
+from quickannotator.api.v1.utils.coordinate_space import get_tilespace
 from quickannotator.constants import TileStatus
-
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+
 
 def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: TileStatus=None, hasgt: bool=None):
     """
@@ -65,198 +59,20 @@ def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: Til
     return result
     
 
-class TileSpace:
-    """
-    A helper class for working with an image divided into tiles.
-
-    **Important:** All inputs (tilesize, image dimensions, bounding boxes, and coordinates)
-    must be provided in the same coordinate space. If your system has multiple magnifications
-    or transformations, ensure consistency before using this class.
-
-    This class provides methods to:
-    - Convert between points, tiles, and bounding boxes.
-    - Retrieve tile IDs within a given bounding box.
-    - Handle image boundaries safely.
-    """
-    def __init__(self, tilesize: int, image_width: int, image_height: int):
-        """
-        Initializes the TileSpace with the given tile size and image dimensions.
-
-        **All parameters must be in the same coordinate space (e.g., either the working magnification
-        space or the base magnification space).** Using mixed coordinate spaces may lead to incorrect
-        calculations.
-
-        Args:
-            tilesize (int): The size of each tile in the given coordinate space.
-            image_width (int): The width of the image in the same coordinate space.
-            image_height (int): The height of the image in the same coordinate space.
-        """
-        self.ts = tilesize
-        self.w = image_width
-        self.h = image_height
-
-    def get_tile_ids_within_bbox(self, bbox: list[int]) -> list:
-        """
-        Get the tile IDs within a specified bounding box.
-        This method calculates the tile IDs that fall within the given bounding box
-        coordinates. The bounding box coordinates are adjusted to ensure they are
-        within the image dimensions.
-        Args:
-            bbox (list[int]): A list of four integers representing the bounding box
-                              coordinates [x1, y1, x2, y2].
-        Returns:
-            list: A list of tile IDs that fall within the specified bounding box.
-        Raises:
-            ValueError: If the bounding box coordinates are not monotonically increasing.
-        """
-
-        # Force the bounding box to be within the image dimensions for robustness.
-        x1 = max(0, min(bbox[0], self.w))
-        y1 = max(0, min(bbox[1], self.h))
-        x2 = max(0, min(bbox[2], self.w))
-        y2 = max(0, min(bbox[3], self.h))
-
-        # Verify that the bounding box is within the image dimensions
-        if not (x1 < x2 and y1 < y2):
-            raise ValueError(f"Bounding box coordinates must be monotonically increasing: {bbox}")
-
-        # Calculate the number of tiles per row
-        tiles_per_row = math.ceil(self.w / self.ts)
-
-        # Determine the tile range
-        start_col = x1 // self.ts
-        end_col = math.ceil(x2 / self.ts) - 1
-        start_row = y1 // self.ts
-        end_row = math.ceil(y2 / self.ts) - 1
-        
-        # Create a mesh grid of tile coordinates
-        cols, rows = np.meshgrid(np.arange(start_col, end_col + 1), np.arange(start_row, end_row + 1))
-
-        # Flatten the mesh grid and calculate tile IDs
-        tile_ids = (rows * tiles_per_row + cols).flatten().tolist()
-
-        return tile_ids
-
-    def point_to_tileid(self, x: int, y: int) -> int:
-        """
-        Convert a point (x, y) to a tile ID.
-        Args:
-            x (int): The x-coordinate of the point.
-            y (int): The y-coordinate of the point.
-        Returns:
-            int: The tile ID corresponding to the given point.
-        Raises:
-            ValueError: If the point (x, y) is out of the image dimensions.
-        """
-        
-        if not (0 <= x < self.w and 0 <= y < self.h):
-            raise ValueError(f"Point {x}, {y} is out of image dimensions (0, 0, {self.w}, {self.h})")
-
-        col = x // self.ts
-        row = y // self.ts
-        tile_id = self.rc_to_tileid(row, col)
-        return tile_id
-
-    def tileid_to_point(self, tile_id: int) -> tuple:
-        """
-        Convert a tile ID to a point (x, y) in the coordinate system.
-        Args:
-            tile_id (int): The ID of the tile to convert.
-        Returns:
-            tuple: A tuple (x, y) representing the coordinates of the tile
-        """
-
-        row, col = self.tileid_to_rc(tile_id)
-        x = col * self.ts
-        y = row * self.ts
-        return (x, y)
-
-    def rc_to_tileid(self, row: int, col: int) -> int:
-        """
-        Convert row and column indices to a tile ID.
-        Args:
-            row (int): The row index.
-            col (int): The column index.
-        Returns:
-            int: The tile ID corresponding to the given row and column.
-        """
-
-        tile_id = row * math.ceil(self.w / self.ts) + col
-        return tile_id
-
-    def tileid_to_rc(self, tile_id: int) -> tuple:
-        """
-        Convert a tile ID to its corresponding row and column indices.
-        Args:
-            tile_id (int): The ID of the tile.
-        Returns:
-            tuple: A tuple containing the row and column indices (row, col).
-        """
-
-        tiles_per_row = math.ceil(self.w / self.ts)
-        row = tile_id // tiles_per_row
-        col = tile_id % tiles_per_row
-        return (row, col)
-
-    def get_all_tile_ids_for_image(self) -> list:
-        """
-        Calculate and return a list of all tile IDs for the image.
-        The method computes the total number of tiles required to cover the image
-        based on the image width (self.w), image height (self.h), and tile size (self.ts).
-        It then returns a list of tile IDs ranging from 0 to total_tiles - 1.
-        Returns:
-            list: A list of integers representing the tile IDs.
-        """
-
-        total_tiles = math.ceil(self.w / self.ts) * math.ceil(self.h / self.ts)
-        return list(range(total_tiles))
-
-    def get_bbox_for_tile(self, tile_id: int) -> tuple:
-        """
-        Calculate the bounding box coordinates for a given tile.
-        Args:
-            tile_id (int): The unique identifier for the tile.
-        Returns:
-            tuple: A tuple containing the coordinates (x1, y1, x2, y2) of the bounding box.
-        """
-
-        row, col = self.tileid_to_rc(tile_id)
-
-        x1 = col * self.ts
-        y1 = row * self.ts
-        x2 = x1 + self.ts
-        y2 = y1 + self.ts
-
-        return (x1, y1, x2, y2)
-
-def get_tilespace(image_id: int, annotation_class_id: int, in_work_mag: bool=True) -> TileSpace:
-    image = get_image_by_id(image_id)
-    annotation_class = get_annotation_class_by_id(annotation_class_id)
-    r = base_to_work_scaling_factor(image_id, annotation_class_id)
-    if in_work_mag:
-        image_work_width = image.base_width * r
-        image_work_height = image.base_height * r
-        return TileSpace(annotation_class.work_tilesize, image_work_width, image_work_height)
-    else:   # return
-        base_tilesize = annotation_class.work_tilesize / r
-        return TileSpace(base_tilesize, image.base_width, image.base_height)
-
 # DEPRECATED
-# def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile_id: int) -> bool:
-#     image = get_image_by_id(image_id)
-#     work_tilesize = get_annotation_class_by_id(annotatation_class_id).work_tilesize
+def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile_id: int) -> bool:
 
-#     bbox = get_bbox_for_tile(work_tilesize, image.base_width, image.base_height, tile_id)
-#     model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id=1, is_gt=True))
-#     mask_annotations = db_session.query(model).all()
+    bbox = get_tilespace(image_id=image_id, annotation_class_id=annotatation_class_id).get_bbox_for_tile(tile_id)
+    model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id=1, is_gt=True))
+    mask_annotations = get_annotation_query(model).all()
 
-#     if mask_annotations:
-#         bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
-#         for ann in mask_annotations:
-#             if bbox_polygon.intersects(wkb.loads(ann.polygon.data)):
-#                 return True
+    if mask_annotations:
+        bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
+        for ann in mask_annotations:
+            if bbox_polygon.intersects(wkb.loads(ann.polygon.data)):
+                return True
     
-#     return False
+    return False
 
 def tile_intersects_mask(image_id: int, annotation_class_id: int, tile_id: int) -> bool:
     tileids, _, _ = get_tile_ids_intersecting_mask(image_id, annotation_class_id, mask_dilation=1)
@@ -322,13 +138,10 @@ def remote_compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int
         tile = get_tile(annotation_class_id, image_id, tile_id)  # Replace with your actual function to get the tile
         if tile is None:
             raise ValueError(f"Tile not found: {tile_id}")
-        annotation_class: models.AnnotationClass = tile.annotation_class
-        image: models.Image = tile.image
-        image_id: int = tile.image_id
-        annotation_class_id: int = tile.annotation_class_id
+        tilespace = get_tilespace(image_id, annotation_class_id, in_work_mag=True)
 
         # Process the tile (using shapely for example)
-        bbox = get_bbox_for_tile(annotation_class.work_tilesize, image.base_width, image.base_height, tile_id)
+        bbox = tilespace.get_bbox_for_tile(tile_id)
         bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
         for _ in range(random.randint(20, 40)):
             polygon = generate_random_circle_within_bbox(bbox_polygon, 100)

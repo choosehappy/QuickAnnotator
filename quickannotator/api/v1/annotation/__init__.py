@@ -1,25 +1,25 @@
 from flask_smorest import Blueprint
 from marshmallow import fields, Schema
 from flask.views import MethodView
-import shapely.wkt
 from sqlalchemy import Table
 from shapely.geometry import shape, mapping
 import json
 from shapely.affinity import scale
 
+from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
 import quickannotator.db.models as models
 from quickannotator.db import db_session
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
-from ..utils.shared_crud import compute_custom_metrics
 from .helper import (
     annotations_within_bbox_spatial,
     get_annotations_for_tile
 )
 from datetime import datetime
-from quickannotator.api.v1.tile.helper import upsert_tile, point_to_tileid, tile_intersects_mask
+from quickannotator.api.v1.tile.helper import upsert_tile, tile_intersects_mask
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
-from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_annotation_query, base_to_work_scaling_factor
+from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_annotation_query
+from quickannotator.api.v1.utils.coordinate_space import get_tilespace
 
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
@@ -97,10 +97,8 @@ class Annotation(MethodView):
         
         
         # Get the tile id.
-        # NOTE: The client is aware of the tilesize and image dimensions. Consider passing this information in the request or even calculating the tile_id client-side.
-        image: models.Image = get_image_by_id(image_id)
-        annotation_class: models.AnnotationClass = get_annotation_class_by_id(annotation_class_id)
-        tile_id = point_to_tileid(annotation_class.work_tilesize, image.base_width, image.base_height, poly.centroid.x, poly.centroid.y)
+        tilespace = get_tilespace(image_id, annotation_class_id, in_work_mag=True)  # Polygon is already scaled to the working magnification
+        tile_id = tilespace.point_to_tileid(poly.centroid.x, poly.centroid.y)
         
         ann = insert_new_annotation(image_id, annotation_class_id, True, tile_id, poly)
         

@@ -11,7 +11,7 @@ from quickannotator.api.v1.annotation_class.helper import insert_annotation_clas
 from quickannotator.api.v1.utils.shared_crud import insert_new_annotation
 from quickannotator.api.v1.tile.helper import upsert_tile
 from quickannotator.constants import TileStatus
-from quickannotator.api.v1.tile.helper import TileSpace
+from quickannotator.api.v1.utils.coordinate_space import TileSpace
 
 
 @pytest.fixture(scope='module')

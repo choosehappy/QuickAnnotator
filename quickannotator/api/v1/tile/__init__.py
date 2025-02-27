@@ -7,10 +7,10 @@ import quickannotator.db as qadb
 from quickannotator.db import db_session
 from quickannotator.constants import TileStatus
 import quickannotator.db.models as models
-from .helper import get_tile, compute_on_tile, upsert_tile, get_tile_ids_intersecting_mask, get_tilespace
+from .helper import get_tile, compute_on_tile, upsert_tile, get_tile_ids_intersecting_mask
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
-from quickannotator.api.v1.utils.shared_crud import base_to_work_scaling_factor
+from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
 bp = Blueprint('tile', __name__, description="Tile operations")
 
 # ------------------------ RESPONSE MODELS ------------------------
@@ -114,7 +114,7 @@ class TileSearch(MethodView):
         tile_ids_in_bbox = tilespace.get_tile_ids_within_bbox(args['x1'], args['y1'], args['x2'], args['y2'])
         tile_ids_in_mask, _, _ = get_tile_ids_intersecting_mask(args['image_id'], args['annotation_class_id'], mask_dilation=1)
         ids = set(tile_ids_in_bbox) & set(tile_ids_in_mask)
-
+        tilespace.get_all_tile_ids_for_image()
         query = db_session.query(models.Tile).filter(
             models.Tile.tile_id.in_(ids),
             models.Tile.image_id == args['image_id'],
