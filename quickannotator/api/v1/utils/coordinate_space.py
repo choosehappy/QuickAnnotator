@@ -38,15 +38,15 @@ class TileSpace:
         self.w = image_width
         self.h = image_height
 
-    def get_tile_ids_within_bbox(self, bbox: list[int]) -> list:
+    def get_tile_ids_within_bbox(self, bbox: list[float]) -> list:
         """
         Get the tile IDs within a specified bounding box.
         This method calculates the tile IDs that fall within the given bounding box
         coordinates. The bounding box coordinates are adjusted to ensure they are
         within the image dimensions.
         Args:
-            bbox (list[int]): A list of four integers representing the bounding box
-                              coordinates [x1, y1, x2, y2].
+            bbox (list[float]): A list of four floats representing the bounding box
+                                coordinates [x1, y1, x2, y2].
         Returns:
             list: A list of tile IDs that fall within the specified bounding box.
         Raises:
@@ -67,10 +67,10 @@ class TileSpace:
         tiles_per_row = math.ceil(self.w / self.ts)
 
         # Determine the tile range
-        start_col = x1 // self.ts
-        end_col = math.ceil(x2 / self.ts) - 1
-        start_row = y1 // self.ts
-        end_row = math.ceil(y2 / self.ts) - 1
+        start_col = int(x1 // self.ts)
+        end_col = int(math.ceil(x2 / self.ts)) - 1
+        start_row = int(y1 // self.ts)
+        end_row = int(math.ceil(y2 / self.ts)) - 1
 
         # Create a mesh grid of tile coordinates
         cols, rows = np.meshgrid(np.arange(start_col, end_col + 1), np.arange(start_row, end_row + 1))
@@ -80,12 +80,12 @@ class TileSpace:
 
         return tile_ids
 
-    def point_to_tileid(self, x: int, y: int) -> int:
+    def point_to_tileid(self, x: float, y: float) -> int:
         """
         Convert a point (x, y) to a tile ID.
         Args:
-            x (int): The x-coordinate of the point.
-            y (int): The y-coordinate of the point.
+            x (float): The x-coordinate of the point.
+            y (float): The y-coordinate of the point.
         Returns:
             int: The tile ID corresponding to the given point.
         Raises:
@@ -95,8 +95,8 @@ class TileSpace:
         if not (0 <= x < self.w and 0 <= y < self.h):
             raise ValueError(f"Point {x}, {y} is out of image dimensions (0, 0, {self.w}, {self.h})")
 
-        col = x // self.ts
-        row = y // self.ts
+        col = int(x // self.ts)
+        row = int(y // self.ts)
         tile_id = self.rc_to_tileid(row, col)
         return tile_id
 

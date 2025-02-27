@@ -80,8 +80,9 @@ class Annotation(MethodView):
     def get(self, args, image_id, annotation_class_id):
         """     returns an Annotation
         """
+        scale_factor = base_to_work_scaling_factor(image_id, annotation_class_id)
         model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, args['is_gt']))
-        result = get_annotation_query(model).filter_by(id=args['annotation_id']).first()
+        result = get_annotation_query(model, 1/scale_factor).filter_by(id=args['annotation_id']).first()
         return result, 200
 
     @bp.arguments(PostAnnArgsSchema, location='json')

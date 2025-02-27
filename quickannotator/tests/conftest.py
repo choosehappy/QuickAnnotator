@@ -70,8 +70,8 @@ def seed(db_session):   # here db_session is the fixture
                         project_id=None,
                         name="Tissue Mask",
                         color="black",
-                        work_mag=None,
-                        work_tilesize=None,
+                        work_mag=1.25,
+                        work_tilesize=2048,
                         dl_model_objectref=None)
     
     # Add a second annotation class

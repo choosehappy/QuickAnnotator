@@ -17,8 +17,9 @@ from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_tile
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
-from quickannotator.constants import TileStatus
+from quickannotator.constants import TileStatus, MASK_CLASS_ID
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
 
 
 def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: TileStatus=None, hasgt: bool=None):
@@ -79,24 +80,26 @@ def tile_intersects_mask(image_id: int, annotation_class_id: int, tile_id: int) 
     return tile_id in set(tileids)
 
 def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask_dilation: int) -> tuple[list, np.ndarray, list]:
+    # This function operates in the base magnification space
     image = get_image_by_id(image_id)
-    work_tilesize = get_annotation_class_by_id(annotation_class_id).work_tilesize
+    mask_work_to_base_scale_factor = 1 / base_to_work_scaling_factor(image_id=image_id, annotation_class_id=MASK_CLASS_ID)
+    base_tilesize = get_annotation_class_by_id(annotation_class_id).work_tilesize / base_to_work_scaling_factor(image_id=image_id, annotation_class_id=annotation_class_id)
     
     # Load GeoJSON mask (assuming polygon)
-    model = create_dynamic_model(build_annotation_table_name(image_id, 1, is_gt=True))
-    mask_geojson = get_annotation_query(model).all()
+    model = create_dynamic_model(build_annotation_table_name(image_id, MASK_CLASS_ID, is_gt=True))
+    mask_geojson = get_annotation_query(model, mask_work_to_base_scale_factor).all()    # At work_mag by default
 
     polygons = []
 
-    scale_factor = 1/work_tilesize
+    scale_to_tilespace = 1/base_tilesize
     for annotation in mask_geojson:
         shapely_polygon = shapely.from_geojson(annotation.polygon)
-        scaled_polygon = scale(shapely_polygon, xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
+        scaled_polygon = scale(shapely_polygon, xfact=scale_to_tilespace, yfact=scale_to_tilespace, origin=(0, 0))
         polygons.append(np.floor(scaled_polygon.exterior.coords).astype(np.int32))
 
 
     # Create empty mask image
-    mask_shape = np.ceil(np.array([image.base_height, image.base_width]) * scale_factor).astype(np.int32)
+    mask_shape = np.ceil(np.array([image.base_height, image.base_width]) * scale_to_tilespace).astype(np.int32)
     mask = np.zeros(mask_shape, dtype=np.uint8)
     
     # Draw filled mask
@@ -110,7 +113,7 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
     # Get non-zero (filled) pixels
     filled_rows, filled_cols = np.nonzero(mask)
 
-    tilespace = get_tilespace(image_id, annotation_class_id, in_work_mag=False)
+    tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
     
     # Convert pixel coordinates to tile IDs
     tile_ids = [tilespace.rc_to_tileid(row, col) for row, col in zip(filled_rows, filled_cols)]
@@ -138,7 +141,7 @@ def remote_compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int
         tile = get_tile(annotation_class_id, image_id, tile_id)  # Replace with your actual function to get the tile
         if tile is None:
             raise ValueError(f"Tile not found: {tile_id}")
-        tilespace = get_tilespace(image_id, annotation_class_id, in_work_mag=True)
+        tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=True)
 
         # Process the tile (using shapely for example)
         bbox = tilespace.get_bbox_for_tile(tile_id)

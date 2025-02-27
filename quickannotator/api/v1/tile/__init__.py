@@ -98,7 +98,7 @@ class TileBoundingBox(MethodView):
     def get(self, args):
         """     get the bounding box for a given tile
         """
-        tilespace = get_tilespace(args['annotation_class_id'], args['image_id'], in_work_mag=False)
+        tilespace = get_tilespace(image_id=args['image_id'], annotation_class_id=args['annotation_class_id'], in_work_mag=False)
         bbox = tilespace.get_bbox_for_tile(args['tile_id'])
         return {'bbox': bbox}, 200
 
@@ -110,8 +110,8 @@ class TileSearch(MethodView):
         """     get all Tiles within a bounding box
         """
         
-        tilespace = get_tilespace(args['annotation_class_id'], args['image_id'], in_work_mag=False)
-        tile_ids_in_bbox = tilespace.get_tile_ids_within_bbox(args['x1'], args['y1'], args['x2'], args['y2'])
+        tilespace = get_tilespace(image_id=args['image_id'], annotation_class_id=args['annotation_class_id'], in_work_mag=False)
+        tile_ids_in_bbox = tilespace.get_tile_ids_within_bbox((args['x1'], args['y1'], args['x2'], args['y2']))
         tile_ids_in_mask, _, _ = get_tile_ids_intersecting_mask(args['image_id'], args['annotation_class_id'], mask_dilation=1)
         ids = set(tile_ids_in_bbox) & set(tile_ids_in_mask)
         tilespace.get_all_tile_ids_for_image()
@@ -141,7 +141,7 @@ class TileSearchByCoordinates(MethodView):
     def get(self, args):
         """     get a Tile for a given point
         """
-        tilespace = get_tilespace(args['annotation_class_id'], args['image_id'], in_work_mag=False)
+        tilespace = get_tilespace(image_id=args['image_id'], annotation_class_id=args['annotation_class_id'], in_work_mag=False)
         tile_id = tilespace.point_to_tileid(args['x'], args['y'])
         return get_tile(args['annotation_class_id'], args['image_id'], tile_id), 200
 
