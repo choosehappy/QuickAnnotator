@@ -7,7 +7,13 @@ from sqlalchemy.types import DateTime
 import quickannotator.db.models as models
 from quickannotator.db import db_session
 from quickannotator.api.v1.utils.shared_crud import get_annotation_query
+from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from shapely.geometry import Polygon
+
+from shapely.affinity import scale
+from shapely.geometry.base import BaseGeometry
+
 
 Base = declarative_base()
 
@@ -20,7 +26,8 @@ def annotations_within_bbox(table, x1, y1, x2, y2):
 
 def get_annotations_for_tile(image_id: int, annotation_class_id: int, tile_id: int, is_gt: bool) -> List[models.Annotation]:
     model: models.Annotation = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt))
-    result: List[models.Annotation] = get_annotation_query(model).filter_by(tile_id=tile_id).all()
+    scale_factor = base_to_work_scaling_factor(image_id, annotation_class_id)
+    result: List[models.Annotation] = get_annotation_query(model, 1/scale_factor).filter_by(tile_id=tile_id).all()
     
     return result
 

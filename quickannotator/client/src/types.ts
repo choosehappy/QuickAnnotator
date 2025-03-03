@@ -5,9 +5,8 @@ export interface AnnotationClass {
     project_id: number;
     name: string;
     color: string;
-    magnification: number;
-    patchsize: number;
-    tilesize: number;
+    work_mag: number;
+    work_tilesize: number;
     date: Date;
     dl_model_objectref: string;
 }
@@ -73,8 +72,8 @@ export interface Image {
     project_id: number;
     name: string;
     path: string;
-    height: number;
-    width: number;
+    base_height: number;
+    base_width: number;
     dz_tilesize: number;
     embeddingCoord: string;
     group_id: number;

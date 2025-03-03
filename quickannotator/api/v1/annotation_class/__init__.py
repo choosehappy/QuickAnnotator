@@ -21,7 +21,7 @@ class PostAnnClassArgsSchema(Schema):
     project_id = fields.Int(required=True)
     name = fields.Str(required=True)
     color = fields.Str(required=True)
-    magnification = fields.Int(required=True)
+    work_mag = fields.Int(required=True)
 
 class PutAnnClassArgsSchema(Schema):
     name = fields.Str(required=False)
@@ -56,9 +56,8 @@ class AnnotationClass(MethodView):
         annotation = models.AnnotationClass(project_id=args['project_id'],
                                           name=args['name'],
                                           color=args['color'],
-                                          magnification=args['magnification'],
-                                          patchsize=256,
-                                          tilesize=2048,
+                                          work_mag=args['work_mag'],
+                                          work_tilesize=2048,
                                           dl_model_objectref=None
                                           )
         db_session.add(annotation)

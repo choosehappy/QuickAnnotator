@@ -11,6 +11,7 @@ from quickannotator.api.v1.annotation_class.helper import insert_annotation_clas
 from quickannotator.api.v1.utils.shared_crud import insert_new_annotation
 from quickannotator.api.v1.tile.helper import upsert_tile
 from quickannotator.constants import TileStatus
+from quickannotator.api.v1.utils.coordinate_space import TileSpace
 
 
 @pytest.fixture(scope='module')
@@ -69,9 +70,8 @@ def seed(db_session):   # here db_session is the fixture
                         project_id=None,
                         name="Tissue Mask",
                         color="black",
-                        magnification=None,
-                        patchsize=None,
-                        tilesize=None,
+                        work_mag=1.25,
+                        work_tilesize=2048,
                         dl_model_objectref=None)
     
     # Add a second annotation class
@@ -79,9 +79,8 @@ def seed(db_session):   # here db_session is the fixture
                         project_id=1,
                         name="Fake Class",
                         color="red",
-                        magnification=10,
-                        patchsize=256,
-                        tilesize=2048,
+                        work_mag=10,
+                        work_tilesize=2048,
                         dl_model_objectref=None)
 
     # Add a tile
@@ -94,3 +93,9 @@ def seed(db_session):   # here db_session is the fixture
     )
 
     db_session.commit()
+
+
+
+@pytest.fixture
+def tilespace():
+    return TileSpace(tilesize=256, image_width=1024, image_height=1024)

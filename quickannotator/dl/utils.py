@@ -41,7 +41,7 @@ def load_tile(tile): #TODO: i suspect this sort of function exists elsewhere wit
 
     #---- two options here
     sizeXtargetmag, sizeYtargetmag= ts.getPointAtAnotherScale((ts.sizeX,ts.sizeY),
-                                                                targetScale={'magnification': annoclass.magnification}, 
+                                                                targetScale={'magnification': annoclass.work_mag}, 
                                                                 targetUnits='mag_pixels') 
     x,y=tileid_to_point(tile.tile_size,sizeXtargetmag,sizeYtargetmag,tile.tile_id)   #x,y at target mag
 
@@ -52,7 +52,7 @@ def load_tile(tile): #TODO: i suspect this sort of function exists elsewhere wit
     #---- 
 
     region, _ = ts.getRegion(region=dict(left=x, top=y, width=annoclass.tile_size, height=annoclass.tile_size, 
-                                            scale={'magnification':annoclass.magnification},
+                                            scale={'magnification':annoclass.work_mag},
                                             units='pixels'),format=large_image.tilesource.TILE_FORMAT_NUMPY)
 
     io_image = region[:,:,:3] #np.array(region.convert("RGB"))

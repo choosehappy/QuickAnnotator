@@ -7,10 +7,10 @@ import quickannotator.db as qadb
 from quickannotator.db import db_session
 from quickannotator.constants import TileStatus
 import quickannotator.db.models as models
-from .helper import get_tile, compute_on_tile, upsert_tile, get_tile_ids_within_bbox, point_to_tileid, get_bbox_for_tile, get_tile_ids_intersecting_mask
+from .helper import get_tile, compute_on_tile, upsert_tile, get_tile_ids_intersecting_mask
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
-
+from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
 bp = Blueprint('tile', __name__, description="Tile operations")
 
 # ------------------------ RESPONSE MODELS ------------------------
@@ -98,9 +98,8 @@ class TileBoundingBox(MethodView):
     def get(self, args):
         """     get the bounding box for a given tile
         """
-        image: models.Image = get_image_by_id(args['image_id'])
-        annotation_class: models.AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
-        bbox = get_bbox_for_tile(annotation_class.tilesize, image.width, image.height, args['tile_id'])
+        tilespace = get_tilespace(image_id=args['image_id'], annotation_class_id=args['annotation_class_id'], in_work_mag=False)
+        bbox = tilespace.get_bbox_for_tile(args['tile_id'])
         return {'bbox': bbox}, 200
 
 @bp.route('/search/bbox')
@@ -110,12 +109,11 @@ class TileSearch(MethodView):
     def get(self, args):
         """     get all Tiles within a bounding box
         """
-        image: models.Image = get_image_by_id(args['image_id'])
-        annotation_class: models.AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
-        tile_ids_in_bbox = get_tile_ids_within_bbox(annotation_class.tilesize, image.width, image.height, (args['x1'], args['y1'], args['x2'], args['y2']))
+        
+        tilespace = get_tilespace(image_id=args['image_id'], annotation_class_id=args['annotation_class_id'], in_work_mag=False)
+        tile_ids_in_bbox = tilespace.get_tile_ids_within_bbox((args['x1'], args['y1'], args['x2'], args['y2']))
         tile_ids_in_mask, _, _ = get_tile_ids_intersecting_mask(args['image_id'], args['annotation_class_id'], mask_dilation=1)
         ids = set(tile_ids_in_bbox) & set(tile_ids_in_mask)
-
         query = db_session.query(models.Tile).filter(
             models.Tile.tile_id.in_(ids),
             models.Tile.image_id == args['image_id'],
@@ -142,9 +140,8 @@ class TileSearchByCoordinates(MethodView):
     def get(self, args):
         """     get a Tile for a given point
         """
-        image: models.Image = get_image_by_id(args['image_id'])
-        annotation_class: models.AnnotationClass = get_annotation_class_by_id(args['annotation_class_id'])
-        tile_id = point_to_tileid(annotation_class.tilesize, image.width, image.height, args['x'], args['y'])
+        tilespace = get_tilespace(image_id=args['image_id'], annotation_class_id=args['annotation_class_id'], in_work_mag=False)
+        tile_id = tilespace.point_to_tileid(args['x'], args['y'])
         return get_tile(args['annotation_class_id'], args['image_id'], tile_id), 200
 
 @bp.route('/predict')
