@@ -25,7 +25,7 @@ def test_annotations_within_polygon(test_client, annotations_seed):
         'is_gt': True,  # Assuming ground truth annotations
         'polygon': geojson.dumps(polygon)
     }
-    response = test_client.get(f'/api/v1/annotation/{image_id}/{annotation_class_id}/withinpoly', json=params)
+    response = test_client.post(f'/api/v1/annotation/{image_id}/{annotation_class_id}/withinpoly', json=params)
 
     # Assert
     assert response.status_code == 200
