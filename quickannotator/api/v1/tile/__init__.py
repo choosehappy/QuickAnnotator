@@ -114,7 +114,6 @@ class TileSearch(MethodView):
         tile_ids_in_bbox = tilespace.get_tile_ids_within_bbox((args['x1'], args['y1'], args['x2'], args['y2']))
         tile_ids_in_mask, _, _ = get_tile_ids_intersecting_mask(args['image_id'], args['annotation_class_id'], mask_dilation=1)
         ids = set(tile_ids_in_bbox) & set(tile_ids_in_mask)
-        tilespace.get_all_tile_ids_for_image()
         query = db_session.query(models.Tile).filter(
             models.Tile.tile_id.in_(ids),
             models.Tile.image_id == args['image_id'],
