@@ -354,9 +354,9 @@ const ViewportMap = (props: Props) => {
             const img = props.currentImage;
 
             const params = geo.util.pixelCoordinateParams(
-                viewRef.current, img.width, img.height, img.dz_tilesize, img.dz_tilesize);
-            const interactor = geo.mapInteractor({ alwaysTouch: true });
-            const map = geo.map({ ...params.map, interactor: interactor });
+                viewRef.current, img.base_width, img.base_height, img.dz_tilesize, img.dz_tilesize);
+            const interactor = geo.mapInteractor({alwaysTouch: true});
+            const map = geo.map({...params.map, interactor: interactor});
             // map.interactor(geo.mapInteractor({alwaysTouch: true}))
             params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
             console.log("OSM layer loaded.");

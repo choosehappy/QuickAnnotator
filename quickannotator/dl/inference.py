@@ -14,35 +14,9 @@ from sqlalchemy import Table, func
 from quickannotator.constants import TileStatus
 import ray
 from quickannotator.db import get_session
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model, load_tile
 
-
-
-def load_image_from_cache(cache_key): ## probably doesn't need to be a function...
-    client = get_memcached_client() ## client should be a "self" variable
-    cache_val = client.get(cache_key) ## COnsider here storing/retreiving images and masks seperately -- one can query multiple keys at the same time, so there isn't additional overhead but may make things more modular for future usage
-    return cache_val
             
-
-
-def load_image_from_slide(tile): #TODO: i suspect this sort of function exists elsewhere within QA to serve tiles to the front end? change to merge functionality?
-    with get_session() as db_session:
-        image = db_session.query(Image).filter_by(id=tile.image_id).first()
-    
-    image_path = image.path
-    
-    ts = large_image.getTileSource(os.path.join("/opt/QuickAnnotator/quickannotator", image_path)) #TODO: JANKY
-
-    tpoly = shapely.wkb.loads(tile.geom.data)
-    minx, miny, maxx, maxy = tpoly.bounds #TODO: this seems incorrect - i feel like this information should be pulled from a system table and readily avaialble and not needing to be computed on a per tile basis
-    width = int(maxx - minx)
-    height = int(maxy - miny)
-
-    #region = slide.read_region((int(minx), int(miny)), 0, (width, height))
-    region, _ = ts.getRegion(region=dict(left=minx, top=miny, width=width, height=height, units='base_pixels'),format=large_image.tilesource.TILE_FORMAT_NUMPY)
-    image = region[:,:,:3]
-    
-    return image #np.array(region.convert("RGB"))
 
 def preprocess_image(io_image, device):
     io_image = io_image / 255.0
@@ -102,7 +76,7 @@ def getPendingInferenceTiles(classid):
     
     update_tile_status(tiles,TileStatus.PROCESSING)
 
-
+    #TODO: turn into util function with data loader, for distirubting tile to workers
     world_size= ray.train.get_context().get_world_size()
     world_rank= ray.train.get_context().get_world_rank()
     
@@ -138,17 +112,22 @@ def update_tile_status(tile_batch,status):
 
 def run_inference(model, tiles, device):
     infer_tile_batch_size = 2  #TODO: need to get from project setting
-    
+    client = get_memcached_client()
     for tile_batch in batch_iterable(tiles, infer_tile_batch_size):
         io_images = []
         infertiles = []
         for tile in tile_batch:
-            cache_key = f"{tile.image_id}_{tile.id}" ##TODO: This further suggests that we should be storing the IMAGE and the MASK seperately
-            cache_val = load_image_from_cache(cache_key)
+            img_cache_key = f"{tile.image_id}_{tile.id}" ##TODO: This further suggests that we should be storing the IMAGE and the MASK seperately
+            try: #if memcache isn't working, no problem, just keep going
+                cache_val = client.get(img_cache_key) or {}
+            except:
+                cache_val = {}
+            
             if cache_val:
                 io_image, mask_image, weight = [decompress_from_jpeg(i) for i in cache_val]
             else:
-                io_image = load_image_from_slide(tile)
+                io_image = load_tile(tile)
+
             io_images.append(io_image)
 
         io_images = [preprocess_image(io_image, device) for io_image in io_images]
@@ -157,7 +136,7 @@ def run_inference(model, tiles, device):
         
         model.eval()
         with torch.no_grad():
-            outputs = model(io_images)
+            outputs = model(io_images)  #output at target magnification level!
             outputs = outputs[:, :, 32:-32, 32:-32]
 
             for j, output in enumerate(outputs):

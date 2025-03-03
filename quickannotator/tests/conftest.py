@@ -14,6 +14,7 @@ from quickannotator.constants import TileStatus
 from shapely.geometry import Polygon
 from quickannotator.api.v1.tile.helper import point_to_tileid, upsert_tile
 from quickannotator.api.v1.annotation.helper import create_annotation_table, get_annotation_by_id
+from quickannotator.api.v1.utils.coordinate_space import TileSpace
 
 
 @pytest.fixture(scope='module')
@@ -72,9 +73,8 @@ def seed(db_session):   # here db_session is the fixture
                         project_id=None,
                         name="Tissue Mask",
                         color="black",
-                        magnification=None,
-                        patchsize=None,
-                        tilesize=None,
+                        work_mag=1.25,
+                        work_tilesize=2048,
                         dl_model_objectref=None)
     
     # Add a second annotation class
@@ -82,9 +82,8 @@ def seed(db_session):   # here db_session is the fixture
                         project_id=1,
                         name="Fake Class",
                         color="red",
-                        magnification=10,
-                        patchsize=256,
-                        tilesize=2048,
+                        work_mag=10,
+                        work_tilesize=2048,
                         dl_model_objectref=None)
 
     # Add a tile
@@ -131,3 +130,8 @@ def assert_geojson_equal(geojson1, geojson2):
     """
     assert geojson1['type'] == geojson2['type'], f"Types do not match: {geojson1['type']} != {geojson2['type']}"
     assert geojson1['coordinates'] == geojson2['coordinates'], f"Coordinates do not match: {geojson1['coordinates']} != {geojson2['coordinates']}"
+
+
+@pytest.fixture
+def tilespace():
+    return TileSpace(tilesize=256, image_width=1024, image_height=1024)

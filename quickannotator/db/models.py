@@ -43,8 +43,8 @@ class Image(Base):
     # columns
     name = Column(Text, nullable=False)
     path = Column(Text)
-    height = Column(Integer)
-    width = Column(Integer)
+    base_height = Column(Integer)
+    base_width = Column(Integer)
     dz_tilesize = Column(Integer)
     embedding_coord = Column(Geometry('POINT'))
     group_id = Column(Integer)
@@ -66,9 +66,8 @@ class AnnotationClass(Base):
     # columns
     name = Column(Text, nullable=False, unique=True)
     color = Column(Text, nullable=False)
-    magnification = Column(Integer, nullable=True)
-    patchsize = Column(Integer, nullable=True)
-    tilesize = Column(Integer, nullable=True)
+    work_mag = Column(Float, nullable=False)
+    work_tilesize = Column(Integer, nullable=False)
     dl_model_objectref = Column(Text, nullable=True)
     datetime = Column(DateTime, server_default=func.now())
 
@@ -105,13 +104,13 @@ class Annotation(Base):
     # primary key
     id = Column(Integer, primary_key=True, autoincrement=True)
 
+    # These columns are kept null intentionally because the information is stored in the table name. Consider eventually removing these columns.
     image_id = Column(Integer, nullable=True, default=None)
     annotation_class_id = Column(Integer, nullable=True, default=None)
-
-    tile_id = Column(Integer, nullable=True, default=None)
+    isgt = Column(Boolean, nullable=True, default=None)
 
     # columns
-    isgt = Column(Boolean, nullable=True, default=None)
+    tile_id = Column(Integer, nullable=False, default=None)
     centroid = Column(Geometry('POINT', srid=4326))  # Stored as geometry
     area = Column(Float)
     polygon = Column(Geometry('POLYGON', srid=4326))  # Stored as geometry

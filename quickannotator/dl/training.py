@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
+import ray
 
 from quickannotator.dl.inference import run_inference, getPendingInferenceTiles
 from .dataset import TileDataset
@@ -37,45 +38,46 @@ def get_transforms(tile_size): #probably goes...elsewhere
 
 
 
-def train_model(config):
+def train_pred_loop(config):
     #---------AJ Place holder code - DO NOT REMOVE
-    # print(f"{os.environ['CUDA_VISIBLE_DEVICES']=}")
+    # #print (f"{os.environ['CUDA_VISIBLE_DEVICES']=}")
     # localrank=ray.train.get_context().get_local_rank()
     # worldsize=ray.train.get_context().get_local_world_size()
-    # print("my local rank",localrank)
-    # print("my local worldsize",worldsize)
+    # #print ("my local rank",localrank)
+    # #print ("my local worldsize",worldsize)
 
     # noderank=ray.train.get_context().get_node_rank()
     # worldrank=ray.train.get_context().get_world_rank()
-    # print("my node rank",noderank)
-    # print("my worldrank",worldrank)
+    # #print ("my node rank",noderank)
+    # #print ("my worldrank",worldrank)
     
-    # print("creating model")
+    # #print ("creating model")
     # model = resnet18(num_classes=10)
 
-    # print("figuring out local device")
+    # #print ("figuring out local device")
     # cuda_dev=torch.device('cuda',localrank)
-    # print("local device is: ",cuda_dev)
-    # print(" now moving")
+    # #print ("local device is: ",cuda_dev)
+    # #print (" now moving")
     # model.to(cuda_dev)
     
-    # print("prepping model")
+    # #print ("prepping model")
     # #model=ray.train.torch.prepare_model(model,cuda_dev)
     # model=ray.train.torch.prepare_model(model,move_to_device=False)
     #---------
 
     #TODO: likely need to accept here the checkpoint location
-    is_train = config.get("is_train",True) # else True #default to training
-    allow_pred = config.get("allow_pred",True) #default to enable predts
     classid = config["classid"] # --- this should result in a catastrophic failure if not provided
     tile_size = config["tile_size"] #probably this as well
+    magnification = config["magnification"] #probably this as well
+    actor_name = config["actor_name"]
+    print (f"{actor_name=}")
+
     #TODO: all these from project settings
-    num_epochs=10 # probably needs to be huge, or potentially even Inf
     batch_size=1
     edge_weight=2
-    num_workers=4
+    num_workers=0 #set to num of CPUs? or...# of CPUs/ divided by # of classes or something...challenge - one started can't change
 
-    dataset=TileDataset(classid, tile_size=tile_size, edge_weight=edge_weight, transforms=get_transforms(tile_size))
+    dataset=TileDataset(classid, tile_size=tile_size, magnification=magnification,edge_weight=edge_weight, transforms=get_transforms(tile_size))
 
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False,num_workers=num_workers) #NOTE: for dataset of type iter - shuffle must == False
 
@@ -83,33 +85,37 @@ def train_model(config):
     criterion = nn.BCEWithLogitsLoss(reduction='none')
     optimizer = optim.Adam(model.parameters(), lr=0.001) #TODO: this should be a setting
     
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #TODO: AJ - convert to ray dist train code
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #TODO: AJ - convert to ray dist train code
+    if torch.cuda.is_available():
+        localrank=ray.train.get_context().get_local_rank()
+        device=torch.device('cuda',localrank)
+    else:
+        device= "cpu"
     
-    model = model.to(device) #TODO: need to load previous weights if they exist here
+    model=ray.train.torch.prepare_model(model,device)
+    model.train()
 
 
-    if tiles := getPendingInferenceTiles(classid): #to be moved into for loop
-        print(f"running inference on {len(tiles)}")
-        run_inference(model, tiles, device) #TODO: AJ - massive to do - this function needs to delegate work to workers correctly
-    
-    if not is_train: #technically, i think we can start this function just to do inference if needed - otherwise not clear to me how we'll get stuff predicted
-        return
-    
-    for epoch in range(num_epochs):
-        model.train()
-        running_loss = []
-        last_save = 0
-        for images, masks, weights in tqdm(dataloader):
-
-
-            if tiles := getPendingInferenceTiles(classid):
-                print(f"running inference on {len(tiles)}")
-                run_inference(model, tiles, device)
-
+    running_loss = []
+    last_save = 0
+    niter_total = 0 
+    #print ("pre actor get")
+    myactor = ray.get_actor(actor_name)
+    #print ("post actor get")
+    while not ray.get(myactor.getCloseDown.remote()): 
+        if tiles := getPendingInferenceTiles(classid): 
+            #print (f"running inference on {len(tiles)}")
+            run_inference(model, tiles, device) #TODO: AJ - massive to do - this function needs to delegate work to workers correctly
+        #print ("pretrain loop")
+        if ray.get(myactor.getEnableTraining.remote()):
+            #print ("in train loop")
+            niter_total += 1
+            images, masks, weights = next(iter(dataloader))
+            #print ("post next iter")
             images = images.to(device)
             masks = masks.to(device)
             weights = weights.to(device)
-            
+            #print ("post copy ")
             optimizer.zero_grad()
             outputs = model(images)
             
@@ -129,16 +135,20 @@ def train_model(config):
             
             running_loss.append(loss_total.item())
             
-            print("losses:\t",loss_total,positive_mask.sum(),positive_loss,unlabeled_loss)
+            print ("losses:\t",loss_total,positive_mask.sum(),positive_loss,unlabeled_loss)
             
             last_save+=1
-            if last_save>100:
-                print("saving!")
+            if last_save>50:
+                print (f"niter_total [{niter_total}], Loss: {sum(running_loss)/len(running_loss)}")
+                running_loss=[]
+
+                print ("saving!") #TODO: do we want to *always* override the last saved model , or do we want to instead only save if some type of loss threshold is met?
+                                 #another potentially more interesting option is to do both, save on a regular basis (since if we things crash we can revert back othe nearest checkpoint\
+                                 #but as well give the user in the front end a dropdown which enables them to select which model checkpoint they want to use? we had somethng similar in QAv1
+                                 #that said, this is likely a more advanced features and not very "apple like" since it would require explaining to the user when/why/how they should use the different models
+                                 #maybe suggest avoiduing for now --- lets just save the last one
                 save_file(model.state_dict(), f"/tmp/model.safetensors") #TODO: needs to go somewhere reasonable maybe /projid/models/classid/ ? or something
                 last_save = 0
+
             
-
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {sum(running_loss)/len(running_loss)}")
-        running_loss=[]
-
-    print("Training complete")
+    #print ("Exiting training!")

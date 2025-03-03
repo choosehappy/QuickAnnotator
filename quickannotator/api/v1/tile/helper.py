@@ -1,45 +1,43 @@
-import quickannotator.db as qadb
-from sqlalchemy import func, Table
 from quickannotator.db import db_session
-from sqlalchemy import exists, event
 import shapely
 from shapely.affinity import scale
 from shapely.geometry import Polygon, shape
 import shapely.wkb as wkb
 import random
-import geojson
-from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_tile
-from multiprocessing import Process, current_process
 import time
 import ray
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-import math
 import numpy as np
+import cv2
+
 from sqlalchemy.dialects.sqlite import insert   # NOTE: This import is necessary as there is no dialect-neutral way to call on_conflict()
 from quickannotator.api.v1.utils.shared_crud import get_annotation_query
 import quickannotator.db.models as models
 from quickannotator.db import get_session
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
-import cv2
-from quickannotator.constants import TileStatus, MASK_DILATION
+from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_tile
+from quickannotator.api.v1.utils.coordinate_space import get_tilespace
+from quickannotator.constants import TileStatus, MASK_CLASS_ID
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
+
 
 def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: TileStatus=None, hasgt: bool=None):
-    '''
-        Inserts a new tile record into the database or updates an existing one based on the given parameters.
-        The function uses an upsert operation to either insert a new record or update an existing one
-        based on the combination of `annotation_class_id`, `image_id`, and `tile_id`.
-        Parameters:
-        - annotation_class_id (int): The ID of the annotation class.
-        - image_id (int): The ID of the image.
-        - tile_id (int): The ID of the tile.
-        - seen (int): The seen status of the tile.
-        - hasgt (bool): A flag indicating whether the tile is ground truth (True) or not (False).
-        Returns:
-        - result: The result of the executed statement.
-    '''
+    """
+    Inserts a new tile or updates an existing tile in the database.
+    This function attempts to insert a new tile with the given annotation_class_id, image_id, and tile_id.
+    If a tile with the same annotation_class_id, image_id, and tile_id already exists, it updates the 'seen'
+    and 'hasgt' fields if their values are provided.
+    Args:
+        annotation_class_id (int): The ID of the annotation class.
+        image_id (int): The ID of the image.
+        tile_id (int): The ID of the tile.
+        seen (TileStatus, optional): The status indicating if the tile has been seen. Defaults to None.
+        hasgt (bool, optional): A flag indicating if the tile has ground truth. Defaults to None.
+    Returns:
+        ResultProxy: The result of the database execution.
+    """
+
     update_fields = {}
     if seen is not None:    # Only update the 'seen' field if the value is provided
         update_fields['seen'] = seen
@@ -62,75 +60,12 @@ def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: Til
     return result
     
 
-def get_tile_ids_within_bbox(tile_size: int, image_width: int, image_height: int, bbox: list[int]) -> list:
-    # Force the bounding box to be within the image dimensions for robustness.
-    x1 = max(0, min(bbox[0], image_width))
-    y1 = max(0, min(bbox[1], image_height))
-    x2 = max(0, min(bbox[2], image_width))
-    y2 = max(0, min(bbox[3], image_height))
-
-    # Verify that the bounding box is within the image dimensions
-    if not (x1 < x2 and y1 < y2):
-        raise ValueError(f"Bounding box coordinates must be monotonically increasing: {bbox}")
-
-    # Calculate the number of tiles per row
-    tiles_per_row = math.ceil(image_width / tile_size)
-
-    # Determine the tile range
-    start_col = x1 // tile_size
-    end_col = math.ceil(x2 / tile_size) - 1
-    start_row = y1 // tile_size
-    end_row = math.ceil(y2 / tile_size) - 1
-    
-    # Create a mesh grid of tile coordinates
-    cols, rows = np.meshgrid(np.arange(start_col, end_col + 1), np.arange(start_row, end_row + 1))
-
-    # Flatten the mesh grid and calculate tile IDs
-    tile_ids = (rows * tiles_per_row + cols).flatten().tolist()
-
-    return tile_ids
-
-def point_to_tileid(tile_size: int, image_width: int, image_height: int, x: float, y: float) -> int:
-    if not (0 <= x < image_width and 0 <= y < image_height):
-        raise ValueError(f"Point {x}, {y} is out of image dimensions (0, 0, {image_width}, {image_height})")
-
-    col = int(x // tile_size)
-    row = int(y // tile_size)
-    tile_id = rc_to_tileid(tile_size, image_width, image_height, row, col)
-    return tile_id
-
-def rc_to_tileid(tile_size: int, image_width: int, image_height: int, row: int, col: int) -> int:
-    tile_id = row * math.ceil(image_width / tile_size) + col
-    return tile_id
-
-def tileid_to_rc(tile_size: int, image_width: int, image_height: int, tile_id: int) -> tuple:
-    tiles_per_row = math.ceil(image_width / tile_size)
-    row = tile_id // tiles_per_row
-    col = tile_id % tiles_per_row
-    return (row, col)
-
-def get_all_tile_ids_for_image(tile_size: int, image_width: int, image_height: int) -> list:
-    total_tiles = math.ceil(image_width / tile_size) * math.ceil(image_height / tile_size)
-    return list(range(total_tiles))
-
-def get_bbox_for_tile(tile_size: int, image_width: int, image_height: int, tile_id: int) -> tuple:
-    row, col = tileid_to_rc(tile_size, image_width, image_height, tile_id)
-
-    x1 = col * tile_size
-    y1 = row * tile_size
-    x2 = x1 + tile_size
-    y2 = y1 + tile_size
-
-    return (x1, y1, x2, y2)
-
-# deprecated
+# DEPRECATED
 def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile_id: int) -> bool:
-    image = get_image_by_id(image_id)
-    tilesize = get_annotation_class_by_id(annotatation_class_id).tilesize
 
-    bbox = get_bbox_for_tile(tilesize, image.width, image.height, tile_id)
+    bbox = get_tilespace(image_id=image_id, annotation_class_id=annotatation_class_id).get_bbox_for_tile(tile_id)
     model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id=1, is_gt=True))
-    mask_annotations = db_session.query(model).all()
+    mask_annotations = get_annotation_query(model).all()
 
     if mask_annotations:
         bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
@@ -145,42 +80,47 @@ def tile_intersects_mask(image_id: int, annotation_class_id: int, tile_id: int) 
     return tile_id in set(tileids)
 
 def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask_dilation: int) -> tuple[list, np.ndarray, list]:
+    # This function operates in the base magnification space
     image = get_image_by_id(image_id)
-    tilesize = get_annotation_class_by_id(annotation_class_id).tilesize
+    mask_work_to_base_scale_factor = 1 / base_to_work_scaling_factor(image_id=image_id, annotation_class_id=MASK_CLASS_ID)
+    base_tilesize = get_annotation_class_by_id(annotation_class_id).work_tilesize / base_to_work_scaling_factor(image_id=image_id, annotation_class_id=annotation_class_id)
     
     # Load GeoJSON mask (assuming polygon)
-    model = create_dynamic_model(build_annotation_table_name(image_id, 1, is_gt=True))
-    mask_geojson: list[geojson.Polygon] = [geojson.loads(annotation.polygon) for annotation in get_annotation_query(model).all()]
+    model = create_dynamic_model(build_annotation_table_name(image_id, MASK_CLASS_ID, is_gt=True))
+    mask_geojson = get_annotation_query(model, mask_work_to_base_scale_factor).all()    # At work_mag by default
 
-    tile_ids, mask, processed_polygons = get_tile_ids_intersecting_polygons(tilesize, image.width, image.height, mask_geojson, mask_dilation)
+    tile_ids, mask, processed_polygons = get_tile_ids_intersecting_polygons(image_id, annotation_class_id, mask_geojson, mask_dilation)
 
     return tile_ids, mask, processed_polygons
 
-def get_tile_ids_intersecting_polygons(tilesize: int, image_width: int, image_height: int, polygons: list[geojson.Polygon], mask_dilation: int):
+def get_tile_ids_intersecting_polygons(image_id: int, annotation_class_id: int, polygons: list[geojson.Polygon], mask_dilation: int):
+    image = get_image_by_id(image_id)
+    base_tilesize = get_annotation_class_by_id(annotation_class_id).work_tilesize / base_to_work_scaling_factor(image_id=image_id, annotation_class_id=annotation_class_id)
     processed_polygons = []
-    scale_factor = 1/tilesize
+    scale_factor = 1 / base_tilesize
     for polygon in polygons:
         shapely_polygon = shape(polygon)
         scaled_polygon = scale(shapely_polygon, xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
         processed_polygons.append(np.floor(scaled_polygon.exterior.coords).astype(np.int32))
 
-        # Create empty mask image
-    mask_shape = np.ceil(np.array([image_height, image_width]) / tilesize).astype(np.int32)
+    # Create empty mask image
+    mask_shape = np.ceil(np.array([image.height, image.width]) / base_tilesize).astype(np.int32)
     mask = np.zeros(mask_shape, dtype=np.uint8)
     
     # Draw filled mask
     cv2.fillPoly(mask, processed_polygons, 255, lineType=cv2.LINE_4)
     
     # Dilate mask
-    # kernel = np.ones((3, 3), np.uint8)
     kernel = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], np.uint8)
     mask = cv2.dilate(mask, kernel, iterations=mask_dilation)
 
     # Get non-zero (filled) pixels
     filled_rows, filled_cols = np.nonzero(mask)
+
+    tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
     
     # Convert pixel coordinates to tile IDs
-    tile_ids = [int(rc_to_tileid(tilesize, image_width, image_height, row, col)) for row, col in zip(filled_rows, filled_cols)]
+    tile_ids = [tilespace.rc_to_tileid(row, col) for row, col in zip(filled_rows, filled_cols)]
 
     return tile_ids, mask, processed_polygons
 
@@ -204,13 +144,10 @@ def remote_compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int
         tile = get_tile(annotation_class_id, image_id, tile_id)  # Replace with your actual function to get the tile
         if tile is None:
             raise ValueError(f"Tile not found: {tile_id}")
-        annotation_class: models.AnnotationClass = tile.annotation_class
-        image: models.Image = tile.image
-        image_id: int = tile.image_id
-        annotation_class_id: int = tile.annotation_class_id
+        tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=True)
 
         # Process the tile (using shapely for example)
-        bbox = get_bbox_for_tile(annotation_class.tilesize, image.width, image.height, tile_id)
+        bbox = tilespace.get_bbox_for_tile(tile_id)
         bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
         for _ in range(random.randint(20, 40)):
             polygon = generate_random_circle_within_bbox(bbox_polygon, 100)
