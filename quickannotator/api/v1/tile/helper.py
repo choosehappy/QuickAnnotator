@@ -8,6 +8,7 @@ import time
 import ray
 import numpy as np
 import cv2
+import geojson
 
 from sqlalchemy.dialects.sqlite import insert   # NOTE: This import is necessary as there is no dialect-neutral way to call on_conflict()
 from quickannotator.api.v1.utils.shared_crud import get_annotation_query
@@ -87,7 +88,7 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
     
     # Load GeoJSON mask (assuming polygon)
     model = create_dynamic_model(build_annotation_table_name(image_id, MASK_CLASS_ID, is_gt=True))
-    mask_geojson = get_annotation_query(model, mask_work_to_base_scale_factor).all()    # At work_mag by default
+    mask_geojson = [geojson.loads(ann.polygon) for ann in get_annotation_query(model, mask_work_to_base_scale_factor).all()]    # At work_mag by default
 
     tile_ids, mask, processed_polygons = get_tile_ids_intersecting_polygons(image_id, annotation_class_id, mask_geojson, mask_dilation)
 
@@ -104,7 +105,7 @@ def get_tile_ids_intersecting_polygons(image_id: int, annotation_class_id: int, 
         processed_polygons.append(np.floor(scaled_polygon.exterior.coords).astype(np.int32))
 
     # Create empty mask image
-    mask_shape = np.ceil(np.array([image.height, image.width]) / base_tilesize).astype(np.int32)
+    mask_shape = np.ceil(np.array([image.base_height, image.base_width]) / base_tilesize).astype(np.int32)
     mask = np.zeros(mask_shape, dtype=np.uint8)
     
     # Draw filled mask

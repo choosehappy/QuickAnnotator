@@ -10,7 +10,7 @@ from quickannotator.api.v1.utils.shared_crud import get_annotation_query
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 from shapely.geometry import Polygon
-
+import geojson
 from shapely.affinity import scale
 from shapely.geometry.base import BaseGeometry
 
