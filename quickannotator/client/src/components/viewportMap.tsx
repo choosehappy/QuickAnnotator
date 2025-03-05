@@ -104,9 +104,9 @@ const ViewportMap = (props: Props) => {
         switch (tile.seen) {
             case TILE_STATUS.UNSEEN:
                 // call compute endpoint
-                predictTile(tile.image_id, tile.annotation_class_id, tile.tile_id).then((resp) => {
-                    console.log("Predicting tile. Ray object ref: ", resp.data.object_ref);
-                })
+                // predictTile(tile.image_id, tile.annotation_class_id, tile.tile_id).then((resp) => {
+                //     console.log("Predicting tile. Ray object ref: ", resp.data.object_ref);
+                // })
                 console.log("Tile not seen.");
 
                 break;
@@ -279,6 +279,7 @@ const ViewportMap = (props: Props) => {
                 // get the predicted annotation ids
                 if (resp.status === 200) {
                     const annotationIds = resp.data.map((annResp: AnnotationResponse) => annResp.id);
+
                 } else {
                     console.log("No annotations found within the polygon.")
                 }
@@ -323,9 +324,9 @@ const ViewportMap = (props: Props) => {
             renderAnnotations(x1, y1, x2, y2, activeRenderGroundTruthsCall, true).then(() => {
                 console.log("Ground truths rendered.");
             });
-            // renderAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall, false).then(() => {
-            //     console.log("Predictions rendered.");
-            // });
+            renderAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall, false).then(() => {
+                console.log("Predictions rendered.");
+            });
         }, 100); // Adjust this timeout duration as needed
     };
 
