@@ -24,8 +24,6 @@ function usePrevious<T>(value: T): T | undefined {
     return ref.current;
 }
 
-const 
-
 const AnnotationPage = () => {
     const { projectid, imageid } = useParams();
     const { currentImage, setCurrentImage, setCurrentProject } = useOutletContext<OutletContextType>();
