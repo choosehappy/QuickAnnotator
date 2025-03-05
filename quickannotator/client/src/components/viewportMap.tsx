@@ -18,6 +18,8 @@ interface Props {
     setPreds: React.Dispatch<React.SetStateAction<Annotation[]>>;
     currentTool: string | null;
     setCurrentTool: React.Dispatch<React.SetStateAction<string | null>>;
+    highlightedPreds: Annotation[];
+    setHighlightedPreds: React.Dispatch<React.SetStateAction<Annotation[]>>;
 }
 
 const useLocalContext = (data: any) => {
@@ -278,7 +280,9 @@ const ViewportMap = (props: Props) => {
             getAnnotationsWithinPolygon(currentImage.id, currentClass.id, false, polygon2).then((resp) => {
                 // get the predicted annotation ids
                 if (resp.status === 200) {
-                    const annotationIds = resp.data.map((annResp: AnnotationResponse) => annResp.id);
+                    const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentClass.id));
+                    props.setHighlightedPreds(anns);
+                    
 
                 } else {
                     console.log("No annotations found within the polygon.")

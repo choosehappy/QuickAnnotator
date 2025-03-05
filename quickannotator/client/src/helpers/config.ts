@@ -20,3 +20,17 @@ export enum TILE_STATUS {
     PROCESSING,
     DONEPROCESSING
 }
+
+
+
+export const MODAL_DATA = {
+    IMPORT_CONF: {
+        id: 0,
+        title: 'Import Annotations',
+        description: 'Are you sure you want to import annotations?',
+    }
+}
+
+export const POPOVER_DATA = {
+
+}

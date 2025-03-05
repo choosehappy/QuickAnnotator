@@ -6,11 +6,13 @@ import ClassesPane from "../components/classesPane.tsx";
 import GroundTruthPane from "../components/groundTruthPane.tsx";
 import PredictionsPane from "../components/predictionsPane.tsx";
 import ViewportMap from "../components/viewportMap.tsx";
+import ConfirmationModal from '../components/confirmationModal.tsx';
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
 import { fetchImage, fetchProject } from "../helpers/api.ts";
 import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation } from "../types.ts";
+import { MODAL_DATA } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
 
@@ -22,6 +24,8 @@ function usePrevious<T>(value: T): T | undefined {
     return ref.current;
 }
 
+const 
+
 const AnnotationPage = () => {
     const { projectid, imageid } = useParams();
     const { currentImage, setCurrentImage, setCurrentProject } = useOutletContext<OutletContextType>();
@@ -32,7 +36,9 @@ const AnnotationPage = () => {
     const [currentTool, setCurrentTool] = useState<string | null>('0');
     const [action, setAction] = useState<string | null>(null);
     const [currentAnnotation, setCurrentAnnotation] = useState<CurrentAnnotation | null>(null);
+    const [highlightedPreds, setHighlightedPreds] = useState<Annotation[]>([]);
     const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
+    const [activeModal, setActiveModal] = useState<ANN_PAGE_MODALS | null>(null);
 
     useEffect(() => {
         if (projectid && imageid) {
@@ -50,6 +56,7 @@ const AnnotationPage = () => {
         return (
             <>
                 <Container fluid className="pb-3 bg-dark d-flex flex-column flex-grow-1">
+                    <ConfirmationModal show={activeModal === MODAL_DATA.IMPORT_CONF.id} title={MODAL_DATA.IMPORT_CONF.title} description={MODAL_DATA.IMPORT_CONF.description}/>
                     <Row className="d-flex flex-grow-1">
                         <Col className="d-flex flex-grow-1">
                             <Card className="flex-grow-1">
@@ -77,7 +84,12 @@ const AnnotationPage = () => {
                                                     setCurrentTool,
                                                     currentAnnotation, 
                                                     setCurrentAnnotation, 
-                                                    prevCurrentAnnotation }} />
+                                                    prevCurrentAnnotation,
+                                                    highlightedPreds,
+                                                    setHighlightedPreds,
+                                                    activeModal,
+                                                    setActiveModal
+                                                    }} />
                                 </Card.Body>
                             </Card>
                         </Col>
