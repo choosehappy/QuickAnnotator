@@ -6,6 +6,8 @@ from shapely.geometry import shape, mapping
 import json
 from geojson import Polygon
 from shapely.affinity import scale
+import shapely
+from shapely.strtree import STRtree
 
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
 import quickannotator.db.models as models
@@ -18,11 +20,12 @@ from .helper import (
     get_annotation_by_id
 )
 from datetime import datetime
-from quickannotator.api.v1.tile.helper import upsert_tile, tile_intersects_mask
+from quickannotator.api.v1.tile.helper import upsert_tile, tile_intersects_mask, get_tile_ids_intersecting_mask, get_tile_ids_intersecting_polygons
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_annotation_query
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
+import quickannotator.constants as constants
 
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
@@ -199,11 +202,12 @@ class AnnotationsWithinPolygon(MethodView):
     def post(self, args, image_id, annotation_class_id):
         """     get all annotations within a polygon
         """
-        image = get_image_by_id(image_id)
-        tilesize = get_annotation_class_by_id(annotation_class_id).tilesize
+
         # 1. Get all tiles intersecting the polygon
         tiles_ids_within_mask, _, _ = get_tile_ids_intersecting_mask(image_id, annotation_class_id, constants.MASK_DILATION)
-        tile_ids_intersecting_polygons, _, _ = get_tile_ids_intersecting_polygons(tilesize, image.width, image.height, [args['polygon']], constants.MASK_DILATION)
+
+        # NOTE: This method tends to produce false positives due to the mask dilation. Consider interpolating the polygon and setting MASK_DILATION to 0.
+        tile_ids_intersecting_polygons, _, _ = get_tile_ids_intersecting_polygons(image_id, annotation_class_id, [args['polygon']], constants.MASK_DILATION)
         tile_ids = set(tile_ids_intersecting_polygons) & set(tiles_ids_within_mask)
 
         annotations = get_annotations_for_tiles(image_id, annotation_class_id, tile_ids, args['is_gt'])
@@ -215,10 +219,10 @@ class AnnotationsWithinPolygon(MethodView):
 
         # Query the spatial index for annotations intersecting the polygon
         query_polygon = shape(args['polygon'])
-        intersecting_polygons = spatial_index.query(query_polygon)  # List of polygon indices that intersect the query polygon
+        ids_intersecting_query_poly = spatial_index.query(query_polygon)  # List of polygon indices that intersect the query polygon
 
         # Filter annotations that intersect the polygon
-        filtered_anns = [annotations[i] for i in intersecting_polygons]
+        filtered_anns = [annotations[i] for i in ids_intersecting_query_poly]
         
         return filtered_anns, 200
         

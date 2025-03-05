@@ -33,7 +33,8 @@ def get_annotations_for_tile(image_id: int, annotation_class_id: int, tile_id: i
 
 def get_annotations_for_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], is_gt: bool) -> List[models.Annotation]:
     model: models.Annotation = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt))
-    result: List[models.Annotation] = get_annotation_query(model).filter(model.tile_id.in_(tile_ids)).all()
+    scale_factor = base_to_work_scaling_factor(image_id, annotation_class_id)
+    result: List[models.Annotation] = get_annotation_query(model, 1/scale_factor).filter(model.tile_id.in_(tile_ids)).all()
     
     return result
 

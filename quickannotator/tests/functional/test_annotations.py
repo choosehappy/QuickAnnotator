@@ -41,6 +41,8 @@ def test_annotations_within_polygon(test_client, annotations_seed):
         assert 'custom_metrics' in annotation
         assert 'datetime' in annotation
 
+    # TODO: check equality between the returned annotations and the expected annotations
+
 
 def test_put_annotation(test_client, annotations_seed):
     """

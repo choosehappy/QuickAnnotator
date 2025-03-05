@@ -12,9 +12,11 @@ from quickannotator.api.v1.utils.shared_crud import insert_new_annotation
 from quickannotator.api.v1.tile.helper import upsert_tile
 from quickannotator.constants import TileStatus
 from shapely.geometry import Polygon
-from quickannotator.api.v1.tile.helper import point_to_tileid, upsert_tile
+from quickannotator.api.v1.tile.helper import upsert_tile
 from quickannotator.api.v1.annotation.helper import create_annotation_table, get_annotation_by_id
 from quickannotator.api.v1.utils.coordinate_space import TileSpace
+from quickannotator.api.v1.utils.coordinate_space import get_tilespace
+import quickannotator.constants as constants
 
 
 @pytest.fixture(scope='module')
@@ -98,26 +100,39 @@ def seed(db_session):   # here db_session is the fixture
     db_session.commit()
 
 @pytest.fixture(scope="function")
-def annotations_seed(db_session, seed):
+def annotations_seed(db_session, seed, fake_ann_class_tilespace, mask_tilespace):
     image_id = 1
     annotation_class_id = 2
     is_gt = True
     tilesize = 2048
 
-    # Create the annotation table
-    create_annotation_table(image_id, annotation_class_id, is_gt)
+    # Create the mask annotation table
+    create_annotation_table(image_id, constants.MASK_CLASS_ID, is_gt=True)
 
-    image = get_image_by_id(image_id)
+    # Create the annotation table
+    create_annotation_table(image_id, annotation_class_id, is_gt=True)
+
+    # Create the prediction table
+    create_annotation_table(image_id, annotation_class_id, is_gt=False)
+
+    # Insert a mask annotation which envelopes all annotations
+    mask_poly = Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)])
+    tid = mask_tilespace.point_to_tileid(mask_poly.centroid.x, mask_poly.centroid.y)
+    insert_new_annotation(image_id, constants.MASK_CLASS_ID, True, 0, mask_poly)
+    upsert_tile(constants.MASK_CLASS_ID, image_id, tid, hasgt=True)
 
     for i in range(10):
         # Create a simple square polygon
         poly = Polygon([(i, i), (i + 1, i), (i + 1, i + 1), (i, i + 1), (i, i)])
         
         # Calculate the tile_id
-        tile_id = point_to_tileid(tilesize, image.width, image.height, poly.centroid.x, poly.centroid.y)
+        tile_id = fake_ann_class_tilespace.point_to_tileid(poly.centroid.x, poly.centroid.y)
         
         # Insert the annotation
-        insert_new_annotation(image_id, annotation_class_id, is_gt, tile_id, poly)
+        insert_new_annotation(image_id, annotation_class_id, True, tile_id, poly)
+
+        # Also insert as prediction
+        insert_new_annotation(image_id, annotation_class_id, False, tile_id, poly)
         
         # Upsert the tile
         upsert_tile(annotation_class_id, image_id, tile_id, hasgt=True)
@@ -133,5 +148,17 @@ def assert_geojson_equal(geojson1, geojson2):
 
 
 @pytest.fixture
-def tilespace():
-    return TileSpace(tilesize=256, image_width=1024, image_height=1024)
+def fake_ann_class_tilespace(seed):
+    image_id = 1
+    annotation_class_id = 2
+
+    tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id)
+    return tilespace
+
+@pytest.fixture
+def mask_tilespace(seed):
+    image_id = 1
+    annotation_class_id = 1
+
+    tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id)
+    return tilespace

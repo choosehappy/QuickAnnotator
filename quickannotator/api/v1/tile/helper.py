@@ -86,20 +86,34 @@ def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask
     mask_work_to_base_scale_factor = 1 / base_to_work_scaling_factor(image_id=image_id, annotation_class_id=MASK_CLASS_ID)
     base_tilesize = get_annotation_class_by_id(annotation_class_id).work_tilesize / base_to_work_scaling_factor(image_id=image_id, annotation_class_id=annotation_class_id)
     
-    # Load GeoJSON mask (assuming polygon)
+    # Get the mask geojson polygons
     model = create_dynamic_model(build_annotation_table_name(image_id, MASK_CLASS_ID, is_gt=True))
-    mask_geojson = [geojson.loads(ann.polygon) for ann in get_annotation_query(model, mask_work_to_base_scale_factor).all()]    # At work_mag by default
+    mask_geojson: geojson.Polygon = [geojson.loads(ann.polygon) for ann in get_annotation_query(model, mask_work_to_base_scale_factor).all()]    # At work_mag by default
 
     tile_ids, mask, processed_polygons = get_tile_ids_intersecting_polygons(image_id, annotation_class_id, mask_geojson, mask_dilation)
 
     return tile_ids, mask, processed_polygons
 
-def get_tile_ids_intersecting_polygons(image_id: int, annotation_class_id: int, polygons: list[geojson.Polygon], mask_dilation: int):
+def get_tile_ids_intersecting_polygons(image_id: int, annotation_class_id: int, base_polygons: list[geojson.Polygon], mask_dilation: int):
+    """
+    Get tile IDs that intersect with given polygons for a specific image and annotation class.
+    Args:
+        image_id (int): The ID of the image.
+        annotation_class_id (int): The ID of the annotation class.
+        base_polygons (list[geojson.Polygon]): A list of polygons in GeoJSON format. These polygons should be in the base magnification space.
+        mask_dilation (int): The number of iterations for mask dilation.
+    Returns:
+        tuple: A tuple containing:
+            - tile_ids (list[int]): A list of tile IDs that intersect with the polygons.
+            - mask (np.ndarray): The binary mask image with filled polygons.
+            - processed_polygons (list[np.ndarray]): A list of processed polygons with scaled coordinates.
+    """
+
     image = get_image_by_id(image_id)
     base_tilesize = get_annotation_class_by_id(annotation_class_id).work_tilesize / base_to_work_scaling_factor(image_id=image_id, annotation_class_id=annotation_class_id)
     processed_polygons = []
     scale_factor = 1 / base_tilesize
-    for polygon in polygons:
+    for polygon in base_polygons:
         shapely_polygon = shape(polygon)
         scaled_polygon = scale(shapely_polygon, xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
         processed_polygons.append(np.floor(scaled_polygon.exterior.coords).astype(np.int32))
@@ -121,7 +135,7 @@ def get_tile_ids_intersecting_polygons(image_id: int, annotation_class_id: int, 
     tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
     
     # Convert pixel coordinates to tile IDs
-    tile_ids = [tilespace.rc_to_tileid(row, col) for row, col in zip(filled_rows, filled_cols)]
+    tile_ids = [tilespace.rc_to_tileid(row, col) for row, col in zip(filled_rows.tolist(), filled_cols.tolist())]
 
     return tile_ids, mask, processed_polygons
 
