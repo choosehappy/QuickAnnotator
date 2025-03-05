@@ -1,3 +1,5 @@
+import { ModalData } from "../types";
+
 export enum TOOLBAR_KEYS {
     POINTER = '0',
     IMPORT = '1',
@@ -23,13 +25,14 @@ export enum TILE_STATUS {
 
 
 
-export const MODAL_DATA = {
+export const MODAL_DATA: { [key: string]: ModalData } = {
     IMPORT_CONF: {
         id: 0,
         title: 'Import Annotations',
         description: 'Are you sure you want to import annotations?',
     }
 }
+
 
 export const POPOVER_DATA = {
 

@@ -38,7 +38,7 @@ const AnnotationPage = () => {
     const [currentAnnotation, setCurrentAnnotation] = useState<CurrentAnnotation | null>(null);
     const [highlightedPreds, setHighlightedPreds] = useState<Annotation[]>([]);
     const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
-    const [activeModal, setActiveModal] = useState<ANN_PAGE_MODALS | null>(null);
+    const [activeModal, setActiveModal] = useState< | null>(null);
 
     useEffect(() => {
         if (projectid && imageid) {
