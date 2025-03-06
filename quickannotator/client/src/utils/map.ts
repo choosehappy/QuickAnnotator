@@ -25,7 +25,7 @@ export const redrawTileFeature = (feature: any, options = {}, data?: Annotation[
     feature.draw(options);
 }
 
-export const createGTTileFeature = (featureProps: any, annotations: Annotation[], layer: any, currentAnnotationId: number, annotationClassId: number = 1) => {
+export const createGTTileFeature = (featureProps: any, annotations: Annotation[], layer: any, currentAnnotationId: number | null = null, annotationClassId: number = 1) => {
     const feature = layer.createFeature('polygon');
     feature.props = featureProps;
 
@@ -38,13 +38,18 @@ export const createGTTileFeature = (featureProps: any, annotations: Annotation[]
         .style('fillOpacity', 0.5)
         .style('strokeColor', 'black')
         .style('strokeWidth', 2)
+        .style('uniformPolygon', true)
 
     const originalDraw = feature.draw;
     // Override the draw method to accept options.
     feature.draw = (options = { currentAnnotationId: null }) => {
-        feature.style('stroke', (a: Annotation) => {
-            return a.id === options.currentAnnotationId
-        });
+        if (options.currentAnnotationId) {
+            feature.style('stroke', (a: Annotation) => {
+                return a.id === options.currentAnnotationId
+            });
+        } else  {
+            feature.style('stroke', false);
+        }
         originalDraw.call(feature);
     }
     console.log('Drew ground truth polygons.')
@@ -52,7 +57,8 @@ export const createGTTileFeature = (featureProps: any, annotations: Annotation[]
     return feature;
 }
 
-export const createPredTileFeature = (featureProps: any, annotations: Annotation[], layer: any, annotationClassId: number = 1) => {
+
+export const createPredTileFeature = (featureProps: any, annotations: Annotation[], layer: any, highlightedPolyIds: number[] | null = null, annotationClassId: number = 1) => {
     const feature = layer.createFeature('polygon');
     feature.props = featureProps;
     feature
@@ -64,7 +70,22 @@ export const createPredTileFeature = (featureProps: any, annotations: Annotation
         .style('fillOpacity', 0.5)
         .style('stroke', true)
         .style('strokeColor', 'white')
-        .draw();
+        .style('uniformPolygon', true)
+
+    const originalDraw = feature.draw;
+    // Override the draw method to accept options.
+    feature.draw = (options: { highlightedPolyIds: number[] | null } = { highlightedPolyIds: null }) => {
+        const ids = options.highlightedPolyIds;
+        if (ids && ids.length > 0) {
+            feature.style('strokeColor', (point: number[], pointIdx: number, ann: Annotation, annIdx: number) => {
+                return ids.includes(ann.id) ? 'red' : 'white';
+            });
+        } else {
+            feature.style('strokeColor', 'white');
+        }
+        originalDraw.call(feature);
+    }
     console.log('Drew predicted polygons.')
+    feature.draw({ highlightedPolyIds: highlightedPolyIds });
     return feature;
 }

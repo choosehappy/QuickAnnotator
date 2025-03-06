@@ -184,7 +184,17 @@ export const getAnnotationsWithinPolygon = async (image_id: number, annotation_c
     return await post<PostAnnArgs, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/withinpoly`, requestBody);
 }
 
-// Predict tile
+export const getTilesWithinPolygon = async (image_id: number, annotation_class_id: number, polygon: Polygon, include_placeholder_tiles: boolean, hasgt?: boolean) => {
+    const requestBody = {
+        image_id: image_id,
+        annotation_class_id: annotation_class_id,
+        polygon: JSON.stringify(polygon),
+        include_placeholder_tiles: include_placeholder_tiles,
+        hasgt: hasgt
+    };
+    return await post<typeof requestBody, Tile[]>(`/tile/search/polygon`, requestBody);
+};
+
 export const predictTile = async (image_id: number, annotation_class_id: number, tile_id: number) => {
     const requestBody = { 
         image_id: image_id, 

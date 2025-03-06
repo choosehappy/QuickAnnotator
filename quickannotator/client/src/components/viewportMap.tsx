@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse } from "../types.ts"
-import { searchTiles, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTile, predictTile, getAnnotationsWithinPolygon } from "../helpers/api.ts";
+import { searchTiles, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTile, predictTile, getAnnotationsWithinPolygon, getTilesWithinPolygon } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
-import { TOOLBAR_KEYS, LAYER_KEYS, TILE_STATUS } from "../helpers/config.ts";
+import { TOOLBAR_KEYS, LAYER_KEYS, TILE_STATUS, MODAL_DATA } from "../helpers/config.ts";
+
 import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature } from '../utils/map.ts';
 
 interface Props {
@@ -20,6 +21,8 @@ interface Props {
     setCurrentTool: React.Dispatch<React.SetStateAction<string | null>>;
     highlightedPreds: Annotation[];
     setHighlightedPreds: React.Dispatch<React.SetStateAction<Annotation[]>>;
+    activeModal: number | null;
+    setActiveModal: React.Dispatch<React.SetStateAction<number | null>>;
 }
 
 const useLocalContext = (data: any) => {
@@ -277,21 +280,33 @@ const ViewportMap = (props: Props) => {
                 addAnnotation(polygon2);
             }
         } else if (currentTool === TOOLBAR_KEYS.IMPORT) {
-            getAnnotationsWithinPolygon(currentImage.id, currentClass.id, false, polygon2).then((resp) => {
-                // get the predicted annotation ids
-                if (resp.status === 200) {
-                    const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentClass.id));
-                    props.setHighlightedPreds(anns);
+            const resp = await getAnnotationsWithinPolygon(currentImage.id, currentClass.id, false, polygon2);
+            if (resp.status === 200) {
+                const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentClass.id));
+                props.setHighlightedPreds(anns);
 
-                    // Get the unique tile_ids from the returned Annotations. Note - maybe the server should return this set directly?
-                    const tileIds = new Set(anns.map((ann: Annotation) => ann.tile_id));
+                // Get the ids for the features to redraw
+                const tilesResp = await getTilesWithinPolygon(currentImage.id, currentClass.id, polygon2, false);
+                if (tilesResp.status === 200) {
+                    const tileIds = tilesResp.data.map((tile: Tile) => tile.tile_id);
+                    const predLayer = geojs_map.current.layers()[LAYER_KEYS.PRED];
+                    const features = predLayer.features().filter((f) => f.featureType === 'polygon');
+                    const featuresToRedraw = features.filter((f) => tileIds.includes(f.props.tile_id));
                     
+                    featuresToRedraw.forEach((f) => {
+                        const options = { highlightedPolyIds: anns.map(ann => ann.id) };
+                        redrawTileFeature(f, options);
+                    });
 
+                    props.setActiveModal(MODAL_DATA.IMPORT_CONF.id);
                 } else {
-                    console.log("No annotations found within the polygon.")
+                    console.log("No tiles found within the polygon.");
                 }
+            } else {
+                console.log("No annotations found within the polygon.");
+            }
 
-            })
+
 
             // 2. Highlight these polygons
             // 3. Show a confirmation panel

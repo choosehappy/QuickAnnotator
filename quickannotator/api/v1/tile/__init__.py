@@ -144,7 +144,7 @@ class TileSearch(MethodView):
 class TileSearchByPolygon(MethodView):
     @bp.arguments(SearchTileByPolygonArgsSchema, location='json')
     @bp.response(200, TileRespSchema(many=True))
-    def get(self, args):
+    def post(self, args):
         """     get all Tiles within a polygon
         """
         tiles_in_polygon, _, _ = get_tile_ids_intersecting_polygons(args['image_id'], args['annotation_class_id'], [args['polygon']], mask_dilation=1)

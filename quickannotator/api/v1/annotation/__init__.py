@@ -219,11 +219,10 @@ class AnnotationsWithinPolygon(MethodView):
 
         # Query the spatial index for annotations intersecting the polygon
         query_polygon = shape(args['polygon'])
-        ids_intersecting_query_poly = spatial_index.query(query_polygon)  # List of polygon indices that intersect the query polygon
+        crude_intersecting_ids = spatial_index.query(query_polygon)  # List of polygon indices with bounding boxes which intersect the query polygon
 
         # Filter annotations that intersect the polygon
-        filtered_anns = [annotations[i] for i in ids_intersecting_query_poly]
-        
+        filtered_anns = [annotations[i] for i in crude_intersecting_ids if polygons[i].intersects(query_polygon)]
         return filtered_anns, 200
         
 @bp.route('/<int:annotation_class_id>/dryrun')
