@@ -1,7 +1,7 @@
 import shapely.wkb
 import numpy as np
 import cv2
-from sqlalchemy import Table, inspect, select, update
+from sqlalchemy import Table, inspect, select, update, case, func
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model, load_tile
 from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
 from torch.utils.data import IterableDataset
@@ -22,13 +22,13 @@ import ray.train
 import torch
 
 class TileDataset(IterableDataset):
-    def __init__(self, classid, tile_size,magnification,transforms=None, edge_weight=0):
+    def __init__(self, classid, tile_size,magnification,transforms=None, edge_weight=0, boost_count=5):
         self.classid = classid
         self.transforms = transforms
         self.edge_weight = edge_weight
         self.tile_size = tile_size
         self.magnification = magnification
-        
+        self.boost_count = boost_count
         
     def getWorkersTiles(self):
         with get_session() as db_session:  # Ensure this provides a session context
@@ -36,17 +36,23 @@ class TileDataset(IterableDataset):
                 subquery = (
                     select(Tile.id)
                     .where(Tile.annotation_class_id == self.classid,
-                        Tile.hasgt == True,
-                        Tile.status == TileStatus.STARTPROCESSING)
-                    .order_by(Tile.datetime.desc()) #always get the latest ones first
+                        Tile.hasgt == True)
+                    .order_by(Tile.gt_counter.asc(), Tile.gt_datetime.asc())  # Prioritize under-used, then newest
                     .limit(1).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
                 )
                 
+
                 tile = db_session.execute(
                     update(Tile)
                     .where(Tile.id == subquery.scalar_subquery())
-                    .where(Tile.status == TileStatus.STARTPROCESSING)  # Ensures another worker hasn't claimed it
-                    .values(status=TileStatus.PROCESSING)
+                    .values(selection_count=(
+                            # Only increment selection_count if it's less than max_selections
+                            case(
+                                (Tile.gt_counter < self.boost_count, Tile.gt_counter + 1),
+                                else_=Tile.gt_counter
+                            )
+                        ),
+                        gt_datetime=func.now())
                     .returning(Tile)
                 ).scalar()
                 

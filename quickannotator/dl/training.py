@@ -73,12 +73,16 @@ def train_pred_loop(config):
     print (f"{actor_name=}")
 
     #TODO: all these from project settings
+    boost_count = 5
     batch_size_train=1
     batch_size_infer=1
     edge_weight=2
     num_workers=0 #set to num of CPUs? or...# of CPUs/ divided by # of classes or something...challenge - one started can't change
+    
 
-    dataset=TileDataset(classid, tile_size=tile_size, magnification=magnification,edge_weight=edge_weight, transforms=get_transforms(tile_size))
+    dataset=TileDataset(classid, tile_size=tile_size, magnification=magnification,
+                        edge_weight=edge_weight, transforms=get_transforms(tile_size), 
+                        boost_count=boost_count)
 
     dataloader = DataLoader(dataset, batch_size=batch_size_train, shuffle=False,num_workers=num_workers) #NOTE: for dataset of type iter - shuffle must == False
 
