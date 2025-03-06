@@ -82,13 +82,11 @@ def tile_intersects_mask(image_id: int, annotation_class_id: int, tile_id: int) 
 
 def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask_dilation: int) -> tuple[list, np.ndarray, list]:
     # This function operates in the base magnification space
-    image = get_image_by_id(image_id)
     mask_work_to_base_scale_factor = 1 / base_to_work_scaling_factor(image_id=image_id, annotation_class_id=MASK_CLASS_ID)
-    base_tilesize = get_annotation_class_by_id(annotation_class_id).work_tilesize / base_to_work_scaling_factor(image_id=image_id, annotation_class_id=annotation_class_id)
     
     # Get the mask geojson polygons
     model = create_dynamic_model(build_annotation_table_name(image_id, MASK_CLASS_ID, is_gt=True))
-    mask_geojson: geojson.Polygon = [geojson.loads(ann.polygon) for ann in get_annotation_query(model, mask_work_to_base_scale_factor).all()]    # At work_mag by default
+    mask_geojson: geojson.Polygon = [geojson.loads(ann.polygon) for ann in get_annotation_query(model, mask_work_to_base_scale_factor).all()]    # Scales mask to base mag
 
     tile_ids, mask, processed_polygons = get_tile_ids_intersecting_polygons(image_id, annotation_class_id, mask_geojson, mask_dilation)
 

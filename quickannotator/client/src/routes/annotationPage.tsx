@@ -36,7 +36,14 @@ const AnnotationPage = () => {
     const [currentAnnotation, setCurrentAnnotation] = useState<CurrentAnnotation | null>(null);
     const [highlightedPreds, setHighlightedPreds] = useState<Annotation[]>([]);
     const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
-    const [activeModal, setActiveModal] = useState< | null>(null);
+    const [activeModal, setActiveModal] = useState<number | null>(null);
+
+    function handleConfirmImport() {
+        
+    }
+
+    function handleCancelImport() {
+    }
 
     useEffect(() => {
         if (projectid && imageid) {

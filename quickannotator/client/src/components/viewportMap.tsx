@@ -282,6 +282,9 @@ const ViewportMap = (props: Props) => {
                 if (resp.status === 200) {
                     const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentClass.id));
                     props.setHighlightedPreds(anns);
+
+                    // Get the unique tile_ids from the returned Annotations. Note - maybe the server should return this set directly?
+                    const tileIds = new Set(anns.map((ann: Annotation) => ann.tile_id));
                     
 
                 } else {

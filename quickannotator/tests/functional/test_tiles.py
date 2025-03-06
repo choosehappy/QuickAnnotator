@@ -5,7 +5,7 @@ from quickannotator.api.v1.tile import bp as tile_bp
 from quickannotator.api.v1.tile.helper import upsert_tile
 from quickannotator.constants import TileStatus
 from quickannotator.db import models
-
+import geojson
 
 def test_get_tile(test_client, seed, db_session):
     """
@@ -98,6 +98,38 @@ def test_search_tiles_within_bbox(test_client, seed, db_session):
     assert isinstance(data, list)
     assert len(data) > 0
 
+def test_search_tile_by_polygon(test_client, seed, db_session, annotations_seed):
+    """
+    GIVEN a test client and tiles within a specific polygon
+    WHEN the client requests the tiles within the polygon using a GET request
+    THEN the response should have a status code of 200 and the returned data should match the tiles within the polygon
+    """
+
+    # Arrange
+    annotation_class_id = 2
+    image_id = 1
+    polygon = geojson.Polygon([[(0, 0), (0, 100), (100, 100), (100, 0), (0, 0)]])
+    include_placeholder_tiles = 'true'
+    seen = TileStatus.UNSEEN
+
+    # Act
+    params = {
+        'annotation_class_id': annotation_class_id,
+        'image_id': image_id,
+        'polygon': geojson.dumps(polygon),
+        'include_placeholder_tiles': include_placeholder_tiles
+    }
+    response = test_client.get('/api/v1/tile/search/polygon', json=params)
+
+    # Assert
+    assert response.status_code == 200
+    data = response.get_json()
+    assert isinstance(data, list)
+    assert len(data) > 0
+    tile_ids = [tile['tile_id'] for tile in data]
+    assert 0 in tile_ids
+    assert 1 in tile_ids
+    assert 19 in tile_ids
 
 def test_search_tile_by_coordinates(test_client, seed, db_session):
     """
