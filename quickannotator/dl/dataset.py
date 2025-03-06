@@ -1,7 +1,7 @@
 import shapely.wkb
 import numpy as np
 import cv2
-from sqlalchemy import Table, inspect
+from sqlalchemy import Table, inspect, select, update
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model, load_tile
 from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
 from torch.utils.data import IterableDataset
@@ -11,6 +11,7 @@ from quickannotator.db import get_session
 from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client
 from quickannotator.api.v1.tile.helper import tileid_to_point
 
+from constants import TileStatus
 import large_image
 import numpy as np
 from PIL import Image as PILImage
@@ -30,44 +31,32 @@ class TileDataset(IterableDataset):
         
         
     def getWorkersTiles(self):
-        #note that we sort by reverse datetime - and then "pull out" alternating tiles based on worker ID
-        #this in theory means if there are 6 new tiles, and 6 GPUs, each GPU will get one of the new tiles before moving to "less recent"
-        with get_session() as db_session:
-
-
-        #TODO: this should be generalized and refactoreed into a utility function - something
-        #very similar is being done in inference.py getPendingInferenceTiles. the needed
-        #function should take a list of tiles and return the ones that should be seen by the current worker
-            tiles = db_session.query(Tile)\
-                        .filter(Tile.annotation_class_id == self.classid, Tile.hasgt == True)\
-                        .order_by(Tile.datetime.desc())\
-                        .all()
-            db_session.expunge_all()
-        world_size= ray.train.get_context().get_world_size()
-        world_rank= ray.train.get_context().get_world_rank()
-        
-        if world_size > 1: #filter down to entire list of tiles which should be seen by this GPU
-            worker_tiles= [tile for idx, tile in enumerate(tiles) if idx % world_size == world_rank]
-        else:
-            worker_tiles = tiles
-
-        pytorch_worker_info = torch.utils.data.get_worker_info()
-        if pytorch_worker_info is None:  # single-process data loading, return the full iterator
-            final_tiles= worker_tiles
-        else: #further filter down to tiles which should be seen by *this* pytorch worker
-            num_workers = pytorch_worker_info.num_workers
-            worker_id = pytorch_worker_info.id
-            final_tiles = [worker_tile for idx, worker_tile in enumerate(worker_tiles) if idx % num_workers == worker_id]
-
-        return final_tiles
+        with get_session() as db_session:  # Ensure this provides a session context
+            with db_session.begin():  # Explicit transaction
+                subquery = (
+                    select(Tile.id)
+                    .where(Tile.annotation_class_id == self.classid,
+                        Tile.hasgt == True,
+                        Tile.status == TileStatus.STARTPROCESSING)
+                    .order_by(Tile.datetime.desc()) #always get the latest ones first
+                    .limit(1).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
+                )
+                
+                tile = db_session.execute(
+                    update(Tile)
+                    .where(Tile.id == subquery.scalar_subquery())
+                    .where(Tile.status == TileStatus.STARTPROCESSING)  # Ensures another worker hasn't claimed it
+                    .values(status=TileStatus.PROCESSING)
+                    .returning(Tile)
+                ).scalar()
+                
+                return tile if tile else None
         
 
     def __iter__(self):
         client = get_memcached_client() ## client should be a "self" variable
-        tiles = self.getWorkersTiles()
-        print("ntiles",len(tiles))
-
-        for tile in tiles: #TODO: if this list is very long, and a new tile is added, it won't appear until the current queue is depleated
+        
+        while tile:=self.getWorkersTiles():
             #print(tile)
             image_id = tile.image_id
             tile_id = tile.tile_id

@@ -73,13 +73,14 @@ def train_pred_loop(config):
     print (f"{actor_name=}")
 
     #TODO: all these from project settings
-    batch_size=1
+    batch_size_train=1
+    batch_size_infer=1
     edge_weight=2
     num_workers=0 #set to num of CPUs? or...# of CPUs/ divided by # of classes or something...challenge - one started can't change
 
     dataset=TileDataset(classid, tile_size=tile_size, magnification=magnification,edge_weight=edge_weight, transforms=get_transforms(tile_size))
 
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False,num_workers=num_workers) #NOTE: for dataset of type iter - shuffle must == False
+    dataloader = DataLoader(dataset, batch_size=batch_size_train, shuffle=False,num_workers=num_workers) #NOTE: for dataset of type iter - shuffle must == False
 
     model = smp.Unet(encoder_name="timm-mobilenetv3_small_100", encoder_weights="imagenet", in_channels=3, classes=1) #TODO: this should be a setting
     criterion = nn.BCEWithLogitsLoss(reduction='none')
@@ -103,9 +104,10 @@ def train_pred_loop(config):
     myactor = ray.get_actor(actor_name)
     #print ("post actor get")
     while not ray.get(myactor.getCloseDown.remote()): 
-        if tiles := getPendingInferenceTiles(classid): 
+        while tiles := getPendingInferenceTiles(classid,batch_size_infer): 
             #print (f"running inference on {len(tiles)}")
-            run_inference(model, tiles, device) #TODO: AJ - massive to do - this function needs to delegate work to workers correctly
+            run_inference(device, model, tiles)
+            
         #print ("pretrain loop")
         if ray.get(myactor.getEnableTraining.remote()):
             #print ("in train loop")

@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from .dataset import TileDataset
 from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client
 import cv2, os
-from sqlalchemy import Table, func
+from sqlalchemy import Table, func, select, update
 from quickannotator.constants import TileStatus
 import ray
 from quickannotator.db import get_session
@@ -67,81 +67,68 @@ def save_annotations(tile,polygons): #TODO: i feel like this function likely exi
         
 
 
-def getPendingInferenceTiles(classid):
-    with get_session() as db_session:
-        tiles = db_session.query(Tile)\
-                        .filter(Tile.annotation_class_id == classid, Tile.seen == TileStatus.STARTPROCESSING)\
-                        .order_by(Tile.datetime.desc())\
-                        .all() 
-    
-    update_tile_status(tiles,TileStatus.PROCESSING)
+def getPendingInferenceTiles(classid,batch_size_infer):
+    with get_session() as db_session:  # Ensure this provides a session context
+        with db_session.begin():  # Explicit transaction
+            subquery = (
+                select(Tile.id)
+                .where(Tile.annotation_class_id == classid,
+                    Tile.pred_status == TileStatus.STARTPROCESSING)
+                .order_by(Tile.pred_datetime.desc()) #always get the latest ones first
+                .limit(batch_size_infer).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
+            )
 
-    #TODO: turn into util function with data loader, for distirubting tile to workers
-    world_size= ray.train.get_context().get_world_size()
-    world_rank= ray.train.get_context().get_world_rank()
-    
-    if world_size > 1: #filter down to entire list of tiles which should be seen by this GPU
-        worker_tiles= [tile for idx, tile in enumerate(tiles) if idx % world_size == world_rank]
-    else:
-        worker_tiles = tiles
-
-    pytorch_worker_info = torch.utils.data.get_worker_info()
-    if pytorch_worker_info is None:  # single-process data loading, return the full iterator
-        final_tiles= worker_tiles
-    else: #further filter down to tiles which should be seen by *this* pytorch worker
-        num_workers = pytorch_worker_info.num_workers
-        worker_id = pytorch_worker_info.id
-        final_tiles = [worker_tile for idx, worker_tile in enumerate(worker_tiles) if idx % num_workers == worker_id]
-
-    return final_tiles
-
-
-def batch_iterable(iterable, tile_batch_size): #TODO: check version of python in container -- a function like this is avaialble  in itertools and should be used instead
-    #needs python 3.12
-    for i in range(0, len(iterable), tile_batch_size):
-        yield iterable[i:i + tile_batch_size]
+            tiles = db_session.execute(
+                update(Tile)
+                .where(Tile.id.in_(subquery))
+                .where(Tile.pred_status == TileStatus.STARTPROCESSING)  # Ensures another worker hasn't claimed it
+                .values(pred_status=TileStatus.PROCESSING,pred_datetime=func.now())
+                .returning(Tile)
+            ).scalars().all()
+            
+            return tiles if tiles else None
 
     
 def update_tile_status(tile_batch,status):
     with get_session() as db_session:
         for tile in tile_batch:
-            tile.seen = status
-            tile.datetime = func.now()
+            tile.pred_status = status
+            tile.pred_datetime = func.now()
         db_session.bulk_save_objects(tile_batch)  # Bulk operation for efficiency
         db_session.commit()  # Commit changes
 
-def run_inference(model, tiles, device):
-    infer_tile_batch_size = 2  #TODO: need to get from project setting
+def run_inference(device, model, tiles):
     client = get_memcached_client()
-    for tile_batch in batch_iterable(tiles, infer_tile_batch_size):
-        io_images = []
-        infertiles = []
-        for tile in tile_batch:
-            img_cache_key = f"{tile.image_id}_{tile.id}" ##TODO: This further suggests that we should be storing the IMAGE and the MASK seperately
-            try: #if memcache isn't working, no problem, just keep going
-                cache_val = client.get(img_cache_key) or {}
-            except:
-                cache_val = {}
-            
-            if cache_val:
-                io_image, mask_image, weight = [decompress_from_jpeg(i) for i in cache_val]
-            else:
-                io_image = load_tile(tile)
 
-            io_images.append(io_image)
-
-        io_images = [preprocess_image(io_image, device) for io_image in io_images]
-        io_images = torch.cat(io_images, dim=0)
-        print(f"io_images going on GPU: \t {io_images.shape}")
+    io_images = []
+    infertiles = []
+    for tile in tiles:
+        img_cache_key = f"img_{tile.image_id}_{tile.id}" 
+        try: #if memcache isn't working, no problem, just keep going
+            img_cache_val = client.get(img_cache_key) or {}
+        except:
+            img_cache_val = {}
         
-        model.eval()
-        with torch.no_grad():
-            outputs = model(io_images)  #output at target magnification level!
-            outputs = outputs[:, :, 32:-32, 32:-32]
+        if img_cache_val:
+            io_image = decompress_from_jpeg(img_cache_val[0])
 
-            for j, output in enumerate(outputs):
-                polygons = postprocess_output(output) #some parmaeters here should be added to the class level config -- see function prototype
-                save_annotations(tile_batch[j],polygons)
+        else:
+            io_image = load_tile(tile)
 
-        update_tile_status(tile_batch, TileStatus.DONEPROCESSING) #now taht the batch is done, need to update tile status
+        io_images.append(io_image)
+
+    io_images = [preprocess_image(io_image, device) for io_image in io_images]
+    io_images = torch.cat(io_images, dim=0)
+    print(f"io_images going on GPU: \t {io_images.shape}")
+    
+    model.eval()
+    with torch.no_grad():
+        outputs = model(io_images)  #output at target magnification level!
+        outputs = outputs[:, :, 32:-32, 32:-32]
+
+        for j, output in enumerate(outputs):
+            polygons = postprocess_output(output) #some parmaeters here should be added to the class level config -- see function prototype
+            save_annotations(tiles[j],polygons)
+
+    update_tile_status(tiles, TileStatus.DONEPROCESSING) #now taht the batch is done, need to update tile status
     return outputs
