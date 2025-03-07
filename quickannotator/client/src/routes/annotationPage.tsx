@@ -10,7 +10,7 @@ import ConfirmationModal from '../components/confirmationModal.tsx';
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
-import { fetchImage, fetchProject } from "../helpers/api.ts";
+import { fetchImage, fetchProject, postAnnotation, postBulkAnnotations } from "../helpers/api.ts";
 import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation } from "../types.ts";
 import { MODAL_DATA } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
@@ -34,15 +34,25 @@ const AnnotationPage = () => {
     const [currentTool, setCurrentTool] = useState<string | null>('0');
     const [action, setAction] = useState<string | null>(null);
     const [currentAnnotation, setCurrentAnnotation] = useState<CurrentAnnotation | null>(null);
-    const [highlightedPreds, setHighlightedPreds] = useState<Annotation[]>([]);
+    const [highlightedPreds, setHighlightedPreds] = useState<Annotation[] | null>(null); // TODO: should just be a list of annotations
     const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
     const [activeModal, setActiveModal] = useState<number | null>(null);
 
     function handleConfirmImport() {
-        
+        // Set activeModal to null
+        setActiveModal(null);
+
+        // POST new annotations as ground truth
+        // if (!highlightedPreds) return;
+        postBulkAnnotations(currentImage.id, currentClass?.id, highlightedPreds?.map(ann => ann.parsedPolygon)).then((resp) => {
+            setHighlightedPreds(null);
+        });
+
     }
 
     function handleCancelImport() {
+        setActiveModal(null);
+        setHighlightedPreds(null);
     }
 
     useEffect(() => {
@@ -61,7 +71,7 @@ const AnnotationPage = () => {
         return (
             <>
                 <Container fluid className="pb-3 bg-dark d-flex flex-column flex-grow-1">
-                    <ConfirmationModal show={activeModal === MODAL_DATA.IMPORT_CONF.id} title={MODAL_DATA.IMPORT_CONF.title} description={MODAL_DATA.IMPORT_CONF.description}/>
+                    <ConfirmationModal show={activeModal === MODAL_DATA.IMPORT_CONF.id} title={MODAL_DATA.IMPORT_CONF.title} description={MODAL_DATA.IMPORT_CONF.description} onConfirm={handleConfirmImport} onCancel={handleCancelImport}/>
                     <Row className="d-flex flex-grow-1">
                         <Col className="d-flex flex-grow-1">
                             <Card className="flex-grow-1">

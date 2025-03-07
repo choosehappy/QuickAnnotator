@@ -43,6 +43,43 @@ def test_annotations_within_polygon(test_client, annotations_seed):
 
     # TODO: check equality between the returned annotations and the expected annotations
 
+def test_bulk_post_annotations(test_client, annotations_seed):
+    """
+    GIVEN a test client and multiple new annotations
+    WHEN the client posts the annotations using a POST request
+    THEN the response should have a status code of 200 and the returned data should match the posted annotations
+    """
+
+    # Arrange
+    annotation_class_id = 2
+    image_id = 1
+    new_annotations = [
+        geojson.Polygon([[(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]]),
+        geojson.Polygon([[(5, 5), (10, 5), (10, 10), (5, 10), (5, 5)]])
+    ]
+
+    # Act
+    params = [{'polygon': geojson.dumps(polygon)} for polygon in new_annotations]
+    response = test_client.post(f'/api/v1/annotation/{image_id}/{annotation_class_id}/bulk', json=params)
+
+    # Assert
+    assert response.status_code == 200
+    data = response.get_json()
+    assert isinstance(data, list)
+    assert len(data) == len(new_annotations)
+    for annotation in data:
+        assert 'id' in annotation
+        assert 'tile_id' in annotation
+        assert 'centroid' in annotation
+        assert 'polygon' in annotation
+        assert 'area' in annotation
+        assert 'custom_metrics' in annotation
+        assert 'datetime' in annotation
+
+    # Assert equality between the returned annotations and the posted annotations
+    for i, annotation in enumerate(data):
+        assert_geojson_equal(geojson.loads(annotation['polygon']), new_annotations[i])
+
 
 def test_put_annotation(test_client, annotations_seed):
     """

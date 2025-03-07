@@ -18,7 +18,7 @@ from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_tile
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
-from quickannotator.constants import TileStatus, MASK_CLASS_ID
+from quickannotator.constants import TileStatus, MASK_CLASS_ID, MASK_DILATION
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
 

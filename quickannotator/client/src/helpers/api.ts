@@ -113,6 +113,17 @@ export const postAnnotation = async (image_id: number, annotation_class_id: numb
     return await post<PostAnnArgs, AnnotationResponse>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);
 }
 
+// Post bulk annotations
+export const postBulkAnnotations = async (image_id: number, annotation_class_id: number, polygons: Polygon[]) => {
+    const requestBody = polygons.map(polygon => {
+        return {
+            polygon: JSON.stringify(polygon),
+        };
+    });
+
+    return await post<PostAnnArgs[], AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/bulk`, requestBody);
+}
+
 export const putAnnotation = async (image_id: number, annotation: Annotation) => {
     const { annotation_class_id, ...rest } = annotation;
     const requestBody: PutAnnArgs = {

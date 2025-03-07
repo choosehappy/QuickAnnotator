@@ -103,21 +103,20 @@ class Annotation(MethodView):
         """
         # scale the polygon to the working magnification
         scale_factor = base_to_work_scaling_factor(image_id, annotation_class_id)
+        tilespace = get_tilespace(image_id, annotation_class_id, in_work_mag=True)  # Polygon is expected to be scaled to the working magnification
+
         poly = scale(geom=shape(args['polygon']), xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
-        
-        
+        isgt = True
+
         # Get the tile id.
-        tilespace = get_tilespace(image_id, annotation_class_id, in_work_mag=True)  # Polygon is already scaled to the working magnification
+
         tile_id = tilespace.point_to_tileid(poly.centroid.x, poly.centroid.y)
-        
-        ann = insert_new_annotation(image_id, annotation_class_id, True, tile_id, poly)
-        
+        ann = insert_new_annotation(image_id, annotation_class_id, isgt, tile_id, poly)
         if tile_intersects_mask(image_id, annotation_class_id, tile_id):
-            upsert_tile(annotation_class_id, image_id, tile_id, hasgt=True)
+            upsert_tile(annotation_class_id, image_id, tile_id, hasgt=isgt)
         else:
             return {"message": "Tile does not intersect with the tissue mask and will not be inserted."}, 400
-
-        ann = get_annotation_query(ann.__class__).filter_by(id=ann.id).first()
+        ann = get_annotation_query(ann.__class__, 1/scale_factor).filter_by(id=ann.id).first()
         
         return ann, 200
 
@@ -185,6 +184,36 @@ class SearchAnnotations(MethodView):
             result = db_session.execute(stmt).fetchall()
             return result, 200
         
+@bp.route('/<int:image_id>/<int:annotation_class_id>/bulk')
+class BulkAnnotation(MethodView):
+    @bp.arguments(PostAnnArgsSchema(many=True), location='json')
+    @bp.response(200, AnnRespSchema(many=True))
+    def post(self, args, image_id, annotation_class_id):
+        """     post multiple new annotations to the db.
+        
+        This method is primarily used for ground truth annotations. Predictions should only be saved by the model.
+        """
+        annotations = []
+        isgt = True
+        scale_factor = base_to_work_scaling_factor(image_id, annotation_class_id)
+        tilespace = get_tilespace(image_id, annotation_class_id, in_work_mag=True)
+        
+        for annotation in args:
+            poly = scale(geom=shape(annotation['polygon']), xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
+            tile_id = tilespace.point_to_tileid(poly.centroid.x, poly.centroid.y)
+            
+            # TODO: remove redundant code & handle failure cases
+            ann = insert_new_annotation(image_id, annotation_class_id, isgt, tile_id, poly)
+            if tile_intersects_mask(image_id, annotation_class_id, tile_id):
+                upsert_tile(annotation_class_id, image_id, tile_id, hasgt=isgt)
+            else:
+                return {"message": f"Tile {tile_id} does not intersect with the tissue mask and will not be inserted."}, 400
+            ann = get_annotation_query(ann.__class__, 1/scale_factor).filter_by(id=ann.id).first()
+            annotations.append(ann)
+        
+        return annotations, 200
+
+
 @bp.route('/<int:image_id>/<int:annotation_class_id>/<int:tile_id>')
 class AnnotationByTile(MethodView):
     @bp.arguments(GetAnnByTileArgsSchema, location='query')

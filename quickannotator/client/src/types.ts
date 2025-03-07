@@ -57,7 +57,6 @@ export class Annotation {
 }
 
 export interface PostAnnArgs {
-    is_gt: boolean;
     polygon: string;
 }
 

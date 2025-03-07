@@ -19,8 +19,8 @@ interface Props {
     setPreds: React.Dispatch<React.SetStateAction<Annotation[]>>;
     currentTool: string | null;
     setCurrentTool: React.Dispatch<React.SetStateAction<string | null>>;
-    highlightedPreds: Annotation[];
-    setHighlightedPreds: React.Dispatch<React.SetStateAction<Annotation[]>>;
+    highlightedPreds: Annotation[] | null;
+    setHighlightedPreds: React.Dispatch<React.SetStateAction<Annotation[] | null>>;
     activeModal: number | null;
     setActiveModal: React.Dispatch<React.SetStateAction<number | null>>;
 }
@@ -37,6 +37,7 @@ const ViewportMap = (props: Props) => {
     const polygonClicked = useRef<Boolean>(false);  // We need this to ensure polygon clicked and background clicked are mutually exclusive, because geojs does not provide control over event propagation.
     const activeRenderGroundTruthsCall = useRef<number>(0);
     const activeRenderPredictionsCall = useRef<number>(0);
+    const predFeatsToRerender = useRef<number[]>([]);
     const ctx = useLocalContext({ ...props });
     let zoomPanTimeout: any = null;
 
@@ -70,18 +71,25 @@ const ViewportMap = (props: Props) => {
 
         let renderFunction;
         let setAnnotations;
+        let featIdsToRerender: Set<number>;
 
         if (is_gt) {
             renderFunction = processGroundTruthTile;
             setAnnotations = props.setGts;
+            const featIds = predFeatsToRerender.current;
+            featIdsToRerender = new Set(featIds);
+            
         } else {
             renderFunction = processPredictedTile;
             setAnnotations = props.setPreds;
+            featIdsToRerender = new Set([])
+
         }
+
 
         let anns: Annotation[] = [];
         for (const tile of tiles) {     // For all tiles within the current viewport bounds
-            if (tilesToRender.has(tile.tile_id)) {   // Tile is not yet rendered
+            if (tilesToRender.has(tile.tile_id)) {   // Feature is not yet rendered
                 if (currentCallToken !== activeCallRef.current) {
                     console.log("Render cancelled.");
                     return;
@@ -96,8 +104,14 @@ const ViewportMap = (props: Props) => {
                 // anns.push(...resp);
                 anns = anns.concat(annotations);
                 renderFunction(tile, annotations, layer);
-            } else {    // Tile is already rendered
-                const data: Annotation[] = getTileFeatureById(geojs_map, layerIdx, tile.tile_id)?.data();
+            } else {    // Feature is already rendered
+                const webGLFeature = getTileFeatureById(geojs_map, layerIdx, tile.tile_id);
+                if (is_gt && featIdsToRerender.has(tile.tile_id)) {  // If a ground truth feature data needs to be refreshed.
+                    const resp = await getAnnotationsForTile(tile.image_id, tile.annotation_class_id, tile.tile_id, is_gt);
+                    const data = resp.data.map(annResp => new Annotation(annResp, props.currentClass.id));
+                    redrawTileFeature(webGLFeature, {}, data);
+                }
+                const data: Annotation[] = webGLFeature.data();
                 // anns.push(...data);
                 anns = anns.concat(data);
             }
@@ -283,21 +297,13 @@ const ViewportMap = (props: Props) => {
             const resp = await getAnnotationsWithinPolygon(currentImage.id, currentClass.id, false, polygon2);
             if (resp.status === 200) {
                 const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentClass.id));
-                props.setHighlightedPreds(anns);
 
                 // Get the ids for the features to redraw
                 const tilesResp = await getTilesWithinPolygon(currentImage.id, currentClass.id, polygon2, false);
                 if (tilesResp.status === 200) {
                     const tileIds = tilesResp.data.map((tile: Tile) => tile.tile_id);
-                    const predLayer = geojs_map.current.layers()[LAYER_KEYS.PRED];
-                    const features = predLayer.features().filter((f) => f.featureType === 'polygon');
-                    const featuresToRedraw = features.filter((f) => tileIds.includes(f.props.tile_id));
-                    
-                    featuresToRedraw.forEach((f) => {
-                        const options = { highlightedPolyIds: anns.map(ann => ann.id) };
-                        redrawTileFeature(f, options);
-                    });
-
+                    predFeatsToRerender.current = tileIds;
+                    props.setHighlightedPreds(anns);
                     props.setActiveModal(MODAL_DATA.IMPORT_CONF.id);
                 } else {
                     console.log("No tiles found within the polygon.");
@@ -488,6 +494,32 @@ const ViewportMap = (props: Props) => {
         }
 
     }, [props.currentAnnotation])
+
+    useEffect(() => {
+        if (geojs_map.current && props.currentImage && props.currentClass) {
+            const predLayer = geojs_map.current.layers()[LAYER_KEYS.PRED];
+            const features = predLayer.features().filter((f) => f.featureType === 'polygon');
+            const featuresToRedraw = features.filter((f) => predFeatsToRerender.current.includes(f.props.tile_id));
+            const highlightedPolyIds = props.highlightedPreds ? props.highlightedPreds.map(ann => ann.id) : null;
+    
+            featuresToRedraw.forEach((f) => {
+                redrawTileFeature(f, highlightedPolyIds ? { highlightedPolyIds: highlightedPolyIds } : {});
+            });
+
+            const bounds = geojs_map.current.bounds();
+            const x1 = bounds.left;
+            const y1 = Math.abs(bounds.top);
+            const x2 = bounds.right;
+            const y2 = Math.abs(bounds.bottom);
+            if (!highlightedPolyIds) {
+                renderAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall, true).then(() => {
+                    console.log("Predictions rendered.");
+                    predFeatsToRerender.current = [];
+                });
+            }
+        }
+
+    }, [props.highlightedPreds])
 
     return (
         <div ref={viewRef} style={
