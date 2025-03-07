@@ -12,7 +12,7 @@ import { useOutletContext, useParams } from 'react-router-dom';
 
 import { fetchImage, fetchProject, postAnnotation, postBulkAnnotations } from "../helpers/api.ts";
 import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation } from "../types.ts";
-import { MODAL_DATA } from '../helpers/config.ts';
+import { MODAL_DATA, TOOLBAR_KEYS } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
 
@@ -46,6 +46,7 @@ const AnnotationPage = () => {
         // if (!highlightedPreds) return;
         postBulkAnnotations(currentImage.id, currentClass?.id, highlightedPreds?.map(ann => ann.parsedPolygon)).then((resp) => {
             setHighlightedPreds(null);
+            setCurrentTool(TOOLBAR_KEYS.POINTER);
         });
 
     }
@@ -53,6 +54,7 @@ const AnnotationPage = () => {
     function handleCancelImport() {
         setActiveModal(null);
         setHighlightedPreds(null);
+        setCurrentTool(TOOLBAR_KEYS.POINTER);
     }
 
     useEffect(() => {
