@@ -204,10 +204,8 @@ class BulkAnnotation(MethodView):
             
             # TODO: remove redundant code & handle failure cases
             ann = insert_new_annotation(image_id, annotation_class_id, isgt, tile_id, poly)
-            if tile_intersects_mask(image_id, annotation_class_id, tile_id):
-                upsert_tile(annotation_class_id, image_id, tile_id, hasgt=isgt)
-            else:
-                return {"message": f"Tile {tile_id} does not intersect with the tissue mask and will not be inserted."}, 400
+            upsert_tile(annotation_class_id, image_id, tile_id, hasgt=isgt)
+
             ann = get_annotation_query(ann.__class__, 1/scale_factor).filter_by(id=ann.id).first()
             annotations.append(ann)
         

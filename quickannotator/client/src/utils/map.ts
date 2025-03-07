@@ -38,17 +38,18 @@ export const createGTTileFeature = (featureProps: any, annotations: Annotation[]
         .style('fillOpacity', 0.5)
         .style('strokeColor', 'black')
         .style('strokeWidth', 2)
+        .style('stroke', true)
         .style('uniformPolygon', true)
 
     const originalDraw = feature.draw;
     // Override the draw method to accept options.
     feature.draw = (options = { currentAnnotationId: null }) => {
         if (options.currentAnnotationId) {
-            feature.style('stroke', (a: Annotation) => {
-                return a.id === options.currentAnnotationId
+            feature.style('strokeColor', (point: number[], pointIdx: number, ann: Annotation, annIdx: number) => {
+                return ann.id === options.currentAnnotationId? 'black' : 'white';
             });
         } else  {
-            feature.style('stroke', false);
+            feature.style('strokeColor', 'white');
         }
         originalDraw.call(feature);
     }
@@ -68,8 +69,7 @@ export const createPredTileFeature = (featureProps: any, annotations: Annotation
         .style('fill', true)
         .style('fillColor', 'lime')
         .style('fillOpacity', 0.5)
-        .style('stroke', true)
-        .style('strokeColor', 'white')
+        .style('strokeColor', 'red')
         .style('uniformPolygon', true)
 
     const originalDraw = feature.draw;
@@ -77,11 +77,11 @@ export const createPredTileFeature = (featureProps: any, annotations: Annotation
     feature.draw = (options: { highlightedPolyIds: number[] | null } = { highlightedPolyIds: null }) => {
         const ids = options.highlightedPolyIds;
         if (ids && ids.length > 0) {
-            feature.style('strokeColor', (point: number[], pointIdx: number, ann: Annotation, annIdx: number) => {
-                return ids.includes(ann.id) ? 'red' : 'white';
+            feature.style('stroke', (ann: Annotation) => {
+                return ids.includes(ann.id);
             });
         } else {
-            feature.style('strokeColor', 'white');
+            feature.style('stroke', false);
         }
         originalDraw.call(feature);
     }
