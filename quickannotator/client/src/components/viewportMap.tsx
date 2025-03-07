@@ -37,7 +37,7 @@ const ViewportMap = (props: Props) => {
     const polygonClicked = useRef<Boolean>(false);  // We need this to ensure polygon clicked and background clicked are mutually exclusive, because geojs does not provide control over event propagation.
     const activeRenderGroundTruthsCall = useRef<number>(0);
     const activeRenderPredictionsCall = useRef<number>(0);
-    const predFeatsToRerender = useRef<number[]>([]);
+    const featureIdsToUpdate = useRef<number[]>([]);
     const ctx = useLocalContext({ ...props });
     let zoomPanTimeout: any = null;
 
@@ -76,7 +76,7 @@ const ViewportMap = (props: Props) => {
         if (is_gt) {
             renderFunction = processGroundTruthTile;
             setAnnotations = props.setGts;
-            const featIds = predFeatsToRerender.current;
+            const featIds = featureIdsToUpdate.current;
             featIdsToRerender = new Set(featIds);
             
         } else {
@@ -302,7 +302,7 @@ const ViewportMap = (props: Props) => {
                 const tilesResp = await getTilesWithinPolygon(currentImage.id, currentClass.id, polygon2, false);
                 if (tilesResp.status === 200) {
                     const tileIds = tilesResp.data.map((tile: Tile) => tile.tile_id);
-                    predFeatsToRerender.current = tileIds;
+                    featureIdsToUpdate.current = tileIds;
                     props.setHighlightedPreds(anns);
                     props.setActiveModal(MODAL_DATA.IMPORT_CONF.id);
                 } else {
@@ -495,11 +495,12 @@ const ViewportMap = (props: Props) => {
 
     }, [props.currentAnnotation])
 
+    // When the highlighted predictions change, redraw the features
     useEffect(() => {
         if (geojs_map.current && props.currentImage && props.currentClass) {
             const predLayer = geojs_map.current.layers()[LAYER_KEYS.PRED];
             const features = predLayer.features().filter((f) => f.featureType === 'polygon');
-            const featuresToRedraw = features.filter((f) => predFeatsToRerender.current.includes(f.props.tile_id));
+            const featuresToRedraw = features.filter((f) => featureIdsToUpdate.current.includes(f.props.tile_id));
             const highlightedPolyIds = props.highlightedPreds ? props.highlightedPreds.map(ann => ann.id) : null;
     
             featuresToRedraw.forEach((f) => {
@@ -514,7 +515,7 @@ const ViewportMap = (props: Props) => {
             if (!highlightedPolyIds) {
                 renderAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall, true).then(() => {
                     console.log("Predictions rendered.");
-                    predFeatsToRerender.current = [];
+                    featureIdsToUpdate.current = [];
                 });
             }
         }
