@@ -5,7 +5,9 @@ import quickannotator.db as qadb
 from quickannotator.db.utils import build_annotation_table_name
 import shapely
 import json
-from sqlalchemy import func, text
+from sqlalchemy import func, text, insert
+import quickannotator.db.models as models
+
 
 
 from quickannotator.db.utils import create_dynamic_model
@@ -26,7 +28,7 @@ def get_tile(annotation_class_id: int, image_id: int, tile_id: int) -> quickanno
 def compute_custom_metrics() -> dict:
     return {"iou": 0.5}
 
-def insert_new_annotation(image_id, annotation_class_id, is_gt, tile_id, polygon: shapely.geometry.Polygon):
+def insert_new_annotation(image_id: int, annotation_class_id: int, is_gt: bool, tile_id: int, polygon: shapely.geometry.Polygon) -> models.Annotation:
     table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
     model = create_dynamic_model(table_name)
 
@@ -44,6 +46,32 @@ def insert_new_annotation(image_id, annotation_class_id, is_gt, tile_id, polygon
     db_session.add(new_annotation)
     db_session.commit()
     return new_annotation
+
+def bulk_insert_annotations(image_id: int, annotation_class_id: int, is_gt: bool, tile_id: int, polygons: list[shapely.geometry.Polygon]) -> list[models.Annotation]:
+    table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
+    model = create_dynamic_model(table_name)
+    
+    new_annotations = []
+    for polygon in polygons:
+        new_annotations.append({
+            "image_id": None,  # Ensure correct value
+            "annotation_class_id": None,
+            "isgt": None,
+            "tile_id": tile_id,
+            "centroid": polygon.centroid.wkt,
+            "polygon": polygon.wkt,
+            "area": polygon.area,
+            "custom_metrics": compute_custom_metrics(),
+            "datetime": datetime.now()
+        })
+
+    stmt = insert(model).returning(model).values(new_annotations)
+    result = db_session.scalars(stmt).all()  # Ensure execution is done correctly
+    db_session.commit()
+
+    return result
+
+
 
 def get_annotation_query(model, scale_factor: float=1.0) -> Query:
     '''

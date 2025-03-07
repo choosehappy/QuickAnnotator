@@ -59,6 +59,45 @@ def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: Til
     db_session.commit()
     
     return result
+
+def bulk_upsert_tiles(annotation_class_id: int, image_id: int, tile_ids: list[int], seen: TileStatus=None, hasgt: bool=None):
+    """
+    Inserts new tiles or updates existing tiles in the database.
+    This function attempts to insert new tiles with the given annotation_class_id, image_id, and tile_ids.
+    If tiles with the same annotation_class_id, image_id, and tile_ids already exist, it updates the 'seen'
+    and 'hasgt' fields if their values are provided.
+    Args:
+        annotation_class_id (int): The ID of the annotation class.
+        image_id (int): The ID of the image.
+        tile_ids (list[int]): A list of tile IDs.
+        seen (TileStatus, optional): The status indicating if the tiles have been seen. Defaults to None.
+        hasgt (bool, optional): A flag indicating if the tiles have ground truth. Defaults to None.
+    Returns:
+        ResultProxy: The result of the database execution
+    """
+    
+    update_fields = {}
+    if seen is not None:    # Only update the 'seen' field if the value is provided
+        update_fields['seen'] = seen
+    if hasgt is not None:   # Only update the 'hasgt' field if the value is provided
+        update_fields['hasgt'] = hasgt
+    
+    stmt = insert(models.Tile).values([
+        {
+            'annotation_class_id': annotation_class_id,
+            'image_id': image_id,
+            'tile_id': tile_id,
+            **update_fields
+        } for tile_id in tile_ids
+    ]).on_conflict_do_update(
+        index_elements=['annotation_class_id', 'image_id', 'tile_id'],
+        set_=update_fields
+    )
+    
+    result = db_session.execute(stmt)
+    db_session.commit()
+    
+    return result
     
 
 # DEPRECATED

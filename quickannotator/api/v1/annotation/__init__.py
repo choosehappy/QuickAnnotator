@@ -23,9 +23,11 @@ from datetime import datetime
 from quickannotator.api.v1.tile.helper import upsert_tile, tile_intersects_mask, get_tile_ids_intersecting_mask, get_tile_ids_intersecting_polygons
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
-from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_annotation_query
+from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_annotation_query, bulk_insert_annotations
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
 import quickannotator.constants as constants
+from quickannotator.api.v1.tile.helper import bulk_upsert_tiles
+
 
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
@@ -187,29 +189,34 @@ class SearchAnnotations(MethodView):
 @bp.route('/<int:image_id>/<int:annotation_class_id>/bulk')
 class BulkAnnotation(MethodView):
     @bp.arguments(PostAnnArgsSchema(many=True), location='json')
-    @bp.response(200, AnnRespSchema(many=True))
+    # @bp.response(200, AnnRespSchema(many=True))
     def post(self, args, image_id, annotation_class_id):
         """     post multiple new annotations to the db.
         
         This method is primarily used for ground truth annotations. Predictions should only be saved by the model.
         """
-        annotations = []
         isgt = True
         scale_factor = base_to_work_scaling_factor(image_id, annotation_class_id)
         tilespace = get_tilespace(image_id, annotation_class_id, in_work_mag=True)
         
+        polygons = []
+        tile_ids = []
+        
         for annotation in args:
             poly = scale(geom=shape(annotation['polygon']), xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
             tile_id = tilespace.point_to_tileid(poly.centroid.x, poly.centroid.y)
-            
-            # TODO: remove redundant code & handle failure cases
-            ann = insert_new_annotation(image_id, annotation_class_id, isgt, tile_id, poly)
-            upsert_tile(annotation_class_id, image_id, tile_id, hasgt=isgt)
-
-            ann = get_annotation_query(ann.__class__, 1/scale_factor).filter_by(id=ann.id).first()
-            annotations.append(ann)
+            polygons.append(poly)
+            tile_ids.append(tile_id)
         
-        return annotations, 200
+        annotations = bulk_insert_annotations(image_id, annotation_class_id, isgt, tile_ids[0], polygons)
+        bulk_upsert_tiles(annotation_class_id, image_id, tile_ids, hasgt=isgt)
+        
+        result_annotations = []
+        for ann in annotations:
+            result_ann = get_annotation_query(ann.__class__, 1/scale_factor).filter_by(id=ann.id).first()
+            result_annotations.append(result_ann)
+        
+        return result_annotations, 200
 
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>/<int:tile_id>')
