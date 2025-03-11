@@ -77,20 +77,19 @@ def train_pred_loop(config):
     batch_size_train=1
     batch_size_infer=1
     edge_weight=2
-    num_workers=0 #set to num of CPUs? or...# of CPUs/ divided by # of classes or something...challenge - one started can't change
+    num_workers=0 #TODO:set to num of CPUs? or...# of CPUs/ divided by # of classes or something...challenge - one started can't change. maybe set to min(batch_size train, ??) 
     
 
     dataset=TileDataset(classid, tile_size=tile_size, magnification=magnification,
                         edge_weight=edge_weight, transforms=get_transforms(tile_size), 
                         boost_count=boost_count)
 
-    dataloader = DataLoader(dataset, batch_size=batch_size_train, shuffle=False,num_workers=num_workers) #NOTE: for dataset of type iter - shuffle must == False
+    dataloader = DataLoader(dataset, batch_size=batch_size_train, shuffle=False, num_workers=num_workers) #NOTE: for dataset of type iter - shuffle must == False
 
-    model = smp.Unet(encoder_name="timm-mobilenetv3_small_100", encoder_weights="imagenet", in_channels=3, classes=1) #TODO: this should be a setting
-    criterion = nn.BCEWithLogitsLoss(reduction='none')
-    optimizer = optim.Adam(model.parameters(), lr=0.001) #TODO: this should be a setting
+    model = smp.Unet(encoder_name="timm-mobilenetv3_small_100", encoder_weights="imagenet", in_channels=3, classes=1) #TODO: this should all be a setting
+    criterion = nn.BCEWithLogitsLoss(reduction='none', )
+    optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-2) #TODO: this should be a setting
     
-    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #TODO: AJ - convert to ray dist train code
     if torch.cuda.is_available():
         localrank=ray.train.get_context().get_local_rank()
         device=torch.device('cuda',localrank)

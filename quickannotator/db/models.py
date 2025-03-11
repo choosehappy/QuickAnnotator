@@ -83,9 +83,11 @@ class Tile(Base):
     tile_id = Column(Integer, nullable=False)
 
     # columns
-    seen = Column(Integer, nullable=False, default=TileStatus.UNSEEN)
-    hasgt = Column(Boolean, nullable=False, default=False)
-    datetime = Column(DateTime, server_default=func.now())
+    pred_status = Column(Integer, nullable=True, default=TileStatus.UNSEEN)
+    pred_datetime = Column(DateTime, nullable=True, server_default=func.now())
+
+    gt_counter = Column(Integer, nullable=True, default=0)
+    gt_datetime = Column(DateTime, nullable=True, server_default=func.now())
 
     # relationships
     image = relationship('Image', backref='tiles')
@@ -94,6 +96,8 @@ class Tile(Base):
     # indexes
     __table_args__ = (
         Index('idx_annotation_class_image_tile', 'annotation_class_id', 'image_id', 'tile_id', unique=True),
+        Index('idx_gt', gt_counter,gt_datetime),        #maybe these should be the other way around? e.g., date then counter? #these are being queried ascending -- leave as is
+        Index('idx_pred',pred_status, pred_datetime.desc())  #looks like date time is queried descending, inverting index
     )
 
 

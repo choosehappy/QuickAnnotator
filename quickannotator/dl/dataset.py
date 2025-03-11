@@ -1,61 +1,55 @@
 import shapely.wkb
-import numpy as np
-import cv2
-from sqlalchemy import Table, inspect, select, update, case, func
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model, load_tile
-from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
+import cv2, numpy as np
+
+import scipy.ndimage
 from torch.utils.data import IterableDataset
 
+from sqlalchemy import  select, update, case, func
+
 from quickannotator.db import get_session
+from quickannotator.db.models import Tile
+from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 
-from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client
-from quickannotator.api.v1.tile.helper import tileid_to_point
 
-from constants import TileStatus
-import large_image
-import numpy as np
-from PIL import Image as PILImage
-import scipy.ndimage
-import cv2
-import ray
-import ray.train
-import torch
+from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client, load_tile 
 
 class TileDataset(IterableDataset):
     def __init__(self, classid, tile_size,magnification,transforms=None, edge_weight=0, boost_count=5):
         self.classid = classid
         self.transforms = transforms
         self.edge_weight = edge_weight
-        self.tile_size = tile_size
-        self.magnification = magnification
+        self.tile_size = tile_size #TODO: This should come from annotation_class table
+        self.magnification = magnification #TODO: This should come from annotation_class table
         self.boost_count = boost_count
         
     def getWorkersTiles(self):
         with get_session() as db_session:  # Ensure this provides a session context
-            with db_session.begin():  # Explicit transaction
                 subquery = (
                     select(Tile.id)
                     .where(Tile.annotation_class_id == self.classid,
-                        Tile.hasgt == True)
+                        Tile.gt_datetime.isnot(None))
                     .order_by(Tile.gt_counter.asc(), Tile.gt_datetime.asc())  # Prioritize under-used, then newest
                     .limit(1).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
                 )
                 
+                with db_session.begin():  # Explicit transaction
 
-                tile = db_session.execute(
-                    update(Tile)
-                    .where(Tile.id == subquery.scalar_subquery())
-                    .values(selection_count=(
-                            # Only increment selection_count if it's less than max_selections
-                            case(
-                                (Tile.gt_counter < self.boost_count, Tile.gt_counter + 1),
-                                else_=Tile.gt_counter
-                            )
-                        ),
-                        gt_datetime=func.now())
-                    .returning(Tile)
-                ).scalar()
+                    tile = db_session.execute(
+                        update(Tile)
+                        .where(Tile.id == subquery.scalar_subquery())
+                        .values(gt_counter=(
+                                # Only increment selection_count if it's less than max_selections
+                                case(
+                                    (Tile.gt_counter < self.boost_count, Tile.gt_counter + 1),
+                                    else_=Tile.gt_counter
+                                )
+                            ),
+                            gt_datetime=func.now())
+                        .returning(Tile)
+                    ).scalar()
+                    db_session.expunge(tile)
                 
+                print(f"tile retval {tile}")
                 return tile if tile else None
         
 
@@ -64,6 +58,8 @@ class TileDataset(IterableDataset):
         
         while tile:=self.getWorkersTiles():
             #print(tile)
+            print(f"tile retval 2 {tile}")
+
             image_id = tile.image_id
             tile_id = tile.tile_id
             

@@ -45,4 +45,4 @@ def get_session():
         raise
     finally:
         db_session.remove()  # Cleanup session automatically
-        print("Session closed")
+        #print("Session closed")

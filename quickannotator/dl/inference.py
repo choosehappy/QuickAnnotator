@@ -1,22 +1,20 @@
-from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
+import cv2
+
 import torch
 import numpy as np
 import shapely.wkb
 import shapely.geometry
 import shapely.affinity
-import large_image
-#import matplotlib.pyplot as plt
-from sqlalchemy.orm import sessionmaker
-from .dataset import TileDataset
-from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client
-import cv2, os
-from sqlalchemy import Table, func, select, update
-from quickannotator.constants import TileStatus
-import ray
-from quickannotator.db import get_session
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model, load_tile
 
-            
+from sqlalchemy import func, select, update
+
+from quickannotator.db.models import Tile
+from quickannotator.db import get_session
+from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+
+from quickannotator.constants import TileStatus
+from quickannotator.dl.utils import decompress_from_jpeg, get_memcached_client, load_tile
+
 
 def preprocess_image(io_image, device):
     io_image = io_image / 255.0
@@ -41,12 +39,10 @@ def save_annotations(tile,polygons): #TODO: i feel like this function likely exi
     table_name = build_annotation_table_name(tile.image_id, tile.annotation_class_id, is_gt = False)
     table = create_dynamic_model(table_name)
     
-    tpoly = shapely.wkb.loads(tile.geom.data)
-    minx, miny, maxx, maxy = tpoly.bounds
 
     new_annotations = []
     for polygon in polygons:
-        translated_polygon = shapely.affinity.translate(polygon, xoff=minx, yoff=miny) #elegant
+        translated_polygon = shapely.affinity.translate(polygon, xoff=tile.x, yoff=tile.y) #elegant
         area = translated_polygon.area
         centroid = translated_polygon.centroid
         
@@ -58,12 +54,13 @@ def save_annotations(tile,polygons): #TODO: i feel like this function likely exi
             'isgt': False,
             'centroid': centroid.wkt
         }
-        print("new anno!\t\t:",new_annotation["image_id"],new_annotation["annotation_class_id"]) #TODO: push to logging or remove
+        #print("new anno!\t\t:",new_annotation["image_id"],new_annotation["annotation_class_id"]) #TODO: push to logging or remove
         new_annotations.append(new_annotation)
     #print(new_annotations)
     
     with get_session() as db_session:
-        db_session.execute(table.insert(), new_annotations)
+        db_session.execute(table.__table__.insert(), new_annotations)
+        db_session.commit()
         
 
 
@@ -74,7 +71,7 @@ def getPendingInferenceTiles(classid,batch_size_infer):
                 select(Tile.id)
                 .where(Tile.annotation_class_id == classid,
                     Tile.pred_status == TileStatus.STARTPROCESSING)
-                .order_by(Tile.pred_datetime.desc()) #always get the latest ones first
+                .order_by(Tile.pred_datetime.desc()) #always get the latest ones first #TODO: should this be asc?
                 .limit(batch_size_infer).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
             )
 
@@ -86,22 +83,36 @@ def getPendingInferenceTiles(classid,batch_size_infer):
                 .returning(Tile)
             ).scalars().all()
             
+            db_session.expunge_all()
+
+
             return tiles if tiles else None
 
     
 def update_tile_status(tile_batch,status):
-    with get_session() as db_session:
+    # with get_session() as db_session:
+    #     for tile in tile_batch:
+    #         tile.pred_status = status
+    #         tile.pred_datetime = func.now()
+    #     db_session.bulk_save_objects(tile_batch)  # Bulk operation doesn't work with func now!!
+    #     db_session.commit()  # Commit changes
+
+    with get_session() as db_session: #two options here - iteratively add the annotations , or use datetime.datetime.now()  in the bulk function and set
+                                        #the latter is a bit problematic if the database + web server have different times set, since func.now() is used everywhere else
+                                    #one would need to change all func.now to datetime.datetime.now() to make it rock solid. lets see the performance of this first and adjust if needed
         for tile in tile_batch:
             tile.pred_status = status
             tile.pred_datetime = func.now()
-        db_session.bulk_save_objects(tile_batch)  # Bulk operation for efficiency
-        db_session.commit()  # Commit changes
+            db_session.add(tile)  # Add each tile individually
+        
+        db_session.commit()  # Commit all changes
+
 
 def run_inference(device, model, tiles):
     client = get_memcached_client()
 
     io_images = []
-    infertiles = []
+    
     for tile in tiles:
         img_cache_key = f"img_{tile.image_id}_{tile.id}" 
         try: #if memcache isn't working, no problem, just keep going
@@ -113,7 +124,7 @@ def run_inference(device, model, tiles):
             io_image = decompress_from_jpeg(img_cache_val[0])
 
         else:
-            io_image = load_tile(tile)
+            io_image,tile.x,tile.y = load_tile(tile)
 
         io_images.append(io_image)
 
@@ -128,7 +139,9 @@ def run_inference(device, model, tiles):
 
         for j, output in enumerate(outputs):
             polygons = postprocess_output(output) #some parmaeters here should be added to the class level config -- see function prototype
+            print("saving annotations")
             save_annotations(tiles[j],polygons)
-
+    
+    print("updating tile status")
     update_tile_status(tiles, TileStatus.DONEPROCESSING) #now taht the batch is done, need to update tile status
     return outputs
