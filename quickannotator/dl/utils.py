@@ -49,9 +49,8 @@ def load_tile(tile): #TODO: i suspect this sort of function exists elsewhere wit
     ts = TileSpace(annoclass.work_tilesize, sizeXtargetmag, sizeYtargetmag)
     x,y = ts.tileid_to_point(tile.tile_id) 
 
-    region, _ = li.getRegion(region=dict(left=x, top=y, width=annoclass.work_tilesize, height=annoclass.work_tilesize, 
-                                            scale={'magnification':annoclass.work_mag},
-                                            units='pixels'),format=large_image.tilesource.TILE_FORMAT_NUMPY)
+    region, _ = li.getRegion(region=dict(left=x, top=y, width=annoclass.work_tilesize, height=annoclass.work_tilesize,units='pixels'), 
+                                            scale={'magnification':annoclass.work_mag},format=large_image.tilesource.TILE_FORMAT_NUMPY)
 
     io_image = region[:,:,:3] #np.array(region.convert("RGB"))
 

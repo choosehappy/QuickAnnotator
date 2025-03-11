@@ -35,6 +35,19 @@ def postprocess_output(outputs, min_area = 100, dilate_kernel = 2): ## These sho
     polygons = [shapely.geometry.Polygon(contour[:, 0, :]) for contour in contours if cv2.contourArea(contour) >= min_area]
     return polygons
 
+
+
+def delete_annotations(tile):
+    table_name = build_annotation_table_name(tile.image_id, tile.annotation_class_id, is_gt=False)
+    table = create_dynamic_model(table_name)  # Get the ORM class dynamically
+
+    with get_session() as db_session:
+        db_session.query(table).filter(table.tile_id == tile.tile_id).delete(synchronize_session=False) 
+        #Why synchronize_session=False?
+        #This ensures that SQLAlchemy does not try to synchronize in-memory objects, improving performance when deleting many rows.
+        db_session.commit()
+
+
 def save_annotations(tile,polygons): #TODO: i feel like this function likely exists elsewhere in the system as well?
     table_name = build_annotation_table_name(tile.image_id, tile.annotation_class_id, is_gt = False)
     table = create_dynamic_model(table_name)
@@ -49,6 +62,7 @@ def save_annotations(tile,polygons): #TODO: i feel like this function likely exi
         new_annotation = {
             'image_id': tile.image_id,
             'annotation_class_id': tile.annotation_class_id,
+            'tile_id': tile.tile_id,
             'polygon': translated_polygon.wkt,
             'area': area,
             'isgt': False,
@@ -126,6 +140,7 @@ def run_inference(device, model, tiles):
         else:
             io_image,tile.x,tile.y = load_tile(tile)
 
+        cv2.imwrite("/opt/QuickAnnotator/img.png",io_image) #TODO: remove- - for debug
         io_images.append(io_image)
 
     io_images = [preprocess_image(io_image, device) for io_image in io_images]
@@ -138,8 +153,10 @@ def run_inference(device, model, tiles):
         outputs = outputs[:, :, 32:-32, 32:-32]
 
         for j, output in enumerate(outputs):
+            cv2.imwrite("/opt/QuickAnnotator/output.png",outputs.squeeze().detach().cpu().numpy()*255) #TODO: remove- - for debug
             polygons = postprocess_output(output) #some parmaeters here should be added to the class level config -- see function prototype
             print("saving annotations")
+            delete_annotations(tiles[j])
             save_annotations(tiles[j],polygons)
     
     print("updating tile status")
