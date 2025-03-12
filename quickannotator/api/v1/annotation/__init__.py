@@ -4,10 +4,8 @@ from flask.views import MethodView
 from sqlalchemy import Table
 from shapely.geometry import shape, mapping
 import json
-from geojson import Polygon
 from shapely.affinity import scale
 import shapely
-from shapely.strtree import STRtree
 
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
 import quickannotator.db.models as models
