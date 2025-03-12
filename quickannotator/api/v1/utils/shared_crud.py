@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy.orm import aliased, sessionmaker, Session, Query, DeclarativeBase
-from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
+from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
 import quickannotator.db as qadb
 from quickannotator.db.utils import build_annotation_table_name
 import shapely
@@ -28,6 +28,7 @@ def get_tile(annotation_class_id: int, image_id: int, tile_id: int) -> quickanno
 def compute_custom_metrics() -> dict:
     return {"iou": 0.5}
 
+# NOTE: use bulk_insert_annotations to reduce code redundancy?
 def insert_new_annotation(image_id: int, annotation_class_id: int, is_gt: bool, tile_id: int, polygon: shapely.geometry.Polygon) -> models.Annotation:
     table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
     model = create_dynamic_model(table_name)
@@ -47,20 +48,26 @@ def insert_new_annotation(image_id: int, annotation_class_id: int, is_gt: bool, 
     db_session.commit()
     return new_annotation
 
-def bulk_insert_annotations(image_id: int, annotation_class_id: int, is_gt: bool, tile_id: int, polygons: list[shapely.geometry.Polygon]) -> list[models.Annotation]:
+def bulk_insert_annotations(image_id: int, annotation_class_id: int, is_gt: bool, polygons: list[shapely.geometry.Polygon], from_work_mag=True) -> list[models.Annotation]:
     table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
     model = create_dynamic_model(table_name)
+    tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=True)
+    scale_factor = base_to_work_scaling_factor(image_id, annotation_class_id) if from_work_mag else 1.0
     
     new_annotations = []
     for polygon in polygons:
+        scaled_polygon = polygon if from_work_mag else shapely.affinity.scale(polygon, xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
+            
+        centroid = scaled_polygon.centroid
+        tile_id = tilespace.point_to_tileid(centroid.x, centroid.y)
         new_annotations.append({
             "image_id": None,  # Ensure correct value
             "annotation_class_id": None,
             "isgt": None,
             "tile_id": tile_id,
-            "centroid": polygon.centroid.wkt,
-            "polygon": polygon.wkt,
-            "area": polygon.area,
+            "centroid": scaled_polygon.centroid.wkt,
+            "polygon": scaled_polygon.wkt,
+            "area": scaled_polygon.area,
             "custom_metrics": compute_custom_metrics(),
             "datetime": datetime.now()
         })

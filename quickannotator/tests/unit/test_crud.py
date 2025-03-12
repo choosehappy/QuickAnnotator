@@ -23,7 +23,7 @@ def test_insert_new_annotation(db_session, annotations_seed):
     # Act
     model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, True))
     db_session.query(model).delete()
-    ann = insert_new_annotation(image_id, annotation_class_id, True, 1, shapely_polygon)
+    ann = insert_new_annotation(image_id, annotation_class_id, True, 0, shapely_polygon)
 
     # Assert
     model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, True))
@@ -51,7 +51,7 @@ def test_bulk_annotations_insert(db_session,annotations_seed):
     # Act
     model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, True))
     db_session.query(model).delete()
-    bulk_insert_annotations(image_id, annotation_class_id, True, 1, shapely_polygons)
+    bulk_insert_annotations(image_id, annotation_class_id, True, shapely_polygons, from_work_mag=True)
 
     # Assert
     model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, True))

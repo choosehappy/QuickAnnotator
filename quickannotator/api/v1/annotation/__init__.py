@@ -196,28 +196,14 @@ class BulkAnnotation(MethodView):
         This method is primarily used for ground truth annotations. Predictions should only be saved by the model.
         """
         isgt = True
-        scale_factor = base_to_work_scaling_factor(image_id, annotation_class_id)
-        tilespace = get_tilespace(image_id, annotation_class_id, in_work_mag=True)
-        
-        polygons = []
-        tile_ids = []
-        
-        for annotation in args:
-            poly = scale(geom=shape(annotation['polygon']), xfact=scale_factor, yfact=scale_factor, origin=(0, 0))
-            tile_id = tilespace.point_to_tileid(poly.centroid.x, poly.centroid.y)
-            polygons.append(poly)
-            tile_ids.append(tile_id)
-        
-        annotations = bulk_insert_annotations(image_id, annotation_class_id, isgt, tile_ids[0], polygons)
-        bulk_upsert_tiles(annotation_class_id, image_id, tile_ids, hasgt=isgt)
-        
-        result_annotations = []
-        for ann in annotations:
-            result_ann = get_annotation_query(ann.__class__, 1/scale_factor).filter_by(id=ann.id).first()
-            result_annotations.append(result_ann)
-        
-        return result_annotations, 200
+        polygons = [shape(annotation['polygon']) for annotation in args]
 
+        annotations = bulk_insert_annotations(image_id, annotation_class_id, isgt, polygons, from_work_mag=False)
+        tileids = [ann.tile_id for ann in annotations]
+        bulk_upsert_tiles(annotation_class_id, image_id, tileids, hasgt=isgt)
+
+        
+        return {}, 200
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>/<int:tile_id>')
 class AnnotationByTile(MethodView):
@@ -246,17 +232,8 @@ class AnnotationsWithinPolygon(MethodView):
 
         annotations = get_annotations_for_tiles(image_id, annotation_class_id, tile_ids, args['is_gt'])
 
-        # Create a spatial index for the annotations
-        # TODO: Consider using the database spatial index for this task.
-        polygons = [shapely.from_geojson(ann.polygon) for ann in annotations]
-        spatial_index = STRtree(polygons)
-
-        # Query the spatial index for annotations intersecting the polygon
         query_polygon = shape(args['polygon'])
-        crude_intersecting_ids = spatial_index.query(query_polygon)  # List of polygon indices with bounding boxes which intersect the query polygon
-
-        # Filter annotations that intersect the polygon
-        filtered_anns = [annotations[i] for i in crude_intersecting_ids if polygons[i].intersects(query_polygon)]
+        filtered_anns = [ann for ann in annotations if shapely.from_geojson(ann.polygon).intersects(query_polygon)]
         return filtered_anns, 200
         
 @bp.route('/<int:annotation_class_id>/dryrun')
