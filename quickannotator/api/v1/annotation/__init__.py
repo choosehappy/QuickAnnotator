@@ -98,8 +98,9 @@ class Annotation(MethodView):
         """     create or update an annotation directly in the db
         """
         store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=False)
-        store.update_annotation(args['annotation_id'], shape(args['polygon']))
+        ann = store.update_annotation(args['annotation_id'], shape(args['polygon']))
 
+        return ann, 201
     @bp.arguments(DeleteAnnArgsSchema, location='query')
     def delete(self, args, image_id, annotation_class_id):
         """     delete an annotation

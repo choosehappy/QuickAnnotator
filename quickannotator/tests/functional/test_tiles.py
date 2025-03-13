@@ -1,10 +1,5 @@
 from flask import Flask
-import os
-import pytest
-from quickannotator.api.v1.tile import bp as tile_bp
-from quickannotator.api.v1.tile.helper import upsert_tile
 from quickannotator.constants import TileStatus
-from quickannotator.db import models
 import geojson
 
 def test_get_tile(test_client, seed, db_session):
@@ -98,6 +93,7 @@ def test_search_tiles_within_bbox(test_client, seed, db_session):
     assert isinstance(data, list)
     assert len(data) > 0
 
+# NOTE: need to add annotation_1_1_gt and a tissue mask annotation for this to work
 def test_search_tile_by_polygon(test_client, seed, db_session, annotations_seed):
     """
     GIVEN a test client and tiles within a specific polygon

@@ -56,8 +56,8 @@ export class Annotation {
     }
 }
 
-export interface PostAnnArgs {
-    polygon: string;
+export interface PostAnnsArgs {
+    polygons: string[];
 }
 
 export interface PostOperationArgs extends AnnotationResponse {
@@ -65,7 +65,9 @@ export interface PostOperationArgs extends AnnotationResponse {
     operation: number;
 }
 
-export interface PutAnnArgs extends AnnotationResponse {
+export interface PutAnnArgs {
+    polygon: string;
+    annotation_id: number;
     is_gt: boolean;
 }
 

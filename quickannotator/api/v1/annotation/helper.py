@@ -1,14 +1,10 @@
-import quickannotator.db as qadb
+from quickannotator.db import Base
 from sqlalchemy import select, text, MetaData, Table
 from sqlalchemy.orm import aliased, Session, Query
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.types import DateTime
 from shapely.geometry import shape
 import geojson
-
-
-
-Base = declarative_base()
 
 # def annotations_within_bbox(table, x1, y1, x2, y2):
 #     envelope = func.BuildMbr(x1, y1, x2, y2)

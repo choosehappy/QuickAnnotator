@@ -8,7 +8,7 @@ from quickannotator.db import models
 from quickannotator.api.v1.project.utils import add_project
 from quickannotator.api.v1.image.utils import add_image_by_path
 from quickannotator.api.v1.annotation_class.helper import insert_annotation_class
-from quickannotator.api.v1.utils.shared_crud import upsert_tiles
+from quickannotator.api.v1.utils.shared_crud import upsert_tiles, AnnotationStore
 from quickannotator.constants import TileStatus
 from shapely.geometry import Polygon
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
@@ -103,16 +103,13 @@ def annotations_seed(db_session, seed, fake_ann_class_tilespace, mask_tilespace)
     tilesize = 2048
 
     # Create the mask annotation table
-    mask_store = AnnotationStore(image_id, constants.MASK_CLASS_ID, is_gt=True)
-    mask_store.create_annotation_table()
+    mask_store = AnnotationStore(image_id, constants.MASK_CLASS_ID, is_gt=True, create_table=True)
 
     # Create the annotation table
-    annotation_store = AnnotationStore(image_id, annotation_class_id, is_gt=True)
-    annotation_store.create_annotation_table()
+    annotation_store = AnnotationStore(image_id, annotation_class_id, is_gt=True, create_table=True)
 
     # Create the prediction table
-    prediction_store = AnnotationStore(image_id, annotation_class_id, is_gt=False)
-    prediction_store.create_annotation_table()
+    prediction_store = AnnotationStore(image_id, annotation_class_id, is_gt=False, create_table=True)
 
     # Insert a mask annotation which envelopes all annotations
     mask_poly = Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)])

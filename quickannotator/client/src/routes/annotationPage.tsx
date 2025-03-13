@@ -10,7 +10,7 @@ import ConfirmationModal from '../components/confirmationModal.tsx';
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
-import { fetchImage, fetchProject, postAnnotation, postBulkAnnotations } from "../helpers/api.ts";
+import { fetchImage, fetchProject, postAnnotations } from "../helpers/api.ts";
 import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation } from "../types.ts";
 import { MODAL_DATA, TOOLBAR_KEYS } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
@@ -44,7 +44,7 @@ const AnnotationPage = () => {
 
         // POST new annotations as ground truth
         // if (!highlightedPreds) return;
-        postBulkAnnotations(currentImage.id, currentClass?.id, highlightedPreds?.map(ann => ann.parsedPolygon)).then((resp) => {
+        postAnnotations(currentImage.id, currentClass?.id, highlightedPreds?.map(ann => ann.parsedPolygon)).then((resp) => {
             setHighlightedPreds(null);
             setCurrentTool(TOOLBAR_KEYS.POINTER);
         });

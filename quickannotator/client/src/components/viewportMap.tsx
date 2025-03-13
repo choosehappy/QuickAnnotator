@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse } from "../types.ts"
-import { searchTiles, fetchAllAnnotations, postAnnotation, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTile, predictTile, getAnnotationsWithinPolygon, getTilesWithinPolygon } from "../helpers/api.ts";
+import { searchTiles, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTile, predictTile, getAnnotationsWithinPolygon, getTilesWithinPolygon } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 import { TOOLBAR_KEYS, LAYER_KEYS, TILE_STATUS, MODAL_DATA } from "../helpers/config.ts";
 
@@ -241,9 +241,9 @@ const ViewportMap = (props: Props) => {
         const currentImage: Image = ctx.current.currentImage;
         const currentClass: Annotation = ctx.current.currentClass;
 
-        postAnnotation(currentImage.id, currentClass.id, newPolygon).then((resp) => {
+        postAnnotations(currentImage.id, currentClass.id, [newPolygon]).then((resp) => {
             if (resp.status === 200) {
-                const annotation = new Annotation(resp.data, currentClass.id);
+                const annotation = new Annotation(resp.data[0], currentClass.id);
                 const tile_id = annotation.tile_id;
                 if (!tile_id) {
                     console.log("Tile ID not found.")
@@ -488,7 +488,7 @@ const ViewportMap = (props: Props) => {
 
         // TODO: PUT is called even when the annotation has been deleted. The PUT fails, which is fine, but it's not efficient.
         if (prevAnnotationId && prevAnnotationId !== annotationId && props.currentImage && props.currentClass) {
-            putAnnotation(props.currentImage.id, prevState).then(() => {
+            putAnnotation(props.currentImage.id, props.currentClass.id, prevState).then(() => {
                 console.log("Annotation updated.")
             });
         }

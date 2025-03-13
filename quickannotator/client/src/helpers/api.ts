@@ -1,6 +1,6 @@
 // Generic response type
 type ApiResponse<T> = Promise<T>;
-import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, PostAnnArgs, PostOperationArgs, PutAnnArgs } from "../types.ts";
+import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, PostAnnsArgs, PostOperationArgs, PutAnnArgs } from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
 
 interface FetchOptions extends RequestInit {
@@ -105,32 +105,23 @@ export const getAnnotationsForTile = async (image_id: number, annotation_class_i
 }
 
 // Post annotation
-export const postAnnotation = async (image_id: number, annotation_class_id: number, polygon: Polygon) => {
-    const requestBody: PostAnnArgs = {
-        polygon: JSON.stringify(polygon),
+export const postAnnotations = async (image_id: number, annotation_class_id: number, polygons: Polygon[]) => {
+    const requestBody: PostAnnsArgs = {
+        polygons: polygons.map(polygon => JSON.stringify(polygon)),
     };
 
-    return await post<PostAnnArgs, AnnotationResponse>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);
+    return await post<PostAnnsArgs, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);
 }
 
-// Post bulk annotations
-export const postBulkAnnotations = async (image_id: number, annotation_class_id: number, polygons: Polygon[]) => {
-    const requestBody = polygons.map(polygon => {
-        return {
-            polygon: JSON.stringify(polygon),
-        };
-    });
 
-    return await post<PostAnnArgs[], AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/bulk`, requestBody);
-}
-
-export const putAnnotation = async (image_id: number, annotation: Annotation) => {
-    const { annotation_class_id, ...rest } = annotation;
+export const putAnnotation = async (image_id: number, annotation_class_id: number, annotation: Annotation) => {
     const requestBody: PutAnnArgs = {
-        ...rest,
+        polygon: annotation.polygon,
+        annotation_id: annotation.id,
         is_gt: true,
-    }
-    return await put<PutAnnArgs, AnnotationResponse>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);;
+    };
+
+    return await put<PutAnnArgs, AnnotationResponse>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);
 }
 
 export const removeAnnotation = async (image_id: number, annotation_class_id: number, annotation_id: number, is_gt: boolean) => {
@@ -187,12 +178,12 @@ export const operateOnAnnotation = async (annotation: Annotation, polygon2: Poly
 }
 
 export const getAnnotationsWithinPolygon = async (image_id: number, annotation_class_id: number, is_gt: boolean, polygon: Polygon) => {
-    const requestBody: PostAnnArgs = {
+    const requestBody: PostAnnsArgs = {
         is_gt: is_gt,
         polygon: JSON.stringify(polygon),
     };
 
-    return await post<PostAnnArgs, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/withinpoly`, requestBody);
+    return await post<PostAnnsArgs, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/withinpoly`, requestBody);
 }
 
 export const getTilesWithinPolygon = async (image_id: number, annotation_class_id: number, polygon: Polygon, include_placeholder_tiles: boolean, hasgt?: boolean) => {

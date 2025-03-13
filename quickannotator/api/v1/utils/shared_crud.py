@@ -5,17 +5,16 @@ from datetime import datetime
 from typing import List
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Query
-from quickannotator.api.v1.annotation.helper import Base
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
 from quickannotator.constants import TileStatus
-import quickannotator.db.models
-from quickannotator.db import db_session
+from quickannotator.db import db_session, Base
 import quickannotator.db.models as models
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from sqlalchemy.ext.declarative import declarative_base
 
 
-def get_tile(annotation_class_id: int, image_id: int, tile_id: int) -> quickannotator.db.models.Tile:
-    result = db_session.query(quickannotator.db.models.Tile).filter_by(
+def get_tile(annotation_class_id: int, image_id: int, tile_id: int) -> models.Tile:
+    result = db_session.query(models.Tile).filter_by(
         annotation_class_id=annotation_class_id,
         image_id=image_id,
         tile_id=tile_id
@@ -46,26 +45,15 @@ def get_annotation_query(model, scale_factor: float=1.0) -> Query:
     if scale_factor <= 0:
         raise ValueError("scale_factor must be greater than 0.")
     
-    if scale_factor == 1.0:
-        query = db_session.query(
-            model.id,
-            model.tile_id,
-            func.ST_AsGeoJSON(model.centroid).label('centroid'),
-            func.ST_AsGeoJSON(model.polygon).label('polygon'),
-            model.area,
-            model.custom_metrics,
-            model.datetime
-        )
-    else:
-        query = db_session.query(
-            model.id,
-            model.tile_id,
-            func.ST_AsGeoJSON(func.ST_Scale(model.centroid, scale_factor, scale_factor)).label('centroid'),
-            func.ST_AsGeoJSON(func.ST_Scale(model.polygon, scale_factor, scale_factor)).label('polygon'),
-            model.area,
-            model.custom_metrics,
-            model.datetime
-        )
+    query = db_session.query(
+        model.id,
+        model.tile_id,
+        func.ST_AsGeoJSON(func.ST_Scale(model.centroid, scale_factor, scale_factor)).label('centroid'),
+        func.ST_AsGeoJSON(func.ST_Scale(model.polygon, scale_factor, scale_factor)).label('polygon'),
+        model.area,
+        model.custom_metrics,
+        model.datetime
+    )
 
     return query
 
@@ -125,7 +113,7 @@ def upsert_tiles(image_id: int, annotation_class_id: int, tile_ids: list[int], s
 
 
 class AnnotationStore:
-    def __init__(self, image_id: int, annotation_class_id: int, is_gt: bool, in_work_mag=True):
+    def __init__(self, image_id: int, annotation_class_id: int, is_gt: bool, in_work_mag=True, create_table=False):
         """
         Initializes the annotation helper with the given parameters.
 
@@ -135,7 +123,7 @@ class AnnotationStore:
             is_gt (bool): A flag indicating whether the annotation is ground truth.
             in_work_mag (bool, optional): If True, all input and output polygons are in working magnification. Defaults to True. 
                 If False, all input and output polygons are in base magnification.
-
+            create_table_if_non_existent (bool, optional): If True, creates the annotation table if it does not exist. Defaults to False.
 
         Attributes:
             image_id (int): The ID of the image.
@@ -148,12 +136,17 @@ class AnnotationStore:
         self.image_id = image_id
         self.annotation_class_id = annotation_class_id
         self.is_gt = is_gt
-        self.model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt))
         self.scaling_factor = 1.0 if in_work_mag else base_to_work_scaling_factor(image_id, annotation_class_id)
+
+        if create_table:
+            model = self.create_annotation_table(image_id, annotation_class_id, is_gt)
+            self.model = model
+        else:
+            self.model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt))
 
     # CREATE
     # TODO: make this function applicable to predicted annotations, not just ground truths.
-    def insert_annotations(self, polygons: List[BaseGeometry]):
+    def insert_annotations(self, polygons: List[BaseGeometry]) -> List[models.Annotation]:
         # in_work_mag is true because we expect the polygons are scaled at this point.
         tilespace = get_tilespace(self.image_id, self.annotation_class_id, in_work_mag=True)
         new_annotations = []
@@ -162,9 +155,6 @@ class AnnotationStore:
             tile_id = tilespace.point_to_tileid(scaled_polygon.centroid.x, scaled_polygon.centroid.y)
 
             new_annotations.append({
-                "image_id": self.image_id,
-                "annotation_class_id": self.annotation_class_id,
-                "isgt": self.is_gt,
                 "tile_id": tile_id,  # Ensure correct value
                 "centroid": scaled_polygon.centroid.wkt,
                 "polygon": scaled_polygon.wkt,
@@ -172,18 +162,25 @@ class AnnotationStore:
                 "custom_metrics": compute_custom_metrics(),  # Add appropriate custom metrics if needed
                 "datetime": datetime.now()
             })
-
-        stmt = insert(self.model).returning(self.model).values(new_annotations)
-        result = db_session.scalars(stmt).all()
-
+        stmt = insert(self.model).returning(self.model.id).values(new_annotations)
+        ids = db_session.scalars(stmt).all()
+        result = self.get_annotations_by_ids(annotation_ids=ids)
         tile_ids = [ann.tile_id for ann in result]
-        upsert_tiles(self.image_id, self.annotation_class_id, tile_ids, hasgt=True)
+        
+        if self.is_gt:
+            upsert_tiles(self.image_id, self.annotation_class_id, tile_ids, seen=None, hasgt=True)
+        else:
+            upsert_tiles(self.image_id, self.annotation_class_id, tile_ids, seen=TileStatus.DONEPROCESSING, hasgt=None)
         return result
 
 
     # READ
     def get_annotation_by_id(self, annotation_id: int) -> models.Annotation:
         result = get_annotation_query(self.model, 1/self.scaling_factor).filter_by(id=annotation_id).first()
+        return result
+    
+    def get_annotations_by_ids(self, annotation_ids: List[int]) -> List[models.Annotation]:
+        result = get_annotation_query(self.model, 1/self.scaling_factor).filter(self.model.id.in_(annotation_ids)).all()
         return result
 
     def get_annotations_for_tiles(self, tile_ids: List[int]) -> List[models.Annotation]:
@@ -197,34 +194,44 @@ class AnnotationStore:
         return result
 
     # UPDATE
-    def update_annotation(self, annotation_id: int, polygon: BaseGeometry):
+    def update_annotation(self, annotation_id: int, polygon: BaseGeometry) -> models.Annotation:
         scaled_polygon = self.scale_polygon(polygon, self.scaling_factor)
-        tile_id = get_tilespace(self.image_id, self.annotation_class_id).point_to_tileid(scaled_polygon.centroid.x, scaled_polygon.centroid.y)
-        stmt = self.model.update().where(self.model.id == annotation_id).values({
-            "tile_id": tile_id,
-            "centroid": scaled_polygon.centroid.wkt,
-            "polygon": scaled_polygon.wkt,
-            "area": scaled_polygon.area,
-            "custom_metrics": compute_custom_metrics(),
-            "datetime": datetime.now()
-        })
-        result = db_session.execute(stmt)
-        return result
+        tile_id = get_tilespace(self.image_id, self.annotation_class_id).point_to_tileid(
+            scaled_polygon.centroid.x, scaled_polygon.centroid.y
+        )
+
+        annotation = db_session.query(self.model).filter(self.model.id == annotation_id).first()
+        
+        if annotation:
+            annotation.tile_id = tile_id
+            annotation.centroid = scaled_polygon.centroid.wkt
+            annotation.polygon = scaled_polygon.wkt
+            annotation.area = scaled_polygon.area
+            annotation.custom_metrics = compute_custom_metrics()
+            annotation.datetime = datetime.now()
+            db_session.commit()
+            return self.get_annotation_by_id(annotation_id)  # Get the updated annotation by id
+
+        return None  # Handle case where annotation_id is not found
 
 
     # DELETE
     def delete_annotation(self, annotation_id: int):
-        stmt = self.model.delete().where(self.model.id == annotation_id)
-        result = db_session.execute(stmt)
+        result = db_session.query(self.model).filter(self.model.id == annotation_id).delete()
         return result
 
     def delete_all_annotations(self):
         db_session.query(self.model).delete()
 
-    # MISC
-    def create_annotation_table(self):
-        table = self.model.__table__.to_metadata(Base.metadata, name=self.model.__tablename__)
+    
+    @staticmethod
+    def create_annotation_table(image_id: int, annotation_class_id: int, is_gt: bool):
+        table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt)
+        table = models.Annotation.__table__.to_metadata(Base.metadata, name=table_name)
         Base.metadata.create_all(bind=db_session.bind, tables=[table])
+
+        return create_dynamic_model(table_name)
+
 
 
     @staticmethod
