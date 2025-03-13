@@ -105,9 +105,9 @@ class Annotation(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     # These columns are kept null intentionally because the information is stored in the table name. Consider eventually removing these columns.
-    image_id = Column(Integer, nullable=True, default=None)
-    annotation_class_id = Column(Integer, nullable=True, default=None)
-    isgt = Column(Boolean, nullable=True, default=None)
+    # image_id = Column(Integer, nullable=True, default=None)
+    # annotation_class_id = Column(Integer, nullable=True, default=None)
+    # isgt = Column(Boolean, nullable=True, default=None)
 
     # columns
     tile_id = Column(Integer, nullable=False, default=None)
