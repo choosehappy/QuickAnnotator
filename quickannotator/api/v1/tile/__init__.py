@@ -3,14 +3,13 @@ from marshmallow import fields, Schema
 from flask.views import MethodView
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
+from ..utils.shared_crud import upsert_tiles
 import quickannotator.db as qadb
 from quickannotator.db import db_session
 from quickannotator.constants import TileStatus
 import quickannotator.db.models as models
-from .helper import get_tile, compute_on_tile, upsert_tile, get_tile_ids_intersecting_mask, get_tile_ids_intersecting_polygons
-from quickannotator.api.v1.image.utils import get_image_by_id
-from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
-from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
+from .helper import get_tile, compute_on_tile, get_tile_ids_intersecting_mask, get_tile_ids_intersecting_polygons
+from quickannotator.api.v1.utils.coordinate_space import get_tilespace
 bp = Blueprint('tile', __name__, description="Tile operations")
 
 # ------------------------ RESPONSE MODELS ------------------------
@@ -188,7 +187,7 @@ class TilePredict(MethodView):
     def post(self, args):
         """     predict tiles for a given image & class
         """
-        upsert_tile(args['annotation_class_id'], args['image_id'], args['tile_id'], seen=TileStatus.PROCESSING)
+        upsert_tiles(args['annotation_class_id'], args['image_id'], [args['tile_id']], seen=TileStatus.PROCESSING)
 
         object_ref = compute_on_tile(args['annotation_class_id'], args['image_id'], tile_id=args['tile_id'], sleep_time=5)
         return {'object_ref': object_ref}, 201

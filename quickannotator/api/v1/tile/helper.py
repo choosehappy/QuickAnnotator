@@ -10,95 +10,17 @@ import numpy as np
 import cv2
 import geojson
 
-from sqlalchemy.dialects.sqlite import insert   # NOTE: This import is necessary as there is no dialect-neutral way to call on_conflict()
 from quickannotator.api.v1.utils.shared_crud import get_annotation_query
 import quickannotator.db.models as models
 from quickannotator.db import get_session
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
-from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_tile
+from quickannotator.api.v1.utils.shared_crud import get_tile
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
 from quickannotator.constants import TileStatus, MASK_CLASS_ID, MASK_DILATION
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
-
-
-def upsert_tile(annotation_class_id: int, image_id: int, tile_id: int, seen: TileStatus=None, hasgt: bool=None):
-    """
-    Inserts a new tile or updates an existing tile in the database.
-    This function attempts to insert a new tile with the given annotation_class_id, image_id, and tile_id.
-    If a tile with the same annotation_class_id, image_id, and tile_id already exists, it updates the 'seen'
-    and 'hasgt' fields if their values are provided.
-    Args:
-        annotation_class_id (int): The ID of the annotation class.
-        image_id (int): The ID of the image.
-        tile_id (int): The ID of the tile.
-        seen (TileStatus, optional): The status indicating if the tile has been seen. Defaults to None.
-        hasgt (bool, optional): A flag indicating if the tile has ground truth. Defaults to None.
-    Returns:
-        ResultProxy: The result of the database execution.
-    """
-
-    update_fields = {}
-    if seen is not None:    # Only update the 'seen' field if the value is provided
-        update_fields['seen'] = seen
-    if hasgt is not None:   # Only update the 'hasgt' field if the value is provided
-        update_fields['hasgt'] = hasgt
-    
-    stmt = insert(models.Tile).values(
-        annotation_class_id=annotation_class_id,
-        image_id=image_id,
-        tile_id=tile_id,
-        **update_fields
-    ).on_conflict_do_update(
-        index_elements=['annotation_class_id', 'image_id', 'tile_id'],
-        set_=update_fields
-    )
-    
-    result = db_session.execute(stmt)
-    db_session.commit()
-    
-    return result
-
-def bulk_upsert_tiles(annotation_class_id: int, image_id: int, tile_ids: list[int], seen: TileStatus=None, hasgt: bool=None):
-    """
-    Inserts new tiles or updates existing tiles in the database.
-    This function attempts to insert new tiles with the given annotation_class_id, image_id, and tile_ids.
-    If tiles with the same annotation_class_id, image_id, and tile_ids already exist, it updates the 'seen'
-    and 'hasgt' fields if their values are provided.
-    Args:
-        annotation_class_id (int): The ID of the annotation class.
-        image_id (int): The ID of the image.
-        tile_ids (list[int]): A list of tile IDs.
-        seen (TileStatus, optional): The status indicating if the tiles have been seen. Defaults to None.
-        hasgt (bool, optional): A flag indicating if the tiles have ground truth. Defaults to None.
-    Returns:
-        ResultProxy: The result of the database execution
-    """
-    
-    update_fields = {}
-    if seen is not None:    # Only update the 'seen' field if the value is provided
-        update_fields['seen'] = seen
-    if hasgt is not None:   # Only update the 'hasgt' field if the value is provided
-        update_fields['hasgt'] = hasgt
-    
-    stmt = insert(models.Tile).values([
-        {
-            'annotation_class_id': annotation_class_id,
-            'image_id': image_id,
-            'tile_id': tile_id,
-            **update_fields
-        } for tile_id in tile_ids
-    ]).on_conflict_do_update(
-        index_elements=['annotation_class_id', 'image_id', 'tile_id'],
-        set_=update_fields
-    )
-    
-    result = db_session.execute(stmt)
-    db_session.commit()
-    
-    return result
-    
+from quickannotator.api.v1.utils.shared_crud import AnnotationStore
 
 # DEPRECATED
 def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile_id: int) -> bool:
@@ -201,9 +123,9 @@ def remote_compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int
         # Process the tile (using shapely for example)
         bbox = tilespace.get_bbox_for_tile(tile_id)
         bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
-        for _ in range(random.randint(20, 40)):
-            polygon = generate_random_circle_within_bbox(bbox_polygon, 100)
-            insert_new_annotation(image_id, annotation_class_id, is_gt=False, tile_id=tile_id, polygon=polygon)
+        polygons = [generate_random_circle_within_bbox(bbox_polygon, 100) for _ in range(random.randint(20, 40))]
+        store = AnnotationStore(image_id, annotation_class_id, is_gt=False)
+        store.insert_annotations(polygons)
 
         # Mark tile as processed
         tile.seen = 2

@@ -1,10 +1,10 @@
 import geojson
-from quickannotator.api.v1.utils.shared_crud import bulk_insert_annotations, get_annotation_query, insert_new_annotation
+from quickannotator.api.v1.utils.shared_crud import bulk_insert_annotations, get_annotation_query, insert_new_annotation, upsert_tiles
 from quickannotator.db.utils import create_dynamic_model, build_annotation_table_name
 from quickannotator.api.v1.tile.helper import base_to_work_scaling_factor
 from shapely.geometry import shape, Polygon
 from conftest import assert_geojson_equal
-from quickannotator.api.v1.tile.helper import base_to_work_scaling_factor, bulk_upsert_tiles
+from quickannotator.api.v1.tile.helper import base_to_work_scaling_factor
 from quickannotator.constants import TileStatus
 from quickannotator.db import models
 
@@ -77,7 +77,7 @@ def test_bulk_upsert_tiles(db_session, seed):
 
     # Act
     db_session.query(models.Tile).delete()
-    bulk_upsert_tiles(annotation_class_id, image_id, tile_ids, seen=seen_status, hasgt=hasgt)
+    upsert_tiles(annotation_class_id, image_id, tile_ids, seen=seen_status, hasgt=hasgt)
 
     # Assert
     result = db_session.query(models.Tile).filter_by(annotation_class_id=annotation_class_id, image_id=image_id).all()

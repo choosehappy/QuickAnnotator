@@ -1,4 +1,5 @@
 from geoalchemy2 import Geometry
+import geojson.geometry
 from marshmallow import fields
 from sqlalchemy.sql import func
 from quickannotator.db import Base
@@ -166,7 +167,7 @@ class GeometryField(fields.Field):
     def _serialize(self, value, attr, obj, **kwargs):
         return value
 
-    def _deserialize(self, value, attr, data, **kwargs):
+    def _deserialize(self, value, attr, data, **kwargs) -> geojson.geometry.Geometry:
         try:
             geom = geojson.loads(value)
             return geom
