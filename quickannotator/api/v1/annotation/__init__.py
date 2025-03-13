@@ -6,7 +6,7 @@ from shapely.geometry import shape, mapping
 import json
 from shapely.affinity import scale
 import shapely
-
+from typing import List
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
 import quickannotator.db.models as models
 from quickannotator.db import db_session
@@ -15,12 +15,11 @@ from .helper import (
     annotations_within_bbox_spatial,
     get_annotations_for_tile,
     get_annotations_for_tiles,
-    get_annotation_by_id
+    get_annotation_by_id,
+    get_annotations_within_poly
 )
 from datetime import datetime
 from quickannotator.api.v1.tile.helper import upsert_tile, tile_intersects_mask, get_tile_ids_intersecting_mask, get_tile_ids_intersecting_polygons
-from quickannotator.api.v1.image.utils import get_image_by_id
-from quickannotator.api.v1.annotation_class.helper import get_annotation_class_by_id
 from quickannotator.api.v1.utils.shared_crud import insert_new_annotation, get_annotation_query, bulk_insert_annotations
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
 import quickannotator.constants as constants
@@ -89,9 +88,7 @@ class Annotation(MethodView):
     def get(self, args, image_id, annotation_class_id):
         """     returns an Annotation
         """
-        scale_factor = base_to_work_scaling_factor(image_id, annotation_class_id)
-        model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, args['is_gt']))
-        result = get_annotation_query(model, 1/scale_factor).filter_by(id=args['annotation_id']).first()
+        result: models.Annotation = get_annotation_by_id(image_id, annotation_class_id, args['is_gt'], args['annotation_id'], in_work_mag=False)
         return result, 200
 
     @bp.arguments(PostAnnArgsSchema, location='json')
@@ -210,7 +207,7 @@ class AnnotationByTile(MethodView):
     def get(self, args, image_id, annotation_class_id, tile_id):
         """     get all annotations for a given tile
         """
-        result = get_annotations_for_tile(image_id, annotation_class_id, tile_id, args['is_gt'])
+        result = get_annotations_for_tiles(image_id, annotation_class_id, [tile_id], args['is_gt'])
         return result, 200
     
 @bp.route('/<int:image_id>/<int:annotation_class_id>/withinpoly')
@@ -220,7 +217,7 @@ class AnnotationsWithinPolygon(MethodView):
     def post(self, args, image_id, annotation_class_id):
         """     get all annotations within a polygon
         """
-
+        result: List[models.Annotation] = get_annotations_within_poly()
         # 1. Get all tiles intersecting the polygon
         tiles_ids_within_mask, _, _ = get_tile_ids_intersecting_mask(image_id, annotation_class_id, constants.MASK_DILATION)
 

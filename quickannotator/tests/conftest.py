@@ -13,7 +13,7 @@ from quickannotator.api.v1.tile.helper import upsert_tile
 from quickannotator.constants import TileStatus
 from shapely.geometry import Polygon
 from quickannotator.api.v1.tile.helper import upsert_tile
-from quickannotator.api.v1.annotation.helper import create_annotation_table, get_annotation_by_id
+from quickannotator.api.v1.annotation.helper import create_annotation_table
 from quickannotator.api.v1.utils.coordinate_space import TileSpace
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
 import quickannotator.constants as constants
