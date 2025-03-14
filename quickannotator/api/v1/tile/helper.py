@@ -132,7 +132,6 @@ def remote_compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int
             
 
 
-
 def compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
     ref = remote_compute_on_tile.remote(annotation_class_id, image_id, tile_id, sleep_time)
     return ref.hex()

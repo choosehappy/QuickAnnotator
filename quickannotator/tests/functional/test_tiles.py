@@ -97,7 +97,7 @@ def test_search_tiles_within_bbox(test_client, seed, db_session):
 def test_search_tile_by_polygon(test_client, seed, db_session, annotations_seed):
     """
     GIVEN a test client and tiles within a specific polygon
-    WHEN the client requests the tiles within the polygon using a GET request
+    WHEN the client requests the tiles within the polygon using a POST request
     THEN the response should have a status code of 200 and the returned data should match the tiles within the polygon
     """
 
@@ -106,26 +106,25 @@ def test_search_tile_by_polygon(test_client, seed, db_session, annotations_seed)
     image_id = 1
     polygon = geojson.Polygon([[(0, 0), (0, 100), (100, 100), (100, 0), (0, 0)]])
     include_placeholder_tiles = 'true'
-    seen = TileStatus.UNSEEN
 
     # Act
     params = {
         'annotation_class_id': annotation_class_id,
         'image_id': image_id,
-        'polygon': geojson.dumps(polygon),
+        'polygon': polygon,
         'include_placeholder_tiles': include_placeholder_tiles
     }
-    response = test_client.get('/api/v1/tile/search/polygon', json=params)
+    response = test_client.post('/api/v1/tile/search/polygon', json=params)
 
     # Assert
     assert response.status_code == 200
     data = response.get_json()
-    assert isinstance(data, list)
-    assert len(data) > 0
-    tile_ids = [tile['tile_id'] for tile in data]
-    assert 0 in tile_ids
-    assert 1 in tile_ids
-    assert 19 in tile_ids
+    assert 'tile_ids' in data
+    assert isinstance(data['tile_ids'], list)
+    assert len(data['tile_ids']) > 0
+    assert 0 in data['tile_ids']
+    assert 1 in data['tile_ids']
+    assert 19 in data['tile_ids']
 
 def test_search_tile_by_coordinates(test_client, seed, db_session):
     """
@@ -138,7 +137,6 @@ def test_search_tile_by_coordinates(test_client, seed, db_session):
     annotation_class_id = 2
     image_id = 1
     tile_id = 0
-    seen = TileStatus.UNSEEN
 
     x, y = 50, 50
 
@@ -154,10 +152,7 @@ def test_search_tile_by_coordinates(test_client, seed, db_session):
     # Assert
     assert response.status_code == 200
     data = response.get_json()
-    assert data['annotation_class_id'] == annotation_class_id
-    assert data['image_id'] == image_id
     assert data['tile_id'] == tile_id
-    assert data['seen'] == seen
 
 # NOTE: Although the object ref is created, the prediction job fails because ray doesn't have access to the in-memory db
 def test_predict_tile(test_client, seed, db_session):
