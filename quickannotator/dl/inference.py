@@ -1,22 +1,20 @@
-from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
+import cv2
+
 import torch
 import numpy as np
 import shapely.wkb
 import shapely.geometry
 import shapely.affinity
-import large_image
-#import matplotlib.pyplot as plt
-from sqlalchemy.orm import sessionmaker
-from .dataset import TileDataset
-from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client
-import cv2, os
-from sqlalchemy import Table, func
-from quickannotator.constants import TileStatus
-import ray
-from quickannotator.db import get_session
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model, load_tile
 
-            
+from sqlalchemy import func, select, update
+
+from quickannotator.db.models import Tile
+from quickannotator.db import get_session
+from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+
+from quickannotator.constants import TileStatus
+from quickannotator.dl.utils import decompress_from_jpeg, get_memcached_client, load_tile
+
 
 def preprocess_image(io_image, device):
     io_image = io_image / 255.0
@@ -37,111 +35,130 @@ def postprocess_output(outputs, min_area = 100, dilate_kernel = 2): ## These sho
     polygons = [shapely.geometry.Polygon(contour[:, 0, :]) for contour in contours if cv2.contourArea(contour) >= min_area]
     return polygons
 
+
+
+def delete_annotations(tile):
+    table_name = build_annotation_table_name(tile.image_id, tile.annotation_class_id, is_gt=False)
+    table = create_dynamic_model(table_name)  # Get the ORM class dynamically
+
+    with get_session() as db_session:
+        db_session.query(table).filter(table.tile_id == tile.tile_id).delete(synchronize_session=False) 
+        #Why synchronize_session=False?
+        #This ensures that SQLAlchemy does not try to synchronize in-memory objects, improving performance when deleting many rows.
+        db_session.commit()
+
+
 def save_annotations(tile,polygons): #TODO: i feel like this function likely exists elsewhere in the system as well?
     table_name = build_annotation_table_name(tile.image_id, tile.annotation_class_id, is_gt = False)
     table = create_dynamic_model(table_name)
     
-    tpoly = shapely.wkb.loads(tile.geom.data)
-    minx, miny, maxx, maxy = tpoly.bounds
 
     new_annotations = []
     for polygon in polygons:
-        translated_polygon = shapely.affinity.translate(polygon, xoff=minx, yoff=miny) #elegant
+        translated_polygon = shapely.affinity.translate(polygon, xoff=tile.x, yoff=tile.y) #elegant
         area = translated_polygon.area
         centroid = translated_polygon.centroid
         
         new_annotation = {
             'image_id': tile.image_id,
             'annotation_class_id': tile.annotation_class_id,
+            'tile_id': tile.tile_id,
             'polygon': translated_polygon.wkt,
             'area': area,
             'isgt': False,
             'centroid': centroid.wkt
         }
-        print("new anno!\t\t:",new_annotation["image_id"],new_annotation["annotation_class_id"]) #TODO: push to logging or remove
+        #print("new anno!\t\t:",new_annotation["image_id"],new_annotation["annotation_class_id"]) #TODO: push to logging or remove
         new_annotations.append(new_annotation)
     #print(new_annotations)
     
     with get_session() as db_session:
-        db_session.execute(table.insert(), new_annotations)
+        db_session.execute(table.__table__.insert(), new_annotations)
+        db_session.commit()
         
 
 
-def getPendingInferenceTiles(classid):
-    with get_session() as db_session:
-        tiles = db_session.query(Tile)\
-                        .filter(Tile.annotation_class_id == classid, Tile.seen == TileStatus.STARTPROCESSING)\
-                        .order_by(Tile.datetime.desc())\
-                        .all() 
-    
-    update_tile_status(tiles,TileStatus.PROCESSING)
+def getPendingInferenceTiles(classid,batch_size_infer):
+    with get_session() as db_session:  # Ensure this provides a session context
+        with db_session.begin():  # Explicit transaction
+            subquery = (
+                select(Tile.id)
+                .where(Tile.annotation_class_id == classid,
+                    Tile.pred_status == TileStatus.STARTPROCESSING)
+                .order_by(Tile.pred_datetime.desc()) #always get the latest ones first #TODO: should this be asc?
+                .limit(batch_size_infer).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
+            )
 
-    #TODO: turn into util function with data loader, for distirubting tile to workers
-    world_size= ray.train.get_context().get_world_size()
-    world_rank= ray.train.get_context().get_world_rank()
-    
-    if world_size > 1: #filter down to entire list of tiles which should be seen by this GPU
-        worker_tiles= [tile for idx, tile in enumerate(tiles) if idx % world_size == world_rank]
-    else:
-        worker_tiles = tiles
-
-    pytorch_worker_info = torch.utils.data.get_worker_info()
-    if pytorch_worker_info is None:  # single-process data loading, return the full iterator
-        final_tiles= worker_tiles
-    else: #further filter down to tiles which should be seen by *this* pytorch worker
-        num_workers = pytorch_worker_info.num_workers
-        worker_id = pytorch_worker_info.id
-        final_tiles = [worker_tile for idx, worker_tile in enumerate(worker_tiles) if idx % num_workers == worker_id]
-
-    return final_tiles
+            tiles = db_session.execute(
+                update(Tile)
+                .where(Tile.id.in_(subquery))
+                .where(Tile.pred_status == TileStatus.STARTPROCESSING)  # Ensures another worker hasn't claimed it
+                .values(pred_status=TileStatus.PROCESSING,pred_datetime=func.now())
+                .returning(Tile)
+            ).scalars().all()
+            
+            db_session.expunge_all()
 
 
-def batch_iterable(iterable, tile_batch_size): #TODO: check version of python in container -- a function like this is avaialble  in itertools and should be used instead
-    #needs python 3.12
-    for i in range(0, len(iterable), tile_batch_size):
-        yield iterable[i:i + tile_batch_size]
+            return tiles if tiles else None
 
     
 def update_tile_status(tile_batch,status):
-    with get_session() as db_session:
+    # with get_session() as db_session:
+    #     for tile in tile_batch:
+    #         tile.pred_status = status
+    #         tile.pred_datetime = func.now()
+    #     db_session.bulk_save_objects(tile_batch)  # Bulk operation doesn't work with func now!!
+    #     db_session.commit()  # Commit changes
+
+    with get_session() as db_session: #two options here - iteratively add the annotations , or use datetime.datetime.now()  in the bulk function and set
+                                        #the latter is a bit problematic if the database + web server have different times set, since func.now() is used everywhere else
+                                    #one would need to change all func.now to datetime.datetime.now() to make it rock solid. lets see the performance of this first and adjust if needed
         for tile in tile_batch:
-            tile.seen = status
-            tile.datetime = func.now()
-        db_session.bulk_save_objects(tile_batch)  # Bulk operation for efficiency
-        db_session.commit()  # Commit changes
-
-def run_inference(model, tiles, device):
-    infer_tile_batch_size = 2  #TODO: need to get from project setting
-    client = get_memcached_client()
-    for tile_batch in batch_iterable(tiles, infer_tile_batch_size):
-        io_images = []
-        infertiles = []
-        for tile in tile_batch:
-            img_cache_key = f"{tile.image_id}_{tile.id}" ##TODO: This further suggests that we should be storing the IMAGE and the MASK seperately
-            try: #if memcache isn't working, no problem, just keep going
-                cache_val = client.get(img_cache_key) or {}
-            except:
-                cache_val = {}
-            
-            if cache_val:
-                io_image, mask_image, weight = [decompress_from_jpeg(i) for i in cache_val]
-            else:
-                io_image = load_tile(tile)
-
-            io_images.append(io_image)
-
-        io_images = [preprocess_image(io_image, device) for io_image in io_images]
-        io_images = torch.cat(io_images, dim=0)
-        print(f"io_images going on GPU: \t {io_images.shape}")
+            tile.pred_status = status
+            tile.pred_datetime = func.now()
+            db_session.add(tile)  # Add each tile individually
         
-        model.eval()
-        with torch.no_grad():
-            outputs = model(io_images)  #output at target magnification level!
-            outputs = outputs[:, :, 32:-32, 32:-32]
+        db_session.commit()  # Commit all changes
 
-            for j, output in enumerate(outputs):
-                polygons = postprocess_output(output) #some parmaeters here should be added to the class level config -- see function prototype
-                save_annotations(tile_batch[j],polygons)
 
-        update_tile_status(tile_batch, TileStatus.DONEPROCESSING) #now taht the batch is done, need to update tile status
+def run_inference(device, model, tiles):
+    client = get_memcached_client()
+
+    io_images = []
+    
+    for tile in tiles:
+        img_cache_key = f"img_{tile.image_id}_{tile.id}" 
+        try: #if memcache isn't working, no problem, just keep going
+            img_cache_val = client.get(img_cache_key) or {}
+        except:
+            img_cache_val = {}
+        
+        if img_cache_val:
+            io_image = decompress_from_jpeg(img_cache_val[0])
+
+        else:
+            io_image,tile.x,tile.y = load_tile(tile)
+
+        cv2.imwrite("/opt/QuickAnnotator/img.png",io_image) #TODO: remove- - for debug
+        io_images.append(io_image)
+
+    io_images = [preprocess_image(io_image, device) for io_image in io_images]
+    io_images = torch.cat(io_images, dim=0)
+    print(f"io_images going on GPU: \t {io_images.shape}")
+    
+    model.eval()
+    with torch.no_grad():
+        outputs = model(io_images)  #output at target magnification level!
+        outputs = outputs[:, :, 32:-32, 32:-32]
+
+        for j, output in enumerate(outputs):
+            cv2.imwrite("/opt/QuickAnnotator/output.png",outputs.squeeze().detach().cpu().numpy()*255) #TODO: remove- - for debug
+            polygons = postprocess_output(output) #some parmaeters here should be added to the class level config -- see function prototype
+            print("saving annotations")
+            delete_annotations(tiles[j])
+            save_annotations(tiles[j],polygons)
+    
+    print("updating tile status")
+    update_tile_status(tiles, TileStatus.DONEPROCESSING) #now taht the batch is done, need to update tile status
     return outputs

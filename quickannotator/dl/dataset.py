@@ -1,74 +1,65 @@
 import shapely.wkb
-import numpy as np
-import cv2
-from sqlalchemy import Table, inspect
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model, load_tile
-from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
+import cv2, numpy as np
+
+import scipy.ndimage
 from torch.utils.data import IterableDataset
 
+from sqlalchemy import  select, update, case, func
+
 from quickannotator.db import get_session
+from quickannotator.db.models import Tile
+from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 
-from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client
-from quickannotator.api.v1.tile.helper import tileid_to_point
 
-import large_image
-import numpy as np
-from PIL import Image as PILImage
-import scipy.ndimage
-import cv2
-import ray
-import ray.train
-import torch
+from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client, load_tile 
 
 class TileDataset(IterableDataset):
-    def __init__(self, classid, tile_size,magnification,transforms=None, edge_weight=0):
+    def __init__(self, classid, tile_size,magnification,transforms=None, edge_weight=0, boost_count=5):
         self.classid = classid
         self.transforms = transforms
         self.edge_weight = edge_weight
-        self.tile_size = tile_size
-        self.magnification = magnification
-        
+        self.tile_size = tile_size #TODO: This should come from annotation_class table
+        self.magnification = magnification #TODO: This should come from annotation_class table
+        self.boost_count = boost_count
         
     def getWorkersTiles(self):
-        #note that we sort by reverse datetime - and then "pull out" alternating tiles based on worker ID
-        #this in theory means if there are 6 new tiles, and 6 GPUs, each GPU will get one of the new tiles before moving to "less recent"
-        with get_session() as db_session:
+        with get_session() as db_session:  # Ensure this provides a session context
+                subquery = (
+                    select(Tile.id)
+                    .where(Tile.annotation_class_id == self.classid,
+                        Tile.gt_datetime.isnot(None))
+                    .order_by(Tile.gt_counter.asc(), Tile.gt_datetime.asc())  # Prioritize under-used, then newest
+                    .limit(1).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
+                )
+                
+                with db_session.begin():  # Explicit transaction
 
-
-        #TODO: this should be generalized and refactoreed into a utility function - something
-        #very similar is being done in inference.py getPendingInferenceTiles. the needed
-        #function should take a list of tiles and return the ones that should be seen by the current worker
-            tiles = db_session.query(Tile)\
-                        .filter(Tile.annotation_class_id == self.classid, Tile.hasgt == True)\
-                        .order_by(Tile.datetime.desc())\
-                        .all()
-            db_session.expunge_all()
-        world_size= ray.train.get_context().get_world_size()
-        world_rank= ray.train.get_context().get_world_rank()
-        
-        if world_size > 1: #filter down to entire list of tiles which should be seen by this GPU
-            worker_tiles= [tile for idx, tile in enumerate(tiles) if idx % world_size == world_rank]
-        else:
-            worker_tiles = tiles
-
-        pytorch_worker_info = torch.utils.data.get_worker_info()
-        if pytorch_worker_info is None:  # single-process data loading, return the full iterator
-            final_tiles= worker_tiles
-        else: #further filter down to tiles which should be seen by *this* pytorch worker
-            num_workers = pytorch_worker_info.num_workers
-            worker_id = pytorch_worker_info.id
-            final_tiles = [worker_tile for idx, worker_tile in enumerate(worker_tiles) if idx % num_workers == worker_id]
-
-        return final_tiles
+                    tile = db_session.execute(
+                        update(Tile)
+                        .where(Tile.id == subquery.scalar_subquery())
+                        .values(gt_counter=(
+                                # Only increment selection_count if it's less than max_selections
+                                case(
+                                    (Tile.gt_counter < self.boost_count, Tile.gt_counter + 1),
+                                    else_=Tile.gt_counter
+                                )
+                            ),
+                            gt_datetime=func.now())
+                        .returning(Tile)
+                    ).scalar()
+                    db_session.expunge(tile)
+                
+                print(f"tile retval {tile}")
+                return tile if tile else None
         
 
     def __iter__(self):
         client = get_memcached_client() ## client should be a "self" variable
-        tiles = self.getWorkersTiles()
-        print("ntiles",len(tiles))
-
-        for tile in tiles: #TODO: if this list is very long, and a new tile is added, it won't appear until the current queue is depleated
+        
+        while tile:=self.getWorkersTiles():
             #print(tile)
+            print(f"tile retval 2 {tile}")
+
             image_id = tile.image_id
             tile_id = tile.tile_id
             
@@ -132,7 +123,8 @@ class TileDataset(IterableDataset):
                 except:
                     pass
 
-
+            cv2.imwrite(f"/opt/QuickAnnotator/test_{tile_id}.png",mask_image*255) #TODO: remove- - for debug
+            cv2.imwrite(f"/opt/QuickAnnotator/img_{tile_id}.png",io_image)#TODO: remove- - for debug
             img_new = io_image
             mask_new = mask_image
             weight_new = weight

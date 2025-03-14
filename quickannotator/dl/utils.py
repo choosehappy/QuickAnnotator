@@ -5,10 +5,9 @@ import os, io
 from PIL import Image as PILImage
 import numpy as np
 from quickannotator.db import get_session
-from quickannotator.db.models import Image, AnnotationClass
-import shapely
-from quickannotator.api.v1.tile.helper import tileid_to_point
 
+from quickannotator.db.models import Image, AnnotationClass
+from quickannotator.api.v1.utils.coordinate_space import TileSpace
 
 def compress_to_jpeg(matrix):
     # Convert NumPy matrix to a PIL Image
@@ -33,27 +32,25 @@ def load_tile(tile): #TODO: i suspect this sort of function exists elsewhere wit
     with get_session() as db_session:
         image = db_session.query(Image).filter_by(id=tile.image_id).first()
         annoclass = db_session.query(AnnotationClass).filter_by(id=tile.annotation_class_id).first()
-    
+        db_session.expunge_all()
+
     image_path = image.path
     
-    ts = large_image.getTileSource(os.path.join("/opt/QuickAnnotator/quickannotator", image_path)) #TODO: JANKY
+    li = large_image.getTileSource(os.path.join("/opt/QuickAnnotator/quickannotator", image_path)) #TODO: JANKY
 
 
     #---- two options here
-    sizeXtargetmag, sizeYtargetmag= ts.getPointAtAnotherScale((ts.sizeX,ts.sizeY),
+    sizeXtargetmag, sizeYtargetmag= li.getPointAtAnotherScale((li.sizeX,li.sizeY), #TODO: should this be modfieid somehow to not use Large image?
                                                                 targetScale={'magnification': annoclass.work_mag}, 
                                                                 targetUnits='mag_pixels') 
-    x,y=tileid_to_point(tile.tile_size,sizeXtargetmag,sizeYtargetmag,tile.tile_id)   #x,y at target mag
+    
+    #x,y=tileid_to_point(tile.tile_size,sizeXtargetmag,sizeYtargetmag,tile.tile_id)   #REFACTORED --- if working, delete this comment
 
-    #---- or this should work if the geom is set correctly? 
-    #TODO: figure out which one is less error prone?
-    # tpoly = shapely.wkb.loads(tile.geom.data)
-    # x, y, _, _ = tpoly.bounds 
-    #---- 
+    ts = TileSpace(annoclass.work_tilesize, sizeXtargetmag, sizeYtargetmag)
+    x,y = ts.tileid_to_point(tile.tile_id) 
 
-    region, _ = ts.getRegion(region=dict(left=x, top=y, width=annoclass.tile_size, height=annoclass.tile_size, 
-                                            scale={'magnification':annoclass.work_mag},
-                                            units='pixels'),format=large_image.tilesource.TILE_FORMAT_NUMPY)
+    region, _ = li.getRegion(region=dict(left=x, top=y, width=annoclass.work_tilesize, height=annoclass.work_tilesize,units='pixels'), 
+                                            scale={'magnification':annoclass.work_mag},format=large_image.tilesource.TILE_FORMAT_NUMPY)
 
     io_image = region[:,:,:3] #np.array(region.convert("RGB"))
 
@@ -62,8 +59,8 @@ def load_tile(tile): #TODO: i suspect this sort of function exists elsewhere wit
     actual_height, actual_width, _ = io_image.shape
 
     # Compute padding amounts
-    pad_height = max(0, annoclass.tile_size - actual_height)
-    pad_width = max(0, annoclass.tile_size - actual_width)
+    pad_height = max(0, annoclass.work_tilesize - actual_height)
+    pad_width = max(0, annoclass.work_tilesize - actual_width)
 
     # Apply padding (black is default since mode='constant' and constant_values=0)
     io_image = np.pad(io_image, 
