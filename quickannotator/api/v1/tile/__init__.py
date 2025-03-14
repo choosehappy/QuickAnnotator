@@ -29,37 +29,37 @@ class TileIdRespSchema(Schema):
     tile_ids = fields.List(fields.Int)
 # ------------------------ REQUEST PARSERS ------------------------
 class GetTileArgsSchema(Schema):
-    annotation_class_id = fields.Int()
-    image_id = fields.Int()
-    tile_id = fields.Int()
+    annotation_class_id = fields.Int(description="ID of the annotation class")
+    image_id = fields.Int(description="ID of the image")
+    tile_id = fields.Int(description="ID of the tile")
 
 class PutTileArgsSchema(Schema):
-    seen = fields.Int()
+    seen = fields.Int(description="Seen status of the tile")
 
 class PostTileArgsSchema(Schema):
-    image_id = fields.Int(required=True)
-    annotation_class_id = fields.Int(required=True)
+    image_id = fields.Int(required=True, description="ID of the image")
+    annotation_class_id = fields.Int(required=True, description="ID of the annotation class")
 
 class SearchTileArgsSchema(Schema):
-    image_id = fields.Int(required=True)
-    annotation_class_id = fields.Int(required=True)
-    hasgt = fields.Bool(required=False)
-    x1 = fields.Float(required=True)
-    y1 = fields.Float(required=True)
-    x2 = fields.Float(required=True)
-    y2 = fields.Float(required=True)
+    image_id = fields.Int(required=True, description="ID of the image")
+    annotation_class_id = fields.Int(required=True, description="ID of the annotation class")
+    hasgt = fields.Bool(required=True, description="Filter by tiles which have ground truths saved")
+    x1 = fields.Float(required=True, description="X-coordinate of the top-left corner of the bounding box")
+    y1 = fields.Float(required=True, description="Y-coordinate of the top-left corner of the bounding box")
+    x2 = fields.Float(required=True, description="X-coordinate of the bottom-right corner of the bounding box")
+    y2 = fields.Float(required=True, description="Y-coordinate of the bottom-right corner of the bounding box")
 
 class SearchTileByPolygonArgsSchema(Schema):
-    image_id = fields.Int(required=True)
-    annotation_class_id = fields.Int(required=True)
-    hasgt = fields.Bool(required=False)
-    polygon = models.GeometryField(required=True)
+    image_id = fields.Int(required=True, description="ID of the image")
+    annotation_class_id = fields.Int(required=True, description="ID of the annotation class")
+    hasgt = fields.Bool(required=False, description="Filter by tiles which have ground truths saved")
+    polygon = models.GeometryField(required=True, description="Polygon geometry to search within")
 
 class SearchTileByCoordinatesArgsSchema(Schema):
-    image_id = fields.Int(required=True)
-    annotation_class_id = fields.Int(required=True)
-    x = fields.Float(required=True)
-    y = fields.Float(required=True)
+    image_id = fields.Int(required=True, description="ID of the image")
+    annotation_class_id = fields.Int(required=True, description="ID of the annotation class")
+    x = fields.Float(required=True, description="X-coordinate of the point")
+    y = fields.Float(required=True, description="Y-coordinate of the point")
 
 class PredictTileArgsSchema(GetTileArgsSchema):
     pass

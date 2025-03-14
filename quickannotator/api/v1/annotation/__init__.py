@@ -46,7 +46,8 @@ class GetAnnWithinPolyArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
     polygon = models.GeometryField(required=True)
 
-class GetAnnByTileArgsSchema(Schema):
+class GetAnnByTileIdsArgsSchema(Schema):
+    tile_ids = fields.List(fields.Int(), required=True)
     is_gt = fields.Bool(required=True)
 
 class PostAnnsArgsSchema(Schema):
@@ -143,35 +144,47 @@ class Annotation(MethodView):
 #             return result, 200
         
 
-@bp.route('/<int:image_id>/<int:annotation_class_id>/<int:tile_id>')
-class AnnotationByTile(MethodView):
-    @bp.arguments(GetAnnByTileArgsSchema, location='query')
+@bp.route('/<int:image_id>/<int:annotation_class_id>/tileids')
+class AnnotationByTileIds(MethodView):
+    @bp.arguments(GetAnnByTileIdsArgsSchema, location='json')
     @bp.response(200, AnnRespSchema(many=True))
-    def get(self, args, image_id, annotation_class_id, tile_id):
+    def get(self, args, image_id, annotation_class_id):
         """     get all annotations for a given tile
         """
-        if args['is_gt']:
-            store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=False)
-            anns = store.get_annotations_for_tiles([tile_id])
-        else:
-            tile = get_tile(image_id=image_id, annotation_class_id=annotation_class_id, tile_id=tile_id)
-            if not tile or tile.pred_status == TileStatus.UNSEEN:
-                upsert_tiles(image_id=image_id, annotation_class_id=annotation_class_id, tile_ids=[tile_id], pred_status=TileStatus.STARTPROCESSING)
-                return {"message": "No predictions for this tile"}, 404
-            elif tile.pred_status == TileStatus.STARTPROCESSING:
-                pass
-            elif tile.pred_status == TileStatus.PROCESSING:
-                pass
-            elif tile.pred_status == TileStatus.DONEPROCESSING:
-                # If the client wants prediction to be refreshed
-                tile.pred_status = TileStatus.STARTPROCESSING
-                tile.pred_datetime = datetime.now()
-                
-            # Lastly, get all predictions currently associated with the tile
-            store = AnnotationStore(image_id, annotation_class_id, is_gt=False, in_work_mag=False)
-            anns = store.get_predictions_for_tiles([tile_id])
+
+        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=False)
+        anns = store.get_annotations_for_tiles(args['tile_ids'])
+
         return anns, 200
+
+        # else:
+        #     store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=False)
+        #     anns = store.get_predictions_for_tiles(args['tile_ids'])
+
+        # if args['is_gt']:
+        #     store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=False)
+        #     anns = store.get_annotations_for_tiles([tile_id])
+        # else:
+        #     tile = get_tile(image_id=image_id, annotation_class_id=annotation_class_id, tile_id=tile_id)
+        #     if not tile or tile.pred_status == TileStatus.UNSEEN:
+        #         upsert_tiles(image_id=image_id, annotation_class_id=annotation_class_id, tile_ids=[tile_id], pred_status=TileStatus.STARTPROCESSING)
+        #         return {"message": "No predictions for this tile"}, 404
+        #     elif tile.pred_status == TileStatus.STARTPROCESSING:
+        #         pass
+        #     elif tile.pred_status == TileStatus.PROCESSING:
+        #         pass
+        #     elif tile.pred_status == TileStatus.DONEPROCESSING:
+        #         # If the client wants prediction to be refreshed
+        #         tile.pred_status = TileStatus.STARTPROCESSING
+        #         tile.pred_datetime = datetime.now()
+                
+        #     # Lastly, get all predictions currently associated with the tile
+        #     store = AnnotationStore(image_id, annotation_class_id, is_gt=False, in_work_mag=False)
+        #     anns = store.get_predictions_for_tiles([tile_id])
+        # return anns, 200
     
+# We need a separate method for getting predictions because here we have a different response type. We want to render a gray box wherever there are pending predictions.
+@bp.route('/<int:image_id>/<int:annotation_class_id>/predictions')
     
 @bp.route('/<int:image_id>/<int:annotation_class_id>/withinpoly')
 class AnnotationsWithinPolygon(MethodView):

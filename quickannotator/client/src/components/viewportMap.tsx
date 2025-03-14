@@ -48,15 +48,15 @@ const ViewportMap = (props: Props) => {
         if (!props.currentImage || !props.currentClass) return;
 
         const currentCallToken = ++activeCallRef.current;
-        const resp = await searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2, !is_gt, is_gt || undefined);  // Tiles may be shared by both layers. Consider pushing this to a shared state.
-        const tiles = resp.data;
+        const resp = await searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2, is_gt);  // Tiles may be shared by both layers. Consider pushing this to a shared state.
+        const tileIds = resp.data;
         const layerIdx = is_gt ? LAYER_KEYS.GT : LAYER_KEYS.PRED;
         const layer = geojs_map.current.layers()[layerIdx];
 
         const tilesRendered = layer.features()
             .filter((f) => f.featureType === 'polygon')
             .map((f) => f.props.tile_id);
-        const { tilesToRemove, tilesToRender } = computeTilesToRender(tilesRendered, tiles.map((t) => t.tile_id));
+        const { tilesToRemove, tilesToRender } = computeTilesToRender(tilesRendered, tileIds);
 
         // console.log(`Tiles to remove: ${tilesToRemove.size}`);
         tilesToRemove.forEach((tile_id) => {
@@ -69,33 +69,27 @@ const ViewportMap = (props: Props) => {
             }
         });
 
-        let renderFunction;
         let setAnnotations;
         let featIdsToRerender: Set<number>;
 
         if (is_gt) {
-            renderFunction = processGroundTruthTile;
             setAnnotations = props.setGts;
-            const featIds = featureIdsToUpdate.current;
-            featIdsToRerender = new Set(featIds);
-            
+            featIdsToRerender = new Set(featureIdsToUpdate.current);
         } else {
-            renderFunction = processPredictedTile;
             setAnnotations = props.setPreds;
             featIdsToRerender = new Set([])
-
         }
 
 
         let anns: Annotation[] = [];
-        for (const tile of tiles) {     // For all tiles within the current viewport bounds
-            if (tilesToRender.has(tile.tile_id)) {   // Feature is not yet rendered
+        for (const tileId of tileIds) {     // For all tiles within the current viewport bounds
+            if (tilesToRender.has(tileId)) {   // Feature is not yet rendered
                 if (currentCallToken !== activeCallRef.current) {
                     console.log("Render cancelled.");
                     return;
                 }
-                console.log(`Processing tile ${tile.tile_id}`);
-                const resp = await getAnnotationsForTile(tile.image_id, tile.annotation_class_id, tile.tile_id, is_gt);
+                console.log(`Processing tile ${tileId}`);
+                const resp = await getAnnotationsForTile(props.currentImage.id, props.currentClass.id, tileId, is_gt);
                 const annotations = resp.data.map(annResp => new Annotation(annResp, props.currentClass.id));
                 if (currentCallToken !== activeCallRef.current) {
                     console.log("Render cancelled.");
@@ -103,11 +97,16 @@ const ViewportMap = (props: Props) => {
                 }
                 // anns.push(...resp);
                 anns = anns.concat(annotations);
-                renderFunction(tile, annotations, layer);
+                if (is_gt) {
+                    createGTTileFeature({ tile_id: tileId }, annotations, layer, props.currentAnnotation?.currentState?.id, props.currentClass.id);
+                } else {
+                    createPredTileFeature({ tile_id: tileId }, annotations, layer);
+                }
+                
             } else {    // Feature is already rendered
-                const webGLFeature = getTileFeatureById(geojs_map, layerIdx, tile.tile_id);
-                if (is_gt && featIdsToRerender.has(tile.tile_id)) {  // If a ground truth feature data needs to be refreshed.
-                    const resp = await getAnnotationsForTile(tile.image_id, tile.annotation_class_id, tile.tile_id, is_gt);
+                const webGLFeature = getTileFeatureById(geojs_map, layerIdx, tileId);
+                if (is_gt && featIdsToRerender.has(tileId)) {  // If a ground truth feature data needs to be refreshed.
+                    const resp = await getAnnotationsForTile(props.currentImage.id, props.currentClass.id, tileId, is_gt);
                     const data = resp.data.map(annResp => new Annotation(annResp, props.currentClass.id));
                     redrawTileFeature(webGLFeature, {}, data);
                 }
@@ -118,41 +117,6 @@ const ViewportMap = (props: Props) => {
             setAnnotations(anns);
         }
     };
-
-    const processPredictedTile = (tile: Tile, annotations: Annotation[], layer: any) => {
-        switch (tile.seen) {
-            case TILE_STATUS.UNSEEN:
-                // call compute endpoint
-                // predictTile(tile.image_id, tile.annotation_class_id, tile.tile_id).then((resp) => {
-                //     console.log("Predicting tile. Ray object ref: ", resp.data.object_ref);
-                // })
-                console.log("Tile not seen.");
-
-                break;
-            case TILE_STATUS.STARTPROCESSING:
-                // do nothing
-                console.log("Tile currently processing.");
-                break;
-            case TILE_STATUS.PROCESSING:
-                // do nothing
-                console.log("Tile currently processing.");
-                break;
-            case TILE_STATUS.DONEPROCESSING:
-                console.log("Tile seen.");
-                createPredTileFeature({ tile_id: tile.tile_id }, annotations, layer);
-                break;
-            default:
-                console.log("Invalid tile seen value.");
-                break;
-        }
-    };
-
-    const processGroundTruthTile = (tile: Tile, annotations: Annotation[], layer: any) => {
-        const featureProps = { tile_id: tile.tile_id };
-        const currentAnnotationId = props.currentAnnotation?.currentState?.id;
-        const feature = createGTTileFeature(featureProps, annotations, layer, currentAnnotationId, props.currentClass?.id);
-        feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon)
-    }
 
     const renderTissueMask = async (map: geo.map) => {  // The renderTissueMask function does not currently work...
         if (!props.currentImage || !props.currentClass) return;

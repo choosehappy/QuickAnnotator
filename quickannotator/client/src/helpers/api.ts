@@ -1,6 +1,6 @@
 // Generic response type
 type ApiResponse<T> = Promise<T>;
-import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, PostAnnsArgs, PostOperationArgs, PutAnnArgs } from "../types.ts";
+import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, TileIds, PostAnnsArgs, PostOperationArgs, PutAnnArgs } from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
 
 interface FetchOptions extends RequestInit {
@@ -141,22 +141,18 @@ export const fetchAnnotationClassById = async (annotation_class_id: number) => {
 }
 
 // Fetch tiles by bounding box
-export const searchTiles = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number, include_placeholder_tiles: boolean, hasgt?: boolean) => {
+export const searchTiles = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number, hasgt=false) => {
     const query = new URLSearchParams({
         image_id: image_id.toString(),
         annotation_class_id: annotation_class_id.toString(),
-        include_placeholder_tiles: include_placeholder_tiles.toString(),
+        hasgt: hasgt.toString(),
         x1: x1.toString(),
         y1: y1.toString(),
         x2: x2.toString(),
         y2: y2.toString(),
     });
 
-    if (hasgt !== undefined) {
-        query.append('hasgt', hasgt.toString());
-    }
-
-    return await get<Tile[]>(`/tile/search/bbox?${query}`);
+    return await get<number[]>(`/tile/search/bbox?${query}`);
 }
 
 // Fetch tile by ID
