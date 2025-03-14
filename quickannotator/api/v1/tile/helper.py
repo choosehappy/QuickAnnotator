@@ -115,7 +115,7 @@ def remote_compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int
     with get_session() as db_session:
         # Example: load the tile and process
         # breakpoint()
-        tile = get_tile(annotation_class_id, image_id, tile_id)  # Replace with your actual function to get the tile
+        tile = get_tile(image_id, annotation_class_id, tile_id)  # Replace with your actual function to get the tile
         if tile is None:
             raise ValueError(f"Tile not found: {tile_id}")
         tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=True)

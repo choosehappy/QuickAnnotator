@@ -9,7 +9,10 @@ from typing import List
 import quickannotator.db.models as models
 from ..utils.shared_crud import AnnotationStore
 import geojson
-
+from quickannotator.api.v1.tile.helper import get_tile
+from quickannotator.constants import TileStatus
+from datetime import datetime
+from quickannotator.api.v1.utils.shared_crud import upsert_tiles
 
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
@@ -147,9 +150,28 @@ class AnnotationByTile(MethodView):
     def get(self, args, image_id, annotation_class_id, tile_id):
         """     get all annotations for a given tile
         """
-        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=False)
-        anns = store.get_annotations_for_tiles([tile_id])
+        if args['is_gt']:
+            store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=False)
+            anns = store.get_annotations_for_tiles([tile_id])
+        else:
+            tile = get_tile(image_id=image_id, annotation_class_id=annotation_class_id, tile_id=tile_id)
+            if not tile or tile.pred_status == TileStatus.UNSEEN:
+                upsert_tiles(image_id=image_id, annotation_class_id=annotation_class_id, tile_ids=[tile_id], pred_status=TileStatus.STARTPROCESSING)
+                return {"message": "No predictions for this tile"}, 404
+            elif tile.pred_status == TileStatus.STARTPROCESSING:
+                pass
+            elif tile.pred_status == TileStatus.PROCESSING:
+                pass
+            elif tile.pred_status == TileStatus.DONEPROCESSING:
+                # If the client wants prediction to be refreshed
+                tile.pred_status = TileStatus.STARTPROCESSING
+                tile.pred_datetime = datetime.now()
+                
+            # Lastly, get all predictions currently associated with the tile
+            store = AnnotationStore(image_id, annotation_class_id, is_gt=False, in_work_mag=False)
+            anns = store.get_predictions_for_tiles([tile_id])
         return anns, 200
+    
     
 @bp.route('/<int:image_id>/<int:annotation_class_id>/withinpoly')
 class AnnotationsWithinPolygon(MethodView):

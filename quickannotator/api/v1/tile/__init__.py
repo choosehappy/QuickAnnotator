@@ -72,7 +72,7 @@ class Tile(MethodView):
     def get(self, args):
         """     returns a Tile
         """
-        result = get_tile(args['annotation_class_id'], args['image_id'], args['tile_id'])
+        result = get_tile(args['image_id'], args['annotation_class_id'], args['tile_id'])
         return result, 200
 
     @bp.arguments(PostTileArgsSchema, location='query')
@@ -122,10 +122,11 @@ class TileIdSearch(MethodView):
         tile_ids_in_mask, _, _ = get_tile_ids_intersecting_mask(args['image_id'], args['annotation_class_id'], mask_dilation=1)
         ids = set(tile_ids_in_bbox) & set(tile_ids_in_mask)
 
+        # Filter by tiles which have ground truths saved. This limits the number of tiles we have to consider for rendering.
         if args['hasgt']:
             ids = db_session.query(models.Tile.id).filter(
                 models.Tile.id.in_(ids),
-                models.Tile.hasgt.is_(True)
+                models.Tile.gt_datetime.isnot(None)
             ).all()
             ids = [id[0] for id in ids]
         return ids, 200
@@ -141,10 +142,10 @@ class TileIdSearchByPolygon(MethodView):
         tile_ids_in_mask, _, _ = get_tile_ids_intersecting_mask(args['image_id'], args['annotation_class_id'], mask_dilation=1)
         ids = set(tiles_in_polygon) & set(tile_ids_in_mask)
 
-        if args['hasgt']:  
+        if args['hasgt']:
             ids = db_session.query(models.Tile.id).filter(
                 models.Tile.id.in_(ids),
-                models.Tile.hasgt.is_(True)
+                models.Tile.gt_datetime.isnot(None)
             ).all()
             ids = [id[0] for id in ids]
         return ids, 200
@@ -160,16 +161,4 @@ class TileIdSearchByCoordinates(MethodView):
         tilespace = get_tilespace(image_id=args['image_id'], annotation_class_id=args['annotation_class_id'], in_work_mag=False)
         tile_id = tilespace.point_to_tileid(args['x'], args['y'])
         return tile_id, 200
-
-@bp.route('/predict')
-class TilePredict(MethodView):
-    @bp.arguments(PredictTileArgsSchema, location='json')
-    @bp.response(201, PredictTileRespSchema)
-    def post(self, args):
-        """     predict tiles for a given image & class
-        """
-        upsert_tiles(args['annotation_class_id'], args['image_id'], [args['tile_id']], pred_status=TileStatus.PROCESSING)
-
-        object_ref = compute_on_tile(args['annotation_class_id'], args['image_id'], tile_id=args['tile_id'], sleep_time=5)
-        return {'object_ref': object_ref}, 201
         

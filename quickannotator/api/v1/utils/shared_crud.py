@@ -13,7 +13,7 @@ from quickannotator.db.utils import build_annotation_table_name, create_dynamic_
 from sqlalchemy.ext.declarative import declarative_base
 
 
-def get_tile(annotation_class_id: int, image_id: int, tile_id: int) -> models.Tile:
+def get_tile(image_id: int, annotation_class_id: int, tile_id: int) -> models.Tile:
     result = db_session.query(models.Tile).filter_by(
         annotation_class_id=annotation_class_id,
         image_id=image_id,
