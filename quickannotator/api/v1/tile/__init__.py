@@ -168,7 +168,7 @@ class TilePredict(MethodView):
     def post(self, args):
         """     predict tiles for a given image & class
         """
-        upsert_tiles(args['annotation_class_id'], args['image_id'], [args['tile_id']], seen=TileStatus.PROCESSING)
+        upsert_tiles(args['annotation_class_id'], args['image_id'], [args['tile_id']], pred_status=TileStatus.PROCESSING)
 
         object_ref = compute_on_tile(args['annotation_class_id'], args['image_id'], tile_id=args['tile_id'], sleep_time=5)
         return {'object_ref': object_ref}, 201

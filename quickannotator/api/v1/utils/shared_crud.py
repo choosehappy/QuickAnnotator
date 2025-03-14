@@ -57,51 +57,36 @@ def get_annotation_query(model, scale_factor: float=1.0) -> Query:
 
     return query
 
-def get_basemag_annotation_query(model, image_id, annotation_class_id):
-    """
-    Generate a query for annotations so that they are automatically scaled by the base magnification of the image.
-    Args:
-        model: The model to query annotations from.
-        image_id (int): The ID of the image to retrieve.
-        annotation_class_id (int): The ID of the annotation class to use for scaling.
-    Returns:
-        Query: A query object for retrieving annotations scaled to the appropriate magnification.
-    """
-    
-    scale_factor = base_to_work_scaling_factor(image_id, annotation_class_id)
-    return get_annotation_query(model, scale_factor)
-
-
-def upsert_tiles(image_id: int, annotation_class_id: int, tile_ids: list[int], seen: TileStatus=None, hasgt: bool=None):
+def upsert_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], pred_status: TileStatus = None):
     """
     Inserts new tiles or updates existing tiles in the database.
     This function attempts to insert new tiles with the given annotation_class_id, image_id, and tile_ids.
-    If tiles with the same annotation_class_id, image_id, and tile_ids already exist, it updates the 'seen'
-    and 'hasgt' fields if their values are provided.
+    If tiles with the same annotation_class_id, image_id, and tile_ids already exist, it updates the relevant fields.
+
     Args:
         annotation_class_id (int): The ID of the annotation class.
         image_id (int): The ID of the image.
-        tile_ids (list[int]): A list of tile IDs.
-        seen (TileStatus, optional): The status indicating if the tiles have been seen. Defaults to None.
-        hasgt (bool, optional): A flag indicating if the tiles have ground truth. Defaults to None.
-    Returns:
-        ResultProxy: The result of the database execution
+        tile_ids (List[int]): The IDs of the tiles.
+        pred_status (TileStatus, optional): The status of the tile prediction. Defaults to None. None indicates that the ground truth state of the tile is being updated.
     """
-
     update_fields = {}
-    if seen is not None:    # Only update the 'seen' field if the value is provided
-        update_fields['seen'] = seen
-    if hasgt is not None:   # Only update the 'hasgt' field if the value is provided
-        update_fields['hasgt'] = hasgt
+    if pred_status is None: # We are adding or updating a ground truth annotation for the tile(s)
+        update_fields['gt_counter'] = 0
+        update_fields['gt_datetime'] = datetime.now()
+    else:                   # We are changing the prediction status of the tile(s)
+        update_fields['pred_status'] = pred_status
+        update_fields['pred_datetime'] = datetime.now()
 
-    stmt = insert(models.Tile).values([
-        {
+    tiles = []
+    for tile_id in tile_ids:
+        tiles.append({
             'annotation_class_id': annotation_class_id,
             'image_id': image_id,
             'tile_id': tile_id,
             **update_fields
-        } for tile_id in tile_ids
-    ]).on_conflict_do_update(
+        })
+
+    stmt = insert(models.Tile).values(tiles).on_conflict_do_update(
         index_elements=['annotation_class_id', 'image_id', 'tile_id'],
         set_=update_fields
     )
@@ -168,9 +153,9 @@ class AnnotationStore:
         tile_ids = [ann.tile_id for ann in result]
         
         if self.is_gt:
-            upsert_tiles(self.image_id, self.annotation_class_id, tile_ids, seen=None, hasgt=True)
+            upsert_tiles(self.image_id, self.annotation_class_id, tile_ids)
         else:
-            upsert_tiles(self.image_id, self.annotation_class_id, tile_ids, seen=TileStatus.DONEPROCESSING, hasgt=None)
+            upsert_tiles(self.image_id, self.annotation_class_id, tile_ids, pred_status=TileStatus.DONEPROCESSING)
         return result
 
 

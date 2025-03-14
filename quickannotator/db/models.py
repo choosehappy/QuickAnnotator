@@ -24,7 +24,7 @@ class Project(Base):
     # is_dataset_large project setting that currently has no use.
     # a "large" dataset might have e.g., > 100 million total histologic object annotations
     is_dataset_large = Column(Boolean, default=False)   
-    datetime = Column(DateTime, server_default=func.now())
+    datetime = Column(DateTime)
 
     # relationships
     images = relationship('Image', backref='project', lazy=True)
@@ -50,7 +50,7 @@ class Image(Base):
     embedding_coord = Column(Geometry('POINT'))
     group_id = Column(Integer)
     split = Column(Integer)
-    datetime = Column(DateTime, server_default=func.now())
+    datetime = Column(DateTime)
 
     # relationships
     notifications = relationship("Notification", backref='image', lazy=True)
@@ -70,7 +70,7 @@ class AnnotationClass(Base):
     work_mag = Column(Float, nullable=False)
     work_tilesize = Column(Integer, nullable=False)
     dl_model_objectref = Column(Text, nullable=True)
-    datetime = Column(DateTime, server_default=func.now())
+    datetime = Column(DateTime)
 
 
 class Tile(Base):
@@ -84,11 +84,11 @@ class Tile(Base):
     tile_id = Column(Integer, nullable=False)
 
     # columns
-    pred_status = Column(Integer, nullable=True, default=TileStatus.UNSEEN)
-    pred_datetime = Column(DateTime, nullable=True, server_default=func.now())
+    pred_status = Column(Integer, nullable=False, default=TileStatus.UNSEEN)
+    pred_datetime = Column(DateTime, nullable=True)
 
-    gt_counter = Column(Integer, nullable=True, default=0)
-    gt_datetime = Column(DateTime, nullable=True, server_default=func.now())
+    gt_counter = Column(Integer, nullable=False, default=0)
+    gt_datetime = Column(DateTime, nullable=True)
 
     # relationships
     image = relationship('Image', backref='tiles')
@@ -120,7 +120,7 @@ class Annotation(Base):
     area = Column(Float)
     polygon = Column(Geometry('POLYGON', srid=4326))  # Stored as geometry
     custom_metrics = Column(JSON)
-    datetime = Column(DateTime, server_default=func.now())
+    datetime = Column(DateTime)
 
 
 class Notification(Base):
@@ -137,7 +137,7 @@ class Notification(Base):
     message_type = Column(Integer, nullable=False)
     is_read = Column(Boolean, nullable=False)
     message = Column(Text, nullable=False)
-    datetime = Column(DateTime, server_default=func.now())
+    datetime = Column(DateTime)
 
 
 class Setting(Base):

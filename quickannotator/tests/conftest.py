@@ -89,8 +89,7 @@ def seed(db_session):   # here db_session is the fixture
         annotation_class_id=2,
         image_id=1,
         tile_ids=[0],
-        seen=TileStatus.UNSEEN,
-        hasgt=False
+        pred_status=TileStatus.UNSEEN
     )
 
     db_session.commit()
