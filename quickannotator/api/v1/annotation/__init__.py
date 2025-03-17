@@ -118,7 +118,7 @@ class Annotation(MethodView):
             return {"message": "Annotation not found"}, 404
 
 ################################################################################
-# # DEPRECATED
+# TODO: Remove this method as it is not used.
 # @bp.route('/<int:image_id>/<int:annotation_class_id>/search')
 # class SearchAnnotations(MethodView):
 #     @bp.arguments(GetAnnSearchArgsSchema, location='query')
@@ -197,7 +197,7 @@ class AnnotationsWithinPolygon(MethodView):
         anns = store.get_annotations_within_poly(shape(args['polygon']))
         return anns, 200
 
-# DEPRECATED      
+# TODO: This endpoint will be needed when we build in custom scripting.
 # @bp.route('/<int:annotation_class_id>/dryrun')
 # class AnnotationDryRun(MethodView):
 #     @bp.arguments(PostDryRunArgsSchema, location='json')

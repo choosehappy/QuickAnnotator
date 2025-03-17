@@ -91,7 +91,7 @@ class TileBoundingBox(MethodView):
         return {'bbox': bbox}, 200
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>/search/bbox')
-class TileIdSearch(MethodView):
+class TileIdSearchByBbox(MethodView):
     @bp.arguments(SearchTileArgsSchema, location='query')
     @bp.response(200, TileIdRespSchema)
     def get(self, args, image_id, annotation_class_id):

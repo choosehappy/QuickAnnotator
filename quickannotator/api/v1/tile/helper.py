@@ -22,7 +22,7 @@ from quickannotator.db.utils import build_annotation_table_name, create_dynamic_
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
 from quickannotator.api.v1.utils.shared_crud import AnnotationStore
 
-# DEPRECATED
+# TODO: Remove this method as it is not used.
 def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile_id: int) -> bool:
 
     bbox = get_tilespace(image_id=image_id, annotation_class_id=annotatation_class_id).get_bbox_for_tile(tile_id)
