@@ -1,6 +1,6 @@
 // Generic response type
 type ApiResponse<T> = Promise<T>;
-import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, TileIds, PostAnnsArgs, PostOperationArgs, PutAnnArgs } from "../types.ts";
+import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, TileIds, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileIdsByPolygonArgs } from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
 
 interface FetchOptions extends RequestInit {
@@ -96,12 +96,13 @@ export const spatialSearchAnnotations = async (image_id: number, annotation_clas
     return await get<AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/search?${query}`);
 }
 
-export const getAnnotationsForTile = async (image_id: number, annotation_class_id: number, tile_id: number, is_gt: boolean) => {
-    const query = new URLSearchParams({
-        is_gt: is_gt.toString(),
-    });
+export const getAnnotationsForTileIds = async (image_id: number, annotation_class_id: number, tile_ids: number[], is_gt: boolean) => {
+    const requestBody: TileIds = {
+        tile_ids: tile_ids,
+        is_gt: is_gt,
+    };
 
-    return await get<AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/${tile_id}?${query}`);
+    return await post<TileIds, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/tileids`, requestBody);
 }
 
 // Post annotation
@@ -140,11 +141,9 @@ export const fetchAnnotationClassById = async (annotation_class_id: number) => {
     return await get<AnnotationClass>(`/class/?${query}`);
 }
 
-// Fetch tiles by bounding box
-export const searchTiles = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number, hasgt=false) => {
+// Search tile IDs by bounding box
+export const searchTileIds = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number, hasgt=false) => {
     const query = new URLSearchParams({
-        image_id: image_id.toString(),
-        annotation_class_id: annotation_class_id.toString(),
         hasgt: hasgt.toString(),
         x1: x1.toString(),
         y1: y1.toString(),
@@ -152,15 +151,22 @@ export const searchTiles = async (image_id: number, annotation_class_id: number,
         y2: y2.toString(),
     });
 
-    return await get<number[]>(`/tile/search/bbox?${query}`);
+    return await get<{ tileids: number[] }>(`/tile/${image_id}/${annotation_class_id}/search/bbox?${query}`);
 }
+
+export const searchTileIdsWithinPolygon = async (image_id: number, annotation_class_id: number, polygon: Polygon, hasgt=false) => {
+    const requestBody: SearchTileIdsByPolygonArgs = {
+        polygon: JSON.stringify(polygon),
+        hasgt: hasgt
+    };
+    return await post<SearchTileIdsByPolygonArgs, { tileids: number[] }>(`/tile/${image_id}/${annotation_class_id}/search/polygon`, requestBody);
+};
 
 // Fetch tile by ID
 export const fetchTile = async (image_id: number, annotation_class_id: number, tile_id: number) => {
     const query = new URLSearchParams({ image_id: image_id.toString(), annotation_class_id: annotation_class_id.toString(), tile_id: tile_id.toString() });
     return await get<Tile>(`/tile?${query}`);
 }
-
 
 export const operateOnAnnotation = async (annotation: Annotation, polygon2: Polygon, operation: number) => {
     const { annotation_class_id, ...rest } = annotation;
@@ -174,24 +180,15 @@ export const operateOnAnnotation = async (annotation: Annotation, polygon2: Poly
 }
 
 export const getAnnotationsWithinPolygon = async (image_id: number, annotation_class_id: number, is_gt: boolean, polygon: Polygon) => {
-    const requestBody: PostAnnsArgs = {
+    const requestBody: QueryAnnsByPolygonArgs = {
         is_gt: is_gt,
         polygon: JSON.stringify(polygon),
     };
 
-    return await post<PostAnnsArgs, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/withinpoly`, requestBody);
+    return await post<QueryAnnsByPolygonArgs, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/withinpoly`, requestBody);
 }
 
-export const getTilesWithinPolygon = async (image_id: number, annotation_class_id: number, polygon: Polygon, include_placeholder_tiles: boolean, hasgt?: boolean) => {
-    const requestBody = {
-        image_id: image_id,
-        annotation_class_id: annotation_class_id,
-        polygon: JSON.stringify(polygon),
-        include_placeholder_tiles: include_placeholder_tiles,
-        hasgt: hasgt
-    };
-    return await post<typeof requestBody, Tile[]>(`/tile/search/polygon`, requestBody);
-};
+
 
 export const predictTile = async (image_id: number, annotation_class_id: number, tile_id: number) => {
     const requestBody = { 

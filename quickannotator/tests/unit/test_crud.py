@@ -32,7 +32,12 @@ def test_get_annotations_for_tiles(annotation_store):
 def test_get_annotations_within_poly(annotation_store):
     polygon = Polygon([(0.0, 0.0), (5.0, 0.0), (5.0, 5.0), (0.0, 5.0), (0.0, 0.0)])
     annotations = annotation_store.get_annotations_within_poly(polygon)
-    assert len(annotations) > 0
+    expected_polygons = [Polygon([(i, i), (i + 1, i), (i + 1, i + 1), (i, i + 1), (i, i)]) for i in range(5)]
+    
+    assert len(annotations) == len(expected_polygons)
+    
+    for annotation, expected_polygon in zip(annotations, expected_polygons):
+        assert_geojson_equal(geojson.loads(annotation.polygon), geojson.loads(geojson.dumps(mapping(expected_polygon))))
 
 def test_update_annotation(annotation_store):
     annotation_id = 1

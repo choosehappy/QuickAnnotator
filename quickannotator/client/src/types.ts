@@ -60,6 +60,16 @@ export interface PostAnnsArgs {
     polygons: string[];
 }
 
+export interface QueryAnnsByPolygonArgs {
+    polygon: string;
+    is_gt: boolean;
+}
+
+export interface SearchTileIdsByPolygonArgs {
+    polygon: string;
+    hasgt: boolean;
+}
+
 export interface PostOperationArgs extends AnnotationResponse {
     polygon2: string;
     operation: number;
@@ -90,6 +100,11 @@ export interface Project {
     name: string;
     description: string;
     date: Date;
+}
+
+export interface TileIds {
+    tile_ids: number[];
+    is_gt: boolean;
 }
 
 export interface Tile {

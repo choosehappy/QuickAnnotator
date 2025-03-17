@@ -116,9 +116,9 @@ class Annotation(Base):
 
     # columns
     tile_id = Column(Integer, nullable=False, default=None)
-    centroid = Column(Geometry('POINT', srid=4326))  # Stored as geometry
+    centroid = Column(Geometry('POINT', srid=0))  # Stored as geometry
     area = Column(Float)
-    polygon = Column(Geometry('POLYGON', srid=4326))  # Stored as geometry
+    polygon = Column(Geometry('POLYGON', srid=0))  # Stored as geometry
     custom_metrics = Column(JSON)
     datetime = Column(DateTime)
 

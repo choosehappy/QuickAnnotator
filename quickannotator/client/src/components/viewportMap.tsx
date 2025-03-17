@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse } from "../types.ts"
-import { searchTiles, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTile, predictTile, getAnnotationsWithinPolygon, getTilesWithinPolygon } from "../helpers/api.ts";
+import { searchTileIds, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileIdsWithinPolygon } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 import { TOOLBAR_KEYS, LAYER_KEYS, TILE_STATUS, MODAL_DATA } from "../helpers/config.ts";
 
@@ -48,8 +48,8 @@ const ViewportMap = (props: Props) => {
         if (!props.currentImage || !props.currentClass) return;
 
         const currentCallToken = ++activeCallRef.current;
-        const resp = await searchTiles(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2, is_gt);  // Tiles may be shared by both layers. Consider pushing this to a shared state.
-        const tileIds = resp.data;
+        const resp = await searchTileIds(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2, is_gt);  // Tiles may be shared by both layers. Consider pushing this to a shared state.
+        const tileIds = resp.data.tileids;
         const layerIdx = is_gt ? LAYER_KEYS.GT : LAYER_KEYS.PRED;
         const layer = geojs_map.current.layers()[layerIdx];
 
@@ -89,7 +89,7 @@ const ViewportMap = (props: Props) => {
                     return;
                 }
                 console.log(`Processing tile ${tileId}`);
-                const resp = await getAnnotationsForTile(props.currentImage.id, props.currentClass.id, tileId, is_gt);
+                const resp = await getAnnotationsForTileIds(props.currentImage.id, props.currentClass.id, [tileId], is_gt);
                 const annotations = resp.data.map(annResp => new Annotation(annResp, props.currentClass.id));
                 if (currentCallToken !== activeCallRef.current) {
                     console.log("Render cancelled.");
@@ -98,7 +98,8 @@ const ViewportMap = (props: Props) => {
                 // anns.push(...resp);
                 anns = anns.concat(annotations);
                 if (is_gt) {
-                    createGTTileFeature({ tile_id: tileId }, annotations, layer, props.currentAnnotation?.currentState?.id, props.currentClass.id);
+                    const feature = createGTTileFeature({ tile_id: tileId }, annotations, layer, props.currentAnnotation?.currentState?.id, props.currentClass.id);
+                    feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
                 } else {
                     createPredTileFeature({ tile_id: tileId }, annotations, layer);
                 }
@@ -106,7 +107,7 @@ const ViewportMap = (props: Props) => {
             } else {    // Feature is already rendered
                 const webGLFeature = getTileFeatureById(geojs_map, layerIdx, tileId);
                 if (is_gt && featIdsToRerender.has(tileId)) {  // If a ground truth feature data needs to be refreshed.
-                    const resp = await getAnnotationsForTile(props.currentImage.id, props.currentClass.id, tileId, is_gt);
+                    const resp = await getAnnotationsForTileIds(props.currentImage.id, props.currentClass.id, [tileId], is_gt);
                     const data = resp.data.map(annResp => new Annotation(annResp, props.currentClass.id));
                     redrawTileFeature(webGLFeature, {}, data);
                 }
@@ -263,9 +264,9 @@ const ViewportMap = (props: Props) => {
                 const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentClass.id));
 
                 // Get the ids for the features to redraw
-                const tilesResp = await getTilesWithinPolygon(currentImage.id, currentClass.id, polygon2, false);
+                const tilesResp = await searchTileIdsWithinPolygon(currentImage.id, currentClass.id, polygon2, false);
                 if (tilesResp.status === 200) {
-                    const tileIds = tilesResp.data.map((tile: Tile) => tile.tile_id);
+                    const tileIds = tilesResp.data.tileids;
                     featureIdsToUpdate.current = tileIds;
                     props.setHighlightedPreds(anns);
                     props.setActiveModal(MODAL_DATA.IMPORT_CONF.id);

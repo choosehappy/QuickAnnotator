@@ -148,7 +148,7 @@ class Annotation(MethodView):
 class AnnotationByTileIds(MethodView):
     @bp.arguments(GetAnnByTileIdsArgsSchema, location='json')
     @bp.response(200, AnnRespSchema(many=True))
-    def get(self, args, image_id, annotation_class_id):
+    def post(self, args, image_id, annotation_class_id):
         """     get all annotations for a given tile
         """
 
@@ -184,7 +184,7 @@ class AnnotationByTileIds(MethodView):
         # return anns, 200
     
 # We need a separate method for getting predictions because here we have a different response type. We want to render a gray box wherever there are pending predictions.
-@bp.route('/<int:image_id>/<int:annotation_class_id>/predictions')
+# @bp.route('/<int:image_id>/<int:annotation_class_id>/predictions')
     
 @bp.route('/<int:image_id>/<int:annotation_class_id>/withinpoly')
 class AnnotationsWithinPolygon(MethodView):

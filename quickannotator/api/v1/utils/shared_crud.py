@@ -175,7 +175,7 @@ class AnnotationStore:
     def get_annotations_within_poly(self, polygon: BaseGeometry) -> List[models.Annotation]:
         scaled_polygon = self.scale_polygon(polygon, self.scaling_factor)
         # NOTE: Sqlite may not use the spatial index here.
-        result = get_annotation_query(self.model, 1/self.scaling_factor).filter(func.ST_Intersects(self.model.polygon, scaled_polygon.wkt)).all()
+        result = get_annotation_query(self.model, 1/self.scaling_factor).filter(func.ST_Intersects(self.model.polygon, func.ST_GeomFromText(scaled_polygon.wkt, 0))).all()
         return result
 
     # UPDATE
