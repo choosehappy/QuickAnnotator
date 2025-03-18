@@ -84,10 +84,10 @@ class Tile(Base):
 
     # columns
     pred_status = Column(Integer, nullable=False, default=TileStatus.UNSEEN)
-    pred_datetime = Column(DateTime, nullable=True)
+    pred_datetime = Column(DateTime, nullable=True, default=None)
 
     gt_counter = Column(Integer, nullable=True, default=None)
-    gt_datetime = Column(DateTime, nullable=True)
+    gt_datetime = Column(DateTime, nullable=True, default=None)
 
     # relationships
     image = relationship('Image', backref='tiles')
