@@ -10,3 +10,5 @@ MASK_DILATION = 1
 BASE_PATH = '/opt/QuickAnnotator/quickannotator'
 
 MASK_CLASS_ID = 1
+
+TILE_PRED_EXPIRE = 5 # minutes

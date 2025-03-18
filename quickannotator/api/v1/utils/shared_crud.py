@@ -1,7 +1,7 @@
 from shapely.affinity import scale
 from shapely.geometry.base import BaseGeometry
 from sqlalchemy import func, insert
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Query
@@ -11,6 +11,7 @@ from quickannotator.db import db_session, Base
 import quickannotator.db.models as models
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 from sqlalchemy.ext.declarative import declarative_base
+import quickannotator.constants as constants
 
 
 def get_tile(image_id: int, annotation_class_id: int, tile_id: int) -> models.Tile:
@@ -57,7 +58,7 @@ def get_annotation_query(model, scale_factor: float=1.0) -> Query:
 
     return query
 
-def upsert_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], pred_status: TileStatus = None):
+def upsert_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], pred_status: TileStatus = None, process_owns_tile=False):
     """
     Inserts new tiles or updates existing tiles in the database.
     This function attempts to insert new tiles with the given annotation_class_id, image_id, and tile_ids.
@@ -70,12 +71,20 @@ def upsert_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], p
         pred_status (TileStatus, optional): The status of the tile prediction. Defaults to None. None indicates that the ground truth state of the tile is being updated.
     """
     update_fields = {}
+    filter = None
     if pred_status is None: # We are adding or updating a ground truth annotation for the tile(s)
         update_fields['gt_counter'] = 0
         update_fields['gt_datetime'] = datetime.now()
+        
     else:                   # We are changing the prediction status of the tile(s)
         update_fields['pred_status'] = pred_status
         update_fields['pred_datetime'] = datetime.now()
+        if not process_owns_tile: # Only update tiles that are either (1) unseen or (2) done processing and older than TILE_PRED_EXPIRE
+            filter = (
+                (models.Tile.pred_status == TileStatus.UNSEEN) |
+                ((models.Tile.pred_status == TileStatus.DONEPROCESSING) & 
+                (models.Tile.pred_datetime <= datetime.now() - timedelta(minutes=constants.TILE_PRED_EXPIRE)))
+            )
 
     tiles = []
     for tile_id in tile_ids:
@@ -85,10 +94,11 @@ def upsert_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], p
             'tile_id': tile_id,
             **update_fields
         })
-
+    
     stmt = insert(models.Tile).values(tiles).on_conflict_do_update(
         index_elements=['annotation_class_id', 'image_id', 'tile_id'],
-        set_=update_fields
+        set_=update_fields,
+        where=filter
     )
 
     result = db_session.execute(stmt)

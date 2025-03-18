@@ -31,6 +31,9 @@ class TileIdRespSchema(Schema):
 class GetTileArgsSchema(Schema):
     tile_id = fields.Int(description="ID of the tile")
 
+class PostTileArgsSchema(GetTileArgsSchema):
+    pass
+
 class SearchTileArgsSchema(Schema):
     hasgt = fields.Bool(required=True, description="Filter by tiles which have ground truths saved")
     x1 = fields.Float(required=True, description="X-coordinate of the top-left corner of the bounding box")
@@ -58,12 +61,14 @@ class Tile(MethodView):
         result = get_tile(image_id, annotation_class_id, args['tile_id'])
         return result, 200
 
-    @bp.arguments(GetTileArgsSchema, location='query')
-    @bp.response(200, description="Successfully computed tiles")
+    @bp.arguments(PostTileArgsSchema, location='query')
+    @bp.response(200, description="Staged tile for DL processing")
     def post(self, args, image_id, annotation_class_id):
-        """     compute all tiles for a given image & class     """
-        compute_on_tile(image_id, annotation_class_id, args['tile_id'])
+        """     stage a tile for DL processing     """
+        
+        upsert_tiles(image_id, annotation_class_id, [args['tile_id']], pred_status=TileStatus.STARTPROCESSING)
         return 200
+
 
     @bp.arguments(GetTileArgsSchema, location='query')
     def delete(self, args, image_id, annotation_class_id):
@@ -145,4 +150,3 @@ class TileIdSearchByCoordinates(MethodView):
         tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
         tile_id = tilespace.point_to_tileid(args['x'], args['y'])
         return {"tileids": [tile_id]}, 200
-        
