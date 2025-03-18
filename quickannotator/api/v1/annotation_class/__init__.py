@@ -57,8 +57,7 @@ class AnnotationClass(MethodView):
                                           name=args['name'],
                                           color=args['color'],
                                           work_mag=args['work_mag'],
-                                          work_tilesize=2048,
-                                          dl_model_objectref=None
+                                          work_tilesize=2048
                                           )
         db_session.add(annotation)
         return {'annotation_class_id':annotation.id}, 200

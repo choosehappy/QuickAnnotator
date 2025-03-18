@@ -74,7 +74,7 @@ def seed(db_session):   # here db_session is the fixture
                         color="black",
                         work_mag=1.25,
                         work_tilesize=2048,
-                        dl_model_objectref=None)
+                        )
     
     # Add a second annotation class
     insert_annotation_class(
@@ -83,7 +83,7 @@ def seed(db_session):   # here db_session is the fixture
                         color="red",
                         work_mag=10,
                         work_tilesize=2048, # At base (40x) magnification, this is 2048 * 40 / 10 = 8192 pixels
-                        dl_model_objectref=None)
+                        )
 
     # Add a tile
     upsert_tiles(

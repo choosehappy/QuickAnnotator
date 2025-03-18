@@ -9,7 +9,6 @@ export interface AnnotationClass {
     work_mag: number;
     work_tilesize: number;
     date: Date;
-    dl_model_objectref: string;
 }
 
 export interface AnnotationResponse {

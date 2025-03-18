@@ -69,7 +69,6 @@ class AnnotationClass(Base):
     color = Column(Text, nullable=False)
     work_mag = Column(Float, nullable=False)
     work_tilesize = Column(Integer, nullable=False)
-    dl_model_objectref = Column(Text, nullable=True)
     datetime = Column(DateTime)
 
 
