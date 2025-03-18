@@ -87,7 +87,7 @@ class Tile(Base):
     pred_status = Column(Integer, nullable=False, default=TileStatus.UNSEEN)
     pred_datetime = Column(DateTime, nullable=True)
 
-    gt_counter = Column(Integer, nullable=False, default=0)
+    gt_counter = Column(Integer, nullable=True, default=None)
     gt_datetime = Column(DateTime, nullable=True)
 
     # relationships

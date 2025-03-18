@@ -61,6 +61,7 @@ def seed(db_session):   # here db_session is the fixture
     add_project(name="Test Project", description="A test project", is_dataset_large=False)
     
     # Add an image
+    # This image has a base magnification of 40x. The dimensions are 150784x71936 pixels.
     add_image_by_path(
                     project_id=1,
                     full_path="quickannotator/data/test_ndpi/13_266069_040_003 L02 PAS.ndpi"    # TODO: add test data
@@ -81,7 +82,7 @@ def seed(db_session):   # here db_session is the fixture
                         name="Fake Class",
                         color="red",
                         work_mag=10,
-                        work_tilesize=2048,
+                        work_tilesize=2048, # At base (40x) magnification, this is 2048 * 40 / 10 = 8192 pixels
                         dl_model_objectref=None)
 
     # Add a tile
@@ -95,27 +96,50 @@ def seed(db_session):   # here db_session is the fixture
     db_session.commit()
 
 @pytest.fixture(scope="function")
-def annotations_seed(db_session, seed, fake_ann_class_tilespace, mask_tilespace):
+def tissue_mask_seed(db_session, seed):
     image_id = 1
-    annotation_class_id = 2
-    is_gt = True
-    tilesize = 2048
+    annotation_class_id = 1
 
     # Create the mask annotation table
-    mask_store = AnnotationStore(image_id, constants.MASK_CLASS_ID, is_gt=True, create_table=True)
-
-    # Create the annotation table
-    annotation_store = AnnotationStore(image_id, annotation_class_id, is_gt=True, create_table=True)
-
-    # Create the prediction table
-    prediction_store = AnnotationStore(image_id, annotation_class_id, is_gt=False, create_table=True)
+    mask_store = AnnotationStore(image_id, annotation_class_id, in_work_mag=False, is_gt=True, create_table=True)
 
     # Insert a mask annotation which envelopes all annotations
-    mask_poly = Polygon([(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)])
+    minx, miny, maxx, maxy = 0, 0, 10000, 10000
+    mask_poly = Polygon([(minx, miny), (maxx, miny), (maxx, maxy), (minx, maxy), (minx, miny)])
     mask_store.insert_annotations([mask_poly])
 
-    polygons = [Polygon([(i, i), (i + 1, i), (i + 1, i + 1), (i, i + 1), (i, i)]) for i in range(10)]
-    
+    db_session.commit()
+
+@pytest.fixture(scope="module")
+def polygons():
+    num_annotations = 10
+    minx, miny, maxx, maxy = 0, 0, 50000, 50000
+    step = (maxx - minx) // num_annotations
+    polygons = []
+    for i in range(num_annotations):
+        x_start = minx + i * step
+        y_start = miny + i * step
+        polygon = Polygon([
+            (x_start, y_start),
+            (x_start + step, y_start),
+            (x_start + step, y_start + step),
+            (x_start, y_start + step),
+            (x_start, y_start)
+        ])
+        polygons.append(polygon)
+    return polygons
+
+@pytest.fixture(scope="function")
+def annotations_seed(db_session, tissue_mask_seed, polygons):
+    image_id = 1
+    annotation_class_id = 2
+
+    # Create the annotation table
+    annotation_store = AnnotationStore(image_id, annotation_class_id, is_gt=True, in_work_mag=False, create_table=True)
+
+    # Create the prediction table
+    prediction_store = AnnotationStore(image_id, annotation_class_id, is_gt=False, in_work_mag=False, create_table=True)
+
     # Insert the annotations
     annotation_store.insert_annotations(polygons)
 

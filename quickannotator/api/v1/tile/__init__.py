@@ -138,11 +138,11 @@ class TileIdSearchByPolygon(MethodView):
 @bp.route('/<int:image_id>/<int:annotation_class_id>/search/coordinates')
 class TileIdSearchByCoordinates(MethodView):
     @bp.arguments(SearchTileByCoordinatesArgsSchema, location='query')
-    @bp.response(200, TileRespSchema)
+    @bp.response(200, TileIdRespSchema)
     def get(self, args, image_id, annotation_class_id):
         """     get a Tile for a given point
         """
         tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
         tile_id = tilespace.point_to_tileid(args['x'], args['y'])
-        return tile_id, 200
+        return {"tileids": [tile_id]}, 200
         

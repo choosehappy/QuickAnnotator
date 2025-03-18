@@ -30,9 +30,11 @@ def test_get_annotations_for_tiles(annotation_store):
     assert len(annotations) > 0
 
 def test_get_annotations_within_poly(annotation_store):
-    polygon = Polygon([(0.0, 0.0), (5.0, 0.0), (5.0, 5.0), (0.0, 5.0), (0.0, 0.0)])
+    polygon = Polygon([(0.0, 0.0), (1000.0, 0.0), (1000.0, 1000.0), (0.0, 1000.0), (0.0, 0.0)])
     annotations = annotation_store.get_annotations_within_poly(polygon)
-    expected_polygons = [Polygon([(i, i), (i + 1, i), (i + 1, i + 1), (i, i + 1), (i, i)]) for i in range(5)]
+    expected_polygons = [
+        Polygon([[0, 0], [1250, 0], [1250, 1250], [0, 1250], [0, 0]])
+    ]
     
     assert len(annotations) == len(expected_polygons)
     

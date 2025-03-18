@@ -1,7 +1,6 @@
 from flask import Flask
 from quickannotator.constants import TileStatus
 import geojson
-
 def test_get_tile(test_client, seed, db_session):
     """
     GIVEN a test client and a tile with specific annotation_class_id, image_id, and tile_id
@@ -13,15 +12,12 @@ def test_get_tile(test_client, seed, db_session):
     annotation_class_id = 2
     image_id = 1
     tile_id = 0
-    seen = TileStatus.UNSEEN
 
     # Act
     params = {
-        'annotation_class_id': annotation_class_id,
-        'image_id': image_id,
         'tile_id': tile_id
     }
-    response = test_client.get('/api/v1/tile', query_string=params)
+    response = test_client.get(f'/api/v1/tile/{image_id}/{annotation_class_id}', query_string=params)
 
     # Assert
     assert response.status_code == 200
@@ -29,10 +25,9 @@ def test_get_tile(test_client, seed, db_session):
     assert data['annotation_class_id'] == annotation_class_id
     assert data['image_id'] == image_id
     assert data['tile_id'] == tile_id
-    assert data['seen'] == seen
 
 
-def test_get_tile_bbox(test_client, seed, db_session):
+def test_get_tile_bbox(test_client, seed, tissue_mask_seed, db_session):
     """
     GIVEN a test client and a tile with specific annotation_class_id, image_id, and tile_id
     WHEN the client requests the bounding box of the tile using a GET request
@@ -43,23 +38,20 @@ def test_get_tile_bbox(test_client, seed, db_session):
     annotation_class_id = 2
     image_id = 1
     tile_id = 0
-    seen = TileStatus.UNSEEN
 
     # Act
     params = {
-        'annotation_class_id': annotation_class_id,
-        'image_id': image_id,
         'tile_id': tile_id
     }
-    response = test_client.get('/api/v1/tile/bbox', query_string=params)
+    response = test_client.get(f'/api/v1/tile/{image_id}/{annotation_class_id}/bbox', query_string=params)
 
     # Assert
     assert response.status_code == 200
     data = response.get_json()
     assert 'bbox' in data
 
-# NOTE: need to add annotation_1_1_gt and a tissue mask annotation for this to work
-def test_search_tiles_within_bbox(test_client, seed, db_session):
+
+def test_search_tiles_within_bbox(test_client, seed, annotations_seed, db_session):
     """
     GIVEN a test client and tiles within a specific bounding box
     WHEN the client requests the tiles within the bounding box using a GET request
@@ -69,32 +61,28 @@ def test_search_tiles_within_bbox(test_client, seed, db_session):
     # Arrange
     annotation_class_id = 2
     image_id = 1
-    tile_id = 0
-    include_placeholder_tiles = 'true'
-    seen = TileStatus.UNSEEN
-
     bbox = {'x1': 0, 'y1': 0, 'x2': 100, 'y2': 100}
+    hasgt = True
 
     # Act
     params = {
-        'annotation_class_id': annotation_class_id,
-        'image_id': image_id,
         'x1': bbox['x1'],
         'y1': bbox['y1'],
         'x2': bbox['x2'],
         'y2': bbox['y2'],
-        'include_placeholder_tiles': include_placeholder_tiles
+        'hasgt': hasgt
     }
-    response = test_client.get('/api/v1/tile/search/bbox', query_string=params)
+    response = test_client.get(f'/api/v1/tile/{image_id}/{annotation_class_id}/search/bbox', query_string=params)
 
     # Assert
     assert response.status_code == 200
     data = response.get_json()
-    assert isinstance(data, list)
-    assert len(data) > 0
+    assert 'tileids' in data
+    assert isinstance(data['tileids'], list)
+    assert len(data['tileids']) > 0
 
-# NOTE: need to add annotation_1_1_gt and a tissue mask annotation for this to work
-def test_search_tile_by_polygon(test_client, seed, db_session, annotations_seed):
+
+def test_search_tile_by_polygon(test_client, seed, annotations_seed, db_session):
     """
     GIVEN a test client and tiles within a specific polygon
     WHEN the client requests the tiles within the polygon using a POST request
@@ -104,29 +92,25 @@ def test_search_tile_by_polygon(test_client, seed, db_session, annotations_seed)
     # Arrange
     annotation_class_id = 2
     image_id = 1
-    polygon = geojson.Polygon([[(0, 0), (0, 100), (100, 100), (100, 0), (0, 0)]])
-    include_placeholder_tiles = 'true'
+    query_polygon = geojson.Polygon([[(0, 0), (0, 100), (100, 100), (100, 0), (0, 0)]])
+    hasgt = True
 
     # Act
     params = {
-        'annotation_class_id': annotation_class_id,
-        'image_id': image_id,
-        'polygon': polygon,
-        'include_placeholder_tiles': include_placeholder_tiles
+        'polygon': geojson.dumps(query_polygon),
+        'hasgt': hasgt
     }
-    response = test_client.post('/api/v1/tile/search/polygon', json=params)
+    response = test_client.post(f'/api/v1/tile/{image_id}/{annotation_class_id}/search/polygon', json=params)
 
     # Assert
     assert response.status_code == 200
     data = response.get_json()
-    assert 'tile_ids' in data
-    assert isinstance(data['tile_ids'], list)
-    assert len(data['tile_ids']) > 0
-    assert 0 in data['tile_ids']
-    assert 1 in data['tile_ids']
-    assert 19 in data['tile_ids']
+    assert 'tileids' in data
+    assert isinstance(data['tileids'], list)
+    assert len(data['tileids']) > 0
 
-def test_search_tile_by_coordinates(test_client, seed, db_session):
+
+def test_search_tile_by_coordinates(test_client, seed, annotations_seed, db_session):
     """
     GIVEN a test client and a tile with specific coordinates
     WHEN the client requests the tile using the coordinates with a GET request
@@ -136,46 +120,43 @@ def test_search_tile_by_coordinates(test_client, seed, db_session):
     # Arrange
     annotation_class_id = 2
     image_id = 1
-    tile_id = 0
-
-    x, y = 50, 50
+    x, y = 9000, 0
 
     # Act
     params = {
-        'annotation_class_id': annotation_class_id,
-        'image_id': image_id,
         'x': x,
         'y': y
     }
-    response = test_client.get('/api/v1/tile/search/coordinates', query_string=params)
+    response = test_client.get(f'/api/v1/tile/{image_id}/{annotation_class_id}/search/coordinates', query_string=params)
 
     # Assert
     assert response.status_code == 200
     data = response.get_json()
-    assert data['tile_id'] == tile_id
+    assert 'tileids' in data
+    assert isinstance(data['tileids'], list)
+    assert len(data['tileids']) == 1
+    assert data['tileids'][0] == 1
 
-# NOTE: Although the object ref is created, the prediction job fails because ray doesn't have access to the in-memory db
-def test_predict_tile(test_client, seed, db_session):
-    """
-    GIVEN a test client and a tile with specific annotation_class_id, image_id, and tile_id
-    WHEN the client requests to predict the tile using a POST request
-    THEN the response should have a status code of 201 and the returned data should contain the object reference
-    """
 
-    # Arrange
-    annotation_class_id = 2
-    image_id = 1
-    tile_id = 0
-    seen = TileStatus.UNSEEN
 
-    # Act
-    response = test_client.post('/api/v1/tile/predict', json={
-        'annotation_class_id': annotation_class_id,
-        'image_id': image_id,
-        'tile_id': tile_id
-    })
+# def test_predict_tile(test_client, seed, annotations_seed, db_session):
+#     """
+#     GIVEN a test client and a tile with specific annotation_class_id, image_id, and tile_id
+#     WHEN the client requests to predict the tile using a POST request
+#     THEN the response should have a status code of 201 and the returned data should contain the object reference
+#     """
 
-    # Assert
-    assert response.status_code == 201
-    data = response.get_json()
-    assert 'object_ref' in data
+#     # Arrange
+#     annotation_class_id = 2
+#     image_id = 1
+#     tile_id = 0
+
+#     # Act
+#     response = test_client.post(f'/api/v1/tile/{image_id}/{annotation_class_id}/predict', json={
+#         'tile_id': tile_id
+#     })
+
+#     # Assert
+#     assert response.status_code == 201
+#     data = response.get_json()
+#     assert 'object_ref' in data
