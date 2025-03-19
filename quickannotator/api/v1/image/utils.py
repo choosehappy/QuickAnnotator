@@ -17,8 +17,7 @@ def add_image_by_path(project_id, full_path):
                     dz_tilesize=slide.tileWidth,
                     embedding_coord="POINT (1 1)",
                     group_id=0,
-                    split=0,
-                    datetime=datetime.now()
+                    split=0
                     )
     
     db_session.add(image)
