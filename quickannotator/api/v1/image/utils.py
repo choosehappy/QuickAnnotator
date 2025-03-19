@@ -2,6 +2,7 @@ from quickannotator.db import db_session
 import quickannotator.db.models as models
 import large_image
 import os
+from datetime import datetime
 
 def add_image_by_path(project_id, full_path):
     path = full_path.split("quickannotator/")[1]

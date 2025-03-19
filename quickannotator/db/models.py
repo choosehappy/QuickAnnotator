@@ -1,4 +1,5 @@
 from geoalchemy2 import Geometry
+import geojson.geometry
 from marshmallow import fields
 from sqlalchemy.sql import func
 from quickannotator.db import Base
@@ -7,6 +8,7 @@ import geojson
 from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, Text, func
 from ..constants import TileStatus
 from sqlalchemy import Enum
+from datetime import datetime
 
 class Project(Base):
     """
@@ -23,7 +25,7 @@ class Project(Base):
     # is_dataset_large project setting that currently has no use.
     # a "large" dataset might have e.g., > 100 million total histologic object annotations
     is_dataset_large = Column(Boolean, default=False)   
-    datetime = Column(DateTime, server_default=func.now())
+    datetime = Column(DateTime, default=datetime.now)
 
     # relationships
     images = relationship('Image', backref='project', lazy=True)
@@ -49,7 +51,7 @@ class Image(Base):
     embedding_coord = Column(Geometry('POINT'))
     group_id = Column(Integer)
     split = Column(Integer)
-    datetime = Column(DateTime, server_default=func.now())
+    datetime = Column(DateTime, default=datetime.now)
 
     # relationships
     notifications = relationship("Notification", backref='image', lazy=True)
@@ -69,7 +71,7 @@ class AnnotationClass(Base):
     work_mag = Column(Float, nullable=False)
     work_tilesize = Column(Integer, nullable=False)
     dl_model_objectref = Column(Text, nullable=True)
-    datetime = Column(DateTime, server_default=func.now())
+    datetime = Column(DateTime, default=datetime.now)
 
 
 class Tile(Base):
@@ -83,11 +85,11 @@ class Tile(Base):
     tile_id = Column(Integer, nullable=False)
 
     # columns
-    pred_status = Column(Integer, nullable=True, default=TileStatus.UNSEEN)
-    pred_datetime = Column(DateTime, nullable=True, server_default=func.now())
+    pred_status = Column(Integer, nullable=False, default=TileStatus.UNSEEN)
+    pred_datetime = Column(DateTime, nullable=True, default=None)
 
-    gt_counter = Column(Integer, nullable=True, default=0)
-    gt_datetime = Column(DateTime, nullable=True, server_default=func.now())
+    gt_counter = Column(Integer, nullable=True, default=None)
+    gt_datetime = Column(DateTime, nullable=True, default=None)
 
     # relationships
     image = relationship('Image', backref='tiles')
@@ -109,17 +111,17 @@ class Annotation(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
 
     # These columns are kept null intentionally because the information is stored in the table name. Consider eventually removing these columns.
-    image_id = Column(Integer, nullable=True, default=None)
-    annotation_class_id = Column(Integer, nullable=True, default=None)
-    isgt = Column(Boolean, nullable=True, default=None)
+    # image_id = Column(Integer, nullable=True, default=None)
+    # annotation_class_id = Column(Integer, nullable=True, default=None)
+    # isgt = Column(Boolean, nullable=True, default=None)
 
     # columns
     tile_id = Column(Integer, nullable=False, default=None)
-    centroid = Column(Geometry('POINT', srid=4326))  # Stored as geometry
+    centroid = Column(Geometry('POINT', srid=0))  # Stored as geometry
     area = Column(Float)
-    polygon = Column(Geometry('POLYGON', srid=4326))  # Stored as geometry
+    polygon = Column(Geometry('POLYGON', srid=0))  # Stored as geometry
     custom_metrics = Column(JSON)
-    datetime = Column(DateTime, server_default=func.now())
+    datetime = Column(DateTime, default=datetime.now)
 
 
 class Notification(Base):
@@ -136,7 +138,7 @@ class Notification(Base):
     message_type = Column(Integer, nullable=False)
     is_read = Column(Boolean, nullable=False)
     message = Column(Text, nullable=False)
-    datetime = Column(DateTime, server_default=func.now())
+    datetime = Column(DateTime, default=datetime.now)
 
 
 class Setting(Base):
@@ -170,7 +172,7 @@ class GeometryField(fields.Field):
     def _serialize(self, value, attr, obj, **kwargs):
         return value
 
-    def _deserialize(self, value, attr, data, **kwargs):
+    def _deserialize(self, value, attr, data, **kwargs) -> geojson.geometry.Geometry:
         try:
             geom = geojson.loads(value)
             return geom

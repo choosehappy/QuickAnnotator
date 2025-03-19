@@ -6,6 +6,7 @@ class TileStatus(enum.IntEnum):
     PROCESSING = 2
     DONEPROCESSING = 3
 
+MASK_DILATION = 1
 BASE_PATH = '/opt/QuickAnnotator/quickannotator'
 
 MASK_CLASS_ID = 1
