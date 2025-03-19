@@ -202,4 +202,4 @@ def test_delete_annotation_not_found(annotation_store):
     result = annotation_store.delete_annotation(annotation_id)
 
     # Assert
-    assert result == 0
+    assert result is None
