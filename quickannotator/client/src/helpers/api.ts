@@ -151,7 +151,7 @@ export const searchTileIds = async (image_id: number, annotation_class_id: numbe
         y2: y2.toString(),
     });
 
-    return await get<{ tileids: number[] }>(`/tile/${image_id}/${annotation_class_id}/search/bbox?${query}`);
+    return await get<{ tile_ids: number[] }>(`/tile/${image_id}/${annotation_class_id}/search/bbox?${query}`);
 }
 
 export const searchTileIdsWithinPolygon = async (image_id: number, annotation_class_id: number, polygon: Polygon, hasgt=false) => {
@@ -159,7 +159,7 @@ export const searchTileIdsWithinPolygon = async (image_id: number, annotation_cl
         polygon: JSON.stringify(polygon),
         hasgt: hasgt
     };
-    return await post<SearchTileIdsByPolygonArgs, { tileids: number[] }>(`/tile/${image_id}/${annotation_class_id}/search/polygon`, requestBody);
+    return await post<SearchTileIdsByPolygonArgs, { tile_ids: number[] }>(`/tile/${image_id}/${annotation_class_id}/search/polygon`, requestBody);
 };
 
 // Fetch tile by ID

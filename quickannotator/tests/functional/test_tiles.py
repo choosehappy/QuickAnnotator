@@ -77,9 +77,9 @@ def test_search_tiles_within_bbox(test_client, seed, annotations_seed, db_sessio
     # Assert
     assert response.status_code == 200
     data = response.get_json()
-    assert 'tileids' in data
-    assert isinstance(data['tileids'], list)
-    assert len(data['tileids']) > 0
+    assert 'tile_ids' in data
+    assert isinstance(data['tile_ids'], list)
+    assert len(data['tile_ids']) > 0
 
 
 def test_search_tile_by_polygon(test_client, seed, annotations_seed, db_session):
@@ -105,9 +105,9 @@ def test_search_tile_by_polygon(test_client, seed, annotations_seed, db_session)
     # Assert
     assert response.status_code == 200
     data = response.get_json()
-    assert 'tileids' in data
-    assert isinstance(data['tileids'], list)
-    assert len(data['tileids']) > 0
+    assert 'tile_ids' in data
+    assert isinstance(data['tile_ids'], list)
+    assert len(data['tile_ids']) > 0
 
 
 def test_search_tile_by_coordinates(test_client, seed, annotations_seed, db_session):
@@ -132,10 +132,10 @@ def test_search_tile_by_coordinates(test_client, seed, annotations_seed, db_sess
     # Assert
     assert response.status_code == 200
     data = response.get_json()
-    assert 'tileids' in data
-    assert isinstance(data['tileids'], list)
-    assert len(data['tileids']) == 1
-    assert data['tileids'][0] == 1
+    assert 'tile_ids' in data
+    assert isinstance(data['tile_ids'], list)
+    assert len(data['tile_ids']) == 1
+    assert data['tile_ids'][0] == 1
 
 
 

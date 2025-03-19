@@ -1,6 +1,7 @@
 from shapely.affinity import scale
 from shapely.geometry.base import BaseGeometry
-from sqlalchemy import func, insert
+import sqlalchemy
+from sqlalchemy import func
 from datetime import datetime
 from typing import List
 from sqlalchemy.dialects.sqlite import insert
@@ -201,8 +202,18 @@ class AnnotationStore:
 
 
     # DELETE
-    def delete_annotation(self, annotation_id: int):
-        result = db_session.query(self.model).filter(self.model.id == annotation_id).delete()
+    def delete_annotation(self, annotation_id: int) -> int:
+        """
+        Deletes an annotation by its ID.
+        Args:
+            annotation_id (int): The ID of the annotation to be deleted.
+        Returns:
+            int: The ID of the deleted annotation if it exists, otherwise None.
+        """
+
+        stmt = sqlalchemy.delete(self.model).where(self.model.id == annotation_id).returning(self.model.id)
+        result = db_session.execute(stmt).scalar_one_or_none()
+        db_session.commit()
         return result
 
     def delete_all_annotations(self):

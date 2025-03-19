@@ -107,6 +107,31 @@ def generate_random_circle_within_bbox(bbox: Polygon, radius: float) -> shapely.
     intersection = bbox.intersection(circle)
     return intersection
 
+def get_tiles_by_tile_ids(image_id: int, annotation_class_id: int, tile_ids: list[int], hasgt=False) -> list[models.Tile]:
+    """
+    Get tiles by their IDs.
+    
+    Args:
+        image_id (int): The ID of the image.
+        annotation_class_id (int): The ID of the annotation class.
+        tile_ids (list[int]): A list of tile IDs.
+        hasgt (bool): Flag to filter tiles that have ground truth annotations.
+        
+    Returns:
+        list[models.Tile]: A list of tile objects.
+    """
+    query = db_session.query(models.Tile).filter(
+        models.Tile.image_id == image_id,
+        models.Tile.annotation_class_id == annotation_class_id,
+        models.Tile.tile_id.in_(tile_ids)
+    )
+    
+    if hasgt:
+        query = query.filter(models.Tile.gt_datetime.isnot(None))
+    
+    return query.all()
+
+# TODO: remove this method
 @ray.remote
 def remote_compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
     time.sleep(sleep_time)
@@ -131,12 +156,12 @@ def remote_compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int
         tile.seen = 2
             
 
-
+# TODO: remove this method
 def compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
     ref = remote_compute_on_tile.remote(annotation_class_id, image_id, tile_id, sleep_time)
     return ref.hex()
 
-
+# TODO: remove this method
 def reset_all_tiles_seen():
     """
     Resets the 'seen' status of all tiles in the database to 0.

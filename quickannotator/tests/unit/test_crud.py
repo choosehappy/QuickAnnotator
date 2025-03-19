@@ -54,7 +54,7 @@ def test_update_annotation(annotation_store):
 def test_delete_annotation(annotation_store):
     annotation_id = 1
     result = annotation_store.delete_annotation(annotation_id)
-    assert result
+    assert result == annotation_id
 
 def test_delete_all_annotations(annotation_store):
     annotation_store.delete_all_annotations()
