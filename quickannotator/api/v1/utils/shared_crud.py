@@ -65,10 +65,11 @@ def upsert_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], p
     If tiles with the same annotation_class_id, image_id, and tile_ids already exist, it updates the relevant fields.
 
     Args:
-        annotation_class_id (int): The ID of the annotation class.
         image_id (int): The ID of the image.
+        annotation_class_id (int): The ID of the annotation class.
         tile_ids (List[int]): The IDs of the tiles.
         pred_status (TileStatus, optional): The status of the tile prediction. Defaults to None. None indicates that the ground truth state of the tile is being updated.
+        process_owns_tile (bool, optional): If True, updates tiles regardless of their current status. Defaults to False. Only a ray actor should set this to True.
     """
     update_fields = {}
     filter = None
@@ -142,6 +143,9 @@ class AnnotationStore:
     # CREATE
     # TODO: make this function applicable to predicted annotations, not just ground truths.
     def insert_annotations(self, polygons: List[BaseGeometry]) -> List[models.Annotation]:
+        # Initial validation
+        if len(polygons) == 0:
+            return []
         # in_work_mag is true because we expect the polygons are scaled at this point.
         tilespace = get_tilespace(self.image_id, self.annotation_class_id, in_work_mag=True)
         new_annotations = []
@@ -157,6 +161,7 @@ class AnnotationStore:
                 "custom_metrics": compute_custom_metrics(),  # Add appropriate custom metrics if needed
                 "datetime": datetime.now()
             })
+
         stmt = insert(self.model).returning(self.model.id).values(new_annotations)
         ids = db_session.scalars(stmt).all()
         result = self.get_annotations_by_ids(annotation_ids=ids)

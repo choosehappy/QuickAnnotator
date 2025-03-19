@@ -8,7 +8,7 @@ import quickannotator.db as qadb
 from quickannotator.db import db_session
 from quickannotator.constants import TileStatus
 import quickannotator.db.models as models
-from .helper import get_tile, compute_on_tile, get_tile_ids_intersecting_mask, get_tile_ids_intersecting_polygons
+from .helper import get_tile, get_tile_ids_intersecting_mask, get_tile_ids_intersecting_polygons
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
 bp = Blueprint('tile', __name__, description="Tile operations")
 
@@ -61,15 +61,6 @@ class Tile(MethodView):
         result = get_tile(image_id, annotation_class_id, args['tile_id'])
         return result, 200
 
-    @bp.arguments(PostTileArgsSchema, location='query')
-    @bp.response(200, description="Staged tile for DL processing")
-    def post(self, args, image_id, annotation_class_id):
-        """     stage a tile for DL processing     """
-        
-        upsert_tiles(image_id, annotation_class_id, [args['tile_id']], pred_status=TileStatus.STARTPROCESSING)
-        return 200
-
-
     @bp.arguments(GetTileArgsSchema, location='query')
     def delete(self, args, image_id, annotation_class_id):
         """     delete a Tile
@@ -83,6 +74,20 @@ class Tile(MethodView):
             db_session.delete(tile)
             db_session.commit()
         return 204
+
+@bp.route('/<int:image_id>/<int:annotation_class_id>/predict')
+class PredictTile(MethodView):
+    @bp.arguments(PostTileArgsSchema, location='query')
+    @bp.response(200, description="Staged tile for DL processing")
+    def post(self, args, image_id, annotation_class_id):
+        """     stage a tile for DL processing     """
+        
+        upsert_tiles(image_id, 
+                        annotation_class_id, 
+                        [args['tile_id']], 
+                        pred_status=TileStatus.STARTPROCESSING, 
+                        process_owns_tile=False)   # Explicitly setting this to false to emphasize that a flask process is never the owner of a tile. See method description.
+        return 200
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>/bbox')
 class TileBoundingBox(MethodView):

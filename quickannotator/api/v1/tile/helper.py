@@ -22,7 +22,7 @@ from quickannotator.db.utils import build_annotation_table_name, create_dynamic_
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
 from quickannotator.api.v1.utils.shared_crud import AnnotationStore
 
-# TODO: Remove this method as it is not used.
+# TODO: DEPRECATED Remove this method as it is not used.
 def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile_id: int) -> bool:
 
     bbox = get_tilespace(image_id=image_id, annotation_class_id=annotatation_class_id).get_bbox_for_tile(tile_id)
@@ -107,43 +107,32 @@ def generate_random_circle_within_bbox(bbox: Polygon, radius: float) -> shapely.
     intersection = bbox.intersection(circle)
     return intersection
 
-@ray.remote
-def remote_compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
-    time.sleep(sleep_time)
-    # Create the engine and session for each Ray task
-        # Start a session for the task
-    with get_session() as db_session:
-        # Example: load the tile and process
-        # breakpoint()
-        tile = get_tile(image_id, annotation_class_id, tile_id)  # Replace with your actual function to get the tile
-        if tile is None:
-            raise ValueError(f"Tile not found: {tile_id}")
-        tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=True)
+# TODO: DEPRECATED, to be removed
+# @ray.remote
+# def remote_compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
+#     time.sleep(sleep_time)
+#     # Create the engine and session for each Ray task
+#         # Start a session for the task
+#     with get_session() as db_session:
+#         # Example: load the tile and process
+#         # breakpoint()
+#         tile = get_tile(image_id, annotation_class_id, tile_id)  # Replace with your actual function to get the tile
+#         if tile is None:
+#             raise ValueError(f"Tile not found: {tile_id}")
+#         tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=True)
 
-        # Process the tile (using shapely for example)
-        bbox = tilespace.get_bbox_for_tile(tile_id)
-        bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
-        polygons = [generate_random_circle_within_bbox(bbox_polygon, 100) for _ in range(random.randint(20, 40))]
-        store = AnnotationStore(image_id, annotation_class_id, is_gt=False)
-        store.insert_annotations(polygons)
+#         # Process the tile (using shapely for example)
+#         bbox = tilespace.get_bbox_for_tile(tile_id)
+#         bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
+#         polygons = [generate_random_circle_within_bbox(bbox_polygon, 100) for _ in range(random.randint(20, 40))]
+#         store = AnnotationStore(image_id, annotation_class_id, is_gt=False)
+#         store.insert_annotations(polygons)
 
-        # Mark tile as processed
-        tile.seen = 2
+#         # Mark tile as processed
+#         tile.seen = 2
             
 
-
-def compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
-    ref = remote_compute_on_tile.remote(annotation_class_id, image_id, tile_id, sleep_time)
-    return ref.hex()
-
-
-def reset_all_tiles_seen():
-    """
-    Resets the 'seen' status of all tiles in the database to 0.
-    Args:
-        db: The database session object used to interact with the database.
-    Returns:
-        None
-    """
-
-    db_session.query(models.Tile).update({models.Tile.seen: TileStatus.UNSEEN})
+# TODO: DEPRECATED, to be removed
+# def compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
+#     ref = remote_compute_on_tile.remote(annotation_class_id, image_id, tile_id, sleep_time)
+#     return ref.hex()
