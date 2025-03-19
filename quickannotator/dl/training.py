@@ -7,6 +7,7 @@ from tqdm import tqdm
 import ray
 
 from quickannotator.dl.inference import run_inference, getPendingInferenceTiles
+from quickannotator.dl.utils import build_actor_name
 from .dataset import TileDataset
 import io
 import albumentations as A
@@ -66,11 +67,11 @@ def train_pred_loop(config):
     #---------
 
     #TODO: likely need to accept here the checkpoint location
-    classid = config["classid"] # --- this should result in a catastrophic failure if not provided
+    annotation_class_id = config["annotation_class_id"] # --- this should result in a catastrophic failure if not provided
     tile_size = config["tile_size"] #probably this as well
     magnification = config["magnification"] #probably this as well
-    actor_name = config["actor_name"]
-    print (f"{actor_name=}")
+    actor_name = build_actor_name(annotation_class_id)
+    print (f"Actor name: {actor_name}")
 
     #TODO: all these from project settings
     boost_count = 5
@@ -80,7 +81,7 @@ def train_pred_loop(config):
     num_workers=0 #TODO:set to num of CPUs? or...# of CPUs/ divided by # of classes or something...challenge - one started can't change. maybe set to min(batch_size train, ??) 
     
 
-    dataset=TileDataset(classid, tile_size=tile_size, magnification=magnification,
+    dataset=TileDataset(annotation_class_id, tile_size=tile_size, magnification=magnification,
                         edge_weight=edge_weight, transforms=get_transforms(tile_size), 
                         boost_count=boost_count)
 
@@ -107,7 +108,7 @@ def train_pred_loop(config):
     myactor = ray.get_actor(actor_name)
     #print ("post actor get")
     while not ray.get(myactor.getCloseDown.remote()): 
-        while tiles := getPendingInferenceTiles(classid,batch_size_infer): 
+        while tiles := getPendingInferenceTiles(annotation_class_id,batch_size_infer): 
             #print (f"running inference on {len(tiles)}")
             run_inference(device, model, tiles)
             

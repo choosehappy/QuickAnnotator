@@ -75,3 +75,7 @@ def load_tile(tile): #TODO: i suspect this sort of function exists elsewhere wit
 def get_memcached_client():
     client = PooledClient(('localhost', 11211),serde=serde.pickle_serde, max_pool_size=4) #TODO: will need to get this info from the config file
     return client
+
+
+def build_actor_name(annotation_class_id):
+    return f"dl_actor_class_{annotation_class_id}"
