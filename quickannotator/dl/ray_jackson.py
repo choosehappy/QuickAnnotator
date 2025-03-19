@@ -13,12 +13,13 @@ import ray.train.torch
 import ray.train
 from torch.nn import CrossEntropyLoss, MSELoss
 from torch.optim import Adam
-from quickannotator.constants import TileStatus
+import quickannotator.constants as constants
 from quickannotator.db import get_session
+from quickannotator.db.annotation_class_crud import get_annotation_class_by_id, build_actor_name
 from quickannotator.db.models import Tile
 import sqlalchemy
 from quickannotator.dl.training import train_pred_loop
-from quickannotator.dl.utils import build_actor_name
+from datetime import datetime
 
 
 @ray.remote
@@ -28,8 +29,7 @@ class DLActor:
         print(f"{tile_size=}")
         self.annotation_class_id=annotation_class_id
         self.tile_size=tile_size
-        self.enable_training=False # starts not training
-        self.closedown = False 
+        self.procRunningSince = None 
         self.allow_pred=True # --- don't know if we'll ever need this, so hard setting to true
         self.hexid=None
         self.magnification = magnification
@@ -43,6 +43,8 @@ class DLActor:
         print("starting up", build_actor_name(annotation_class_id=self.annotation_class_id))
         #---------------------------
 
+        # Indicate that the actor is currently processing
+        self.setProcRunningSince()
         #scaling_config = ray.train.ScalingConfig(num_workers=2, use_gpu=True,resources_per_worker={"GPU":.5})
         ## will fail on single node single gpu --- (DLActor pid=174521) Duplicate GPU detected : rank 1 and rank 0 both on CUDA device 1000
 
@@ -77,7 +79,7 @@ class DLActor:
         with get_session() as db_session:
             stmt = sqlalchemy.update(Tile).where(Tile.tile_id.in_(tileids), Tile.image_id == image_id,
                                                 Tile.annotation_class_id == self.annotation_class_id)\
-                                                    .values(pred_status=TileStatus.STARTPROCESSING,pred_datetime=sqlalchemy.func.now()) ## should add date time
+                                                    .values(pred_status=constants.TileStatus.STARTPROCESSING,pred_datetime=sqlalchemy.func.now()) ## should add date time
 
             # Execute the update
             db_session.execute(stmt)
@@ -103,24 +105,57 @@ class DLActor:
     def setHexId(self,hexid:str): # not sure if set is smart to have -- should likely be done internally
         self.hexid=hexid
         return self.hexid
-
-    def setEnableTraining(self,enable_training: bool):
-        self.enable_training=enable_training
-        return self.enable_training
-    
-    def getEnableTraining(self):
-        return self.enable_training
-    
-    def getCloseDown(self):
-        return self.closedown
-    
-    def setCloseDown(self,closedown: bool):
-        self.closedown=closedown
-        return self.closedown
     
     def getActorName(self):
         return build_actor_name(annotation_class_id=self.annotation_class_id)
     
     def getTileSize(self):
         return self.tile_size
+    
+    def getProcRunningSince(self):
+        print(f"procRunningSince: {self.procRunningSince}")
+        return self.procRunningSince
 
+    def setProcRunningSince(self, reset=False):
+        if reset:
+            self.procRunningSince = None
+        else:
+            self.procRunningSince = datetime.now()
+
+
+def start_processing(annotation_class_id: int):
+    # 1. Get all named actors
+    actor_queue = get_actors(sort_by_date=True)
+
+    # 2. Sort actors by running_since_datetimes
+    while len(actor_queue) > constants.MAX_ACTORS_PROCESSING:
+        # 3. Pop the oldest actor
+        oldest_actor = actor_queue.pop(0)
+        oldest_actor.setProcRunningSince.remote(None)
+
+    # 4. Start the new actor
+    actor_name = build_actor_name(annotation_class_id=annotation_class_id)
+    annotation_class = get_annotation_class_by_id(annotation_class_id)
+
+    current_actor = DLActor.options(name=actor_name, get_if_exists=True).remote(annotation_class_id,
+                                    annotation_class.work_tilesize,
+                                    annotation_class.work_mag)
+
+    current_actor.start_dlproc.remote()
+
+    return current_actor
+
+def get_actors(sort_by_date=False):
+    actors = [ray.get_actor(name) for name in ray.util.list_named_actors()]
+
+    if sort_by_date:
+        sorted_actors = []
+        for actor in actors:
+            date = ray.get(actor.getProcRunningSince.remote())
+            if date:
+                sorted_actors.append((date, actor))
+
+        return sorted(sorted_actors, key=lambda x: x[0])
+
+        # actors = sorted([(ray.get(actor.getProcRunningSince.remote()), actor) for actor in actors])
+    return actors

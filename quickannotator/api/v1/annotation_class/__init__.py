@@ -4,7 +4,8 @@ from flask.views import MethodView
 import quickannotator.db.models as models
 from quickannotator.db import db_session
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from .helper import get_annotation_class_by_id
+from ....db.annotation_class_crud import get_annotation_class_by_id
+
 
 bp = Blueprint('annotation_class', __name__, description='AnnotationClass operations')
 
@@ -92,14 +93,13 @@ class SearchAnnotationClass(MethodView):
         return result, 200
 
 ####################################################################################################
-@bp.route('/<int:annotation_class_id>/model')
-class DLModel(MethodView):
-    def get(self, annotation_class_id):
-        """     get the state of the DL model service     """
-        return 200
-
+@bp.route('/<int:annotation_class_id>/startproc')
+class DLActor(MethodView):
+    @bp.response(200, description="DLActor created")
     def post(self, annotation_class_id):
-        """     instantiate a new DL model or update the state     """
-        return 200
+        """     trigger the DLActor for the current annotation class to start processing    """
+
+
+        return {"message":"DLActor created"}, 200
 
 ####################################################################################################
