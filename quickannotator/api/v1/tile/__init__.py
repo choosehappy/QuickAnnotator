@@ -8,7 +8,7 @@ import quickannotator.db as qadb
 from quickannotator.db import db_session
 from quickannotator.constants import TileStatus
 import quickannotator.db.models as models
-from .helper import get_tile, get_tile_ids_intersecting_mask, get_tile_ids_intersecting_polygons
+from .helper import get_tile, get_tile_ids_intersecting_mask, get_tile_ids_intersecting_polygons, get_tiles_by_tile_ids
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
 bp = Blueprint('tile', __name__, description="Tile operations")
 
@@ -26,7 +26,7 @@ class TileBoundingBoxRespSchema(Schema):
     bbox = fields.Tuple((fields.Int, fields.Int, fields.Int, fields.Int))
 
 class TileIdRespSchema(Schema):
-    tileids = fields.List(fields.Int)
+    tile_ids = fields.List(fields.Int)
 # ------------------------ REQUEST PARSERS ------------------------
 class GetTileArgsSchema(Schema):
     tile_id = fields.Int(description="ID of the tile")
@@ -65,14 +65,11 @@ class Tile(MethodView):
     def delete(self, args, image_id, annotation_class_id):
         """     delete a Tile
         """
-        tile = db_session.query(models.Tile).filter_by(
+        db_session.query(models.Tile).filter_by(
             image_id=image_id,
             annotation_class_id=annotation_class_id,
             tile_id=args['tile_id']
-        ).first()
-        if tile:
-            db_session.delete(tile)
-            db_session.commit()
+        ).delete()
         return 204
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>/predict')
@@ -110,18 +107,13 @@ class TileIdSearchByBbox(MethodView):
         tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
         tile_ids_in_bbox = tilespace.get_tile_ids_within_bbox((args['x1'], args['y1'], args['x2'], args['y2']))
         tile_ids_in_mask, _, _ = get_tile_ids_intersecting_mask(image_id, annotation_class_id, mask_dilation=1)
-        ids = set(tile_ids_in_bbox) & set(tile_ids_in_mask)
+        tile_ids_in_bbox_and_mask = set(tile_ids_in_bbox) & set(tile_ids_in_mask)
 
         # Filter by tiles which have ground truths saved. This limits the number of tiles we have to consider for rendering.
         if args['hasgt']:
-            ids = db_session.query(models.Tile.tile_id).filter(
-                models.Tile.annotation_class_id == annotation_class_id,
-                models.Tile.image_id == image_id,
-                models.Tile.tile_id.in_(ids),
-                models.Tile.gt_datetime.isnot(None)
-            ).all()
-            ids = [id[0] for id in ids]
-        return {"tileids": ids}, 200
+            tiles = get_tiles_by_tile_ids(image_id, annotation_class_id, tile_ids_in_bbox_and_mask, hasgt=True)
+            tile_ids_in_bbox_and_mask = [tile.tile_id for tile in tiles]
+        return {"tile_ids": tile_ids_in_bbox_and_mask}, 200
     
 @bp.route('/<int:image_id>/<int:annotation_class_id>/search/polygon')
 class TileIdSearchByPolygon(MethodView):
@@ -132,17 +124,13 @@ class TileIdSearchByPolygon(MethodView):
         """
         tiles_in_polygon, _, _ = get_tile_ids_intersecting_polygons(image_id, annotation_class_id, [args['polygon']], mask_dilation=1)
         tile_ids_in_mask, _, _ = get_tile_ids_intersecting_mask(image_id, annotation_class_id, mask_dilation=1)
-        ids = set(tiles_in_polygon) & set(tile_ids_in_mask)
+        tile_ids_in_poly_and_mask = set(tiles_in_polygon) & set(tile_ids_in_mask)
 
         if args['hasgt']:
-            ids = db_session.query(models.Tile.tile_id).filter(
-                models.Tile.annotation_class_id == annotation_class_id,
-                models.Tile.image_id == image_id,
-                models.Tile.tile_id.in_(ids),
-                models.Tile.gt_datetime.isnot(None)
-            ).all()
-            ids = [id[0] for id in ids]
-        return {"tileids": ids}, 200
+            tiles = get_tiles_by_tile_ids(image_id, annotation_class_id, tile_ids_in_poly_and_mask, hasgt=True)
+            tile_ids_in_poly_and_mask = [tile.tile_id for tile in tiles]
+
+        return {"tile_ids": tile_ids_in_poly_and_mask}, 200
 
     
 @bp.route('/<int:image_id>/<int:annotation_class_id>/search/coordinates')
@@ -154,4 +142,5 @@ class TileIdSearchByCoordinates(MethodView):
         """
         tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
         tile_id = tilespace.point_to_tileid(args['x'], args['y'])
-        return {"tileids": [tile_id]}, 200
+        return {"tile_ids": [tile_id]}, 200
+        

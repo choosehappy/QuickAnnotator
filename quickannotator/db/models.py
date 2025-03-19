@@ -8,6 +8,7 @@ import geojson
 from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, Text, func
 from ..constants import TileStatus
 from sqlalchemy import Enum
+from datetime import datetime
 
 class Project(Base):
     """
@@ -24,7 +25,7 @@ class Project(Base):
     # is_dataset_large project setting that currently has no use.
     # a "large" dataset might have e.g., > 100 million total histologic object annotations
     is_dataset_large = Column(Boolean, default=False)   
-    datetime = Column(DateTime)
+    datetime = Column(DateTime, default=datetime.now)
 
     # relationships
     images = relationship('Image', backref='project', lazy=True)
@@ -50,7 +51,7 @@ class Image(Base):
     embedding_coord = Column(Geometry('POINT'))
     group_id = Column(Integer)
     split = Column(Integer)
-    datetime = Column(DateTime)
+    datetime = Column(DateTime, default=datetime.now)
 
     # relationships
     notifications = relationship("Notification", backref='image', lazy=True)
@@ -69,7 +70,7 @@ class AnnotationClass(Base):
     color = Column(Text, nullable=False)
     work_mag = Column(Float, nullable=False)
     work_tilesize = Column(Integer, nullable=False)
-    datetime = Column(DateTime)
+    datetime = Column(DateTime, default=datetime.now)
 
 
 class Tile(Base):
@@ -119,7 +120,7 @@ class Annotation(Base):
     area = Column(Float)
     polygon = Column(Geometry('POLYGON', srid=0))  # Stored as geometry
     custom_metrics = Column(JSON)
-    datetime = Column(DateTime)
+    datetime = Column(DateTime, default=datetime.now)
 
 
 class Notification(Base):
@@ -136,7 +137,7 @@ class Notification(Base):
     message_type = Column(Integer, nullable=False)
     is_read = Column(Boolean, nullable=False)
     message = Column(Text, nullable=False)
-    datetime = Column(DateTime)
+    datetime = Column(DateTime, default=datetime.now)
 
 
 class Setting(Base):

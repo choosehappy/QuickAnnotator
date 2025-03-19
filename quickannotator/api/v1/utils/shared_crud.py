@@ -1,7 +1,8 @@
 from shapely.affinity import scale
 from shapely.geometry.base import BaseGeometry
-from sqlalchemy import func, insert
+from sqlalchemy import func
 from datetime import datetime, timedelta
+import sqlalchemy
 from typing import List
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Query
@@ -96,6 +97,7 @@ def upsert_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], p
             **update_fields
         })
     
+    # NOTE: This may not work for postgres
     stmt = insert(models.Tile).values(tiles).on_conflict_do_update(
         index_elements=['annotation_class_id', 'image_id', 'tile_id'],
         set_=update_fields,
@@ -162,7 +164,7 @@ class AnnotationStore:
                 "datetime": datetime.now()
             })
 
-        stmt = insert(self.model).returning(self.model.id).values(new_annotations)
+        stmt = sqlalchemy.insert(self.model).returning(self.model.id).values(new_annotations)
         ids = db_session.scalars(stmt).all()
         result = self.get_annotations_by_ids(annotation_ids=ids)
         tile_ids = [ann.tile_id for ann in result]
@@ -216,8 +218,18 @@ class AnnotationStore:
 
 
     # DELETE
-    def delete_annotation(self, annotation_id: int):
-        result = db_session.query(self.model).filter(self.model.id == annotation_id).delete()
+    def delete_annotation(self, annotation_id: int) -> int:
+        """
+        Deletes an annotation by its ID.
+        Args:
+            annotation_id (int): The ID of the annotation to be deleted.
+        Returns:
+            int: The ID of the deleted annotation if it exists, otherwise None.
+        """
+
+        stmt = sqlalchemy.delete(self.model).where(self.model.id == annotation_id).returning(self.model.id)
+        result = db_session.execute(stmt).scalar_one_or_none()
+        db_session.commit()
         return result
 
     def delete_all_annotations(self):

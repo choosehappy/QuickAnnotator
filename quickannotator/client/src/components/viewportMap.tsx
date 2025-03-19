@@ -49,7 +49,7 @@ const ViewportMap = (props: Props) => {
 
         const currentCallToken = ++activeCallRef.current;
         const resp = await searchTileIds(props.currentImage.id, props.currentClass.id, x1, y1, x2, y2, is_gt);  // Tiles may be shared by both layers. Consider pushing this to a shared state.
-        const tileIds = resp.data.tileids;
+        const tileIds = resp.data.tile_ids;
         const layerIdx = is_gt ? LAYER_KEYS.GT : LAYER_KEYS.PRED;
         const layer = geojs_map.current.layers()[layerIdx];
 
@@ -266,7 +266,7 @@ const ViewportMap = (props: Props) => {
                 // Get the ids for the features to redraw
                 const tilesResp = await searchTileIdsWithinPolygon(currentImage.id, currentClass.id, polygon2, false);
                 if (tilesResp.status === 200) {
-                    const tileIds = tilesResp.data.tileids;
+                    const tileIds = tilesResp.data.tile_ids;
                     featureIdsToUpdate.current = tileIds;
                     props.setHighlightedPreds(anns);
                     props.setActiveModal(MODAL_DATA.IMPORT_CONF.id);

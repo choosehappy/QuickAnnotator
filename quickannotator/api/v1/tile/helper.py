@@ -107,32 +107,26 @@ def generate_random_circle_within_bbox(bbox: Polygon, radius: float) -> shapely.
     intersection = bbox.intersection(circle)
     return intersection
 
-# TODO: DEPRECATED, to be removed
-# @ray.remote
-# def remote_compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
-#     time.sleep(sleep_time)
-#     # Create the engine and session for each Ray task
-#         # Start a session for the task
-#     with get_session() as db_session:
-#         # Example: load the tile and process
-#         # breakpoint()
-#         tile = get_tile(image_id, annotation_class_id, tile_id)  # Replace with your actual function to get the tile
-#         if tile is None:
-#             raise ValueError(f"Tile not found: {tile_id}")
-#         tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=True)
-
-#         # Process the tile (using shapely for example)
-#         bbox = tilespace.get_bbox_for_tile(tile_id)
-#         bbox_polygon = Polygon([(bbox[0], bbox[1]), (bbox[2], bbox[1]), (bbox[2], bbox[3]), (bbox[0], bbox[3])])
-#         polygons = [generate_random_circle_within_bbox(bbox_polygon, 100) for _ in range(random.randint(20, 40))]
-#         store = AnnotationStore(image_id, annotation_class_id, is_gt=False)
-#         store.insert_annotations(polygons)
-
-#         # Mark tile as processed
-#         tile.seen = 2
-            
-
-# TODO: DEPRECATED, to be removed
-# def compute_on_tile(annotation_class_id: int, image_id: int, tile_id: int, sleep_time=5):
-#     ref = remote_compute_on_tile.remote(annotation_class_id, image_id, tile_id, sleep_time)
-#     return ref.hex()
+def get_tiles_by_tile_ids(image_id: int, annotation_class_id: int, tile_ids: list[int], hasgt=False) -> list[models.Tile]:
+    """
+    Get tiles by their IDs.
+    
+    Args:
+        image_id (int): The ID of the image.
+        annotation_class_id (int): The ID of the annotation class.
+        tile_ids (list[int]): A list of tile IDs.
+        hasgt (bool): Flag to filter tiles that have ground truth annotations.
+        
+    Returns:
+        list[models.Tile]: A list of tile objects.
+    """
+    query = db_session.query(models.Tile).filter(
+        models.Tile.image_id == image_id,
+        models.Tile.annotation_class_id == annotation_class_id,
+        models.Tile.tile_id.in_(tile_ids)
+    )
+    
+    if hasgt:
+        query = query.filter(models.Tile.gt_datetime.isnot(None))
+    
+    return query.all()

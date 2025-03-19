@@ -87,9 +87,7 @@ def test_delete_annotation(annotation_store):
 
     # Act
     result = annotation_store.delete_annotation(annotation_id)
-
-    # Assert
-    assert result
+    assert result == annotation_id
 
 
 def test_delete_all_annotations(annotation_store):

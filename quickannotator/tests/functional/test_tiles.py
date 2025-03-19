@@ -77,9 +77,9 @@ def test_search_tiles_within_bbox(test_client, seed, annotations_seed, db_sessio
     # Assert
     assert response.status_code == 200
     data = response.get_json()
-    assert 'tileids' in data
-    assert isinstance(data['tileids'], list)
-    assert len(data['tileids']) > 0
+    assert 'tile_ids' in data
+    assert isinstance(data['tile_ids'], list)
+    assert len(data['tile_ids']) > 0
 
 
 def test_search_tile_by_polygon(test_client, seed, annotations_seed, db_session):
@@ -105,9 +105,9 @@ def test_search_tile_by_polygon(test_client, seed, annotations_seed, db_session)
     # Assert
     assert response.status_code == 200
     data = response.get_json()
-    assert 'tileids' in data
-    assert isinstance(data['tileids'], list)
-    assert len(data['tileids']) > 0
+    assert 'tile_ids' in data
+    assert isinstance(data['tile_ids'], list)
+    assert len(data['tile_ids']) > 0
 
 
 def test_search_tile_by_coordinates(test_client, seed, annotations_seed, db_session):
@@ -132,7 +132,31 @@ def test_search_tile_by_coordinates(test_client, seed, annotations_seed, db_sess
     # Assert
     assert response.status_code == 200
     data = response.get_json()
-    assert 'tileids' in data
-    assert isinstance(data['tileids'], list)
-    assert len(data['tileids']) == 1
-    assert data['tileids'][0] == 1
+    assert 'tile_ids' in data
+    assert isinstance(data['tile_ids'], list)
+    assert len(data['tile_ids']) == 1
+    assert data['tile_ids'][0] == 1
+
+
+
+# def test_predict_tile(test_client, seed, annotations_seed, db_session):
+#     """
+#     GIVEN a test client and a tile with specific annotation_class_id, image_id, and tile_id
+#     WHEN the client requests to predict the tile using a POST request
+#     THEN the response should have a status code of 201 and the returned data should contain the object reference
+#     """
+
+#     # Arrange
+#     annotation_class_id = 2
+#     image_id = 1
+#     tile_id = 0
+
+#     # Act
+#     response = test_client.post(f'/api/v1/tile/{image_id}/{annotation_class_id}/predict', json={
+#         'tile_id': tile_id
+#     })
+
+#     # Assert
+#     assert response.status_code == 201
+#     data = response.get_json()
+#     assert 'object_ref' in data

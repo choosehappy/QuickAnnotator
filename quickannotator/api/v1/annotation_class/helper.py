@@ -12,6 +12,5 @@ def insert_annotation_class(project_id, name, color, work_mag, work_tilesize):
                                         name=name,
                                         color=color,
                                         work_mag=work_mag,
-                                        work_tilesize=work_tilesize,
-                                        datetime=datetime.now())
+                                        work_tilesize=work_tilesize)
     db_session.add(annotation_class)
