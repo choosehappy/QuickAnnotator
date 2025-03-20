@@ -191,10 +191,6 @@ export const getAnnotationsWithinPolygon = async (image_id: number, annotation_c
 
 
 export const predictTile = async (image_id: number, annotation_class_id: number, tile_id: number) => {
-    const requestBody = { 
-        image_id: image_id, 
-        annotation_class_id: annotation_class_id, 
-        tile_id: tile_id 
-    };
-    return await post<{ tile_id: number }, {object_ref: number}>(`/tile/predict`, requestBody);
+    const query = new URLSearchParams({ tile_id: tile_id.toString() });
+    return await post<null, { tile_id: number }>(`/tile/${image_id}/${annotation_class_id}/predict?${query}`, null);
 }

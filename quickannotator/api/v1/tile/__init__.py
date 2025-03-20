@@ -75,16 +75,18 @@ class Tile(MethodView):
 @bp.route('/<int:image_id>/<int:annotation_class_id>/predict')
 class PredictTile(MethodView):
     @bp.arguments(PostTileArgsSchema, location='query')
-    @bp.response(200, description="Staged tile for DL processing")
+    @bp.response(200, TileRespSchema, description="Staged tile for DL processing")
     def post(self, args, image_id, annotation_class_id):
         """     stage a tile for DL processing     """
-        
-        upsert_tiles(image_id, 
-                        annotation_class_id, 
-                        [args['tile_id']], 
-                        pred_status=TileStatus.STARTPROCESSING, 
-                        process_owns_tile=False)   # Explicitly setting this to false to emphasize that a flask process is never the owner of a tile. See method description.
-        return 200
+        inserted_tile = upsert_tiles(image_id, 
+                               annotation_class_id, 
+                               [args['tile_id']], 
+                               pred_status=TileStatus.STARTPROCESSING, 
+                               process_owns_tile=False)[0]   # Explicitly setting this to false to emphasize that a flask process is never the owner of a tile. See method description.
+        if inserted_tile:
+            return inserted_tile, 200
+        else:
+            return {"message": "Failed to stage tile for processing"}, 400
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>/bbox')
 class TileBoundingBox(MethodView):
