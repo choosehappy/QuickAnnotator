@@ -31,6 +31,7 @@ class DLActor:
         self.tile_size=tile_size
         self.procRunningSince = None 
         self.allow_pred=True # --- don't know if we'll ever need this, so hard setting to true
+        self.enable_training=True
         self.hexid=None
         self.magnification = magnification
 
@@ -59,7 +60,7 @@ class DLActor:
                                                 resources_per_worker={"GPU":.01}, placement_strategy="STRICT_SPREAD")
         
         #----
-#        scaling_config = ray.train.ScalingConfig(num_workers=1, use_gpu=False)
+        scaling_config = ray.train.ScalingConfig(num_workers=1, use_gpu=False)
         trainer = ray.train.torch.TorchTrainer(train_pred_loop,
                                        scaling_config=scaling_config,
                                        train_loop_config={'annotation_class_id':self.annotation_class_id,
@@ -122,22 +123,36 @@ class DLActor:
         else:
             self.procRunningSince = datetime.now()
 
+    def getAllowPred(self):
+        return self.allow_pred
+    
+    def setAllowPred(self,allow_pred:bool):
+        self.allow_pred=allow_pred
+        return self.allow_pred
+    
+    def getEnableTraining(self):
+        return self.enable_training
+    
+    def setEnableTraining(self,enable_training:bool):
+        self.enable_training=enable_training
+        return self.enable_training
+
 
 def start_processing(annotation_class_id: int):
     # 1. Get all named actors
-    actor_queue = get_actors(sort_by_date=True)
+    actor_queue = get_processing_actors(sort_by_date=True)
 
     # 2. Sort actors by running_since_datetimes
-    while len(actor_queue) > constants.MAX_ACTORS_PROCESSING:
+    while len(actor_queue) == constants.MAX_ACTORS_PROCESSING:
         # 3. Pop the oldest actor
-        oldest_actor = actor_queue.pop(0)
-        oldest_actor.setProcRunningSince.remote(None)
+        oldest_actor = actor_queue.pop(0)['actor']
+        oldest_actor.setProcRunningSince.remote(reset=True)
 
     # 4. Start the new actor
     actor_name = build_actor_name(annotation_class_id=annotation_class_id)
     annotation_class = get_annotation_class_by_id(annotation_class_id)
 
-    current_actor = DLActor.options(name=actor_name, get_if_exists=True).remote(annotation_class_id,
+    current_actor = DLActor.options(name=actor_name, get_if_exists=True, max_concurrency=2).remote(annotation_class_id,
                                     annotation_class.work_tilesize,
                                     annotation_class.work_mag)
 
@@ -145,17 +160,16 @@ def start_processing(annotation_class_id: int):
 
     return current_actor
 
-def get_actors(sort_by_date=False):
-    actors = [ray.get_actor(name) for name in ray.util.list_named_actors()]
+def get_processing_actors(sort_by_date=True):
+    actor_names = ray.util.list_named_actors()
+    dated_actors = []
+    for name in actor_names:
+        actor = ray.get_actor(name)
+        date = ray.get(actor.getProcRunningSince.remote())
+        if date:    # actors with date == None are not processing
+            dated_actors.append({'date': date, 'actor': actor, 'name': name})
 
     if sort_by_date:
-        sorted_actors = []
-        for actor in actors:
-            date = ray.get(actor.getProcRunningSince.remote())
-            if date:
-                sorted_actors.append((date, actor))
-
-        return sorted(sorted_actors, key=lambda x: x[0])
-
-        # actors = sorted([(ray.get(actor.getProcRunningSince.remote()), actor) for actor in actors])
-    return actors
+        return dated_actors
+    else:
+        return sorted(dated_actors, key=lambda x: x['date'])
