@@ -142,3 +142,30 @@ def test_search_tile_by_coordinates(test_client, seed, annotations_seed, db_sess
     assert isinstance(data['tile_ids'], list)
     assert len(data['tile_ids']) == 1
     assert data['tile_ids'][0] == 1
+
+    
+def test_predict_tile(test_client, seed, db_session):
+    """
+    GIVEN a test client and a tile with specific annotation_class_id, image_id, and tile_id
+    WHEN the client stages the tile for DL processing using a POST request
+    THEN the response should have a status code of 200 and the returned data should match the staged tile's details
+    """
+
+    # Arrange
+    annotation_class_id = 2
+    image_id = 1
+    tile_id = 0
+
+    # Act
+    params = {
+        'tile_id': tile_id
+    }
+    response = test_client.post(f'/api/v1/tile/{image_id}/{annotation_class_id}/predict', query_string=params)
+
+    # Assert
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['annotation_class_id'] == annotation_class_id
+    assert data['image_id'] == image_id
+    assert data['tile_id'] == tile_id
+    assert data['pred_status'] == TileStatus.STARTPROCESSING
