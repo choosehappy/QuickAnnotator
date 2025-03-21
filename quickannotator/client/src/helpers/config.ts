@@ -23,7 +23,9 @@ export enum TILE_STATUS {
     DONEPROCESSING
 }
 
-
+export const RENDER_PREDICTIONS_INTERVAL = 1000; // ms
+export const RENDER_DELAY = 100; // ms
+export const MAP_TRANSLATION_DELAY = 500; // ms
 
 export const MODAL_DATA: { [key: string]: ModalData } = {
     IMPORT_CONF: {

@@ -111,9 +111,10 @@ export interface Tile {
     annotation_class_id: number;
     image_id: number;
     tile_id: number;
-    seen: TILE_STATUS;
-    hasgt: boolean;
-    date: Date;
+    pred_status: TILE_STATUS;
+    pred_datetime: Date | null;
+    gt_counter: number | null;
+    gt_datetime: Date | null;
 }
 
 export type OutletContextType = {
