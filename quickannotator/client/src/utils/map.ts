@@ -10,9 +10,9 @@ export const computeTilesToRender = (oldTileIds: number[], newTileIds: number[])
     return { tilesToRemove, tilesToRender }
 }
 
-export const getTileFeatureById = (geoMap: geo.map, layerId: number, tile_id: number) => {
-    return geoMap.current.layers()[layerId].features().find((f) => {
-        return f.featureType === 'polygon' && f.props.tile_id === tile_id;
+export const getTileFeatureById = (layer: geo.layer, feature_id: number) => {
+    return layer.features().find((f: any) => {
+        return f.featureType === 'polygon' && f.props.tile_id === feature_id;
     });
 }
 
