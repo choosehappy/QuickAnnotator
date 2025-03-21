@@ -59,63 +59,116 @@ def get_annotation_query(model, scale_factor: float=1.0) -> Query:
 
     return query
 
-def  upsert_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], pred_status: TileStatus = None, process_owns_tile=False) -> List[models.Tile]:
+def upsert_gt_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int]) -> List[models.Tile]:
     """
-    Inserts new tiles or updates existing tiles in the database.
-    This function attempts to insert new tiles with the given annotation_class_id, image_id, and tile_ids.
-    If tiles with the same annotation_class_id, image_id, and tile_ids already exist, it updates the relevant fields.
+    Inserts new ground truth tiles or updates existing ground truth tiles in the database.
+    This function attempts to insert new ground truth tiles with the given annotation_class_id, image_id, and tile_ids.
+    If ground truth tiles with the same annotation_class_id, image_id, and tile_ids already exist, it updates the relevant fields.
 
     Args:
         image_id (int): The ID of the image.
         annotation_class_id (int): The ID of the annotation class.
         tile_ids (List[int]): The IDs of the tiles.
-        pred_status (TileStatus, optional): The status of the tile prediction. Defaults to None. None indicates that the ground truth state of the tile is being updated.
-        process_owns_tile (bool, optional): If True, updates tiles regardless of their current status. Defaults to False. Only a ray actor should set this to True.
 
     Returns:
-        List[int]: The IDs of the tiles that were inserted or updated.
+        List[models.Tile]: The tiles that were inserted or updated.
     """
-    update_fields = {}
-    filter = None
 
     if len(tile_ids) == 0:
         return []
-    if pred_status is None: # We are adding or updating a ground truth annotation for the tile(s)
-        update_fields['gt_counter'] = 0
-        update_fields['gt_datetime'] = datetime.now()
-        
-    else:                   # We are changing the prediction status of the tile(s)
-        update_fields['pred_status'] = pred_status
-        update_fields['pred_datetime'] = datetime.now()
-        if not process_owns_tile: # Only update tiles that are either (1) unseen or (2) done processing and older than TILE_PRED_EXPIRE
-            filter = (
-                (models.Tile.pred_status == TileStatus.UNSEEN) |
-                ((models.Tile.pred_status == TileStatus.DONEPROCESSING) & 
-                (models.Tile.pred_datetime <= datetime.now() - timedelta(minutes=constants.TILE_PRED_EXPIRE)))
-            )
-
-    tiles = []
-    for tile_id in tile_ids:
-        tiles.append({
-            'annotation_class_id': annotation_class_id,
-            'image_id': image_id,
-            'tile_id': tile_id,
-            **update_fields
-        })
     
-    # NOTE: This may not work for postgres
-    stmt = insert(models.Tile).values(tiles).on_conflict_do_update(
+    update_fields = {
+        'gt_counter': 0,
+        'gt_datetime': datetime.now()
+    }
+    
+    stmt = insert(models.Tile).values(
+        [
+            {
+                'annotation_class_id': annotation_class_id,
+                'image_id': image_id,
+                'tile_id': tile_id,
+                **update_fields
+            }
+            for tile_id in tile_ids
+        ]
+    ).on_conflict_do_update(
         index_elements=['annotation_class_id', 'image_id', 'tile_id'],
-        set_=update_fields,
-        where=filter
+        set_=update_fields
     ).returning(
-        models.Tile.tile_id,
-        models.Tile.annotation_class_id,
-        models.Tile.image_id,
-        models.Tile.gt_counter,
-        models.Tile.gt_datetime,
-        models.Tile.pred_status,
-        models.Tile.pred_datetime
+        *[getattr(models.Tile, column.name) for column in models.Tile.__table__.columns]   # Can't use models.Tile with on_conflict_do_update
+    )
+
+    tiles = db_session.execute(stmt).all()
+    return tiles
+
+def upsert_pred_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], pred_status: TileStatus, process_owns_tile=False) -> List[models.Tile]:
+    """
+    Inserts new prediction tiles or updates existing prediction tiles in the database.
+    This function attempts to insert new prediction tiles with the given annotation_class_id, image_id, and tile_ids.
+    If prediction tiles with the same annotation_class_id, image_id, and tile_ids already exist, it updates the relevant fields.
+
+    Args:
+        image_id (int): The ID of the image.
+        annotation_class_id (int): The ID of the annotation class.
+        tile_ids (List[int]): The IDs of the tiles.
+        pred_status (TileStatus): The status of the tile prediction.
+        process_owns_tile (bool, optional): If True, updates tiles regardless of their current status. Defaults to False. Only a ray actor should set this to True.
+
+    Returns:
+        List[models.Tile]: The tiles that were inserted or updated.
+    """
+
+    if len(tile_ids) == 0:
+        return []
+
+    if pred_status is None:
+        raise ValueError("pred_status cannot be None.")
+    
+    update_fields = {
+        'pred_status': pred_status,
+        'pred_datetime': datetime.now()
+    }
+    
+    if process_owns_tile:
+        set = update_fields
+    else:
+        current_time = datetime.now()
+        expiration_thresh = current_time - timedelta(minutes=constants.TILE_PRED_EXPIRE)
+        set = {
+            'pred_status': sqlalchemy.case(
+                (models.Tile.pred_status == TileStatus.UNSEEN, pred_status),
+                (
+                    (models.Tile.pred_status == TileStatus.DONEPROCESSING) & 
+                    (models.Tile.pred_datetime <= expiration_thresh), pred_status
+                ),
+            else_=models.Tile.pred_status,
+            ),
+            'pred_datetime': sqlalchemy.case(
+                (models.Tile.pred_status == TileStatus.UNSEEN, datetime.now()),
+                (
+                    (models.Tile.pred_status == TileStatus.DONEPROCESSING) & 
+                    (models.Tile.pred_datetime <= expiration_thresh), datetime.now()
+                ),
+            else_=models.Tile.pred_datetime,
+            )
+        }
+
+    stmt = insert(models.Tile).values(
+        [
+            {
+                'annotation_class_id': annotation_class_id,
+                'image_id': image_id,
+                'tile_id': tile_id,
+                **update_fields
+            }
+            for tile_id in tile_ids
+        ]
+    ).on_conflict_do_update(
+        index_elements=['annotation_class_id', 'image_id', 'tile_id'],
+        set_=set
+    ).returning(
+        *[getattr(models.Tile, column.name) for column in models.Tile.__table__.columns]   # Can't use models.Tile with on_conflict_do_update
     )
 
     tiles = db_session.execute(stmt).all()
@@ -182,9 +235,9 @@ class AnnotationStore:
         tile_ids = [ann.tile_id for ann in result]
         
         if self.is_gt:
-            upsert_tiles(self.image_id, self.annotation_class_id, tile_ids)
+            upsert_gt_tiles(self.image_id, self.annotation_class_id, tile_ids)
         else:
-            upsert_tiles(self.image_id, self.annotation_class_id, tile_ids, pred_status=TileStatus.DONEPROCESSING, process_owns_tile=True)
+            upsert_pred_tiles(self.image_id, self.annotation_class_id, tile_ids, pred_status=TileStatus.DONEPROCESSING, process_owns_tile=True)
         return result
 
 

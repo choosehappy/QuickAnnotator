@@ -1,6 +1,6 @@
 import pytest
 from shapely.geometry import Polygon, shape
-from quickannotator.api.v1.utils.shared_crud import AnnotationStore, upsert_tiles
+from quickannotator.api.v1.utils.shared_crud import AnnotationStore, upsert_pred_tiles, upsert_gt_tiles
 from quickannotator.tests.conftest import assert_geojson_equal
 from shapely.geometry import mapping
 import geojson
@@ -179,7 +179,7 @@ def insert_unseen_tile(db_session):
         image_id=image_id,
         annotation_class_id=annotation_class_id,
         tile_id=tile_id,
-        pred_status=None
+        pred_status=TileStatus.UNSEEN
     )
     db_session.add(tile)
     db_session.commit()
@@ -255,47 +255,49 @@ def insert_stale_doneprocessing_tile(db_session):
 
     return tile
 
-def test_upsert_tiles_with_empty_list(db_session):
+def test_insert_gt_tiles_with_empty_list(db_session):
     # Arrange
     image_id = 1
     annotation_class_id = 2
     tile_ids = []
 
     # Act
-    result = upsert_tiles(image_id, annotation_class_id, tile_ids)
+    result = upsert_gt_tiles(image_id, annotation_class_id, tile_ids)
 
     # Assert
     assert result is not None
     assert len(result) == 0
 
-def test_upsert_tiles_with_non_empty_list(db_session):
+def test_insert_gt_tiles_with_non_empty_list(db_session):
     # Arrange
     image_id = 1
     annotation_class_id = 2
     tile_ids = [1, 2, 3]
 
     # Act
-    result = upsert_tiles(image_id, annotation_class_id, tile_ids)
+    result = upsert_gt_tiles(image_id, annotation_class_id, tile_ids)
 
     # Assert
     assert result is not None
     assert len(result) == len(tile_ids)
 
-def test_upsert_gt_tiles(annotation_store):
+def test_upsert_gt_tiles(insert_unseen_tile):
     # Arrange
-    image_id = 1
-    annotation_class_id = 2
-    tile_ids = [1, 2, 3]
+    tile = insert_unseen_tile
+    assert tile.pred_status == TileStatus.UNSEEN
+    assert tile.gt_counter is None
+    assert tile.gt_datetime is None
 
     # Act
-    result = upsert_tiles(image_id, annotation_class_id, tile_ids)
+    result = upsert_gt_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id])
+    new_tile = result[0]
 
     # Assert
-    assert result is not None
-    assert len(result) == len(tile_ids)
+    assert new_tile.gt_counter == 0
+    assert new_tile.gt_datetime is not None
 
 
-def test_upsert_tiles_with_pred_status(annotation_store):
+def test_insert_pred_tiles_with_pred_status(annotation_store):
     # Arrange
     image_id = 1
     annotation_class_id = 2
@@ -303,58 +305,77 @@ def test_upsert_tiles_with_pred_status(annotation_store):
     pred_status = TileStatus.DONEPROCESSING
 
     # Act
-    result = upsert_tiles(image_id, annotation_class_id, tile_ids, pred_status=pred_status)
+    result = upsert_pred_tiles(image_id, annotation_class_id, tile_ids, pred_status=pred_status)
 
     # Assert
     assert result is not None
     assert len(result) == len(tile_ids)
+    for tile in result:
+        assert tile.pred_status == pred_status
 
 def test_tile_UNSEEN_to_STARTPROCESSING(insert_unseen_tile: models.Tile):
     # Arrange
     tile = insert_unseen_tile
     assert tile.pred_status == TileStatus.UNSEEN
+    new_status = TileStatus.STARTPROCESSING
+    process_owns_tile = False
 
     # Act
-    result = upsert_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=TileStatus.STARTPROCESSING)
-    new_tile = result[0]
+    result = upsert_pred_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=new_status, process_owns_tile=process_owns_tile)
 
     # Assert
+    assert len(result) == 1
+    new_tile = result[0]
     assert new_tile.pred_status == TileStatus.STARTPROCESSING
     assert new_tile.pred_datetime != tile.pred_datetime
 
 def test_tile_STARTPROCESSING_to_PROCESSING(insert_startprocessing_tile: models.Tile):
     # Arrange
     tile = insert_startprocessing_tile
-    process_owns_tile = False # Should cause the upsert to fail
     assert tile.pred_status == TileStatus.STARTPROCESSING
+    new_status = TileStatus.PROCESSING
+    process_owns_tile = False # Should cause the upsert to fail
+
 
     # Act
-    result = upsert_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=TileStatus.PROCESSING, process_owns_tile=process_owns_tile)
+    result = upsert_pred_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=new_status, process_owns_tile=process_owns_tile)
 
     # Assert
-    assert len(result) == 0
+    assert len(result) == 1
+    new_tile = result[0]
+    assert new_tile.pred_status == TileStatus.STARTPROCESSING
+    assert new_tile.pred_datetime == tile.pred_datetime
+    assert result[0].pred_status == tile.pred_status
 
 def test_tile_PROCESSING_to_DONEPROCESSING(insert_processing_tile: models.Tile):
     # Arrange
     tile = insert_processing_tile
-    process_owns_tile = False # Should cause the upsert to fail
+    process_owns_tile = False  # Should cause the upsert to fail
+    new_status = TileStatus.DONEPROCESSING
     assert tile.pred_status == TileStatus.PROCESSING
 
     # Act
-    result = upsert_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=TileStatus.DONEPROCESSING)
-    assert len(result) == 0
+    result = upsert_pred_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=new_status, process_owns_tile=process_owns_tile)
+
+    # Assert
+    assert len(result) == 1
+    new_tile = result[0]
+    assert new_tile.pred_status == TileStatus.PROCESSING
+    assert new_tile.pred_datetime == tile.pred_datetime
 
 def test_tile_PROCESSING_to_DONEPROCESSING_with_process_owns_tile(insert_processing_tile: models.Tile):
     # Arrange
     tile = insert_processing_tile
     process_owns_tile = True
+    new_status = TileStatus.DONEPROCESSING
     assert tile.pred_status == TileStatus.PROCESSING
 
     # Act
-    result = upsert_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=TileStatus.DONEPROCESSING, process_owns_tile=process_owns_tile)
-    new_tile = result[0]
+    result = upsert_pred_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=new_status, process_owns_tile=process_owns_tile)
 
     # Assert
+    assert len(result) == 1
+    new_tile = result[0]
     assert new_tile.pred_status == TileStatus.DONEPROCESSING
     assert new_tile.pred_datetime != tile.pred_datetime
 
@@ -362,22 +383,30 @@ def test_tile_PROCESSING_to_DONEPROCESSING_with_process_owns_tile(insert_process
 def test_DONEPROCESSING_to_STARTPROCESSING(insert_doneprocessing_tile: models.Tile):
     # Arrange
     tile = insert_doneprocessing_tile
+    new_status = TileStatus.STARTPROCESSING
     assert tile.pred_status == TileStatus.DONEPROCESSING
 
     # Act
-    result = upsert_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=TileStatus.STARTPROCESSING)
+    result = upsert_pred_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=new_status)
 
     # Assert
-    assert len(result) == 0     # Should fail because the tile is still fresh
+    assert len(result) == 1
+    new_tile = result[0]
+    assert new_tile.pred_status == TileStatus.DONEPROCESSING  # Should not change
+    assert new_tile.pred_datetime == tile.pred_datetime  # Should not change
+
 
 def test_stale_DONEPROCESSING_to_STARTPROCESSING(insert_stale_doneprocessing_tile: models.Tile):
     # Arrange
     tile = insert_stale_doneprocessing_tile
+    new_status = TileStatus.STARTPROCESSING
     assert tile.pred_status == TileStatus.DONEPROCESSING
 
     # Act
-    result = upsert_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=TileStatus.STARTPROCESSING)
-    new_tile = result[0]
+    result = upsert_pred_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=new_status)
+
     # Assert
-    assert new_tile.pred_status == TileStatus.STARTPROCESSING   # Should change
-    assert new_tile.pred_datetime != tile.pred_datetime     # Should change
+    assert len(result) == 1
+    new_tile = result[0]
+    assert new_tile.pred_status == TileStatus.STARTPROCESSING  # Should change
+    assert new_tile.pred_datetime != tile.pred_datetime  # Should change

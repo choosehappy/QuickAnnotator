@@ -1,6 +1,5 @@
 from flask import Flask
 from quickannotator.constants import TileStatus
-from quickannotator.api.v1.utils.shared_crud import upsert_tiles
 import geojson
 import pytest
 import quickannotator.db.models as models

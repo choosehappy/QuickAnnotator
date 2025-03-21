@@ -3,7 +3,7 @@ from marshmallow import fields, Schema
 from flask.views import MethodView
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
-from ..utils.shared_crud import upsert_tiles
+from ..utils.shared_crud import upsert_pred_tiles
 import quickannotator.db as qadb
 from quickannotator.db import db_session
 from quickannotator.constants import TileStatus
@@ -78,13 +78,16 @@ class PredictTile(MethodView):
     @bp.response(200, TileRespSchema, description="Staged tile for DL processing")
     def post(self, args, image_id, annotation_class_id):
         """     stage a tile for DL processing     """
-        inserted_tile = upsert_tiles(image_id, 
+        result = upsert_pred_tiles(image_id, 
                                annotation_class_id, 
                                [args['tile_id']], 
                                pred_status=TileStatus.STARTPROCESSING, 
-                               process_owns_tile=False)[0]   # Explicitly setting this to false to emphasize that a flask process is never the owner of a tile. See method description.
-        if inserted_tile:
-            return inserted_tile, 200
+                               process_owns_tile=False)   # Explicitly setting this to false to emphasize that a flask process is never the owner of a tile. See method description.
+        
+
+
+        if len(result) > 0:
+            return result[0], 200
         else:
             return {"message": "Failed to stage tile for processing"}, 400
 
