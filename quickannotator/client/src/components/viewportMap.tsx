@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse } from "../types.ts"
-import { searchTileIds, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileIdsWithinPolygon } from "../helpers/api.ts";
+import { searchTileIds, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileIdsWithinPolygon, fetchTileBoundingBox } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 import { TOOLBAR_KEYS, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY } from "../helpers/config.ts";
 
-import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature } from '../utils/map.ts';
+import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature } from '../utils/map.ts';
 
 interface Props {
     currentImage: Image | null;
@@ -121,7 +121,18 @@ const ViewportMap = (props: Props) => {
                     }
                 } else {
                     // Get a polygon for the tile and plot it on the map.
-                    
+                    if (currentCallToken !== activeCallRef.current) return;
+                    const resp = await fetchTileBoundingBox(props.currentImage.id, props.currentClass.id, tileId);
+                    if (currentCallToken !== activeCallRef.current) return;
+                    if (resp.status === 200) {
+                        const bbox_polygon = resp.data.bbox_polygon;
+                        if (tilesToRender.has(tileId)) {
+                            createPendingTileFeature({ tile_id: tileId }, [bbox_polygon], layer);
+                        } else {
+                            const webGLFeature = getTileFeatureById(layer, tileId, 'pending');
+                            redrawTileFeature(webGLFeature, {}, [bbox_polygon]);
+                        }
+                    }
                 }
             }
             props.setPreds(anns);
@@ -334,6 +345,9 @@ const ViewportMap = (props: Props) => {
             renderGTAnnotations(x1, y1, x2, y2, activeRenderGroundTruthsCall).then(() => {
                 console.log("Ground truths rendered.");
             });
+            renderPredAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall).then(() => {
+                console.log("Predictions rendered.");
+            });
         }, RENDER_DELAY); // Adjust this timeout duration as needed
     };
 
@@ -492,7 +506,7 @@ const ViewportMap = (props: Props) => {
             const x2 = bounds.right;
             const y2 = Math.abs(bounds.bottom);
             if (!highlightedPolyIds) {
-                renderGTAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall).then(() => {
+                renderGTAnnotations(x1, y1, x2, y2, activeRenderGroundTruthsCall).then(() => {
                     console.log("Predictions rendered.");
                     featureIdsToUpdate.current = [];
                 });

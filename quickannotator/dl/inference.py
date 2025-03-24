@@ -69,7 +69,7 @@ def save_annotations(tile,polygons): #TODO: i feel like this function likely exi
             'centroid': centroid.wkt
         }
         #print("new anno!\t\t:",new_annotation["image_id"],new_annotation["annotation_class_id"]) #TODO: push to logging or remove
-        new_annotations.append(new_annotation)
+        new_annotations.append(new_annotation)  
     #print(new_annotations)
     
     with get_session() as db_session:

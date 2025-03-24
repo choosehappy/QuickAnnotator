@@ -193,3 +193,8 @@ export const predictTile = async (image_id: number, annotation_class_id: number,
     const query = new URLSearchParams({ tile_id: tile_id.toString() });
     return await post<null, Tile>(`/tile/${image_id}/${annotation_class_id}/predict?${query}`, null);
 }
+
+export const fetchTileBoundingBox = async (image_id: number, annotation_class_id: number, tile_id: number) => {
+    const query = new URLSearchParams({ tile_id: tile_id.toString() });
+    return await get<{ bbox_polygon: Polygon }>(`/tile/${image_id}/${annotation_class_id}/bbox?${query}`);
+}

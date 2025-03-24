@@ -100,6 +100,7 @@ def upsert_gt_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int]
     )
 
     tiles = db_session.execute(stmt).all()
+    db_session.commit()
     return tiles
 
 def upsert_pred_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], pred_status: TileStatus, process_owns_tile=False) -> List[models.Tile]:
@@ -170,7 +171,6 @@ def upsert_pred_tiles(image_id: int, annotation_class_id: int, tile_ids: List[in
     ).returning(
         *[getattr(models.Tile, column.name) for column in models.Tile.__table__.columns]   # Can't use models.Tile with on_conflict_do_update
     )
-
     tiles = db_session.execute(stmt).all()
     return tiles
 
@@ -231,7 +231,7 @@ class AnnotationStore:
 
         stmt = sqlalchemy.insert(self.model).returning(self.model.id).values(new_annotations)
         ids = db_session.scalars(stmt).all()
-        result = self.get_annotations_by_ids(annotation_ids=ids)
+        result = self.get_annotations_by_ids(annotation_ids=ids)    # Must do this otherwise scaling etc. does not apply.
         tile_ids = [ann.tile_id for ann in result]
         
         if self.is_gt:

@@ -23,7 +23,7 @@ class PredictTileRespSchema(Schema):
     message = fields.Str()
 
 class TileBoundingBoxRespSchema(Schema):
-    bbox = fields.Tuple((fields.Int, fields.Int, fields.Int, fields.Int))
+    bbox_polygon = models.GeometryField()
 
 class TileIdRespSchema(Schema):
     tile_ids = fields.List(fields.Int)
@@ -96,11 +96,21 @@ class TileBoundingBox(MethodView):
     @bp.arguments(GetTileArgsSchema, location='query')
     @bp.response(200, TileBoundingBoxRespSchema)
     def get(self, args, image_id, annotation_class_id):
-        """     get the bounding box for a given tile
+        """     get the bounding box for a given tile as a GeoJSON polygon
         """
         tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
         bbox = tilespace.get_bbox_for_tile(args['tile_id'])
-        return {'bbox': bbox}, 200
+        geojson_polygon = {
+            "type": "Polygon",
+            "coordinates": [[
+                [bbox[0], bbox[1]],
+                [bbox[2], bbox[1]],
+                [bbox[2], bbox[3]],
+                [bbox[0], bbox[3]],
+                [bbox[0], bbox[1]]
+            ]]
+        }
+        return {'bbox_polygon': geojson_polygon}, 200
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>/search/bbox')
 class TileIdSearchByBbox(MethodView):
