@@ -23,7 +23,7 @@ export enum TILE_STATUS {
     DONEPROCESSING
 }
 
-export const RENDER_PREDICTIONS_INTERVAL = 30000; // ms
+export const RENDER_PREDICTIONS_INTERVAL = 8000; // ms
 export const RENDER_DELAY = 100; // ms
 export const MAP_TRANSLATION_DELAY = 500; // ms
 

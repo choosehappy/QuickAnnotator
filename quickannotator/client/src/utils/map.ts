@@ -10,9 +10,13 @@ export const computeTilesToRender = (oldTileIds: number[], newTileIds: number[])
     return { tilesToRemove, tilesToRender }
 }
 
-export const getTileFeatureById = (layer: geo.layer, feature_id: number, type='annotation') => {
+export function getFeatIdsRendered(layer: geo.layer, type: string) {
+    return layer.features().filter((f) => f.featureType === 'polygon' && f.props.type === type).map((f) => f.props.tile_id);
+}
+
+export const getTileFeatureById = (layer: geo.layer, featureId: number, type='annotation') => {
     return layer.features().find((f: any) => {
-        return f.featureType === 'polygon' && f.props.tile_id === feature_id && f.props.type === type;
+        return f.featureType === 'polygon' && f.props.tile_id === featureId && f.props.type === type;
     });
 }
 
