@@ -22,7 +22,7 @@ class TileDataset(IterableDataset):
         self.magnification = magnification #TODO: This should come from annotation_class table
         self.boost_count = boost_count
         
-    def getWorkersTiles(self):
+    def getWorkersTiles(self) -> Tile | None:
         with get_session() as db_session:  # Ensure this provides a session context
                 subquery = (
                     select(Tile.id)
@@ -123,8 +123,8 @@ class TileDataset(IterableDataset):
                 except:
                     pass
 
-            cv2.imwrite(f"/opt/QuickAnnotator/test_{tile_id}.png",mask_image*255) #TODO: remove- - for debug
-            cv2.imwrite(f"/opt/QuickAnnotator/img_{tile_id}.png",io_image)#TODO: remove- - for debug
+            cv2.imwrite(f"/opt/QuickAnnotator/quickannotator/data/output/test_{tile_id}.png",mask_image*255) #TODO: remove- - for debug
+            cv2.imwrite(f"/opt/QuickAnnotator/quickannotator/data/output/img_{tile_id}.png",io_image)#TODO: remove- - for debug
             img_new = io_image
             mask_new = mask_image
             weight_new = weight

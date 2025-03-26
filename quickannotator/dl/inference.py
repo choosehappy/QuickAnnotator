@@ -140,7 +140,7 @@ def run_inference(device, model, tiles):
         else:
             io_image,tile.x,tile.y = load_tile(tile)
 
-        cv2.imwrite("/opt/QuickAnnotator/img.png",io_image) #TODO: remove- - for debug
+        cv2.imwrite("/opt/QuickAnnotator/quickannotator/data/output/img.png",io_image) #TODO: remove- - for debug
         io_images.append(io_image)
 
     io_images = [preprocess_image(io_image, device) for io_image in io_images]
@@ -153,7 +153,7 @@ def run_inference(device, model, tiles):
         outputs = outputs[:, :, 32:-32, 32:-32]
 
         for j, output in enumerate(outputs):
-            cv2.imwrite("/opt/QuickAnnotator/output.png",outputs.squeeze().detach().cpu().numpy()*255) #TODO: remove- - for debug
+            cv2.imwrite("/opt/QuickAnnotator/quickannotator/data/output/output.png",outputs.squeeze().detach().cpu().numpy()*255) #TODO: remove- - for debug
             polygons = postprocess_output(output) #some parmaeters here should be added to the class level config -- see function prototype
             print("saving annotations")
             delete_annotations(tiles[j])
