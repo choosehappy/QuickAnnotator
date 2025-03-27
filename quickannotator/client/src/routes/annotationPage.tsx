@@ -6,11 +6,13 @@ import ClassesPane from "../components/classesPane.tsx";
 import GroundTruthPane from "../components/groundTruthPane.tsx";
 import PredictionsPane from "../components/predictionsPane.tsx";
 import ViewportMap from "../components/viewportMap.tsx";
+import ConfirmationModal from '../components/confirmationModal.tsx';
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
-import { fetchImage, fetchProject } from "../helpers/api.ts";
+import { fetchImage, fetchProject, postAnnotations } from "../helpers/api.ts";
 import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation } from "../types.ts";
+import { MODAL_DATA, TOOLBAR_KEYS } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
 
@@ -32,7 +34,28 @@ const AnnotationPage = () => {
     const [currentTool, setCurrentTool] = useState<string | null>('0');
     const [action, setAction] = useState<string | null>(null);
     const [currentAnnotation, setCurrentAnnotation] = useState<CurrentAnnotation | null>(null);
+    const [highlightedPreds, setHighlightedPreds] = useState<Annotation[] | null>(null); // TODO: should just be a list of annotations
     const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
+    const [activeModal, setActiveModal] = useState<number | null>(null);
+
+    function handleConfirmImport() {
+        // Set activeModal to null
+        setActiveModal(null);
+
+        // POST new annotations as ground truth
+        // if (!highlightedPreds) return;
+        postAnnotations(currentImage.id, currentClass?.id, highlightedPreds?.map(ann => ann.parsedPolygon)).then((resp) => {
+            setHighlightedPreds(null);
+            setCurrentTool(TOOLBAR_KEYS.POINTER);
+        });
+
+    }
+
+    function handleCancelImport() {
+        setActiveModal(null);
+        setHighlightedPreds(null);
+        setCurrentTool(TOOLBAR_KEYS.POINTER);
+    }
 
     useEffect(() => {
         if (projectid && imageid) {
@@ -50,6 +73,7 @@ const AnnotationPage = () => {
         return (
             <>
                 <Container fluid className="pb-3 bg-dark d-flex flex-column flex-grow-1">
+                    <ConfirmationModal show={activeModal === MODAL_DATA.IMPORT_CONF.id} title={MODAL_DATA.IMPORT_CONF.title} description={MODAL_DATA.IMPORT_CONF.description} onConfirm={handleConfirmImport} onCancel={handleCancelImport}/>
                     <Row className="d-flex flex-grow-1">
                         <Col className="d-flex flex-grow-1">
                             <Card className="flex-grow-1">
@@ -74,9 +98,15 @@ const AnnotationPage = () => {
                                                     preds, 
                                                     setPreds, 
                                                     currentTool, 
+                                                    setCurrentTool,
                                                     currentAnnotation, 
                                                     setCurrentAnnotation, 
-                                                    prevCurrentAnnotation }} />
+                                                    prevCurrentAnnotation,
+                                                    highlightedPreds,
+                                                    setHighlightedPreds,
+                                                    activeModal,
+                                                    setActiveModal
+                                                    }} />
                                 </Card.Body>
                             </Card>
                         </Col>

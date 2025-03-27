@@ -1,4 +1,5 @@
 import {Point, Polygon, Feature} from "geojson"
+import { TILE_STATUS } from "./helpers/config";
 
 export interface AnnotationClass {
     id: number;
@@ -13,12 +14,12 @@ export interface AnnotationClass {
 
 export interface AnnotationResponse {
     id: number;
-    annotation_class_id: number;
     tile_id: number;
     polygon: string;
     centroid: string;
     area: number;
     custom_metrics: { [key: string]: unknown }
+    datetime: Date;
 }
 
 export class Annotation {
@@ -29,6 +30,7 @@ export class Annotation {
     centroid: string;
     area: number;
     custom_metrics: { [key: string]: unknown }
+    datetime: Date;
 
     constructor(annotation: AnnotationResponse, annotation_class_id: number) {
         this.id = annotation.id;
@@ -38,6 +40,7 @@ export class Annotation {
         this.centroid = annotation.centroid;
         this.area = annotation.area;
         this.custom_metrics = annotation.custom_metrics;
+        this.datetime = annotation.datetime;
     }
 
     setTileId(tile_id: number | null) {
@@ -53,9 +56,18 @@ export class Annotation {
     }
 }
 
-export interface PostAnnArgs {
-    is_gt: boolean;
+export interface PostAnnsArgs {
+    polygons: string[];
+}
+
+export interface QueryAnnsByPolygonArgs {
     polygon: string;
+    is_gt: boolean;
+}
+
+export interface SearchTileIdsByPolygonArgs {
+    polygon: string;
+    hasgt: boolean;
 }
 
 export interface PostOperationArgs extends AnnotationResponse {
@@ -63,7 +75,9 @@ export interface PostOperationArgs extends AnnotationResponse {
     operation: number;
 }
 
-export interface PutAnnArgs extends AnnotationResponse {
+export interface PutAnnArgs {
+    polygon: string;
+    annotation_id: number;
     is_gt: boolean;
 }
 
@@ -88,12 +102,17 @@ export interface Project {
     date: Date;
 }
 
+export interface TileIds {
+    tile_ids: number[];
+    is_gt: boolean;
+}
+
 export interface Tile {
     id: number;
     annotation_class_id: number;
     image_id: number;
     tile_id: number;
-    seen: number;
+    seen: TILE_STATUS;
     hasgt: boolean;
     date: Date;
 }
@@ -140,4 +159,10 @@ export class CurrentAnnotation {
             }
         }
     }
+}
+
+export interface ModalData {
+    id: number;
+    title: string;
+    description: string;
 }
