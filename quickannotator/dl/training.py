@@ -86,7 +86,8 @@ def train_pred_loop(config):
 
     dataloader = DataLoader(dataset, batch_size=batch_size_train, shuffle=False, num_workers=num_workers) #NOTE: for dataset of type iter - shuffle must == False
 
-    model = smp.Unet(encoder_name="timm-mobilenetv3_small_100", encoder_weights="imagenet", in_channels=3, classes=1) #TODO: this should all be a setting
+    #model = smp.Unet(encoder_name="timm-mobilenetv3_small_100", encoder_weights="imagenet", in_channels=3, classes=1) #TODO: this should all be a setting
+    model = smp.Unet(encoder_name="tu-convnext_tiny", encoder_weights="imagenet", in_channels=3, classes=1 )
     criterion = nn.BCEWithLogitsLoss(reduction='none', )
     optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-2) #TODO: this should be a setting
     
@@ -96,6 +97,7 @@ def train_pred_loop(config):
     else:
         device= "cpu"
     
+    #model = model.half() #TODO: test with .half()
     model=ray.train.torch.prepare_model(model,device)
     model.train()
 
@@ -117,7 +119,7 @@ def train_pred_loop(config):
             niter_total += 1
             images, masks, weights = next(iter(dataloader))
             #print ("post next iter")
-            images = images.to(device)
+            images = images.to(device) #TODO: test with .half()
             masks = masks.to(device)
             weights = weights.to(device)
             #print ("post copy ")
