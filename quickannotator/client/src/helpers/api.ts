@@ -141,6 +141,11 @@ export const fetchAnnotationClassById = async (annotation_class_id: number) => {
     return await get<AnnotationClass>(`/class/?${query}`);
 }
 
+// Start processing annotation class
+export const startProcessingAnnotationClass = async (annotation_class_id: number) => {
+    return await post<null, void>(`/class/${annotation_class_id}/startproc`, null);
+};
+
 // Search tile IDs by bounding box
 export const searchTileIds = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number, hasgt=false) => {
     const query = new URLSearchParams({
