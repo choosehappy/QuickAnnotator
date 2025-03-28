@@ -14,12 +14,11 @@ from quickannotator.db.utils import build_annotation_table_name, create_dynamic_
 from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client, load_tile 
 
 class TileDataset(IterableDataset):
-    def __init__(self, classid, tile_size,magnification,transforms=None, edge_weight=0, boost_count=5):
+    def __init__(self, classid, tile_size,transforms=None, edge_weight=0, boost_count=5):
         self.classid = classid
         self.transforms = transforms
         self.edge_weight = edge_weight
         self.tile_size = tile_size #TODO: This should come from annotation_class table
-        self.magnification = magnification #TODO: This should come from annotation_class table
         self.boost_count = boost_count
         
     def getWorkersTiles(self) -> Tile | None:
@@ -113,6 +112,10 @@ class TileDataset(IterableDataset):
                     annotation_polygon = shapely.wkb.loads(annotation.polygon.data)
                     translated_polygon = shapely.affinity.translate(annotation_polygon, xoff=-x, yoff=-y) # need to scale this down from base mag to target mag
                     cv2.fillPoly(mask_image, [np.array(translated_polygon.exterior.coords, dtype=np.int32)], 1)
+                
+                
+                mask_image = (mask_image>0).astype(np.uint8) # if two polygons slightly overlap, fillpoly is addiditve and you end upwith values >1
+                
                 if self.edge_weight:
                     weight = scipy.ndimage.morphology.binary_dilation(mask_image, iterations=2) & ~mask_image
                 else:
@@ -123,8 +126,9 @@ class TileDataset(IterableDataset):
                 except:
                     pass
 
-            cv2.imwrite(f"/opt/QuickAnnotator/quickannotator/data/output/test_{tile_id}.png",mask_image*255) #TODO: remove- - for debug
-            cv2.imwrite(f"/opt/QuickAnnotator/quickannotator/data/output/img_{tile_id}.png",io_image)#TODO: remove- - for debug
+            # cv2.imwrite(f"/opt/QuickAnnotator/{tile_id}_mask.png",mask_image*255) #TODO: remove- - for debug
+            # cv2.imwrite(f"/opt/QuickAnnotator/{tile_id}_img.png",io_image)#TODO: remove- - for debug
+            # cv2.imwrite(f"/opt/QuickAnnotator/{tile_id}_weight.png",weight*255)#TODO: remove- - for debug
             img_new = io_image
             mask_new = mask_image
             weight_new = weight
@@ -134,4 +138,4 @@ class TileDataset(IterableDataset):
                 augmented = self.transforms(image=io_image, masks=[mask_image, weight])
                 img_new = augmented['image']
                 mask_new, weight_new = augmented['masks']
-            yield img_new, mask_new.unsqueeze(0), weight_new
+            yield img_new, mask_new[None,::], weight_new

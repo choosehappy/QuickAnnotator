@@ -25,7 +25,7 @@ def preprocess_image(io_image, device):
 
 def postprocess_output(outputs, min_area = 100, dilate_kernel = 2): ## These should be defined as class level settings from the user
     outputs = outputs.squeeze().detach().cpu().numpy()
-    positive_mask = outputs> 0
+    positive_mask = outputs> .5 #TODO: maybe UI or system threshold? probably a good idea
     
     kernel = np.ones((dilate_kernel, dilate_kernel), np.uint8)
     positive_mask = cv2.dilate(positive_mask.astype(np.uint8), kernel, iterations=2)>0
@@ -150,10 +150,15 @@ def run_inference(device, model, tiles):
     model.eval()
     with torch.no_grad():
         outputs = model(io_images)  #output at target magnification level!
+        outputs = torch.sigmoid(outputs) #BCEWithLogitsLoss needs a sigmoid at the end
         outputs = outputs[:, :, 32:-32, 32:-32]
 
         for j, output in enumerate(outputs):
-            cv2.imwrite("/opt/QuickAnnotator/quickannotator/data/output/output.png",outputs.squeeze().detach().cpu().numpy()*255) #TODO: remove- - for debug
+            #---
+            oo = outputs.squeeze().detach().cpu().numpy()
+            cv2.imwrite("/opt/QuickAnnotator/output.png",oo) #TODO: remove- - for debug
+            np.save('/opt/QuickAnnotator/output.npy', oo)
+            #---
             polygons = postprocess_output(output) #some parmaeters here should be added to the class level config -- see function prototype
             print("saving annotations")
             delete_annotations(tiles[j])
