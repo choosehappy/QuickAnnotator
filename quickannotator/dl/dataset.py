@@ -9,17 +9,21 @@ from sqlalchemy import  select, update, case, func
 from quickannotator.db import get_session
 from quickannotator.db.models import Tile
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from quickannotator.db.annotation_class_crud import get_annotation_class_by_id
 
 
 from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client, load_tile 
 
 class TileDataset(IterableDataset):
-    def __init__(self, classid, tile_size,transforms=None, edge_weight=0, boost_count=5):
+    def __init__(self, classid, transforms=None, edge_weight=0, boost_count=5):
         self.classid = classid
         self.transforms = transforms
         self.edge_weight = edge_weight
-        self.tile_size = tile_size #TODO: This should come from annotation_class table
         self.boost_count = boost_count
+
+        annotation_class = get_annotation_class_by_id(classid)
+        self.magnification = annotation_class.work_mag
+        self.tile_size = annotation_class.work_tilesize
         
     def getWorkersTiles(self) -> Tile | None:
         with get_session() as db_session:  # Ensure this provides a session context
