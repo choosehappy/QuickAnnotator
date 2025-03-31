@@ -56,7 +56,9 @@ dependencies = [
     "tqdm",
     "ipykernel",
     "pytest~=8.3.4",
-    "pytest-cov~=6.0.0"
+    "pytest-cov~=6.0.0",
+    "matplotlib~=3.10.1",
+    "tensorboard~=2.19.0"
 
 ]
 dynamic = ["version"]
