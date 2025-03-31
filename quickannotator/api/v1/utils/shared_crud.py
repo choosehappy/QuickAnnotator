@@ -208,20 +208,33 @@ class AnnotationStore:
             self.model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt))
 
     # CREATE
-    # TODO: make this function applicable to predicted annotations, not just ground truths.
-    def insert_annotations(self, polygons: List[BaseGeometry]) -> List[models.Annotation]:
+    # TODO: consider adding optional parameter to allow tileids to be passed in.
+    def insert_annotations(self, polygons: List[BaseGeometry], tile_ids: List[int] | int=None) -> List[models.Annotation]:
         # Initial validation
         if len(polygons) == 0:
             return []
+        
+        if isinstance(tile_ids, int):
+            tile_ids = [tile_ids] * len(polygons)
+        
+        if tile_ids is not None and len(polygons) != len(tile_ids):
+            raise ValueError("The lengths of polygons and tile_ids must match if tile_ids is a list.")
+
         # in_work_mag is true because we expect the polygons are scaled at this point.
         tilespace = get_tilespace(self.image_id, self.annotation_class_id, in_work_mag=True)
         new_annotations = []
-        for polygon in polygons:
+
+        for i, polygon in enumerate(polygons):
             scaled_polygon = self.scale_polygon(polygon, self.scaling_factor)
-            tile_id = tilespace.point_to_tileid(scaled_polygon.centroid.x, scaled_polygon.centroid.y)
+
+            # Determine tile_id based on provided parameters or calculate it
+            if tile_ids is not None:
+                current_tile_id = tile_ids[i]
+            else:
+                current_tile_id = tilespace.point_to_tileid(scaled_polygon.centroid.x, scaled_polygon.centroid.y)
 
             new_annotations.append({
-                "tile_id": tile_id,  # Ensure correct value
+                "tile_id": current_tile_id,  # Ensure correct value
                 "centroid": scaled_polygon.centroid.wkt,
                 "polygon": scaled_polygon.wkt,
                 "area": scaled_polygon.area,
@@ -294,6 +307,34 @@ class AnnotationStore:
 
         stmt = sqlalchemy.delete(self.model).where(self.model.id == annotation_id).returning(self.model.id)
         result = db_session.execute(stmt).scalar_one_or_none()
+        db_session.commit()
+        return result
+    
+    def delete_annotations(self, annotation_ids: List[int]) -> List[int]:
+        """
+        Deletes multiple annotations by their IDs.
+        Args:
+            annotation_ids (List[int]): A list of annotation IDs to be deleted.
+        Returns:
+            List[int]: A list of the IDs of the deleted annotations.
+        """
+
+        stmt = sqlalchemy.delete(self.model).where(self.model.id.in_(annotation_ids)).returning(self.model.id)
+        result = db_session.execute(stmt).scalars().all()
+        db_session.commit()
+        return result
+    
+    def delete_annotations_by_tile(self, tile_id: int) -> List[int]:
+        """
+        Deletes all annotations associated with a tile.
+        Args:
+            tile_id (int): The ID of the tile.
+        Returns:
+            List[int]: A list of the IDs of the deleted annotations.
+        """
+
+        stmt = sqlalchemy.delete(self.model).where(self.model.tile_id == tile_id).returning(self.model.id)
+        result = db_session.execute(stmt).scalars().all()
         db_session.commit()
         return result
 

@@ -13,9 +13,10 @@ import ray.train.torch
 import ray.train
 from torch.nn import CrossEntropyLoss, MSELoss
 from torch.optim import Adam
+from quickannotator.db.annotation_class_crud import get_annotation_class_by_id
 import quickannotator.constants as constants
 from quickannotator.db import get_session
-from quickannotator.db.annotation_class_crud import get_annotation_class_by_id, build_actor_name
+from quickannotator.db.annotation_class_crud import build_actor_name
 from quickannotator.db.models import Tile
 import sqlalchemy
 from quickannotator.dl.training import train_pred_loop
@@ -60,7 +61,7 @@ class DLActor:
                                                 resources_per_worker={"GPU":.01}, placement_strategy="STRICT_SPREAD")
         
         #----
-        scaling_config = ray.train.ScalingConfig(num_workers=1, use_gpu=False)
+        # scaling_config = ray.train.ScalingConfig(num_workers=1, use_gpu=False)
         trainer = ray.train.torch.TorchTrainer(train_pred_loop,
                                        scaling_config=scaling_config,
                                        train_loop_config={'annotation_class_id':self.annotation_class_id,

@@ -14,6 +14,7 @@ from quickannotator.db.utils import build_annotation_table_name, create_dynamic_
 
 from quickannotator.constants import TileStatus
 from quickannotator.dl.utils import decompress_from_jpeg, get_memcached_client, load_tile
+from quickannotator.api.v1.utils.shared_crud import AnnotationStore
 
 
 def preprocess_image(io_image, device):
@@ -160,10 +161,16 @@ def run_inference(device, model, tiles):
             np.save('/opt/QuickAnnotator/output.npy', oo)
             #---
             polygons = postprocess_output(output) #some parmaeters here should be added to the class level config -- see function prototype
-            print("saving annotations")
-            delete_annotations(tiles[j])
-            save_annotations(tiles[j],polygons)
+            translated_polygons = [
+                shapely.affinity.translate(polygon, xoff=tiles[j].x, yoff=tiles[j].y) for polygon in polygons
+            ]
+            print(f'saving annotations for tile {tiles[j].id}. Setting pred_status to DONEPROCESSING')
+            with get_session() as db_session:
+                store = AnnotationStore(tiles[j].image_id, tiles[j].annotation_class_id, is_gt=False, in_work_mag=True)
+                store.delete_annotations_by_tile(tiles[j].tile_id)
+                store.insert_annotations(translated_polygons, tiles[j].tile_id)
+                
     
     print("updating tile status")
-    update_tile_status(tiles, TileStatus.DONEPROCESSING) #now taht the batch is done, need to update tile status
+    # update_tile_status(tiles, TileStatus.DONEPROCESSING) #now taht the batch is done, need to update tile status
     return outputs

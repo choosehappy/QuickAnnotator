@@ -81,7 +81,7 @@ def train_pred_loop(config):
     num_workers=0 #TODO:set to num of CPUs? or...# of CPUs/ divided by # of classes or something...challenge - one started can't change. maybe set to min(batch_size train, ??) 
     
 
-    dataset=TileDataset(annotation_class_id, tile_size=tile_size, magnification=magnification,
+    dataset=TileDataset(annotation_class_id,
                         edge_weight=edge_weight, transforms=get_transforms(tile_size), 
                         boost_count=boost_count)
 

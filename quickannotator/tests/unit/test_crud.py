@@ -39,6 +39,22 @@ def test_get_annotation_by_id(annotation_store):
     assert annotation is not None
     assert annotation.id == annotation_id
 
+def test_delete_annotations(annotation_store):
+    # Arrange
+    polygons = [Polygon([(i, i), (i + 1, i), (i + 1, i + 1), (i, i + 1), (i, i)]) for i in range(3)]
+    inserted_annotations = annotation_store.insert_annotations(polygons)
+    annotation_ids = [annotation.id for annotation in inserted_annotations]
+
+    # Act
+    deleted_ids = annotation_store.delete_annotations(annotation_ids)
+
+    # Assert
+    assert len(deleted_ids) == len(annotation_ids)
+    assert set(deleted_ids) == set(annotation_ids)
+
+    # Verify that the annotations are no longer retrievable
+    for annotation_id in annotation_ids:
+        assert annotation_store.get_annotation_by_id(annotation_id) is None
 
 def test_get_annotations_for_tiles(annotation_store):
     # Arrange

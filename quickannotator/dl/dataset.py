@@ -20,10 +20,10 @@ class TileDataset(IterableDataset):
         self.transforms = transforms
         self.edge_weight = edge_weight
         self.boost_count = boost_count
-
-        annotation_class = get_annotation_class_by_id(classid)
-        self.magnification = annotation_class.work_mag
-        self.tile_size = annotation_class.work_tilesize
+        with get_session() as db_session:  # Ensure this provides a session context
+            annotation_class = get_annotation_class_by_id(classid)
+            self.magnification = annotation_class.work_mag
+            self.tile_size = annotation_class.work_tilesize
         
     def getWorkersTiles(self) -> Tile | None:
         with get_session() as db_session:  # Ensure this provides a session context

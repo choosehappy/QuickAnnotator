@@ -11,6 +11,6 @@ BASE_PATH = '/opt/QuickAnnotator/quickannotator'
 
 MASK_CLASS_ID = 1
 
-TILE_PRED_EXPIRE = 1 # minutes
+TILE_PRED_EXPIRE = 5 # minutes
 
 MAX_ACTORS_PROCESSING = 1
