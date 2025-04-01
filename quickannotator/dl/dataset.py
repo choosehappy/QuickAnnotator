@@ -48,7 +48,7 @@ class TileDataset(IterableDataset):
                     ).scalar()
                     db_session.expunge(tile)
                 
-                print(f"tile retval {tile}")
+                #print(f"tile retval {tile}")
                 return tile if tile else None
         
 
@@ -57,7 +57,7 @@ class TileDataset(IterableDataset):
         
         while tile:=self.getWorkersTiles():
             #print(tile)
-            print(f"tile retval 2 {tile}")
+            #print(f"tile retval 2 {tile}")
 
             image_id = tile.image_id
             tile_id = tile.tile_id
@@ -128,7 +128,7 @@ class TileDataset(IterableDataset):
 
             # cv2.imwrite(f"/opt/QuickAnnotator/{tile_id}_mask.png",mask_image*255) #TODO: remove- - for debug
             # cv2.imwrite(f"/opt/QuickAnnotator/{tile_id}_img.png",io_image)#TODO: remove- - for debug
-            # cv2.imwrite(f"/opt/QuickAnnotator/{tile_id}_weight.png",weight*255)#TODO: remove- - for debug
+            # cv2.imwrite(f"/opt/QuickAnnotator/{tile_id}_weight_2.png",weight*255)#TODO: remove- - for debug
             img_new = io_image
             mask_new = mask_image
             weight_new = weight

@@ -14,7 +14,10 @@ def compress_to_jpeg(matrix):
     image = PILImage.fromarray(matrix.astype(np.uint8))
     # Save the image to a BytesIO object as JPEG
     with io.BytesIO() as output:
-        image.save(output, format="JPEG")
+        image.save(output, format="PNG") ##TODO: The issue here, if we use JPEG, the mask file loses a lot of resolution. we could likely jack up the quality parameter, and still get excellent compression
+                                        #however, we may need to modify this to accept a quality parameter, sicne the image and mask should likely have different values?
+                                        #seems like something to do afterward --- setting to PNG to retain perfect quality
+                                        #note as well, setting this to JPEG, will yield masks with values >1, due to overlapping polygons
         jpeg_bytes = output.getvalue()  # Get the byte data
     return jpeg_bytes
 
