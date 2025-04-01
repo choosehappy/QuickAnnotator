@@ -10,6 +10,7 @@ from quickannotator.db import get_session
 from quickannotator.db.models import Tile
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 from quickannotator.db.annotation_class_crud import get_annotation_class_by_id
+from datetime import datetime
 
 
 from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client, load_tile 
@@ -27,33 +28,34 @@ class TileDataset(IterableDataset):
         
     def getWorkersTiles(self) -> Tile | None:
         with get_session() as db_session:  # Ensure this provides a session context
-                subquery = (
-                    select(Tile.id)
-                    .where(Tile.annotation_class_id == self.classid,
-                        Tile.gt_datetime.isnot(None))
-                    .order_by(Tile.gt_counter.asc(), Tile.gt_datetime.asc())  # Prioritize under-used, then newest
-                    .limit(1).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
-                )
+            subquery = (
+                select(Tile.id)
+                .where(Tile.annotation_class_id == self.classid,
+                    Tile.gt_datetime.isnot(None))
+                .order_by(Tile.gt_counter.asc(), Tile.gt_datetime.asc())  # Prioritize under-used, then newest
+                .limit(1).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
+            )
                 
-                with db_session.begin():  # Explicit transaction
+                # with db_session.begin():  # Explicit transaction
 
-                    tile = db_session.execute(
-                        update(Tile)
-                        .where(Tile.id == subquery.scalar_subquery())
-                        .values(gt_counter=(
-                                # Only increment selection_count if it's less than max_selections
-                                case(
-                                    (Tile.gt_counter < self.boost_count, Tile.gt_counter + 1),
-                                    else_=Tile.gt_counter
-                                )
-                            ),
-                            gt_datetime=func.now())
-                        .returning(Tile)
-                    ).scalar()
-                    db_session.expunge(tile)
-                
+            tile = db_session.execute(
+                update(Tile)
+                .where(Tile.id == subquery.scalar_subquery())
+                .values(gt_counter=(
+                        # Only increment selection_count if it's less than max_selections
+                        case(
+                            (Tile.gt_counter < self.boost_count, Tile.gt_counter + 1),
+                            else_=Tile.gt_counter
+                        )
+                    ),
+                    gt_datetime=datetime.now())
+                .returning(Tile)
+            ).scalar()
+
+            if tile:    # Cannot expunge a tile which does not exist, e.g., when the subquery returns None
+                db_session.expunge(tile)
                 print(f"tile retval {tile}")
-                return tile if tile else None
+                return tile
         
 
     def __iter__(self):

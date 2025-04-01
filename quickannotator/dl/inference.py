@@ -14,7 +14,8 @@ from quickannotator.db.utils import build_annotation_table_name, create_dynamic_
 
 from quickannotator.constants import TileStatus
 from quickannotator.dl.utils import decompress_from_jpeg, get_memcached_client, load_tile
-from quickannotator.api.v1.utils.shared_crud import AnnotationStore
+from quickannotator.api.v1.utils.shared_crud import AnnotationStore, upsert_pred_tiles
+from datetime import datetime
 
 
 def preprocess_image(io_image, device):
@@ -94,7 +95,7 @@ def getPendingInferenceTiles(classid,batch_size_infer):
                 update(Tile)
                 .where(Tile.id.in_(subquery))
                 .where(Tile.pred_status == TileStatus.STARTPROCESSING)  # Ensures another worker hasn't claimed it
-                .values(pred_status=TileStatus.PROCESSING,pred_datetime=func.now())
+                .values(pred_status=TileStatus.PROCESSING,pred_datetime=datetime.now())
                 .returning(Tile)
             ).scalars().all()
             
@@ -117,7 +118,7 @@ def update_tile_status(tile_batch,status):
                                     #one would need to change all func.now to datetime.datetime.now() to make it rock solid. lets see the performance of this first and adjust if needed
         for tile in tile_batch:
             tile.pred_status = status
-            tile.pred_datetime = func.now()
+            tile.pred_datetime = datetime.now()
             db_session.add(tile)  # Add each tile individually
         
         db_session.commit()  # Commit all changes
@@ -172,5 +173,12 @@ def run_inference(device, model, tiles):
                 
     
     print("updating tile status")
+    result = upsert_pred_tiles(image_id=tiles[0].image_id, 
+                      annotation_class_id=tiles[0].annotation_class_id, 
+                      tile_ids={tile.tile_id for tile in tiles}, 
+                      pred_status=TileStatus.DONEPROCESSING, 
+                      process_owns_tile=True)
+    # if result[0].pred_status != TileStatus.DONEPROCESSING:
+    #     import pdb; pdb.set_trace()  # Conditional breakpoint
     # update_tile_status(tiles, TileStatus.DONEPROCESSING) #now taht the batch is done, need to update tile status
     return outputs

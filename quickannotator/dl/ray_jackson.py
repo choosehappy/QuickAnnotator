@@ -81,7 +81,7 @@ class DLActor:
         with get_session() as db_session:
             stmt = sqlalchemy.update(Tile).where(Tile.tile_id.in_(tileids), Tile.image_id == image_id,
                                                 Tile.annotation_class_id == self.annotation_class_id)\
-                                                    .values(pred_status=constants.TileStatus.STARTPROCESSING,pred_datetime=sqlalchemy.func.now()) ## should add date time
+                                                    .values(pred_status=constants.TileStatus.STARTPROCESSING,pred_datetime=datetime.now()) ## should add date time
 
             # Execute the update
             db_session.execute(stmt)
@@ -148,11 +148,14 @@ def start_processing(annotation_class_id: int):
         # 3. Pop the oldest actor
         oldest_actor = actor_queue.pop(0)['actor']
         oldest_actor.setProcRunningSince.remote(reset=True)
-
-    # 4. Start the new actor
+    
     actor_name = build_actor_name(annotation_class_id=annotation_class_id)
     annotation_class = get_annotation_class_by_id(annotation_class_id)
 
+    # 3. Set all tiles with pred_status=TileStatus.PROCESSING to TileStatus.UNSEEN
+    
+
+    # 4. Start the new actor
     current_actor = DLActor.options(name=actor_name, get_if_exists=True, max_concurrency=2).remote(annotation_class_id,
                                     annotation_class.work_tilesize,
                                     annotation_class.work_mag)

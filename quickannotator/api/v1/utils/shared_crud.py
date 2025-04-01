@@ -59,6 +59,16 @@ def get_annotation_query(model, scale_factor: float=1.0) -> Query:
 
     return query
 
+def reset_all_PROCESSING_tiles(annotation_class_id: int):
+    stmt = sqlalchemy.update(models.Tile).where(
+        models.Tile.annotation_class_id == annotation_class_id
+    ).values(
+        pred_status=TileStatus.UNSEEN,
+        pred_datetime=None
+    )
+    db_session.execute(stmt)
+    db_session.commit()
+
 def upsert_gt_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int]) -> List[models.Tile]:
     """
     Inserts new ground truth tiles or updates existing ground truth tiles in the database.
@@ -102,6 +112,8 @@ def upsert_gt_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int]
     tiles = db_session.execute(stmt).all()
     db_session.commit()
     return tiles
+
+
 
 def upsert_pred_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], pred_status: TileStatus, process_owns_tile=False) -> List[models.Tile]:
     """
@@ -245,12 +257,7 @@ class AnnotationStore:
         stmt = sqlalchemy.insert(self.model).returning(self.model.id).values(new_annotations)
         ids = db_session.scalars(stmt).all()
         result = self.get_annotations_by_ids(annotation_ids=ids)    # Must do this otherwise scaling etc. does not apply.
-        tile_ids = [ann.tile_id for ann in result]
-        
-        if self.is_gt:
-            upsert_gt_tiles(self.image_id, self.annotation_class_id, tile_ids)
-        else:
-            upsert_pred_tiles(self.image_id, self.annotation_class_id, tile_ids, pred_status=TileStatus.DONEPROCESSING, process_owns_tile=True)
+    
         return result
 
 

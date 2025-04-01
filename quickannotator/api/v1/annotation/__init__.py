@@ -9,9 +9,8 @@ from typing import List
 import quickannotator.db.models as models
 from ..utils.shared_crud import AnnotationStore
 import geojson
-from quickannotator.api.v1.tile.helper import get_tile
-from quickannotator.constants import TileStatus
-from datetime import datetime
+from quickannotator.api.v1.utils.shared_crud import upsert_gt_tiles
+
 
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
@@ -92,6 +91,7 @@ class Annotation(MethodView):
         polygons: List[geojson.Polygon] = args['polygons']
         store = AnnotationStore(image_id, annotation_class_id, is_gt=True, in_work_mag=False)
         anns = store.insert_annotations([shape(poly) for poly in polygons])
+        upsert_gt_tiles(image_id, annotation_class_id, {ann.tile_id for ann in anns})
 
         return anns, 200
 
