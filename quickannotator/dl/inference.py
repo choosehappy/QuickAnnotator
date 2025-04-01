@@ -82,27 +82,27 @@ def save_annotations(tile,polygons): #TODO: i feel like this function likely exi
 
 def getPendingInferenceTiles(classid,batch_size_infer):
     with get_session() as db_session:  # Ensure this provides a session context
-        with db_session.begin():  # Explicit transaction
-            subquery = (
-                select(Tile.id)
-                .where(Tile.annotation_class_id == classid,
-                    Tile.pred_status == TileStatus.STARTPROCESSING)
-                .order_by(Tile.pred_datetime.desc()) #always get the latest ones first #TODO: should this be asc?
-                .limit(batch_size_infer).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
-            )
+        # with db_session.begin():  # Explicit transaction
+        subquery = (
+            select(Tile.id)
+            .where(Tile.annotation_class_id == classid,
+                Tile.pred_status == TileStatus.STARTPROCESSING)
+            .order_by(Tile.pred_datetime.desc()) #always get the latest ones first #TODO: should this be asc?
+            .limit(batch_size_infer).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
+        )
 
-            tiles = db_session.execute(
-                update(Tile)
-                .where(Tile.id.in_(subquery))
-                .where(Tile.pred_status == TileStatus.STARTPROCESSING)  # Ensures another worker hasn't claimed it
-                .values(pred_status=TileStatus.PROCESSING,pred_datetime=datetime.now())
-                .returning(Tile)
-            ).scalars().all()
-            
-            db_session.expunge_all()
+        tiles = db_session.execute(
+            update(Tile)
+            .where(Tile.id.in_(subquery))
+            .where(Tile.pred_status == TileStatus.STARTPROCESSING)  # Ensures another worker hasn't claimed it
+            .values(pred_status=TileStatus.PROCESSING,pred_datetime=datetime.now())
+            .returning(Tile)
+        ).scalars().all()
+        
+        db_session.expunge_all()
 
 
-            return tiles if tiles else None
+        return tiles if tiles else None
 
     
 def update_tile_status(tile_batch,status):

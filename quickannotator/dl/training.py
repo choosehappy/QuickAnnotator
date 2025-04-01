@@ -87,8 +87,9 @@ def train_pred_loop(config):
 
     dataloader = DataLoader(dataset, batch_size=batch_size_train, shuffle=False, num_workers=num_workers) #NOTE: for dataset of type iter - shuffle must == False
 
-    #model = smp.Unet(encoder_name="timm-mobilenetv3_small_100", encoder_weights="imagenet", in_channels=3, classes=1) #TODO: this should all be a setting
-    model = smp.Unet(encoder_name="tu-convnext_tiny", encoder_weights="imagenet", in_channels=3, classes=1 )
+    model = smp.Unet(encoder_name="efficientnet-b0", encoder_weights="imagenet", 
+                 decoder_channels=(64, 64, 64, 32, 16), in_channels=3, classes=1, encoder_freeze=True )
+    
     criterion = nn.BCEWithLogitsLoss(reduction='none', )
     optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-2) #TODO: this should be a setting
     
