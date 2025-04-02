@@ -99,8 +99,8 @@ def train_pred_loop(config):
     
     scaler = torch.amp.GradScaler("cuda")
 
-    print(summary(model, (3, tile_size, tile_size))) #TODO: log this
-
+    # print(summary(model, (3, tile_size, tile_size))) #TODO: log this
+    # TODO: why does the above line produce an error: RuntimeError: Input type (torch.cuda.FloatTensor) and weight type (torch.FloatTensor) should be the same
     #--- freeze encoder weights
     for param in model.encoder.parameters():
         param.requires_grad = False
@@ -123,7 +123,7 @@ def train_pred_loop(config):
 
     running_loss = []
     
-    writer = SummaryWriter(log_dir=f"/tmp/{classid}/{datetime.datetime.now().strftime('%b%d_%H-%M-%S')}")
+    writer = SummaryWriter(log_dir=f"/tmp/{annotation_class_id}/{datetime.datetime.now().strftime('%b%d_%H-%M-%S')}")
 
     
 

@@ -48,7 +48,7 @@ class TileDataset(IterableDataset):
                                 else_=Tile.gt_counter
                             )
                         ),
-                        gt_datetime=func.now())
+                        gt_datetime=datetime.now())
                     .returning(Tile)
                 ).scalar()
                 db_session.expunge(tile)
