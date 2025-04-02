@@ -11,7 +11,7 @@ from quickannotator.db.models import Tile
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 
 
-from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client, load_tile 
+from quickannotator.dl.utils import compress_to_image_bytestream, decompress_from_image_bytestream, get_memcached_client, load_tile 
 
 class TileDataset(IterableDataset):
     def __init__(self, classid, tile_size,transforms=None, edge_weight=0, boost_count=5):
@@ -91,7 +91,7 @@ class TileDataset(IterableDataset):
             #----
 
             if img_cache_val:
-                io_image = decompress_from_jpeg(img_cache_val[0])
+                io_image = decompress_from_image_bytestream(img_cache_val[0])
                 x,y = img_cache_val[1]
             else:
 
@@ -99,13 +99,13 @@ class TileDataset(IterableDataset):
 
                 
                 try: #if memcache isn't working, no problem, just keep going
-                    client.set(img_cache_key, [compress_to_jpeg(io_image), (x,y)])
+                    client.set(img_cache_key, [compress_to_image_bytestream(io_image,format="JPEG", quality=95), (x,y)])
                 except:
                     pass
             
 
             if mask_cache_val:
-                mask_image, weight = [decompress_from_jpeg(i) for i in mask_cache_val]
+                mask_image, weight = [decompress_from_image_bytestream(i) for i in mask_cache_val]
             else:
                 mask_image = np.zeros((self.tile_size, self.tile_size), dtype=np.uint8) #TODO: maybe should be moved to a project wide available utility function? not sure
                 for annotation in annotations:
@@ -122,7 +122,7 @@ class TileDataset(IterableDataset):
                     weight = np.ones(mask_image.shape, dtype=mask_image.dtype)
                 
                 try: #if memcache isn't working, no problem, just keep going
-                    client.set(mask_cache_key, [compress_to_jpeg(i) for i in (mask_image, weight)])
+                    client.set(mask_cache_key, [compress_to_image_bytestream(i,format="PNG") for i in (mask_image, weight)])
                 except:
                     pass
 
