@@ -13,9 +13,7 @@ from quickannotator.db import get_session
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 
 from quickannotator.constants import TileStatus
-from quickannotator.dl.utils import decompress_from_jpeg, get_memcached_client, load_tile
-from quickannotator.api.v1.utils.shared_crud import AnnotationStore, upsert_pred_tiles
-from datetime import datetime
+from quickannotator.dl.utils import decompress_from_image_bytestream, get_memcached_client, load_tile
 
 
 def preprocess_image(io_image, device):
@@ -137,7 +135,7 @@ def run_inference(device, model, tiles):
             img_cache_val = {}
         
         if img_cache_val:
-            io_image = decompress_from_jpeg(img_cache_val[0])
+            io_image = decompress_from_image_bytestream(img_cache_val[0])
 
         else:
             io_image,tile.x,tile.y = load_tile(tile)
@@ -157,9 +155,9 @@ def run_inference(device, model, tiles):
 
         for j, output in enumerate(outputs):
             #---
-            oo = outputs.squeeze().detach().cpu().numpy()
-            cv2.imwrite("/opt/QuickAnnotator/output.png",oo) #TODO: remove- - for debug
-            np.save('/opt/QuickAnnotator/output.npy', oo)
+            # oo = outputs.squeeze().detach().cpu().numpy()
+            # cv2.imwrite("/opt/QuickAnnotator/output.png",oo) #TODO: remove- - for debug
+            # np.save('/opt/QuickAnnotator/output.npy', oo)
             #---
             polygons = postprocess_output(output) #some parmaeters here should be added to the class level config -- see function prototype
             translated_polygons = [

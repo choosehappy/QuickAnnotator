@@ -13,7 +13,7 @@ from quickannotator.db.annotation_class_crud import get_annotation_class_by_id
 from datetime import datetime
 
 
-from quickannotator.dl.utils import compress_to_jpeg, decompress_from_jpeg, get_memcached_client, load_tile 
+from quickannotator.dl.utils import compress_to_image_bytestream, decompress_from_image_bytestream, get_memcached_client, load_tile 
 
 class TileDataset(IterableDataset):
     def __init__(self, classid, transforms=None, edge_weight=0, boost_count=5):
@@ -36,26 +36,25 @@ class TileDataset(IterableDataset):
                 .limit(1).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
             )
                 
-                # with db_session.begin():  # Explicit transaction
+            with db_session.begin():  # Explicit transaction
 
-            tile = db_session.execute(
-                update(Tile)
-                .where(Tile.id == subquery.scalar_subquery())
-                .values(gt_counter=(
-                        # Only increment selection_count if it's less than max_selections
-                        case(
-                            (Tile.gt_counter < self.boost_count, Tile.gt_counter + 1),
-                            else_=Tile.gt_counter
-                        )
-                    ),
-                    gt_datetime=datetime.now())
-                .returning(Tile)
-            ).scalar()
-
-            if tile:    # Cannot expunge a tile which does not exist, e.g., when the subquery returns None
+                tile = db_session.execute(
+                    update(Tile)
+                    .where(Tile.id == subquery.scalar_subquery())
+                    .values(gt_counter=(
+                            # Only increment selection_count if it's less than max_selections
+                            case(
+                                (Tile.gt_counter < self.boost_count, Tile.gt_counter + 1),
+                                else_=Tile.gt_counter
+                            )
+                        ),
+                        gt_datetime=func.now())
+                    .returning(Tile)
+                ).scalar()
                 db_session.expunge(tile)
-                print(f"tile retval {tile}")
-                return tile
+            
+            #print(f"tile retval {tile}")
+            return tile if tile else None
         
 
     def __iter__(self):
@@ -63,7 +62,7 @@ class TileDataset(IterableDataset):
         
         while tile:=self.getWorkersTiles():
             #print(tile)
-            print(f"tile retval 2 {tile}")
+            #print(f"tile retval 2 {tile}")
 
             image_id = tile.image_id
             tile_id = tile.tile_id
@@ -97,7 +96,7 @@ class TileDataset(IterableDataset):
             #----
 
             if img_cache_val:
-                io_image = decompress_from_jpeg(img_cache_val[0])
+                io_image = decompress_from_image_bytestream(img_cache_val[0])
                 x,y = img_cache_val[1]
             else:
 
@@ -105,13 +104,13 @@ class TileDataset(IterableDataset):
 
                 
                 try: #if memcache isn't working, no problem, just keep going
-                    client.set(img_cache_key, [compress_to_jpeg(io_image), (x,y)])
+                    client.set(img_cache_key, [compress_to_image_bytestream(io_image,format="JPEG", quality=95), (x,y)])
                 except:
                     pass
             
 
             if mask_cache_val:
-                mask_image, weight = [decompress_from_jpeg(i) for i in mask_cache_val]
+                mask_image, weight = [decompress_from_image_bytestream(i) for i in mask_cache_val]
             else:
                 mask_image = np.zeros((self.tile_size, self.tile_size), dtype=np.uint8) #TODO: maybe should be moved to a project wide available utility function? not sure
                 for annotation in annotations:
@@ -128,13 +127,13 @@ class TileDataset(IterableDataset):
                     weight = np.ones(mask_image.shape, dtype=mask_image.dtype)
                 
                 try: #if memcache isn't working, no problem, just keep going
-                    client.set(mask_cache_key, [compress_to_jpeg(i) for i in (mask_image, weight)])
+                    client.set(mask_cache_key, [compress_to_image_bytestream(i,format="PNG") for i in (mask_image, weight)])
                 except:
                     pass
 
             # cv2.imwrite(f"/opt/QuickAnnotator/{tile_id}_mask.png",mask_image*255) #TODO: remove- - for debug
             # cv2.imwrite(f"/opt/QuickAnnotator/{tile_id}_img.png",io_image)#TODO: remove- - for debug
-            # cv2.imwrite(f"/opt/QuickAnnotator/{tile_id}_weight.png",weight*255)#TODO: remove- - for debug
+            # cv2.imwrite(f"/opt/QuickAnnotator/{tile_id}_weight_2.png",weight*255)#TODO: remove- - for debug
             img_new = io_image
             mask_new = mask_image
             weight_new = weight

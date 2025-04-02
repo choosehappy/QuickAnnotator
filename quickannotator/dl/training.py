@@ -6,6 +6,8 @@ import torch.optim as optim
 from tqdm import tqdm
 import ray
 
+from torchsummary import summary
+import datetime
 from quickannotator.dl.inference import run_inference, getPendingInferenceTiles
 from quickannotator.db.annotation_class_crud import build_actor_name
 from .dataset import TileDataset
@@ -15,22 +17,24 @@ from albumentations.pytorch import ToTensorV2
 import cv2
 from safetensors.torch import save_file
 
+from torch.utils.tensorboard import SummaryWriter
+
 def get_transforms(tile_size): #probably goes...elsewhere
     transforms = A.Compose([
-    A.RandomScale(scale_limit=0.1, p=.9),
+    A.RandomScale(scale_limit=-.1, p=.1),
     A.PadIfNeeded(min_height=tile_size, min_width=tile_size),
     A.VerticalFlip(p=.5),
     A.HorizontalFlip(p=.5),
     A.Blur(p=.5),
-    # Downscale(p=.25, scale_min=0.64, scale_max=0.99),
+    # # Downscale(p=.25, scale_min=0.64, scale_max=0.99),
     A.GaussNoise(p=.5, var_limit=(10.0, 50.0)),
-    A.GridDistortion(p=.5, num_steps=5, distort_limit=(-0.3, 0.3),
-                    border_mode=cv2.BORDER_REFLECT),
-    A.ISONoise(p=.5, intensity=(0.1, 0.5), color_shift=(0.01, 0.05)),
-    A.RandomBrightnessContrast(p=0.5, brightness_limit=(-0.2, 0.2), contrast_limit=(-0.2, 0.2), brightness_by_max=True),
-    A.RandomGamma(p=.5, gamma_limit=(80, 120), eps=1e-07),
-    A.MultiplicativeNoise(p=.5, multiplier=(0.9, 1.1), per_channel=True, elementwise=True),
-    A.HueSaturationValue(hue_shift_limit=20, sat_shift_limit=10, val_shift_limit=10, p=.9),
+    # A.GridDistortion(p=.5, num_steps=5, distort_limit=(-0.3, 0.3),
+    #                 border_mode=cv2.BORDER_REFLECT),
+    # A.ISONoise(p=.5, intensity=(0.1, 0.5), color_shift=(0.01, 0.05)),
+    # A.RandomBrightnessContrast(p=0.5, brightness_limit=(-0.2, 0.2), contrast_limit=(-0.2, 0.2), brightness_by_max=True),
+    # A.RandomGamma(p=.5, gamma_limit=(80, 120), eps=1e-07),
+    # A.MultiplicativeNoise(p=.5, multiplier=(0.9, 1.1), per_channel=True, elementwise=True),
+    # A.HueSaturationValue(hue_shift_limit=20, sat_shift_limit=10, val_shift_limit=10, p=.9),
     A.Rotate(p=1, border_mode=cv2.BORDER_REFLECT),
     A.RandomCrop(tile_size, tile_size),
     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),  # Normalization
@@ -75,9 +79,9 @@ def train_pred_loop(config):
 
     #TODO: all these from project settings
     boost_count = 5
-    batch_size_train=1
-    batch_size_infer=1
-    edge_weight=2
+    batch_size_train=4
+    batch_size_infer=4
+    edge_weight=1_000
     num_workers=0 #TODO:set to num of CPUs? or...# of CPUs/ divided by # of classes or something...challenge - one started can't change. maybe set to min(batch_size train, ??) 
     
 
@@ -87,12 +91,25 @@ def train_pred_loop(config):
 
     dataloader = DataLoader(dataset, batch_size=batch_size_train, shuffle=False, num_workers=num_workers) #NOTE: for dataset of type iter - shuffle must == False
 
+    #model = smp.Unet(encoder_name="timm-mobilenetv3_small_100", encoder_weights="imagenet", in_channels=3, classes=1) #TODO: this should all be a setting
     model = smp.Unet(encoder_name="efficientnet-b0", encoder_weights="imagenet", 
                  decoder_channels=(64, 64, 64, 32, 16), in_channels=3, classes=1, encoder_freeze=True )
+    criterion = nn.BCEWithLogitsLoss(reduction='none', ).cuda()
+    optimizer = optim.NAdam(model.parameters(), lr=0.001, weight_decay=1e-2) #TODO: this should be a setting
     
-    criterion = nn.BCEWithLogitsLoss(reduction='none', )
-    optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-2) #TODO: this should be a setting
-    
+    scaler = torch.amp.GradScaler("cuda")
+
+    print(summary(model, (3, tile_size, tile_size))) #TODO: log this
+
+    #--- freeze encoder weights
+    for param in model.encoder.parameters():
+        param.requires_grad = False
+        
+    for name, param in model.named_parameters():
+        if not param.requires_grad:
+            print(f"{name} is frozen")
+    #-----
+
     if torch.cuda.is_available():
         localrank=ray.train.get_context().get_local_rank()
         device=torch.device('cuda',localrank)
@@ -105,6 +122,12 @@ def train_pred_loop(config):
 
 
     running_loss = []
+    
+    writer = SummaryWriter(log_dir=f"/tmp/{classid}/{datetime.datetime.now().strftime('%b%d_%H-%M-%S')}")
+
+    
+
+
     last_save = 0
     niter_total = 0 
     #print ("pre actor get")
@@ -121,30 +144,42 @@ def train_pred_loop(config):
             niter_total += 1
             images, masks, weights = next(iter(dataloader))
             #print ("post next iter")
-            images = images.to(device) #TODO: test with .half()
-            masks = masks.to(device)
+            images = images.half().to(device) #TODO: test with .half()
+            masks = masks.to(device) #these should remain as uint8 - which is both more correct and half the size of a float16
             weights = weights.to(device)
             #print ("post copy ")
-            optimizer.zero_grad()
-            outputs = model(images)
             
-            loss = criterion(outputs, masks.float())
-            loss = (loss * (edge_weight ** weights).type_as(loss)).mean()
+            with torch.autocast(device_type="cuda", dtype=torch.float16):
+                optimizer.zero_grad()
+                outputs = model(images)
+                
+                loss = criterion(outputs, masks.float())
+                loss = (loss * (edge_weight ** weights).type_as(loss)).mean()
+                
+                positive_mask = (masks == 1).float()
+                unlabeled_mask = (masks == 0).float()
+                
+                positive_loss = 1.0 * (loss * positive_mask).mean()
+                unlabeled_loss = .1 * (loss * unlabeled_mask).mean()
+                
+                loss_total = positive_loss + unlabeled_loss
+            # loss_total.backward()
+            # optimizer.step()
             
-            positive_mask = (masks == 1).float()
-            unlabeled_mask = (masks == 0).float()
-            
-            positive_loss = 1.0 * (loss * positive_mask).mean()
-            unlabeled_loss = .1 * (loss * unlabeled_mask).mean()
-            
-            loss_total = positive_loss + unlabeled_loss
-            loss_total.backward()
-            
-            optimizer.step()
-            
+            scaler.scale(loss_total).backward()
+
+            scaler.step(optimizer)
+            scaler.update()
+
+
             running_loss.append(loss_total.item())
             
-            print ("losses:\t",loss_total,positive_mask.sum(),positive_loss,unlabeled_loss)
+            writer.add_scalar(f'loss/loss', loss, niter_total)
+            writer.add_scalar(f'loss/positive_loss', positive_loss, niter_total)
+            writer.add_scalar(f'loss/unlabeled_loss', unlabeled_loss, niter_total)
+            writer.add_scalar(f'loss/loss_total', loss_total, niter_total)
+
+            #print ("losses:\t",loss_total,positive_mask.sum(),positive_loss,unlabeled_loss)
             
             last_save+=1
             if last_save>50:

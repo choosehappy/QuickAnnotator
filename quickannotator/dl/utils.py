@@ -9,19 +9,21 @@ from quickannotator.db import get_session
 from quickannotator.db.models import Image, AnnotationClass
 from quickannotator.api.v1.utils.coordinate_space import TileSpace
 
-def compress_to_jpeg(matrix):
+def compress_to_image_bytestream(matrix, str: format="PNG", **kwargs):
+    ## Important note: BINARY MASKS MUST BE STORED LOSSLESS - if using e.g., jpeg, they will be corrupted and have values >1
+    ## even with quality == 100 and subsampling=0
     # Convert NumPy matrix to a PIL Image
     image = PILImage.fromarray(matrix.astype(np.uint8))
     # Save the image to a BytesIO object as JPEG
     with io.BytesIO() as output:
-        image.save(output, format="JPEG")
-        jpeg_bytes = output.getvalue()  # Get the byte data
-    return jpeg_bytes
+        image.save(output, format=format, **kwargs) 
+        bytestream = output.getvalue()  # Get the byte data
+    return bytestream
 
 # Function to decompress JPEG bytes back to a NumPy array
-def decompress_from_jpeg(jpeg_bytes):
+def decompress_from_image_bytestream(bytestream):
     # Open the byte data as an image using PIL
-    with io.BytesIO(jpeg_bytes) as input:
+    with io.BytesIO(bytestream) as input:
         image = PILImage.open(input)
         # Convert image back to NumPy array
         matrix = np.array(image)
