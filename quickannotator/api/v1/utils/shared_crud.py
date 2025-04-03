@@ -10,6 +10,7 @@ from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_fa
 from quickannotator.constants import TileStatus
 from quickannotator.db import db_session, Base
 import quickannotator.db.models as models
+from quickannotator.db.models import get_model_column_names
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 from sqlalchemy.ext.declarative import declarative_base
 import quickannotator.constants as constants
@@ -69,6 +70,45 @@ def reset_all_PROCESSING_tiles(annotation_class_id: int):
     db_session.execute(stmt)
     db_session.commit()
 
+def upsert_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], insert_fields: dict, update_fields: dict) -> List[models.Tile]:
+    """
+    Inserts new tiles or updates existing tiles in the database.
+    This function attempts to insert new tiles with the given annotation_class_id, image_id, and tile_ids.
+    If tiles with the same annotation_class_id, image_id, and tile_ids already exist, it updates the relevant fields.
+
+    Args:
+        image_id (int): The ID of the image.
+        annotation_class_id (int): The ID of the annotation class.
+        tile_ids (List[int]): The IDs of the tiles.
+        insert_fields (dict): Additional fields to insert into the tile.
+        update_fields (dict): Additional fields to update in the tile.
+    Returns:
+        List[models.Tile]: The tiles that were inserted or updated.
+    """
+    if len(tile_ids) == 0:
+        return []
+
+    stmt = insert(models.Tile).values(
+        [
+            {
+                'annotation_class_id': annotation_class_id,
+                'image_id': image_id,
+                'tile_id': tile_id,
+                **insert_fields
+            }
+            for tile_id in tile_ids
+        ]
+    ).on_conflict_do_update(
+        index_elements=['annotation_class_id', 'image_id', 'tile_id'],
+        set_=update_fields
+    ).returning(
+        *get_model_column_names(models.Tile)
+    )
+
+    tiles = db_session.execute(stmt).all()
+    db_session.commit()
+    return tiles
+
 def upsert_gt_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int]) -> List[models.Tile]:
     """
     Inserts new ground truth tiles or updates existing ground truth tiles in the database.
@@ -83,37 +123,21 @@ def upsert_gt_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int]
     Returns:
         List[models.Tile]: The tiles that were inserted or updated.
     """
-
-    if len(tile_ids) == 0:
-        return []
     
+    current_time = datetime.now()
     update_fields = {
         'gt_counter': 0,
-        'gt_datetime': datetime.now()
+        'gt_datetime': current_time
     }
-    
-    stmt = insert(models.Tile).values(
-        [
-            {
-                'annotation_class_id': annotation_class_id,
-                'image_id': image_id,
-                'tile_id': tile_id,
-                **update_fields
-            }
-            for tile_id in tile_ids
-        ]
-    ).on_conflict_do_update(
-        index_elements=['annotation_class_id', 'image_id', 'tile_id'],
-        set_=update_fields
-    ).returning(
-        *[getattr(models.Tile, column.name) for column in models.Tile.__table__.columns]   # Can't use models.Tile with on_conflict_do_update
+
+    tiles = upsert_tiles(
+        image_id=image_id,
+        annotation_class_id=annotation_class_id,
+        tile_ids=tile_ids,
+        insert_fields=update_fields,
+        update_fields=update_fields
     )
-
-    tiles = db_session.execute(stmt).all()
-    db_session.commit()
     return tiles
-
-
 
 def upsert_pred_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], pred_status: TileStatus, process_owns_tile=False) -> List[models.Tile]:
     """
@@ -132,60 +156,41 @@ def upsert_pred_tiles(image_id: int, annotation_class_id: int, tile_ids: List[in
         List[models.Tile]: The tiles that were inserted or updated.
     """
 
-    if len(tile_ids) == 0:
-        return []
-
     if pred_status is None:
         raise ValueError("pred_status cannot be None.")
     
-    update_fields = {
+    current_time = datetime.now()
+    insert_fields = {
         'pred_status': pred_status,
-        'pred_datetime': datetime.now()
+        'pred_datetime': current_time
     }
     
     if process_owns_tile:
-        set = update_fields
+        update_fields = insert_fields
     else:
-        current_time = datetime.now()
         expiration_thresh = current_time - timedelta(minutes=constants.TILE_PRED_EXPIRE)
-        set = {
-            'pred_status': sqlalchemy.case(
-                (models.Tile.pred_status == TileStatus.UNSEEN, pred_status),
-                (
-                    (models.Tile.pred_status == TileStatus.DONEPROCESSING) & 
-                    (models.Tile.pred_datetime <= expiration_thresh), pred_status
-                ),
-            else_=models.Tile.pred_status,
+
+        tile_is_unseen_or_stale = sqlalchemy.case((models.Tile.pred_status == TileStatus.UNSEEN, 1),
+            (
+                (models.Tile.pred_status == TileStatus.DONEPROCESSING) & 
+                (models.Tile.pred_datetime <= expiration_thresh), 1
             ),
-            'pred_datetime': sqlalchemy.case(
-                (models.Tile.pred_status == TileStatus.UNSEEN, datetime.now()),
-                (
-                    (models.Tile.pred_status == TileStatus.DONEPROCESSING) & 
-                    (models.Tile.pred_datetime <= expiration_thresh), datetime.now()
-                ),
-            else_=models.Tile.pred_datetime,
-            )
+            else_=0
+        )
+
+        update_fields = {
+            'pred_status': sqlalchemy.case((tile_is_unseen_or_stale == 1, pred_status), else_=models.Tile.pred_status),
+            'pred_datetime': sqlalchemy.case((tile_is_unseen_or_stale == 1, current_time), else_=models.Tile.pred_datetime)
         }
 
-    stmt = insert(models.Tile).values(
-        [
-            {
-                'annotation_class_id': annotation_class_id,
-                'image_id': image_id,
-                'tile_id': tile_id,
-                **update_fields
-            }
-            for tile_id in tile_ids
-        ]
-    ).on_conflict_do_update(
-        index_elements=['annotation_class_id', 'image_id', 'tile_id'],
-        set_=set
-    ).returning(
-        *[getattr(models.Tile, column.name) for column in models.Tile.__table__.columns]   # Can't use models.Tile with on_conflict_do_update
+    tiles = upsert_tiles(
+        image_id=image_id,
+        annotation_class_id=annotation_class_id,
+        tile_ids=tile_ids,
+        insert_fields=insert_fields,
+        update_fields=update_fields
     )
-    tiles = db_session.execute(stmt).all()
     return tiles
-
 
 class AnnotationStore:
     def __init__(self, image_id: int, annotation_class_id: int, is_gt: bool, in_work_mag=True, create_table=False):

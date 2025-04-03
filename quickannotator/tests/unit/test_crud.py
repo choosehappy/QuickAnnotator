@@ -333,6 +333,10 @@ def test_tile_UNSEEN_to_STARTPROCESSING(insert_unseen_tile: models.Tile):
     # Arrange
     tile = insert_unseen_tile
     assert tile.pred_status == TileStatus.UNSEEN
+    assert tile.pred_datetime is None
+
+    initial_pred_status = tile.pred_status
+    initial_pred_datetime = tile.pred_datetime
     new_status = TileStatus.STARTPROCESSING
     process_owns_tile = False
 
@@ -342,16 +346,17 @@ def test_tile_UNSEEN_to_STARTPROCESSING(insert_unseen_tile: models.Tile):
     # Assert
     assert len(result) == 1
     new_tile = result[0]
-    assert new_tile.pred_status == TileStatus.STARTPROCESSING
-    assert new_tile.pred_datetime != tile.pred_datetime
+    assert new_tile.pred_status == new_status
+    assert new_tile.pred_datetime != initial_pred_datetime
 
 def test_tile_STARTPROCESSING_to_PROCESSING(insert_startprocessing_tile: models.Tile):
     # Arrange
     tile = insert_startprocessing_tile
     assert tile.pred_status == TileStatus.STARTPROCESSING
+    initial_pred_status = tile.pred_status
+    initial_pred_datetime = tile.pred_datetime
     new_status = TileStatus.PROCESSING
-    process_owns_tile = False # Should cause the upsert to fail
-
+    process_owns_tile = False  # Should cause the upsert to fail
 
     # Act
     result = upsert_pred_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=new_status, process_owns_tile=process_owns_tile)
@@ -359,9 +364,8 @@ def test_tile_STARTPROCESSING_to_PROCESSING(insert_startprocessing_tile: models.
     # Assert
     assert len(result) == 1
     new_tile = result[0]
-    assert new_tile.pred_status == TileStatus.STARTPROCESSING
-    assert new_tile.pred_datetime == tile.pred_datetime
-    assert result[0].pred_status == tile.pred_status
+    assert new_tile.pred_status == initial_pred_status
+    assert new_tile.pred_datetime == initial_pred_datetime
 
 def test_tile_PROCESSING_to_DONEPROCESSING(insert_processing_tile: models.Tile):
     # Arrange
@@ -369,6 +373,8 @@ def test_tile_PROCESSING_to_DONEPROCESSING(insert_processing_tile: models.Tile):
     process_owns_tile = False  # Should cause the upsert to fail
     new_status = TileStatus.DONEPROCESSING
     assert tile.pred_status == TileStatus.PROCESSING
+    initial_pred_status = tile.pred_status
+    initial_pred_datetime = tile.pred_datetime
 
     # Act
     result = upsert_pred_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=new_status, process_owns_tile=process_owns_tile)
@@ -376,8 +382,8 @@ def test_tile_PROCESSING_to_DONEPROCESSING(insert_processing_tile: models.Tile):
     # Assert
     assert len(result) == 1
     new_tile = result[0]
-    assert new_tile.pred_status == TileStatus.PROCESSING
-    assert new_tile.pred_datetime == tile.pred_datetime
+    assert new_tile.pred_status == initial_pred_status
+    assert new_tile.pred_datetime == initial_pred_datetime
 
 def test_tile_PROCESSING_to_DONEPROCESSING_with_process_owns_tile(insert_processing_tile: models.Tile):
     # Arrange
@@ -385,6 +391,8 @@ def test_tile_PROCESSING_to_DONEPROCESSING_with_process_owns_tile(insert_process
     process_owns_tile = True
     new_status = TileStatus.DONEPROCESSING
     assert tile.pred_status == TileStatus.PROCESSING
+    initial_pred_status = tile.pred_status
+    initial_pred_datetime = tile.pred_datetime
 
     # Act
     result = upsert_pred_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=new_status, process_owns_tile=process_owns_tile)
@@ -392,15 +400,16 @@ def test_tile_PROCESSING_to_DONEPROCESSING_with_process_owns_tile(insert_process
     # Assert
     assert len(result) == 1
     new_tile = result[0]
-    assert new_tile.pred_status == TileStatus.DONEPROCESSING
-    assert new_tile.pred_datetime != tile.pred_datetime
-
+    assert new_tile.pred_status == new_status
+    assert new_tile.pred_datetime != initial_pred_datetime
 
 def test_DONEPROCESSING_to_STARTPROCESSING(insert_doneprocessing_tile: models.Tile):
     # Arrange
     tile = insert_doneprocessing_tile
     new_status = TileStatus.STARTPROCESSING
     assert tile.pred_status == TileStatus.DONEPROCESSING
+    initial_pred_status = tile.pred_status
+    initial_pred_datetime = tile.pred_datetime
 
     # Act
     result = upsert_pred_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=new_status)
@@ -408,15 +417,16 @@ def test_DONEPROCESSING_to_STARTPROCESSING(insert_doneprocessing_tile: models.Ti
     # Assert
     assert len(result) == 1
     new_tile = result[0]
-    assert new_tile.pred_status == TileStatus.DONEPROCESSING  # Should not change
-    assert new_tile.pred_datetime == tile.pred_datetime  # Should not change
-
+    assert new_tile.pred_status == initial_pred_status  # Should not change
+    assert new_tile.pred_datetime == initial_pred_datetime  # Should not change
 
 def test_stale_DONEPROCESSING_to_STARTPROCESSING(insert_stale_doneprocessing_tile: models.Tile):
     # Arrange
     tile = insert_stale_doneprocessing_tile
     new_status = TileStatus.STARTPROCESSING
     assert tile.pred_status == TileStatus.DONEPROCESSING
+    initial_pred_status = tile.pred_status
+    initial_pred_datetime = tile.pred_datetime
 
     # Act
     result = upsert_pred_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=new_status)
@@ -424,5 +434,5 @@ def test_stale_DONEPROCESSING_to_STARTPROCESSING(insert_stale_doneprocessing_til
     # Assert
     assert len(result) == 1
     new_tile = result[0]
-    assert new_tile.pred_status == TileStatus.STARTPROCESSING  # Should change
-    assert new_tile.pred_datetime != tile.pred_datetime  # Should change
+    assert new_tile.pred_status == new_status  # Should change
+    assert new_tile.pred_datetime != initial_pred_datetime  # Should change
