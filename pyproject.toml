@@ -58,7 +58,8 @@ dependencies = [
     "pytest~=8.3.4",
     "pytest-cov~=6.0.0",
     "matplotlib~=3.10.1",
-    "tensorboard~=2.19.0"
+    "tensorboard~=2.19.0",
+    "torchsummary~=1.5.1"
 
 ]
 dynamic = ["version"]
