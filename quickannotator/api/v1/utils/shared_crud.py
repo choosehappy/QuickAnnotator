@@ -62,7 +62,8 @@ def get_annotation_query(model, scale_factor: float=1.0) -> Query:
 
 def reset_all_PROCESSING_tiles(annotation_class_id: int):
     stmt = sqlalchemy.update(models.Tile).where(
-        models.Tile.annotation_class_id == annotation_class_id
+        models.Tile.annotation_class_id == annotation_class_id,
+        models.Tile.pred_status == TileStatus.PROCESSING
     ).values(
         pred_status=TileStatus.UNSEEN,
         pred_datetime=None

@@ -1,6 +1,6 @@
 import pytest
 from shapely.geometry import Polygon, shape
-from quickannotator.api.v1.utils.shared_crud import AnnotationStore, upsert_pred_tiles, upsert_gt_tiles
+from quickannotator.api.v1.utils.shared_crud import AnnotationStore, upsert_pred_tiles, upsert_gt_tiles, reset_all_PROCESSING_tiles
 from quickannotator.tests.conftest import assert_geojson_equal
 from shapely.geometry import mapping
 import geojson
@@ -187,7 +187,7 @@ def test_delete_annotation_not_found(annotation_store):
 # UPSERT TILES TESTS
 @pytest.fixture(scope="function")
 def insert_unseen_tile(db_session):
-    tile_id = 9999
+    tile_id = 9990
     image_id = 1
     annotation_class_id = 2
 
@@ -202,9 +202,10 @@ def insert_unseen_tile(db_session):
 
     return tile
 
+
 @pytest.fixture(scope="function")
 def insert_startprocessing_tile(db_session):
-    tile_id = 9999
+    tile_id = 9991
     image_id = 1
     annotation_class_id = 2
 
@@ -219,9 +220,10 @@ def insert_startprocessing_tile(db_session):
 
     return tile
 
+
 @pytest.fixture(scope="function")
 def insert_processing_tile(db_session):
-    tile_id = 9999
+    tile_id = 9992
     image_id = 1
     annotation_class_id = 2
 
@@ -236,9 +238,10 @@ def insert_processing_tile(db_session):
 
     return tile
 
+
 @pytest.fixture(scope="function")
 def insert_doneprocessing_tile(db_session):
-    tile_id = 9999
+    tile_id = 9993
     image_id = 1
     annotation_class_id = 2
 
@@ -253,9 +256,10 @@ def insert_doneprocessing_tile(db_session):
 
     return tile
 
+
 @pytest.fixture(scope="function")
 def insert_stale_doneprocessing_tile(db_session):
-    tile_id = 9999
+    tile_id = 9994
     image_id = 1
     annotation_class_id = 2
 
@@ -271,6 +275,7 @@ def insert_stale_doneprocessing_tile(db_session):
 
     return tile
 
+
 def test_insert_gt_tiles_with_empty_list(db_session):
     # Arrange
     image_id = 1
@@ -284,6 +289,7 @@ def test_insert_gt_tiles_with_empty_list(db_session):
     assert result is not None
     assert len(result) == 0
 
+
 def test_insert_gt_tiles_with_non_empty_list(db_session):
     # Arrange
     image_id = 1
@@ -296,6 +302,7 @@ def test_insert_gt_tiles_with_non_empty_list(db_session):
     # Assert
     assert result is not None
     assert len(result) == len(tile_ids)
+
 
 def test_upsert_gt_tiles(insert_unseen_tile):
     # Arrange
@@ -329,6 +336,7 @@ def test_insert_pred_tiles_with_pred_status(annotation_store):
     for tile in result:
         assert tile.pred_status == pred_status
 
+
 def test_tile_UNSEEN_to_STARTPROCESSING(insert_unseen_tile: models.Tile):
     # Arrange
     tile = insert_unseen_tile
@@ -349,6 +357,7 @@ def test_tile_UNSEEN_to_STARTPROCESSING(insert_unseen_tile: models.Tile):
     assert new_tile.pred_status == new_status
     assert new_tile.pred_datetime != initial_pred_datetime
 
+
 def test_tile_STARTPROCESSING_to_PROCESSING(insert_startprocessing_tile: models.Tile):
     # Arrange
     tile = insert_startprocessing_tile
@@ -366,6 +375,7 @@ def test_tile_STARTPROCESSING_to_PROCESSING(insert_startprocessing_tile: models.
     new_tile = result[0]
     assert new_tile.pred_status == initial_pred_status
     assert new_tile.pred_datetime == initial_pred_datetime
+
 
 def test_tile_PROCESSING_to_DONEPROCESSING(insert_processing_tile: models.Tile):
     # Arrange
@@ -385,6 +395,7 @@ def test_tile_PROCESSING_to_DONEPROCESSING(insert_processing_tile: models.Tile):
     assert new_tile.pred_status == initial_pred_status
     assert new_tile.pred_datetime == initial_pred_datetime
 
+
 def test_tile_PROCESSING_to_DONEPROCESSING_with_process_owns_tile(insert_processing_tile: models.Tile):
     # Arrange
     tile = insert_processing_tile
@@ -403,6 +414,7 @@ def test_tile_PROCESSING_to_DONEPROCESSING_with_process_owns_tile(insert_process
     assert new_tile.pred_status == new_status
     assert new_tile.pred_datetime != initial_pred_datetime
 
+
 def test_DONEPROCESSING_to_STARTPROCESSING(insert_doneprocessing_tile: models.Tile):
     # Arrange
     tile = insert_doneprocessing_tile
@@ -420,6 +432,7 @@ def test_DONEPROCESSING_to_STARTPROCESSING(insert_doneprocessing_tile: models.Ti
     assert new_tile.pred_status == initial_pred_status  # Should not change
     assert new_tile.pred_datetime == initial_pred_datetime  # Should not change
 
+
 def test_stale_DONEPROCESSING_to_STARTPROCESSING(insert_stale_doneprocessing_tile: models.Tile):
     # Arrange
     tile = insert_stale_doneprocessing_tile
@@ -436,3 +449,33 @@ def test_stale_DONEPROCESSING_to_STARTPROCESSING(insert_stale_doneprocessing_til
     new_tile = result[0]
     assert new_tile.pred_status == new_status  # Should change
     assert new_tile.pred_datetime != initial_pred_datetime  # Should change
+
+
+def test_reset_all_PROCESSING_tiles_with_other_states(insert_processing_tile, insert_unseen_tile, insert_startprocessing_tile, insert_doneprocessing_tile, db_session):
+    # Arrange
+    processing_tile = insert_processing_tile
+    unseen_tile = insert_unseen_tile
+    startprocessing_tile = insert_startprocessing_tile
+    doneprocessing_tile = insert_doneprocessing_tile
+
+    assert processing_tile.pred_status == TileStatus.PROCESSING
+    assert unseen_tile.pred_status == TileStatus.UNSEEN
+    assert startprocessing_tile.pred_status == TileStatus.STARTPROCESSING
+    assert doneprocessing_tile.pred_status == TileStatus.DONEPROCESSING
+
+    # Act
+    reset_all_PROCESSING_tiles(processing_tile.annotation_class_id)
+    db_session.refresh(processing_tile)
+    db_session.refresh(unseen_tile)
+    db_session.refresh(startprocessing_tile)
+    db_session.refresh(doneprocessing_tile)
+
+    # Assert
+    # Verify that only the PROCESSING tile was reset
+    assert processing_tile.pred_status == TileStatus.UNSEEN
+    assert processing_tile.pred_datetime is None
+
+    # Verify that other tiles remain unchanged
+    assert unseen_tile.pred_status == TileStatus.UNSEEN
+    assert startprocessing_tile.pred_status == TileStatus.STARTPROCESSING
+    assert doneprocessing_tile.pred_status == TileStatus.DONEPROCESSING
