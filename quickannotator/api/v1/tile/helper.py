@@ -20,7 +20,6 @@ from quickannotator.api.v1.utils.coordinate_space import get_tilespace
 from quickannotator.constants import TileStatus, MASK_CLASS_ID, MASK_DILATION
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
-from quickannotator.api.v1.utils.shared_crud import AnnotationStore
 
 # TODO: DEPRECATED Remove this method as it is not used.
 def tile_intersects_mask_shapely(image_id: int, annotatation_class_id: int, tile_id: int) -> bool:
