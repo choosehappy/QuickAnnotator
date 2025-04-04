@@ -18,7 +18,7 @@ class SQLAlchemyHandler(logging.Handler):
 
 def init_logger(logger_name) -> logging.Logger:
     logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     handler = SQLAlchemyHandler()
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
