@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Modal, Button, Form } from 'react-bootstrap';
 import { MODAL_DATA } from "../helpers/config";
+import { downloadAnnotations } from "../helpers/api";
 
 enum ExportOption {
     LOCAL = "local",
@@ -40,9 +41,12 @@ const AnnotationExportModal = (props: Props) => {
             collectionName,
             folderName
         };
-
         if (selectedOption === ExportOption.LOCAL) {
             console.log("Exporting locally with data:", data);
+            // Call the downloadAnnotations function for local export
+            downloadAnnotations([1], [1])
+            .then(() => console.log("Download successful"))
+            .catch((error) => console.error("Download failed:", error));
         }
         else if (selectedOption === ExportOption.REMOTE) {
             console.log("Exporting remotely with data:", data);

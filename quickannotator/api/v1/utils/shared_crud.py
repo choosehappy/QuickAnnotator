@@ -172,6 +172,10 @@ class AnnotationStore:
     def get_annotations_for_tiles(self, tile_ids: List[int]) -> List[models.Annotation]:
         result = get_annotation_query(self.model, 1/self.scaling_factor).filter(self.model.tile_id.in_(tile_ids)).all()
         return result
+    
+    def get_all_annotations(self) -> List[models.Annotation]:
+        result = get_annotation_query(self.model, 1/self.scaling_factor).all()
+        return result
 
     def get_annotations_within_poly(self, polygon: BaseGeometry) -> List[models.Annotation]:
         scaled_polygon = self.scale_polygon(polygon, self.scaling_factor)

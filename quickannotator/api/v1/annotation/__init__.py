@@ -13,6 +13,9 @@ from quickannotator.api.v1.tile.helper import get_tile
 from quickannotator.constants import TileStatus
 from datetime import datetime
 from quickannotator.api.v1.utils.shared_crud import upsert_tiles
+from io import BytesIO
+import zipfile
+from flask import Response
 
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
@@ -29,6 +32,7 @@ class AnnRespSchema(Schema):
     custom_metrics = fields.Dict()
 
     datetime = fields.DateTime(format='iso')
+
 
 class GetAnnArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
@@ -70,6 +74,13 @@ class PostDryRunArgsSchema(Schema):
     polygon = fields.String(required=True)
     script = fields.Str(required=True)
 
+class DownloadAnnsArgsSchema(Schema):
+    image_ids = fields.List(fields.Int(), required=True)
+    annotation_class_ids = fields.List(fields.Int(), required=True)
+
+    format = fields.Str(required=False)  # e.g. 'geojson', 'shp', etc.
+    metrics_export_format = fields.Str(required=False)  # e.g. 'csv', 'json', etc.
+
 # ------------------------ ROUTES ------------------------
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>')
@@ -82,6 +93,7 @@ class Annotation(MethodView):
         store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=False)
         result: models.Annotation = store.get_annotation_by_id(args['annotation_id'])
         return result, 200
+
 
     @bp.arguments(PostAnnsArgsSchema, location='json')
     @bp.response(200, AnnRespSchema(many=True))
@@ -96,6 +108,7 @@ class Annotation(MethodView):
 
         return anns, 200
 
+
     @bp.arguments(PutAnnArgsSchema, location='json')
     @bp.response(201, AnnRespSchema)
     def put(self, args, image_id, annotation_class_id):
@@ -105,6 +118,8 @@ class Annotation(MethodView):
         ann = store.update_annotation(args['annotation_id'], shape(args['polygon']))
 
         return ann, 201
+    
+
     @bp.arguments(DeleteAnnArgsSchema, location='query')
     def delete(self, args, image_id, annotation_class_id):
         """     delete an annotation
@@ -116,33 +131,7 @@ class Annotation(MethodView):
             return {}, 204
         else:
             return {"message": "Annotation not found"}, 404
-
-################################################################################
-# TODO: Remove this method as it is not used.
-# @bp.route('/<int:image_id>/<int:annotation_class_id>/search')
-# class SearchAnnotations(MethodView):
-#     @bp.arguments(GetAnnSearchArgsSchema, location='query')
-#     @bp.response(200, AnnRespSchema(many=True))
-#     def get(self, args, image_id, annotation_class_id):
-#         """Search for annotations
-
-#         # Implementation
-#         - Will need to determine the return type. Should it be pure geojson?
-#         """
-#         table_name = build_annotation_table_name(image_id, annotation_class_id, args['is_gt'])
-#         table = Table(table_name, db_session.bind.metadata, autoload_with=db_session.bind)
-
-#         if "polygon" in args:
-#             # search for annotations within the bounding box
-#             pass
-#         elif "x1" in args and "y1" in args and "x2" in args and "y2" in args:
-#             # return all annotations
-#             return annotations_within_bbox_spatial(table_name, args['x1'], args['y1'], args['x2'], args['y2']), 200
-#         else:
-#             stmt = table.select()
-#             result = db_session.execute(stmt).fetchall()
-#             return result, 200
-        
+                
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>/tileids')
 class AnnotationByTileIds(MethodView):
@@ -156,36 +145,8 @@ class AnnotationByTileIds(MethodView):
         anns = store.get_annotations_for_tiles(args['tile_ids'])
 
         return anns, 200
-
-        # else:
-        #     store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=False)
-        #     anns = store.get_predictions_for_tiles(args['tile_ids'])
-
-        # if args['is_gt']:
-        #     store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=False)
-        #     anns = store.get_annotations_for_tiles([tile_id])
-        # else:
-        #     tile = get_tile(image_id=image_id, annotation_class_id=annotation_class_id, tile_id=tile_id)
-        #     if not tile or tile.pred_status == TileStatus.UNSEEN:
-        #         upsert_tiles(image_id=image_id, annotation_class_id=annotation_class_id, tile_ids=[tile_id], pred_status=TileStatus.STARTPROCESSING)
-        #         return {"message": "No predictions for this tile"}, 404
-        #     elif tile.pred_status == TileStatus.STARTPROCESSING:
-        #         pass
-        #     elif tile.pred_status == TileStatus.PROCESSING:
-        #         pass
-        #     elif tile.pred_status == TileStatus.DONEPROCESSING:
-        #         # If the client wants prediction to be refreshed
-        #         tile.pred_status = TileStatus.STARTPROCESSING
-        #         tile.pred_datetime = datetime.now()
-                
-        #     # Lastly, get all predictions currently associated with the tile
-        #     store = AnnotationStore(image_id, annotation_class_id, is_gt=False, in_work_mag=False)
-        #     anns = store.get_predictions_for_tiles([tile_id])
-        # return anns, 200
     
-# We need a separate method for getting predictions because here we have a different response type. We want to render a gray box wherever there are pending predictions.
-# @bp.route('/<int:image_id>/<int:annotation_class_id>/predictions')
-    
+
 @bp.route('/<int:image_id>/<int:annotation_class_id>/withinpoly')
 class AnnotationsWithinPolygon(MethodView):
     @bp.arguments(GetAnnWithinPolyArgsSchema, location='json')
@@ -197,6 +158,7 @@ class AnnotationsWithinPolygon(MethodView):
         anns = store.get_annotations_within_poly(shape(args['polygon']))
         return anns, 200
 
+
 # TODO: This endpoint will be needed when we build in custom scripting.
 # @bp.route('/<int:annotation_class_id>/dryrun')
 # class AnnotationDryRun(MethodView):
@@ -207,6 +169,7 @@ class AnnotationsWithinPolygon(MethodView):
 #         """
 
 #         return 200
+
 
 @bp.route('/operation')
 class AnnotationOperation(MethodView):
@@ -231,3 +194,46 @@ class AnnotationOperation(MethodView):
             resp['area'] = union.area
 
         return resp, 200
+
+
+@bp.route('/export')
+class DownloadAnnotations(MethodView):
+    @bp.arguments(DownloadAnnsArgsSchema, location='query')
+    @bp.response(200, {"format": "binary", "type": "string"}, content_type="application/zip")
+    def get(self, args):
+        """ Export annotations for multiple images and annotation classes as a ZIP file """
+
+        image_ids = args['image_ids']
+        format = args.get('format', 'geojson')
+        zip_buffer = BytesIO()
+
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for image_id in image_ids:
+                for annotation_class_id in args['annotation_class_ids']:
+                    store = AnnotationStore(image_id, annotation_class_id, is_gt=True, in_work_mag=False)
+                    annotations = store.get_all_annotations()
+
+                    features = [
+                        geojson.Feature(
+                            geometry=geojson.loads(ann.polygon),
+                            properties={
+                                "id": ann.id,
+                                "tile_id": ann.tile_id,
+                                "centroid": geojson.loads(ann.centroid),
+                                "area": ann.area,
+                                "custom_metrics": ann.custom_metrics,
+                                "datetime": ann.datetime.isoformat() if ann.datetime else None
+                            }
+                        )
+                        for ann in annotations
+                    ]
+
+                    geojson_data = geojson.FeatureCollection(features)
+                    file_content = json.dumps(geojson_data)
+                    file_name = f"annotations_{image_id}_{annotation_class_id}.{format}"
+                    zip_file.writestr(file_name, file_content)
+
+        zip_buffer.seek(0)
+        response = Response(zip_buffer.getvalue(), mimetype="application/zip")
+        response.headers.set("Content-Disposition", "attachment", filename="annotations.zip")
+        return response

@@ -188,7 +188,38 @@ export const getAnnotationsWithinPolygon = async (image_id: number, annotation_c
     return await post<QueryAnnsByPolygonArgs, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/withinpoly`, requestBody);
 }
 
+export const downloadAnnotations = async (image_ids: number[], annotation_class_ids: number[], format: string = 'geojson', metrics_export_format?: string) => {
+    const query = new URLSearchParams({
+        image_ids: image_ids.join(','),
+        annotation_class_ids: annotation_class_ids.join(','),
+        format: format,
+    });
 
+    if (metrics_export_format) {
+        query.append('metrics_export_format', metrics_export_format);
+    }
+
+    const response = await fetch(`${API_URL}/annotation/export?${query.toString()}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to download annotations: ${response.statusText}`);
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'annotations.zip';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+};
 
 export const predictTile = async (image_id: number, annotation_class_id: number, tile_id: number) => {
     const requestBody = { 
