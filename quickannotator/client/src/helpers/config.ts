@@ -30,7 +30,12 @@ export const MODAL_DATA: { [key: string]: ModalData } = {
         id: 0,
         title: 'Import Annotations',
         description: 'Are you sure you want to import annotations?',
-    }
+    },
+    EXPORT_CONF: {
+        id: 1,
+        title: 'Export Annotations',
+        description: 'How would you like to export the annotations from this image?',
+    },
 }
 
 

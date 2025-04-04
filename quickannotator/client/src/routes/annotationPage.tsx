@@ -15,6 +15,7 @@ import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation } fro
 import { MODAL_DATA, TOOLBAR_KEYS } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
+import AnnotationExportModal from '../components/annotationExportModal.tsx';
 
 function usePrevious<T>(value: T): T | undefined {
     const ref = useRef<T>();
@@ -57,6 +58,10 @@ const AnnotationPage = () => {
         setCurrentTool(TOOLBAR_KEYS.POINTER);
     }
 
+    function handleCancelExport() {
+        setActiveModal(null);
+    }
+
     useEffect(() => {
         if (projectid && imageid) {
             fetchProject(parseInt(projectid)).then((resp) => {
@@ -74,6 +79,7 @@ const AnnotationPage = () => {
             <>
                 <Container fluid className="pb-3 bg-dark d-flex flex-column flex-grow-1">
                     <ConfirmationModal show={activeModal === MODAL_DATA.IMPORT_CONF.id} title={MODAL_DATA.IMPORT_CONF.title} description={MODAL_DATA.IMPORT_CONF.description} onConfirm={handleConfirmImport} onCancel={handleCancelImport}/>
+                    <AnnotationExportModal show={activeModal === MODAL_DATA.EXPORT_CONF.id} setActiveModal={setActiveModal}/>
                     <Row className="d-flex flex-grow-1">
                         <Col className="d-flex flex-grow-1">
                             <Card className="flex-grow-1">
@@ -116,7 +122,7 @@ const AnnotationPage = () => {
                                     {...{ currentClass, setCurrentClass }}
                                 />
                                 <GroundTruthPane
-                                    {...{ gts, setGts, currentAnnotation, setCurrentAnnotation }}
+                                    {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, setActiveModal }}
                                 />
                                 <PredictionsPane
                                     {...{ preds, setPreds, currentAnnotation }}
