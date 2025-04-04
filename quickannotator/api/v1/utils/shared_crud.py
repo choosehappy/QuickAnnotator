@@ -12,6 +12,9 @@ from quickannotator.db import db_session, Base
 import quickannotator.db.models as models
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 from sqlalchemy.ext.declarative import declarative_base
+import geojson
+from io import BytesIO
+import tarfile
 
 
 def get_tile(image_id: int, annotation_class_id: int, tile_id: int) -> models.Tile:
@@ -96,6 +99,67 @@ def upsert_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], p
     db_session.commit()
 
     return result
+
+
+def anns_to_feature_collection(annotations: List[models.Annotation]) -> geojson.FeatureCollection:
+    """
+    Converts a list of annotations to a GeoJSON FeatureCollection.
+
+    Args:
+        annotations (List[models.Annotation]): A list of annotation objects.
+
+    Returns:
+        geojson.FeatureCollection: A GeoJSON FeatureCollection containing the annotations.
+    """
+    features = []
+    for annotation in annotations:
+        feature = geojson.Feature(
+            geometry=geojson.loads(annotation.polygon),
+            properties={
+                'id'=annotation.id,
+                'tile_id': annotation.tile_id,
+                'centroid': geojson.loads(annotation.centroid),
+                'area': annotation.area,
+                'custom_metrics': annotation.custom_metrics,
+                'datetime': annotation.datetime.isoformat()
+            }
+        )
+        features.append(feature)
+    
+    return geojson.FeatureCollection(features)
+
+
+def write_to_tarfile(image_ids, annotation_class_ids, format) -> BytesIO:
+    """
+    Writes the annotations for the given image IDs and annotation class IDs to a tarfile.
+
+    Args:
+        image_ids (List[int]): A list of image IDs.
+        annotation_class_ids (List[int]): A list of annotation class IDs.
+
+    Returns:
+        BytesIO: A BytesIO object containing the tarfile data.
+    """
+    buffer = BytesIO()
+    with tarfile.open(fileobj=buffer, mode='w') as tar:
+        for image_id in image_ids:
+            for annotation_class_id in annotation_class_ids:
+                table_name = build_annotation_table_name(image_id, annotation_class_id)
+                model = create_dynamic_model(table_name)
+                annotations = get_annotation_query(model).all()
+                feature_collection = anns_to_feature_collection(annotations)
+                feature_collection_json = geojson.dumps(feature_collection)
+                
+                # Create a tarinfo object
+                tablename = build_annotation_table_name(image_id, annotation_class_id)
+                tarinfo = tarfile.TarInfo(name=f"{tablename}.geojson")
+                tarinfo.size = len(feature_collection_json)
+                
+                # Add the file to the tar archive
+                tar.addfile(tarinfo, BytesIO(feature_collection_json.encode('utf-8')))
+    
+    buffer.seek(0)
+    return buffer
 
 
 class AnnotationStore:

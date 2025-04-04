@@ -3,19 +3,12 @@ from marshmallow import fields, Schema
 from flask.views import MethodView
 from shapely.geometry import shape, mapping
 import json
-from shapely.affinity import scale
-import shapely
 from typing import List
 import quickannotator.db.models as models
 from ..utils.shared_crud import AnnotationStore
 import geojson
-from quickannotator.api.v1.tile.helper import get_tile
-from quickannotator.constants import TileStatus
-from datetime import datetime
-from quickannotator.api.v1.utils.shared_crud import upsert_tiles
-from io import BytesIO
-import zipfile
 from flask import Response
+from quickannotator.api.v1.utils.shared_crud import write_to_tarfile
 
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
@@ -196,44 +189,17 @@ class AnnotationOperation(MethodView):
         return resp, 200
 
 
-@bp.route('/export')
+@bp.route('/export/tar')
 class DownloadAnnotations(MethodView):
     @bp.arguments(DownloadAnnsArgsSchema, location='query')
-    @bp.response(200, {"format": "binary", "type": "string"}, content_type="application/zip")
+    @bp.response(200, {"format": "binary", "type": "string"}, content_type="application/x-tar")
     def get(self, args):
-        """ Export annotations for multiple images and annotation classes as a ZIP file """
+        """ Export annotations for multiple images and annotation classes as a TAR file """
 
         image_ids = args['image_ids']
+        annotation_class_ids = args['annotation_class_ids']
         format = args.get('format', 'geojson')
-        zip_buffer = BytesIO()
-
-        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            for image_id in image_ids:
-                for annotation_class_id in args['annotation_class_ids']:
-                    store = AnnotationStore(image_id, annotation_class_id, is_gt=True, in_work_mag=False)
-                    annotations = store.get_all_annotations()
-
-                    features = [
-                        geojson.Feature(
-                            geometry=geojson.loads(ann.polygon),
-                            properties={
-                                "id": ann.id,
-                                "tile_id": ann.tile_id,
-                                "centroid": geojson.loads(ann.centroid),
-                                "area": ann.area,
-                                "custom_metrics": ann.custom_metrics,
-                                "datetime": ann.datetime.isoformat() if ann.datetime else None
-                            }
-                        )
-                        for ann in annotations
-                    ]
-
-                    geojson_data = geojson.FeatureCollection(features)
-                    file_content = json.dumps(geojson_data)
-                    file_name = f"annotations_{image_id}_{annotation_class_id}.{format}"
-                    zip_file.writestr(file_name, file_content)
-
-        zip_buffer.seek(0)
-        response = Response(zip_buffer.getvalue(), mimetype="application/zip")
-        response.headers.set("Content-Disposition", "attachment", filename="annotations.zip")
+        tar_buffer = write_to_tarfile(image_ids, annotation_class_ids, format)
+        response = Response(tar_buffer.getvalue(), mimetype="application/x-tar")
+        response.headers.set("Content-Disposition", "attachment", filename="annotations.tar.gz")  # Update filename to reflect gzip compression
         return response
