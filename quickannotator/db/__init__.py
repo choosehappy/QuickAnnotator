@@ -16,12 +16,13 @@ geoalchemy2.admin.dialects.sqlite.register_sqlite_mapping(
 Base = declarative_base()
 Base.query = db_session.query_property()
 
-# Initialize Spatialite extension
-@event.listens_for(engine, "connect")
-def connect(dbapi_connection, connection_record):
-    dbapi_connection.enable_load_extension(True)
-    dbapi_connection.execute('SELECT load_extension("mod_spatialite")')
-    dbapi_connection.execute('SELECT InitSpatialMetaData(1);')
+# Initialize Spatialite extension only if the database is SQLite
+if engine.dialect.name == "sqlite":
+    @event.listens_for(engine, "connect")
+    def connect(dbapi_connection, connection_record):
+        dbapi_connection.enable_load_extension(True)
+        dbapi_connection.execute('SELECT load_extension("mod_spatialite")')
+        dbapi_connection.execute('SELECT InitSpatialMetaData(1);')
 
 def init_db():
     from . import models
