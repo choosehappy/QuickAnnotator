@@ -60,12 +60,12 @@ docker volume create qa_data    # Will store example WSIs
         ```
     - **Pre-existing cluster**: If you would like QA to connect to an existing Ray cluster, use the `--cluster_address` argument.
 
-2. **(Optional)** Upload example data to QuickAnnotator
+3. **(Optional)** Upload example data to QuickAnnotator
     1. Download the `test_ndpi` folder (request access from jackson.jacobs@emory.edu) and copy it to the `qa_data` volume.
     1. Run the `populate_db.ipynb` notebook.
 
 
-3. Then in a second terminal, run the QuickAnnotator client:
+4. Then in a second terminal, run the QuickAnnotator client:
     ```
     (venv) root@e4392ecdd8ef:/opt/QuickAnnotator# cd quickannotator/client
     (venv) root@e4392ecdd8ef:/opt/QuickAnnotator/quickannotator/client# npm run dev -- --host 0.0.0.0
@@ -81,7 +81,36 @@ docker volume create qa_data    # Will store example WSIs
     ➜  press h + enter to show help
     ```
 
-4. Use the following URLs:
+5. Use the following URLs:
     1. OpenAPI 3.0 documentation: [http://172.17.0.2:5000/api/v1]()
     2. Client: [http://172.17.0.2:5173/]()
 
+# Logs
+Logs are stored within the QuickAnnotator database and may be visualized using Grafana. The following instructions detail how to set up Grafana to connect to a sqlite database.
+
+1. Run the Grafana docker container
+    > Note: The following command assumes your sqlite database is contained in the base directory of the qadb_data volume.
+
+    ```bash
+    docker run -d \ 
+    --name=grafana \ 
+    -p 3000:3000 \ 
+    -v qadb_data:/var/lib/grafana/sqlite \ 
+    grafana/grafana 
+    ```
+
+2. **Within the grafana container** run the following command to add a sqlite data source:
+    ```bash
+    grafana cli plugins install frser-sqlite-datasource 
+    ```
+
+3. Restart the grafana container:
+    ```bash
+    docker restart grafana
+    ```
+
+4. Open the Grafana UI at [http://localhost:3000/dashboard/import]() and login with the default credentials:
+    - Username: admin
+    - Password: admin
+
+5. Drop the [grafana_dashboard.json](grafana_dashboard.json) file into the upload box and click "Import".

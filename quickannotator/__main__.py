@@ -11,6 +11,7 @@ from geoalchemy2 import load_spatialite
 import ray
 from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
 from quickannotator.db import init_db, db_session
+from quickannotator.db.logging import init_logger
 
 def serve_quickannotator(app):
     # NOTE: Will need to account for reverse proxy scenarios: https://docs.pylonsproject.org/projects/waitress/en/stable/reverse-proxy.html
@@ -60,12 +61,14 @@ if __name__ == '__main__':
                 raise
         db_session.remove()
         
+    # ------------------------ LOGGING SETUP --------------------
+    logger = init_logger('qa')
 
     # ------------------------ RAY SETUP ------------------------
-    print(f"Connecting to Ray cluster")
+    logger.info("Starting Ray...")
     context = ray.init(address=args.cluster_address, namespace="quick_annotator", dashboard_host=get_ray_dashboard_host(), dashboard_port=get_ray_dashboard_port())
     
-    print(f"Ray dashboard available at {context.dashboard_url}")
+    logger.info(f'Ray dashboard available at {context.dashboard_url}')
 
     # ------------------------ API SETUP ------------------------
     init_api(app, get_api_version())
