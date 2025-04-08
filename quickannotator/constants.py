@@ -6,6 +6,13 @@ class TileStatus(enum.IntEnum):
     PROCESSING = 2
     DONEPROCESSING = 3
 
+class AnnsFormatEnum(enum.IntEnum):
+    GEOJSON = 0
+    GEOJSON_NO_PROPS = 1
+
+class PropsFormatEnum(enum.IntEnum):
+    TSV = 0
+
 MASK_DILATION = 1
 BASE_PATH = '/opt/QuickAnnotator/quickannotator'
 

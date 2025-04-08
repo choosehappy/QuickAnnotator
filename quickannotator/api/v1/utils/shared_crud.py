@@ -12,6 +12,7 @@ from quickannotator.db import db_session, Base
 import quickannotator.db.models as models
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 from sqlalchemy.ext.declarative import declarative_base
+from quickannotator.db.logging import qa_logger
 import geojson
 from io import BytesIO
 import tarfile
@@ -129,7 +130,7 @@ def anns_to_feature_collection(annotations: List[models.Annotation]) -> geojson.
     return geojson.FeatureCollection(features)
 
 
-def write_to_tarfile(image_ids, annotation_class_ids, format) -> BytesIO:
+def write_annotations_to_tarfile(image_ids, annotation_class_ids, format) -> BytesIO:
     """
     Writes the annotations for the given image IDs and annotation class IDs to a tarfile.
 
@@ -148,18 +149,19 @@ def write_to_tarfile(image_ids, annotation_class_ids, format) -> BytesIO:
                 try:
                     model = create_dynamic_model(table_name)
                 except sqlalchemy.exc.NoSuchTableError:
+                    qa_logger.info(f"Failed to find annotation table during export. Table {table_name} does not exist. Skipping.")
                     continue
-                annotations = get_annotation_query(model).all()
-                feature_collection = anns_to_feature_collection(annotations)
-                feature_collection_json = geojson.dumps(feature_collection)
-                
-                # Create a tarinfo object
-                tablename = build_annotation_table_name(image_id, annotation_class_id)
-                tarinfo = tarfile.TarInfo(name=f"{tablename}.geojson")
-                tarinfo.size = len(feature_collection_json)
-                
-                # Add the file to the tar archive
-                tar.addfile(tarinfo, BytesIO(feature_collection_json.encode('utf-8')))
+                else:
+                    annotations = get_annotation_query(model).all()
+                    feature_collection = anns_to_feature_collection(annotations)
+                    feature_collection_json = geojson.dumps(feature_collection)
+                    
+                    # Create a tarinfo object
+                    tarinfo = tarfile.TarInfo(name=f"{table_name}.geojson")
+                    tarinfo.size = len(feature_collection_json)
+                    
+                    # Add the file to the tar archive
+                    tar.addfile(tarinfo, BytesIO(feature_collection_json.encode('utf-8')))
     
     buffer.seek(0)
     return buffer

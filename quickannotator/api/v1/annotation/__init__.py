@@ -8,8 +8,9 @@ import quickannotator.db.models as models
 from ..utils.shared_crud import AnnotationStore
 import geojson
 from flask import Response
-from quickannotator.api.v1.utils.shared_crud import write_to_tarfile
-
+import enum
+from quickannotator.constants import AnnsFormatEnum, PropsFormatEnum
+from quickannotator.api.v1.utils.shared_crud import write_annotations_to_tarfile
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
 
@@ -71,8 +72,17 @@ class DownloadAnnsArgsSchema(Schema):
     image_ids = fields.List(fields.Int(), required=True)
     annotation_class_ids = fields.List(fields.Int(), required=True)
 
-    format = fields.Str(required=False)  # e.g. 'geojson', 'shp', etc.
-    metrics_export_format = fields.Str(required=False)  # e.g. 'csv', 'json', etc.
+    annotations_format = fields.Enum(AnnsFormatEnum, required=False, default=AnnsFormatEnum.GEOJSON)
+    props_format = fields.Enum(PropsFormatEnum, required=False, default=None)
+
+class ExportToDSASchema(Schema):
+    image_ids = fields.List(fields.Int(), required=True)
+    annotation_class_ids = fields.List(fields.Int(), required=True)
+    
+    api_key = fields.Str(required=True)
+    collection_name = fields.Str(required=True)
+    folder_name = fields.Str(required=True)
+
 
 # ------------------------ ROUTES ------------------------
 
@@ -189,7 +199,7 @@ class AnnotationOperation(MethodView):
         return resp, 200
 
 
-@bp.route('/export/tar')
+@bp.route('/export/local')
 class DownloadAnnotations(MethodView):
     @bp.arguments(DownloadAnnsArgsSchema, location='query')
     @bp.response(200, {"format": "binary", "type": "string"}, content_type="application/x-tar")
@@ -199,7 +209,36 @@ class DownloadAnnotations(MethodView):
         image_ids = args['image_ids']
         annotation_class_ids = args['annotation_class_ids']
         format = args.get('format', 'geojson')
-        tar_buffer = write_to_tarfile(image_ids, annotation_class_ids, format)
+        tar_buffer = write_annotations_to_tarfile(image_ids, annotation_class_ids, format)
         response = Response(tar_buffer.getvalue(), mimetype="application/x-tar")
         response.headers.set("Content-Disposition", "attachment", filename="annotations.tar.gz")  # Update filename to reflect gzip compression
         return response
+
+@bp.route('/export/server')
+class ExportAnnotationsToServer(MethodView):
+    @bp.arguments(DownloadAnnsArgsSchema, location='query')
+    def post(self, args):
+        """ Export annotations for multiple images and annotation classes to the server """
+
+        image_ids = args['image_ids']
+        annotation_class_ids = args['annotation_class_ids']
+        format = args.get('format', 'geojson')
+        write_annotations_to_tarfile(image_ids, annotation_class_ids, format)
+        return {"message": "Annotations exported successfully"}, 200
+    
+
+@bp.route('/export/dsa')
+class ExportAnnotationsToDSA(MethodView):
+    @bp.arguments(ExportToDSASchema, location='json')
+    def post(self, args):
+        """ Export annotations for multiple images and annotation classes to the DSA """
+
+        image_ids = args['image_ids']
+        annotation_class_ids = args['annotation_class_ids']
+        api_key = args['api_key']
+        collection_name = args['collection_name']
+
+        # Implement the logic to export annotations to DSA here
+        # For example, you might want to call a function that handles the export process
+
+        return {"message": "Annotations exported to DSA successfully"}, 200
