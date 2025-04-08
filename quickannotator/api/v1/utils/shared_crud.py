@@ -1,10 +1,11 @@
 from shapely.affinity import scale
 from shapely.geometry.base import BaseGeometry
 import sqlalchemy
-from sqlalchemy import func
+from sqlalchemy import func, insert
 from datetime import datetime
 from typing import List
-from sqlalchemy.dialects.sqlite import insert
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Query
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
 from quickannotator.constants import TileStatus
@@ -87,10 +88,19 @@ def upsert_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], p
             **update_fields
         })
 
-    stmt = insert(models.Tile).values(tiles).on_conflict_do_update(
-        index_elements=['annotation_class_id', 'image_id', 'tile_id'],
-        set_=update_fields
-    )
+    dialect_name = db_session.bind.dialect.name
+    if dialect_name == 'postgresql':
+        stmt = pg_insert(models.Tile).values(tiles).on_conflict_do_update(
+            index_elements=['annotation_class_id', 'image_id', 'tile_id'],
+            set_=update_fields
+        )
+    elif dialect_name == 'sqlite':
+        stmt = sqlite_insert(models.Tile).values(tiles).on_conflict_do_update(
+            index_elements=['annotation_class_id', 'image_id', 'tile_id'],
+            set_=update_fields
+        )
+    else:
+        raise ValueError(f"Unsupported dialect: {dialect_name}")
 
     result = db_session.execute(stmt)
     db_session.commit()
@@ -151,7 +161,7 @@ class AnnotationStore:
         stmt = insert(self.model).returning(self.model.id).values(new_annotations)
         ids = db_session.scalars(stmt).all()
         result = self.get_annotations_by_ids(annotation_ids=ids)
-        tile_ids = [ann.tile_id for ann in result]
+        tile_ids = set(ann.tile_id for ann in result)
         
         if self.is_gt:
             upsert_tiles(self.image_id, self.annotation_class_id, tile_ids)
