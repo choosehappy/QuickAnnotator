@@ -199,7 +199,7 @@ export const downloadAnnotations = async (image_ids: number[], annotation_class_
         query.append('metrics_export_format', metrics_export_format);
     }
 
-    const response = await fetch(`${API_URL}/annotation/export?${query.toString()}`, {
+    const response = await fetch(`${API_URL}/annotation/export/tar?${query.toString()}`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',

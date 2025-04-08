@@ -116,7 +116,7 @@ def anns_to_feature_collection(annotations: List[models.Annotation]) -> geojson.
         feature = geojson.Feature(
             geometry=geojson.loads(annotation.polygon),
             properties={
-                'id'=annotation.id,
+                'id': annotation.id,
                 'tile_id': annotation.tile_id,
                 'centroid': geojson.loads(annotation.centroid),
                 'area': annotation.area,
@@ -144,8 +144,11 @@ def write_to_tarfile(image_ids, annotation_class_ids, format) -> BytesIO:
     with tarfile.open(fileobj=buffer, mode='w') as tar:
         for image_id in image_ids:
             for annotation_class_id in annotation_class_ids:
-                table_name = build_annotation_table_name(image_id, annotation_class_id)
-                model = create_dynamic_model(table_name)
+                table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=True)
+                try:
+                    model = create_dynamic_model(table_name)
+                except sqlalchemy.exc.NoSuchTableError:
+                    continue
                 annotations = get_annotation_query(model).all()
                 feature_collection = anns_to_feature_collection(annotations)
                 feature_collection_json = geojson.dumps(feature_collection)
