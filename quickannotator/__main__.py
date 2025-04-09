@@ -36,10 +36,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     os.environ['SPATIALITE_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu/mod_spatialite.so'  # TODO: set with a function
 
-
     # ------------------------ APP SETUP ------------------------
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
+    app.config['RAY_CLUSTER_ADDRESS'] = args.cluster_address
 
     # ------------------------ DB SETUP ------------------------
     if args.recreate_db:

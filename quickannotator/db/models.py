@@ -1,3 +1,4 @@
+from typing import List
 from geoalchemy2 import Geometry
 import geojson.geometry
 from marshmallow import fields
@@ -5,10 +6,12 @@ from sqlalchemy.sql import func
 from quickannotator.db import Base
 from sqlalchemy.orm import relationship
 import geojson
-from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, Text, func
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, Text, func, ext
 from ..constants import TileStatus
 from sqlalchemy import Enum
 from datetime import datetime
+from sqlalchemy.ext.declarative import DeclarativeMeta
+
 
 log_level_enum = Enum('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', name='log_level_enum')
 
@@ -73,7 +76,6 @@ class AnnotationClass(Base):
     color = Column(Text, nullable=False)
     work_mag = Column(Float, nullable=False)
     work_tilesize = Column(Integer, nullable=False)
-    dl_model_objectref = Column(Text, nullable=True)
     datetime = Column(DateTime, default=datetime.now)
 
 
@@ -195,3 +197,14 @@ class GeometryField(fields.Field):
             return geom
         except Exception as e:
             raise ValueError(f"Invalid geometry format: {e}")
+
+
+def get_model_column_names(model: DeclarativeMeta) -> List[str]:
+    """
+    Returns a list of column names for the given SQLAlchemy model.
+    Args:
+        model (Base): The SQLAlchemy model class.
+    Returns:
+        List[str]: A list of column names.
+    """
+    return [getattr(model, column.name) for column in model.__table__.columns]
