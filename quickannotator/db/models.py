@@ -143,6 +143,20 @@ class Notification(Base):
     datetime = Column(DateTime, default=datetime.now)
 
 
+class Log(Base):
+
+    __tablename__ = 'log'
+
+    # primary key
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # columns
+    name = Column(Text, nullable=False)
+    timestamp = Column(DateTime, nullable=False)
+    level = Column(Enum('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'), nullable=False, default='INFO')
+    message = Column(Text, nullable=False, default="")
+
+
 class Setting(Base):
     """
     The settings table will store all project-level and application-level settings.
