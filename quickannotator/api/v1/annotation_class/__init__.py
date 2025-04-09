@@ -4,7 +4,7 @@ from flask.views import MethodView
 import quickannotator.db.models as models
 from quickannotator.db import db_session
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from quickannotator.db.annotation_class_crud import get_annotation_class_by_id
+from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
 from quickannotator.dl.ray_jackson import start_processing
 
 

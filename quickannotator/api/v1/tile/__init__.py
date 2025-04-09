@@ -2,10 +2,8 @@ from flask_smorest import Blueprint
 from marshmallow import fields, Schema
 from flask.views import MethodView
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-
-from ..utils.shared_crud import upsert_pred_tiles
-import quickannotator.db as qadb
 from quickannotator.db import db_session
+from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 from quickannotator.constants import TileStatus
 import quickannotator.db.models as models
 from .helper import get_tile, get_tile_ids_intersecting_mask, get_tile_ids_intersecting_polygons, get_tiles_by_tile_ids
@@ -58,7 +56,8 @@ class Tile(MethodView):
     def get(self, args, image_id, annotation_class_id):
         """     returns a Tile
         """
-        result = get_tile(image_id, annotation_class_id, args['tile_id'])
+        tilestore = TileStoreFactory.get_tilestore()
+        result = tilestore.get_tile(image_id, annotation_class_id, args['tile_id'])
         return result, 200
 
     @bp.arguments(GetTileArgsSchema, location='query')
@@ -78,13 +77,14 @@ class PredictTile(MethodView):
     @bp.response(200, TileRespSchema, description="Staged tile for DL processing")
     def post(self, args, image_id, annotation_class_id):
         """     stage a tile for DL processing     """
-        result = upsert_pred_tiles(image_id, 
-                               annotation_class_id, 
-                               [args['tile_id']], 
-                               pred_status=TileStatus.STARTPROCESSING, 
-                               process_owns_tile=False)   # Explicitly setting this to false to emphasize that a flask process is never the owner of a tile. See method description.
-        
-
+        tilestore: TileStore = TileStoreFactory.get_tilestore()
+        result = tilestore.upsert_pred_tiles(
+            image_id=image_id,
+            annotation_class_id=annotation_class_id,
+            tile_ids=[args['tile_id']],
+            pred_status=TileStatus.STARTPROCESSING,
+            process_owns_tile=False
+        )
 
         if len(result) > 0:
             return result[0], 200

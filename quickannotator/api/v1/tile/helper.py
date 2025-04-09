@@ -14,7 +14,7 @@ from quickannotator.api.v1.utils.shared_crud import get_annotation_query
 import quickannotator.db.models as models
 from quickannotator.db import get_session
 from quickannotator.api.v1.image.utils import get_image_by_id
-from quickannotator.db.annotation_class_crud import get_annotation_class_by_id
+from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
 from quickannotator.api.v1.utils.shared_crud import get_tile
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
 from quickannotator.constants import TileStatus, MASK_CLASS_ID, MASK_DILATION

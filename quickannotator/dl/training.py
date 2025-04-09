@@ -9,7 +9,7 @@ import ray
 from torchsummary import summary
 import datetime
 from quickannotator.dl.inference import run_inference, getPendingInferenceTiles
-from quickannotator.db.annotation_class_crud import build_actor_name
+from quickannotator.db.crud.annotation_class import build_actor_name
 from .dataset import TileDataset
 import io
 import albumentations as A

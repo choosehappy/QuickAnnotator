@@ -3,7 +3,7 @@ import os
 import numpy as np
 import math
 import geojson
-from quickannotator.db.annotation_class_crud import get_annotation_class_by_id
+from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
 from quickannotator.api.v1.image.utils import get_image_by_id
 from quickannotator.constants import BASE_PATH
 
