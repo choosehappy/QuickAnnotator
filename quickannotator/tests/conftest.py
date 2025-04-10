@@ -8,7 +8,7 @@ from quickannotator.db import models
 from quickannotator.api.v1.project.utils import add_project
 from quickannotator.api.v1.image.utils import add_image_by_path
 from quickannotator.api.v1.annotation_class.helper import insert_annotation_class
-from quickannotator.api.v1.utils.shared_crud import upsert_tiles, AnnotationStore
+from quickannotator.api.v1.utils.shared_crud import upsert_gt_tiles, AnnotationStore
 from quickannotator.constants import TileStatus
 from shapely.geometry import Polygon
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
@@ -74,7 +74,7 @@ def seed(db_session):   # here db_session is the fixture
                         color="black",
                         work_mag=1.25,
                         work_tilesize=2048,
-                        dl_model_objectref=None)
+                        )
     
     # Add a second annotation class
     insert_annotation_class(
@@ -83,14 +83,13 @@ def seed(db_session):   # here db_session is the fixture
                         color="red",
                         work_mag=10,
                         work_tilesize=2048, # At base (40x) magnification, this is 2048 * 40 / 10 = 8192 pixels
-                        dl_model_objectref=None)
+                        )
 
     # Add a tile
-    upsert_tiles(
+    upsert_gt_tiles(
         annotation_class_id=2,
         image_id=1,
-        tile_ids=[0],
-        pred_status=TileStatus.UNSEEN
+        tile_ids=[0]
     )
 
     db_session.commit()

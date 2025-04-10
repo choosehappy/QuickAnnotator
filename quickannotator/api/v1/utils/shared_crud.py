@@ -1,8 +1,8 @@
 from shapely.affinity import scale
 from shapely.geometry.base import BaseGeometry
-import sqlalchemy
 from sqlalchemy import func
-from datetime import datetime
+from datetime import datetime, timedelta
+import sqlalchemy
 from typing import List
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Query
@@ -10,8 +10,10 @@ from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_fa
 from quickannotator.constants import TileStatus
 from quickannotator.db import db_session, Base
 import quickannotator.db.models as models
+from quickannotator.db.models import get_model_column_names
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
 from sqlalchemy.ext.declarative import declarative_base
+import quickannotator.constants as constants
 
 
 def get_tile(image_id: int, annotation_class_id: int, tile_id: int) -> models.Tile:
@@ -58,45 +60,138 @@ def get_annotation_query(model, scale_factor: float=1.0) -> Query:
 
     return query
 
-def upsert_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], pred_status: TileStatus = None):
+def reset_all_PROCESSING_tiles(annotation_class_id: int):
+    stmt = sqlalchemy.update(models.Tile).where(
+        models.Tile.annotation_class_id == annotation_class_id,
+        models.Tile.pred_status == TileStatus.PROCESSING
+    ).values(
+        pred_status=TileStatus.UNSEEN,
+        pred_datetime=None
+    )
+    db_session.execute(stmt)
+    db_session.commit()
+
+def upsert_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], insert_fields: dict, update_fields: dict) -> List[models.Tile]:
     """
     Inserts new tiles or updates existing tiles in the database.
     This function attempts to insert new tiles with the given annotation_class_id, image_id, and tile_ids.
     If tiles with the same annotation_class_id, image_id, and tile_ids already exist, it updates the relevant fields.
 
     Args:
-        annotation_class_id (int): The ID of the annotation class.
         image_id (int): The ID of the image.
+        annotation_class_id (int): The ID of the annotation class.
         tile_ids (List[int]): The IDs of the tiles.
-        pred_status (TileStatus, optional): The status of the tile prediction. Defaults to None. None indicates that the ground truth state of the tile is being updated.
+        insert_fields (dict): Additional fields to insert into the tile.
+        update_fields (dict): Additional fields to update in the tile.
+    Returns:
+        List[models.Tile]: The tiles that were inserted or updated.
     """
-    update_fields = {}
-    if pred_status is None: # We are adding or updating a ground truth annotation for the tile(s)
-        update_fields['gt_counter'] = 0
-        update_fields['gt_datetime'] = datetime.now()
-    else:                   # We are changing the prediction status of the tile(s)
-        update_fields['pred_status'] = pred_status
-        update_fields['pred_datetime'] = datetime.now()
+    if len(tile_ids) == 0:
+        return []
 
-    tiles = []
-    for tile_id in tile_ids:
-        tiles.append({
-            'annotation_class_id': annotation_class_id,
-            'image_id': image_id,
-            'tile_id': tile_id,
-            **update_fields
-        })
-
-    stmt = insert(models.Tile).values(tiles).on_conflict_do_update(
+    stmt = insert(models.Tile).values(
+        [
+            {
+                'annotation_class_id': annotation_class_id,
+                'image_id': image_id,
+                'tile_id': tile_id,
+                **insert_fields
+            }
+            for tile_id in tile_ids
+        ]
+    ).on_conflict_do_update(
         index_elements=['annotation_class_id', 'image_id', 'tile_id'],
         set_=update_fields
+    ).returning(
+        *get_model_column_names(models.Tile)
     )
 
-    result = db_session.execute(stmt)
+    tiles = db_session.execute(stmt).all()
     db_session.commit()
+    return tiles
 
-    return result
+def upsert_gt_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int]) -> List[models.Tile]:
+    """
+    Inserts new ground truth tiles or updates existing ground truth tiles in the database.
+    This function attempts to insert new ground truth tiles with the given annotation_class_id, image_id, and tile_ids.
+    If ground truth tiles with the same annotation_class_id, image_id, and tile_ids already exist, it updates the relevant fields.
 
+    Args:
+        image_id (int): The ID of the image.
+        annotation_class_id (int): The ID of the annotation class.
+        tile_ids (List[int]): The IDs of the tiles.
+
+    Returns:
+        List[models.Tile]: The tiles that were inserted or updated.
+    """
+    
+    current_time = datetime.now()
+    update_fields = {
+        'gt_counter': 0,
+        'gt_datetime': current_time
+    }
+
+    tiles = upsert_tiles(
+        image_id=image_id,
+        annotation_class_id=annotation_class_id,
+        tile_ids=tile_ids,
+        insert_fields=update_fields,
+        update_fields=update_fields
+    )
+    return tiles
+
+def upsert_pred_tiles(image_id: int, annotation_class_id: int, tile_ids: List[int], pred_status: TileStatus, process_owns_tile=False) -> List[models.Tile]:
+    """
+    Inserts new prediction tiles or updates existing prediction tiles in the database.
+    This function attempts to insert new prediction tiles with the given annotation_class_id, image_id, and tile_ids.
+    If prediction tiles with the same annotation_class_id, image_id, and tile_ids already exist, it updates the relevant fields.
+
+    Args:
+        image_id (int): The ID of the image.
+        annotation_class_id (int): The ID of the annotation class.
+        tile_ids (List[int]): The IDs of the tiles.
+        pred_status (TileStatus): The status of the tile prediction.
+        process_owns_tile (bool, optional): If True, updates tiles regardless of their current status. Defaults to False. Only a ray actor should set this to True.
+
+    Returns:
+        List[models.Tile]: The tiles that were inserted or updated.
+    """
+
+    if pred_status is None:
+        raise ValueError("pred_status cannot be None.")
+    
+    current_time = datetime.now()
+    insert_fields = {
+        'pred_status': pred_status,
+        'pred_datetime': current_time
+    }
+    
+    if process_owns_tile:
+        update_fields = insert_fields
+    else:
+        expiration_thresh = current_time - timedelta(minutes=constants.TILE_PRED_EXPIRE)
+
+        tile_is_unseen_or_stale = sqlalchemy.case((models.Tile.pred_status == TileStatus.UNSEEN, 1),
+            (
+                (models.Tile.pred_status == TileStatus.DONEPROCESSING) & 
+                (models.Tile.pred_datetime <= expiration_thresh), 1
+            ),
+            else_=0
+        )
+
+        update_fields = {
+            'pred_status': sqlalchemy.case((tile_is_unseen_or_stale == 1, pred_status), else_=models.Tile.pred_status),
+            'pred_datetime': sqlalchemy.case((tile_is_unseen_or_stale == 1, current_time), else_=models.Tile.pred_datetime)
+        }
+
+    tiles = upsert_tiles(
+        image_id=image_id,
+        annotation_class_id=annotation_class_id,
+        tile_ids=tile_ids,
+        insert_fields=insert_fields,
+        update_fields=update_fields
+    )
+    return tiles
 
 class AnnotationStore:
     def __init__(self, image_id: int, annotation_class_id: int, is_gt: bool, in_work_mag=True, create_table=False):
@@ -131,14 +226,27 @@ class AnnotationStore:
             self.model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt))
 
     # CREATE
-    # TODO: make this function applicable to predicted annotations, not just ground truths.
-    def insert_annotations(self, polygons: List[BaseGeometry]) -> List[models.Annotation]:
+    # TODO: consider adding optional parameter to allow tileids to be passed in.
+    def insert_annotations(self, polygons: List[BaseGeometry], tile_ids: List[int] | int=None) -> List[models.Annotation]:
+        # Initial validation
+        if len(polygons) == 0:
+            return []
+        
+        if not isinstance(tile_ids, list):
+            tile_ids = [tile_ids] * len(polygons)   # By default produce a list of None values.
+
+        if len(polygons) != len(tile_ids):
+            raise ValueError("The lengths of polygons and tile_ids must match.")
+
         # in_work_mag is true because we expect the polygons are scaled at this point.
         tilespace = get_tilespace(self.image_id, self.annotation_class_id, in_work_mag=True)
         new_annotations = []
-        for polygon in polygons:
+
+        for polygon, tile_id in zip(polygons, tile_ids):
             scaled_polygon = self.scale_polygon(polygon, self.scaling_factor)
-            tile_id = tilespace.point_to_tileid(scaled_polygon.centroid.x, scaled_polygon.centroid.y)
+
+            if tile_id is None:
+                tile_id = tilespace.point_to_tileid(scaled_polygon.centroid.x, scaled_polygon.centroid.y)
 
             new_annotations.append({
                 "tile_id": tile_id,  # Ensure correct value
@@ -148,15 +256,11 @@ class AnnotationStore:
                 "custom_metrics": compute_custom_metrics(),  # Add appropriate custom metrics if needed
                 "datetime": datetime.now()
             })
-        stmt = insert(self.model).returning(self.model.id).values(new_annotations)
+
+        stmt = sqlalchemy.insert(self.model).returning(self.model.id).values(new_annotations)
         ids = db_session.scalars(stmt).all()
-        result = self.get_annotations_by_ids(annotation_ids=ids)
-        tile_ids = [ann.tile_id for ann in result]
-        
-        if self.is_gt:
-            upsert_tiles(self.image_id, self.annotation_class_id, tile_ids)
-        else:
-            upsert_tiles(self.image_id, self.annotation_class_id, tile_ids, pred_status=TileStatus.DONEPROCESSING)
+        result = self.get_annotations_by_ids(annotation_ids=ids)    # Must do this otherwise scaling etc. does not apply.
+    
         return result
 
 
@@ -213,6 +317,34 @@ class AnnotationStore:
 
         stmt = sqlalchemy.delete(self.model).where(self.model.id == annotation_id).returning(self.model.id)
         result = db_session.execute(stmt).scalar_one_or_none()
+        db_session.commit()
+        return result
+    
+    def delete_annotations(self, annotation_ids: List[int]) -> List[int]:
+        """
+        Deletes multiple annotations by their IDs.
+        Args:
+            annotation_ids (List[int]): A list of annotation IDs to be deleted.
+        Returns:
+            List[int]: A list of the IDs of the deleted annotations.
+        """
+
+        stmt = sqlalchemy.delete(self.model).where(self.model.id.in_(annotation_ids)).returning(self.model.id)
+        result = db_session.execute(stmt).scalars().all()
+        db_session.commit()
+        return result
+    
+    def delete_annotations_by_tile(self, tile_id: int) -> List[int]:
+        """
+        Deletes all annotations associated with a tile.
+        Args:
+            tile_id (int): The ID of the tile.
+        Returns:
+            List[int]: A list of the IDs of the deleted annotations.
+        """
+
+        stmt = sqlalchemy.delete(self.model).where(self.model.tile_id == tile_id).returning(self.model.id)
+        result = db_session.execute(stmt).scalars().all()
         db_session.commit()
         return result
 

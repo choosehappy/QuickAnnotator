@@ -10,13 +10,17 @@ export const computeTilesToRender = (oldTileIds: number[], newTileIds: number[])
     return { tilesToRemove, tilesToRender }
 }
 
-export const getTileFeatureById = (geoMap: geo.map, layerId: number, tile_id: number) => {
-    return geoMap.current.layers()[layerId].features().find((f) => {
-        return f.featureType === 'polygon' && f.props.tile_id === tile_id;
+export function getFeatIdsRendered(layer: geo.layer, type: string) {
+    return layer.features().filter((f) => f.featureType === 'polygon' && f.props.type === type).map((f) => f.props.tile_id);
+}
+
+export const getTileFeatureById = (layer: geo.layer, featureId: number, type='annotation') => {
+    return layer.features().find((f: any) => {
+        return f.featureType === 'polygon' && f.props.tile_id === featureId && f.props.type === type;
     });
 }
 
-export const redrawTileFeature = (feature: any, options = {}, data?: Annotation[]) => {
+export const redrawTileFeature = (feature: any, options = {}, data?: any[]) => {
     if (data) {
         feature.data(data);
     }
@@ -28,6 +32,7 @@ export const redrawTileFeature = (feature: any, options = {}, data?: Annotation[
 export const createGTTileFeature = (featureProps: any, annotations: Annotation[], layer: any, currentAnnotationId: number | null = null, annotationClassId: number = 1) => {
     const feature = layer.createFeature('polygon');
     feature.props = featureProps;
+    featureProps.type = 'annotation';
 
     feature
         .position((d: Position) => ({ x: d[0], y: d[1] }))
@@ -61,6 +66,7 @@ export const createGTTileFeature = (featureProps: any, annotations: Annotation[]
 
 export const createPredTileFeature = (featureProps: any, annotations: Annotation[], layer: any, highlightedPolyIds: number[] | null = null, annotationClassId: number = 1) => {
     const feature = layer.createFeature('polygon');
+    featureProps.type = 'annotation';
     feature.props = featureProps;
     feature
         .position((d: Position) => ({ x: d[0], y: d[1] }))
@@ -87,5 +93,22 @@ export const createPredTileFeature = (featureProps: any, annotations: Annotation
     }
     console.log('Drew predicted polygons.')
     feature.draw({ highlightedPolyIds: highlightedPolyIds });
+    return feature;
+}
+
+export const createPendingTileFeature = (featureProps: any, polygons: Polygon[], layer: any) => {
+    const feature = layer.createFeature('polygon');
+    featureProps.type = 'pending';
+    feature.props = featureProps;
+    feature
+        .position((d: Position) => ({ x: d[0], y: d[1] }))
+        .polygon((p: Polygon) => p.coordinates[0])
+        .data(polygons)
+        .style('fill', true)
+        .style('fillColor', 'grey')
+        .style('fillOpacity', 0.5)
+        .style('uniformPolygon', true)
+    console.log('Drew pending polygon.')
+    feature.draw();
     return feature;
 }

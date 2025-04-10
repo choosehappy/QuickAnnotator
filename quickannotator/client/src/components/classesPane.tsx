@@ -8,6 +8,8 @@ interface Props {
     currentClass: AnnotationClass | null;
     setCurrentClass: (currentClass: AnnotationClass) => void;
 }
+
+
 const ClassesPane = (props: Props) => {
     const [classes, setClasses] = useState<AnnotationClass[]>([]);
     useEffect(() => {
@@ -26,7 +28,7 @@ const ClassesPane = (props: Props) => {
                 <ListGroup>
                     {classes.map((c) => {
                             return (
-                                <ListGroup.Item key={c.id} onClick={() => props.setCurrentClass(c)}>{c.name}</ListGroup.Item>
+                                <ListGroup.Item key={c.id} onClick={() => {props.setCurrentClass(c)}}>{c.name}</ListGroup.Item>
                             )
                         }
                     )}

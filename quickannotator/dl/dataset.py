@@ -9,47 +9,52 @@ from sqlalchemy import  select, update, case, func
 from quickannotator.db import get_session
 from quickannotator.db.models import Tile
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from quickannotator.db.annotation_class_crud import get_annotation_class_by_id
+from datetime import datetime
 
 
 from quickannotator.dl.utils import compress_to_image_bytestream, decompress_from_image_bytestream, get_memcached_client, load_tile 
 
 class TileDataset(IterableDataset):
-    def __init__(self, classid, tile_size,transforms=None, edge_weight=0, boost_count=5):
+    def __init__(self, classid, transforms=None, edge_weight=0, boost_count=5):
         self.classid = classid
         self.transforms = transforms
         self.edge_weight = edge_weight
-        self.tile_size = tile_size #TODO: This should come from annotation_class table
         self.boost_count = boost_count
-        
-    def getWorkersTiles(self):
         with get_session() as db_session:  # Ensure this provides a session context
-                subquery = (
-                    select(Tile.id)
-                    .where(Tile.annotation_class_id == self.classid,
-                        Tile.gt_datetime.isnot(None))
-                    .order_by(Tile.gt_counter.asc(), Tile.gt_datetime.asc())  # Prioritize under-used, then newest
-                    .limit(1).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
-                )
+            annotation_class = get_annotation_class_by_id(classid)
+            self.magnification = annotation_class.work_mag
+            self.tile_size = annotation_class.work_tilesize
+        
+    def getWorkersTiles(self) -> Tile | None:
+        with get_session() as db_session:  # Ensure this provides a session context
+            subquery = (
+                select(Tile.id)
+                .where(Tile.annotation_class_id == self.classid,
+                    Tile.gt_datetime.isnot(None))
+                .order_by(Tile.gt_counter.asc(), Tile.gt_datetime.asc())  # Prioritize under-used, then newest
+                .limit(1).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
+            )
                 
-                with db_session.begin():  # Explicit transaction
+            with db_session.begin():  # Explicit transaction
 
-                    tile = db_session.execute(
-                        update(Tile)
-                        .where(Tile.id == subquery.scalar_subquery())
-                        .values(gt_counter=(
-                                # Only increment selection_count if it's less than max_selections
-                                case(
-                                    (Tile.gt_counter < self.boost_count, Tile.gt_counter + 1),
-                                    else_=Tile.gt_counter
-                                )
-                            ),
-                            gt_datetime=func.now())
-                        .returning(Tile)
-                    ).scalar()
-                    db_session.expunge(tile)
-                
-                #print(f"tile retval {tile}")
-                return tile if tile else None
+                tile = db_session.execute(
+                    update(Tile)
+                    .where(Tile.id == subquery.scalar_subquery())
+                    .values(gt_counter=(
+                            # Only increment selection_count if it's less than max_selections
+                            case(
+                                (Tile.gt_counter < self.boost_count, Tile.gt_counter + 1),
+                                else_=Tile.gt_counter
+                            )
+                        ),
+                        gt_datetime=datetime.now())
+                    .returning(Tile)
+                ).scalar()
+                db_session.expunge(tile)
+            
+            #print(f"tile retval {tile}")
+            return tile if tile else None
         
 
     def __iter__(self):

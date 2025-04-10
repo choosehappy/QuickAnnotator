@@ -3,12 +3,12 @@ from marshmallow import fields, Schema
 from flask.views import MethodView
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
-from ..utils.shared_crud import upsert_tiles
+from ..utils.shared_crud import upsert_pred_tiles
 import quickannotator.db as qadb
 from quickannotator.db import db_session
 from quickannotator.constants import TileStatus
 import quickannotator.db.models as models
-from .helper import get_tile, compute_on_tile, get_tile_ids_intersecting_mask, get_tile_ids_intersecting_polygons, get_tiles_by_tile_ids
+from .helper import get_tile, get_tile_ids_intersecting_mask, get_tile_ids_intersecting_polygons, get_tiles_by_tile_ids
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
 bp = Blueprint('tile', __name__, description="Tile operations")
 
@@ -23,13 +23,16 @@ class PredictTileRespSchema(Schema):
     message = fields.Str()
 
 class TileBoundingBoxRespSchema(Schema):
-    bbox = fields.Tuple((fields.Int, fields.Int, fields.Int, fields.Int))
+    bbox_polygon = models.GeometryField()
 
 class TileIdRespSchema(Schema):
     tile_ids = fields.List(fields.Int)
 # ------------------------ REQUEST PARSERS ------------------------
 class GetTileArgsSchema(Schema):
     tile_id = fields.Int(description="ID of the tile")
+
+class PostTileArgsSchema(GetTileArgsSchema):
+    pass
 
 class SearchTileArgsSchema(Schema):
     hasgt = fields.Bool(required=True, description="Filter by tiles which have ground truths saved")
@@ -59,13 +62,6 @@ class Tile(MethodView):
         return result, 200
 
     @bp.arguments(GetTileArgsSchema, location='query')
-    @bp.response(200, description="Successfully computed tiles")
-    def post(self, args, image_id, annotation_class_id):
-        """     compute all tiles for a given image & class     """
-        compute_on_tile(image_id, annotation_class_id, args['tile_id'])
-        return 200
-
-    @bp.arguments(GetTileArgsSchema, location='query')
     def delete(self, args, image_id, annotation_class_id):
         """     delete a Tile
         """
@@ -76,16 +72,45 @@ class Tile(MethodView):
         ).delete()
         return 204
 
+@bp.route('/<int:image_id>/<int:annotation_class_id>/predict')
+class PredictTile(MethodView):
+    @bp.arguments(PostTileArgsSchema, location='query')
+    @bp.response(200, TileRespSchema, description="Staged tile for DL processing")
+    def post(self, args, image_id, annotation_class_id):
+        """     stage a tile for DL processing     """
+        result = upsert_pred_tiles(image_id, 
+                               annotation_class_id, 
+                               [args['tile_id']], 
+                               pred_status=TileStatus.STARTPROCESSING, 
+                               process_owns_tile=False)   # Explicitly setting this to false to emphasize that a flask process is never the owner of a tile. See method description.
+        
+
+
+        if len(result) > 0:
+            return result[0], 200
+        else:
+            return {"message": "Failed to stage tile for processing"}, 400
+
 @bp.route('/<int:image_id>/<int:annotation_class_id>/bbox')
 class TileBoundingBox(MethodView):
     @bp.arguments(GetTileArgsSchema, location='query')
     @bp.response(200, TileBoundingBoxRespSchema)
     def get(self, args, image_id, annotation_class_id):
-        """     get the bounding box for a given tile
+        """     get the bounding box for a given tile as a GeoJSON polygon
         """
         tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
         bbox = tilespace.get_bbox_for_tile(args['tile_id'])
-        return {'bbox': bbox}, 200
+        geojson_polygon = {
+            "type": "Polygon",
+            "coordinates": [[
+                [bbox[0], bbox[1]],
+                [bbox[2], bbox[1]],
+                [bbox[2], bbox[3]],
+                [bbox[0], bbox[3]],
+                [bbox[0], bbox[1]]
+            ]]
+        }
+        return {'bbox_polygon': geojson_polygon}, 200
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>/search/bbox')
 class TileIdSearchByBbox(MethodView):

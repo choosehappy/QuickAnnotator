@@ -10,7 +10,7 @@ import ConfirmationModal from '../components/confirmationModal.tsx';
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
-import { fetchImage, fetchProject, postAnnotations } from "../helpers/api.ts";
+import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass } from "../helpers/api.ts";
 import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation } from "../types.ts";
 import { MODAL_DATA, TOOLBAR_KEYS } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
@@ -68,6 +68,15 @@ const AnnotationPage = () => {
             });
         }
     }, [])
+
+    useEffect(() => {
+        startProcessingAnnotationClass(currentClass?.id).then((resp) => {
+            if (resp.status === 200) {
+                console.log("Processing started");
+            }
+        });
+    }
+    , [currentClass]);
 
     if (currentImage) {
         return (
