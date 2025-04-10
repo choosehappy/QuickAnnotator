@@ -91,27 +91,24 @@ class AnnotationStore:
         if len(polygons) == 0:
             return []
         
-        if isinstance(tile_ids, int):
-            tile_ids = [tile_ids] * len(polygons)
-        
-        if tile_ids is not None and len(polygons) != len(tile_ids):
-            raise ValueError("The lengths of polygons and tile_ids must match if tile_ids is a list.")
+        if not isinstance(tile_ids, list):
+            tile_ids = [tile_ids] * len(polygons)   # By default produce a list of None values.
+
+        if len(polygons) != len(tile_ids):
+            raise ValueError("The lengths of polygons and tile_ids must match.")
 
         # in_work_mag is true because we expect the polygons are scaled at this point.
         tilespace = get_tilespace(self.image_id, self.annotation_class_id, in_work_mag=True)
         new_annotations = []
 
-        for i, polygon in enumerate(polygons):
+        for polygon, tile_id in zip(polygons, tile_ids):
             scaled_polygon = self.scale_polygon(polygon, self.scaling_factor)
 
-            # Determine tile_id based on provided parameters or calculate it
-            if tile_ids is not None:
-                current_tile_id = tile_ids[i]
-            else:
-                current_tile_id = tilespace.point_to_tileid(scaled_polygon.centroid.x, scaled_polygon.centroid.y)
+            if tile_id is None:
+                tile_id = tilespace.point_to_tileid(scaled_polygon.centroid.x, scaled_polygon.centroid.y)
 
             new_annotations.append({
-                "tile_id": current_tile_id,  # Ensure correct value
+                "tile_id": tile_id,  # Ensure correct value
                 "centroid": scaled_polygon.centroid.wkt,
                 "polygon": scaled_polygon.wkt,
                 "area": scaled_polygon.area,
