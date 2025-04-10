@@ -3,13 +3,13 @@ from marshmallow import fields, Schema
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from flask.views import MethodView
 from quickannotator.db import db_session
-import quickannotator.db.models as models
+import quickannotator.db.models as db_models
 
 bp = Blueprint('notification', __name__, description='Notification operations')
 # ------------------------ RESPONSE MODELS ------------------------
 class NotificationRespSchema(SQLAlchemyAutoSchema):
     class Meta:
-        model = models.Notification
+        model = db_models.Notification
 
 class GetNotificationArgsSchema(Schema):
     notification_id = fields.Int()

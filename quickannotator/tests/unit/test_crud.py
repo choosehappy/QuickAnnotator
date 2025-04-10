@@ -1,6 +1,6 @@
 import pytest
 from shapely.geometry import Polygon, shape
-from quickannotator.api.v1.utils.shared_crud import AnnotationStore
+from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 from quickannotator.tests.conftest import assert_geojson_equal
 from shapely.geometry import mapping

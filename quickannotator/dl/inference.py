@@ -15,7 +15,7 @@ from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 
 from quickannotator.constants import TileStatus
 from quickannotator.dl.utils import decompress_from_image_bytestream, get_memcached_client, load_tile
-from quickannotator.api.v1.utils.shared_crud import AnnotationStore
+from quickannotator.db.crud.annotation import AnnotationStore
 
 from datetime import datetime
 

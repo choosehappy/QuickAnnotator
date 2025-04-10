@@ -1,23 +1,20 @@
+from sqlalchemy.orm import Query
+import quickannotator.db.models as db_models
+from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
+from quickannotator.db import Base, db_session
+from quickannotator.db.crud.misc import compute_custom_metrics
+from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+
+
+import sqlalchemy
 from shapely.affinity import scale
 from shapely.geometry.base import BaseGeometry
-from sqlalchemy import func, insert
-from datetime import datetime, timedelta
-import sqlalchemy
-from typing import List
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlalchemy.orm import Query
-from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
-from quickannotator.constants import TileStatus
-from quickannotator.db import db_session, Base
-import quickannotator.db.models as models
-from quickannotator.db.models import get_model_column_names
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
-from sqlalchemy.ext.declarative import declarative_base
-import quickannotator.constants as constants
+from sqlalchemy import func
 
-def compute_custom_metrics() -> dict:
-    return {"iou": 0.5}
+
+from datetime import datetime
+from typing import List
+
 
 def get_annotation_query(model, scale_factor: float=1.0) -> Query:
     '''
@@ -38,7 +35,7 @@ def get_annotation_query(model, scale_factor: float=1.0) -> Query:
 
     if scale_factor <= 0:
         raise ValueError("scale_factor must be greater than 0.")
-    
+
     query = db_session.query(
         model.id,
         model.tile_id,
@@ -86,11 +83,11 @@ class AnnotationStore:
 
     # CREATE
     # TODO: consider adding optional parameter to allow tileids to be passed in.
-    def insert_annotations(self, polygons: List[BaseGeometry], tile_ids: List[int] | int=None) -> List[models.Annotation]:
+    def insert_annotations(self, polygons: List[BaseGeometry], tile_ids: List[int] | int=None) -> List[db_models.Annotation]:
         # Initial validation
         if len(polygons) == 0:
             return []
-        
+
         if not isinstance(tile_ids, list):
             tile_ids = [tile_ids] * len(polygons)   # By default produce a list of None values.
 
@@ -119,38 +116,38 @@ class AnnotationStore:
         stmt = sqlalchemy.insert(self.model).returning(self.model.id).values(new_annotations)
         ids = db_session.scalars(stmt).all()
         result = self.get_annotations_by_ids(annotation_ids=ids)    # Must do this otherwise scaling etc. does not apply.
-    
+
         return result
 
 
     # READ
-    def get_annotation_by_id(self, annotation_id: int) -> models.Annotation:
+    def get_annotation_by_id(self, annotation_id: int) -> db_models.Annotation:
         result = get_annotation_query(self.model, 1/self.scaling_factor).filter_by(id=annotation_id).first()
         return result
-    
-    def get_annotations_by_ids(self, annotation_ids: List[int]) -> List[models.Annotation]:
+
+    def get_annotations_by_ids(self, annotation_ids: List[int]) -> List[db_models.Annotation]:
         result = get_annotation_query(self.model, 1/self.scaling_factor).filter(self.model.id.in_(annotation_ids)).all()
         return result
 
-    def get_annotations_for_tiles(self, tile_ids: List[int]) -> List[models.Annotation]:
+    def get_annotations_for_tiles(self, tile_ids: List[int]) -> List[db_models.Annotation]:
         result = get_annotation_query(self.model, 1/self.scaling_factor).filter(self.model.tile_id.in_(tile_ids)).all()
         return result
 
-    def get_annotations_within_poly(self, polygon: BaseGeometry) -> List[models.Annotation]:
+    def get_annotations_within_poly(self, polygon: BaseGeometry) -> List[db_models.Annotation]:
         scaled_polygon = self.scale_polygon(polygon, self.scaling_factor)
         # NOTE: Sqlite may not use the spatial index here.
         result = get_annotation_query(self.model, 1/self.scaling_factor).filter(func.ST_Intersects(self.model.polygon, func.ST_GeomFromText(scaled_polygon.wkt, 0))).all()
         return result
 
     # UPDATE
-    def update_annotation(self, annotation_id: int, polygon: BaseGeometry) -> models.Annotation:
+    def update_annotation(self, annotation_id: int, polygon: BaseGeometry) -> db_models.Annotation:
         scaled_polygon = self.scale_polygon(polygon, self.scaling_factor)
         tile_id = get_tilespace(self.image_id, self.annotation_class_id).point_to_tileid(
             scaled_polygon.centroid.x, scaled_polygon.centroid.y
         )
 
         annotation = db_session.query(self.model).filter(self.model.id == annotation_id).first()
-        
+
         if annotation:
             annotation.tile_id = tile_id
             annotation.centroid = scaled_polygon.centroid.wkt
@@ -178,7 +175,7 @@ class AnnotationStore:
         result = db_session.execute(stmt).scalar_one_or_none()
         db_session.commit()
         return result
-    
+
     def delete_annotations(self, annotation_ids: List[int]) -> List[int]:
         """
         Deletes multiple annotations by their IDs.
@@ -192,7 +189,7 @@ class AnnotationStore:
         result = db_session.execute(stmt).scalars().all()
         db_session.commit()
         return result
-    
+
     def delete_annotations_by_tile(self, tile_id: int) -> List[int]:
         """
         Deletes all annotations associated with a tile.
@@ -210,11 +207,11 @@ class AnnotationStore:
     def delete_all_annotations(self):
         db_session.query(self.model).delete()
 
-    
+
     @staticmethod
     def create_annotation_table(image_id: int, annotation_class_id: int, is_gt: bool):
         table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt)
-        table = models.Annotation.__table__.to_metadata(Base.metadata, name=table_name)
+        table = db_models.Annotation.__table__.to_metadata(Base.metadata, name=table_name)
         Base.metadata.create_all(bind=db_session.bind, tables=[table])
 
         return create_dynamic_model(table_name)
@@ -224,4 +221,3 @@ class AnnotationStore:
     @staticmethod
     def scale_polygon(polygon: BaseGeometry, scaling_factor: float) -> BaseGeometry:   # Added for safety - I've forgotten the origin param several times.
         return scale(polygon, xfact=scaling_factor, yfact=scaling_factor, origin=(0, 0))
-
