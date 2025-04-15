@@ -3,6 +3,7 @@ import { Modal, Button, Form } from "react-bootstrap";
 import { useForm, FormProvider, useFormContext } from "react-hook-form";
 import { MODAL_DATA } from "../helpers/config";
 import { downloadAnnotations } from "../helpers/api";
+import { AnnotationClass, Image } from "../types";
 
 enum ExportOption {
     LOCAL = 0,
@@ -31,6 +32,7 @@ const savePathPlaceholder = "Default: data/{project_id}/{image_id}/{}";
 interface Props {
     show: boolean;
     setActiveModal: React.Dispatch<React.SetStateAction<number | null>>;
+    images: Image[];
 }
 
 interface FormValues {
