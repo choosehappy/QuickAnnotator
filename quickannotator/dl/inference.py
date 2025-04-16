@@ -11,9 +11,13 @@ from sqlalchemy import func, select, update
 from quickannotator.db.models import Tile
 from quickannotator.db import get_session
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 
 from quickannotator.constants import TileStatus
 from quickannotator.dl.utils import decompress_from_image_bytestream, get_memcached_client, load_tile
+from quickannotator.db.crud.annotation import AnnotationStore
+
+from datetime import datetime
 
 
 def preprocess_image(io_image, device):
@@ -69,7 +73,7 @@ def save_annotations(tile,polygons): #TODO: i feel like this function likely exi
             'centroid': centroid.wkt
         }
         #print("new anno!\t\t:",new_annotation["image_id"],new_annotation["annotation_class_id"]) #TODO: push to logging or remove
-        new_annotations.append(new_annotation)
+        new_annotations.append(new_annotation)  
     #print(new_annotations)
     
     with get_session() as db_session:
@@ -80,27 +84,27 @@ def save_annotations(tile,polygons): #TODO: i feel like this function likely exi
 
 def getPendingInferenceTiles(classid,batch_size_infer):
     with get_session() as db_session:  # Ensure this provides a session context
-        with db_session.begin():  # Explicit transaction
-            subquery = (
-                select(Tile.id)
-                .where(Tile.annotation_class_id == classid,
-                    Tile.pred_status == TileStatus.STARTPROCESSING)
-                .order_by(Tile.pred_datetime.desc()) #always get the latest ones first #TODO: should this be asc?
-                .limit(batch_size_infer).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
-            )
+        # with db_session.begin():  # Explicit transaction
+        subquery = (
+            select(Tile.id)
+            .where(Tile.annotation_class_id == classid,
+                Tile.pred_status == TileStatus.STARTPROCESSING)
+            .order_by(Tile.pred_datetime.desc()) #always get the latest ones first #TODO: should this be asc?
+            .limit(batch_size_infer).with_for_update(skip_locked=True) #with_for_update is a Postgres specific clause
+        )
 
-            tiles = db_session.execute(
-                update(Tile)
-                .where(Tile.id.in_(subquery))
-                .where(Tile.pred_status == TileStatus.STARTPROCESSING)  # Ensures another worker hasn't claimed it
-                .values(pred_status=TileStatus.PROCESSING,pred_datetime=func.now())
-                .returning(Tile)
-            ).scalars().all()
-            
-            db_session.expunge_all()
+        tiles = db_session.execute(
+            update(Tile)
+            .where(Tile.id.in_(subquery))
+            .where(Tile.pred_status == TileStatus.STARTPROCESSING)  # Ensures another worker hasn't claimed it
+            .values(pred_status=TileStatus.PROCESSING,pred_datetime=datetime.now())
+            .returning(Tile)
+        ).scalars().all()
+        
+        db_session.expunge_all()
 
 
-            return tiles if tiles else None
+        return tiles if tiles else None
 
     
 def update_tile_status(tile_batch,status):
@@ -116,7 +120,7 @@ def update_tile_status(tile_batch,status):
                                     #one would need to change all func.now to datetime.datetime.now() to make it rock solid. lets see the performance of this first and adjust if needed
         for tile in tile_batch:
             tile.pred_status = status
-            tile.pred_datetime = func.now()
+            tile.pred_datetime = datetime.now()
             db_session.add(tile)  # Add each tile individually
         
         db_session.commit()  # Commit all changes
@@ -140,7 +144,7 @@ def run_inference(device, model, tiles):
         else:
             io_image,tile.x,tile.y = load_tile(tile)
 
-        cv2.imwrite("/opt/QuickAnnotator/img.png",io_image) #TODO: remove- - for debug
+        cv2.imwrite("/opt/QuickAnnotator/quickannotator/data/output/img.png",io_image) #TODO: remove- - for debug
         io_images.append(io_image)
 
     io_images = [preprocess_image(io_image, device) for io_image in io_images]
@@ -160,10 +164,24 @@ def run_inference(device, model, tiles):
             # np.save('/opt/QuickAnnotator/output.npy', oo)
             #---
             polygons = postprocess_output(output) #some parmaeters here should be added to the class level config -- see function prototype
-            print("saving annotations")
-            delete_annotations(tiles[j])
-            save_annotations(tiles[j],polygons)
+            translated_polygons = [
+                shapely.affinity.translate(polygon, xoff=tiles[j].x, yoff=tiles[j].y) for polygon in polygons
+            ]
+            print(f'saving annotations for tile {tiles[j].id}. Setting pred_status to DONEPROCESSING')
+            with get_session() as db_session:
+                store = AnnotationStore(tiles[j].image_id, tiles[j].annotation_class_id, is_gt=False, in_work_mag=True)
+                store.delete_annotations_by_tile(tiles[j].tile_id)
+                store.insert_annotations(translated_polygons, tiles[j].tile_id)
+                
     
     print("updating tile status")
-    update_tile_status(tiles, TileStatus.DONEPROCESSING) #now taht the batch is done, need to update tile status
+    tilestore: TileStore = TileStoreFactory.get_tilestore()
+    result = tilestore.upsert_pred_tiles(image_id=tiles[0].image_id, 
+                      annotation_class_id=tiles[0].annotation_class_id, 
+                      tile_ids={tile.tile_id for tile in tiles}, 
+                      pred_status=TileStatus.DONEPROCESSING, 
+                      process_owns_tile=True)
+    # if result[0].pred_status != TileStatus.DONEPROCESSING:
+    #     import pdb; pdb.set_trace()  # Conditional breakpoint
+    # update_tile_status(tiles, TileStatus.DONEPROCESSING) #now taht the batch is done, need to update tile status
     return outputs

@@ -9,6 +9,7 @@ import ray
 from torchsummary import summary
 import datetime
 from quickannotator.dl.inference import run_inference, getPendingInferenceTiles
+from quickannotator.db.crud.annotation_class import build_actor_name
 from .dataset import TileDataset
 import io
 import albumentations as A
@@ -70,11 +71,11 @@ def train_pred_loop(config):
     #---------
 
     #TODO: likely need to accept here the checkpoint location
-    classid = config["classid"] # --- this should result in a catastrophic failure if not provided
+    annotation_class_id = config["annotation_class_id"] # --- this should result in a catastrophic failure if not provided
     tile_size = config["tile_size"] #probably this as well
     magnification = config["magnification"] #probably this as well
-    actor_name = config["actor_name"]
-    print (f"{actor_name=}")
+    actor_name = build_actor_name(annotation_class_id)
+    print (f"Actor name: {actor_name}")
 
     #TODO: all these from project settings
     boost_count = 5
@@ -84,7 +85,7 @@ def train_pred_loop(config):
     num_workers=0 #TODO:set to num of CPUs? or...# of CPUs/ divided by # of classes or something...challenge - one started can't change. maybe set to min(batch_size train, ??) 
     
 
-    dataset=TileDataset(classid, tile_size=tile_size, magnification=magnification,
+    dataset=TileDataset(annotation_class_id,
                         edge_weight=edge_weight, transforms=get_transforms(tile_size), 
                         boost_count=boost_count)
 
@@ -98,8 +99,8 @@ def train_pred_loop(config):
     
     scaler = torch.amp.GradScaler("cuda")
 
-    print(summary(model, (3, tile_size, tile_size))) #TODO: log this
-
+    # print(summary(model, (3, tile_size, tile_size))) #TODO: log this
+    # TODO: why does the above line produce an error: RuntimeError: Input type (torch.cuda.FloatTensor) and weight type (torch.FloatTensor) should be the same
     #--- freeze encoder weights
     for param in model.encoder.parameters():
         param.requires_grad = False
@@ -122,7 +123,7 @@ def train_pred_loop(config):
 
     running_loss = []
     
-    writer = SummaryWriter(log_dir=f"/tmp/{classid}/{datetime.datetime.now().strftime('%b%d_%H-%M-%S')}")
+    writer = SummaryWriter(log_dir=f"/tmp/{annotation_class_id}/{datetime.datetime.now().strftime('%b%d_%H-%M-%S')}")
 
     
 
@@ -132,8 +133,8 @@ def train_pred_loop(config):
     #print ("pre actor get")
     myactor = ray.get_actor(actor_name)
     #print ("post actor get")
-    while not ray.get(myactor.getCloseDown.remote()): 
-        while tiles := getPendingInferenceTiles(classid,batch_size_infer): 
+    while ray.get(myactor.getProcRunningSince.remote()):    # procRunningSince will be None if the DL processing is to be stopped.
+        while tiles := getPendingInferenceTiles(annotation_class_id,batch_size_infer): 
             #print (f"running inference on {len(tiles)}")
             run_inference(device, model, tiles)
             

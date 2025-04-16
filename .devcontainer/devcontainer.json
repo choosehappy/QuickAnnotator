@@ -11,7 +11,7 @@
 		
 	},
 
-	"forwardPorts": [5000, 5173],
+	"forwardPorts": [5000, 5173, 8265, 6006],
 
 	// Add -v tag to mount a data directory
 	"mounts": [

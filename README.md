@@ -22,6 +22,9 @@ docker volume create qadb_data  # Will store the database
 docker volume create qa_data    # Will store example WSIs
 ```
 
+### Database
+By default, QuickAnnotator uses a SQLite database. If you would like to use a postgis database, change the `database_uri` in the `quickannotator/config.py` file. The default SQLite database is stored in the `qadb_data` volume.
+
 
 ### Container
 1. Clone the QuickAnnotator repository and checkout the v2.0 branch:
@@ -99,18 +102,21 @@ Logs are stored within the QuickAnnotator database and may be visualized using G
     grafana/grafana 
     ```
 
-2. **Within the grafana container** run the following command to add a sqlite data source:
+2. If working with sqlite, install the sqlite datasource plugin within the grafana container.
     ```bash
-    grafana cli plugins install frser-sqlite-datasource 
-    ```
-
-3. Restart the grafana container:
-    ```bash
+    docker exec -it grafana grafana-cli plugins install frser-sqlite-datasource
     docker restart grafana
     ```
 
-4. Open the Grafana UI at [http://localhost:3000/dashboard/import]() and login with the default credentials:
-    - Username: admin
-    - Password: admin
+3. Set up the datasource within Grafana [http://localhost:3000/connections/datasources](). 
+    - If you have to log in, use the default grafana credentials:
+        - Username: admin
+        - Password: admin
+    - If you are adding a postgres datasource, set TSL/SSL mode to "disable".
 
-5. Drop the [grafana_dashboard.json](grafana_dashboard.json) file into the upload box and click "Import".
+
+4. Open the grafana import page [http://localhost:3000/dashboard/import]()
+
+5. Drop a dashboard configuration file (e.g., [logs_sqlite.json](./quickannotator/grafana/logs_sqlite.json)) into the upload box and click "Import".
+    > Note: Dashboard configuration files are located in the `quickannotator/grafana` directory. 
+

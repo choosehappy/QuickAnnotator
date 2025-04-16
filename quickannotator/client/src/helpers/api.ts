@@ -141,6 +141,11 @@ export const fetchAnnotationClassById = async (annotation_class_id: number) => {
     return await get<AnnotationClass>(`/class/?${query}`);
 }
 
+// Start processing annotation class
+export const startProcessingAnnotationClass = async (annotation_class_id: number) => {
+    return await post<null, void>(`/class/${annotation_class_id}/startproc`, null);
+};
+
 // Search tile IDs by bounding box
 export const searchTileIds = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number, hasgt=false) => {
     const query = new URLSearchParams({
@@ -222,10 +227,11 @@ export const downloadAnnotations = async (image_ids: number[], annotation_class_
 };
 
 export const predictTile = async (image_id: number, annotation_class_id: number, tile_id: number) => {
-    const requestBody = { 
-        image_id: image_id, 
-        annotation_class_id: annotation_class_id, 
-        tile_id: tile_id 
-    };
-    return await post<{ tile_id: number }, {object_ref: number}>(`/tile/predict`, requestBody);
+    const query = new URLSearchParams({ tile_id: tile_id.toString() });
+    return await post<null, Tile>(`/tile/${image_id}/${annotation_class_id}/predict?${query}`, null);
+}
+
+export const fetchTileBoundingBox = async (image_id: number, annotation_class_id: number, tile_id: number) => {
+    const query = new URLSearchParams({ tile_id: tile_id.toString() });
+    return await get<{ bbox_polygon: Polygon }>(`/tile/${image_id}/${annotation_class_id}/bbox?${query}`);
 }

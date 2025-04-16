@@ -17,3 +17,9 @@ MASK_DILATION = 1
 BASE_PATH = '/opt/QuickAnnotator/quickannotator'
 
 MASK_CLASS_ID = 1
+
+TILE_PRED_EXPIRE = 1 # minutes
+
+MAX_ACTORS_PROCESSING = 1
+
+FLASK_DATETIME_FORMAT = 'iso'

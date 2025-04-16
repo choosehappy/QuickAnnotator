@@ -1,15 +1,19 @@
+import quickannotator.db.models as db_models
 from quickannotator.db import db_session
-import quickannotator.db.models as models
+
+
 import large_image
+
+
 import os
-from datetime import datetime
+
 
 def add_image_by_path(project_id, full_path):
     path = full_path.split("quickannotator/")[1]
     slide = large_image.getTileSource(full_path)
     name = os.path.basename(full_path)
 
-    image = models.Image(project_id=project_id,
+    image = db_models.Image(project_id=project_id,
                     name=name,
                     path=path,
                     base_height=slide.sizeY,
@@ -19,9 +23,9 @@ def add_image_by_path(project_id, full_path):
                     group_id=0,
                     split=0
                     )
-    
+
     db_session.add(image)
 
 
-def get_image_by_id(image_id: int) -> models.Image:
-    return db_session.query(models.Image).get(image_id)
+def get_image_by_id(image_id: int) -> db_models.Image:
+    return db_session.query(db_models.Image).get(image_id)
