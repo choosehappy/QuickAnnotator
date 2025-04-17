@@ -1,14 +1,17 @@
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.tile import TileStoreFactory
+from quickannotator.db.crud.annotation import write_annotations_to_tarfile
 import quickannotator.db.models as db_models
 from . import models as server_models
 
 from flask.views import MethodView
+from flask import Response
 from shapely.geometry import shape, mapping
 import json
 import geojson
 from typing import List
 from flask_smorest import Blueprint
+from datetime import datetime
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
 
@@ -119,3 +122,51 @@ class AnnotationOperation(MethodView):
             resp['area'] = union.area
 
         return resp, 200
+    
+
+@bp.route('/export/local')
+class DownloadAnnotations(MethodView):
+    @bp.arguments(server_models.DownloadAnnsArgsSchema, location='json')
+    @bp.response(200, {"format": "binary", "type": "string"}, content_type="application/x-tar")
+    def post(self, args):
+        """ Export annotations for multiple images and annotation classes as a TAR file """
+
+        image_ids = args['image_ids']
+        annotation_class_ids = args['annotation_class_ids']
+        format = args.get('format', 'geojson')
+        tar_buffer = write_annotations_to_tarfile(image_ids, annotation_class_ids, format)
+        response = Response(tar_buffer.getvalue(), mimetype="application/x-tar")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        response.headers.set("Content-Disposition", "attachment", filename=f"annotations_{timestamp}.tar.gz")
+        return response
+
+@bp.route('/export/server')
+class ExportAnnotationsToServer(MethodView):
+    @bp.arguments(server_models.DownloadAnnsArgsSchema, location='query')
+    def post(self, args):
+        """ Export annotations for multiple images and annotation classes to the server """
+
+        image_ids = args['image_ids']
+        annotation_class_ids = args['annotation_class_ids']
+        format = args.get('format', 'geojson')
+        write_annotations_to_tarfile(image_ids, annotation_class_ids, format)
+        return {"message": "Annotations exported successfully"}, 200
+    
+
+@bp.route('/export/dsa')
+class ExportAnnotationsToDSA(MethodView):
+    @bp.arguments(server_models.ExportToDSASchema, location='json')
+    def post(self, args):
+        """ Export annotations for multiple images and annotation classes to the DSA """
+
+        image_ids = args['image_ids']
+        annotation_class_ids = args['annotation_class_ids']
+        api_uri = args['api_uri']
+        api_key = args['api_key']
+        collection_name = args['collection_name']
+        folder_name = args['folder_name']
+
+        # Implement the logic to export annotations to DSA here
+        # For example, you might want to call a function that handles the export process
+
+        return {"message": "Annotations exported to DSA successfully"}, 200

@@ -173,14 +173,20 @@ const AnnotationExportModal = (props: Props) => {
 
     const onSubmit = (data: FormValues) => {
         console.log("Exporting with data:", data);
-        if (data.selectedOption === ExportOption.LOCAL) {
-            downloadAnnotations([1], [1])
-                .then(() => console.log("Download successful"))
-                .catch((error) => console.error("Download failed:", error));
-        } else if (data.selectedOption === ExportOption.REMOTE) {
-            console.log("Exporting remotely with data:", data);
-        } else if (data.selectedOption === ExportOption.DSA) {
-            console.log("Exporting to DSA with data:", data);
+        switch (Number(data.selectedOption)) {
+            case ExportOption.LOCAL:
+                downloadAnnotations([1], [1])
+                    .then(() => console.log("Download successful"))
+                    .catch((error) => console.error("Download failed:", error));
+                break;
+            case ExportOption.REMOTE:
+                console.log("Exporting remotely with data:", data);
+                break;
+            case ExportOption.DSA:
+                console.log("Exporting to DSA with data:", data);
+                break;
+            default:
+                console.error("Unknown export option:", data.selectedOption);
         }
     };
 

@@ -52,3 +52,21 @@ class PostDryRunArgsSchema(Schema):
     is_gt = fields.Bool(required=True)
     polygon = fields.String(required=True)
     script = fields.Str(required=True)
+
+class DownloadAnnsArgsSchema(Schema):
+    image_ids = fields.List(fields.Int(), required=True)
+    annotation_class_ids = fields.List(fields.Int(), required=True)
+
+    annotations_format = fields.Enum(constants.AnnsFormatEnum, required=False, default=constants.AnnsFormatEnum.GEOJSON)
+    props_format = fields.Enum(constants.PropsFormatEnum, required=False, default=None)
+
+class RemoteSaveAnnsArgsSchema(DownloadAnnsArgsSchema):
+    save_path = fields.Str(required=True)
+
+class ExportToDSASchema(Schema):
+    image_ids = fields.List(fields.Int(), required=True)
+    annotation_class_ids = fields.List(fields.Int(), required=True)
+    api_uri = fields.Str(required=True)
+    api_key = fields.Str(required=True)
+    collection_name = fields.Str(required=True)
+    folder_name = fields.Str(required=True)
