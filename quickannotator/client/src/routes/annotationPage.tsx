@@ -88,7 +88,9 @@ const AnnotationPage = () => {
             <>
                 <Container fluid className="pb-3 bg-dark d-flex flex-column flex-grow-1">
                     <ConfirmationModal show={activeModal === MODAL_DATA.IMPORT_CONF.id} title={MODAL_DATA.IMPORT_CONF.title} description={MODAL_DATA.IMPORT_CONF.description} onConfirm={handleConfirmImport} onCancel={handleCancelImport}/>
-                    <AnnotationExportModal show={activeModal === MODAL_DATA.EXPORT_CONF.id} setActiveModal={setActiveModal} images={[currentImage]}/>
+                    {currentClass && (
+                        <AnnotationExportModal show={activeModal === MODAL_DATA.EXPORT_CONF.id} setActiveModal={setActiveModal} images={[currentImage]} annotationClasses={[currentClass]}/>
+                    )}
                     <Row className="d-flex flex-grow-1">
                         <Col className="d-flex flex-grow-1">
                             <Card className="flex-grow-1">

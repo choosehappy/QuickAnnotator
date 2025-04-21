@@ -1,9 +1,10 @@
 import React from "react";
-import { Modal, Button, Form } from "react-bootstrap";
+import { Modal, Button, Form, ListGroup } from "react-bootstrap";
 import { useForm, FormProvider, useFormContext } from "react-hook-form";
 import { MODAL_DATA } from "../helpers/config";
 import { downloadAnnotations } from "../helpers/api";
 import { AnnotationClass, Image } from "../types";
+import IdNameList from "./IdNameList";
 
 enum ExportOption {
     LOCAL = 0,
@@ -29,13 +30,18 @@ const exportOptionsLabels = {
 
 const savePathPlaceholder = "Default: data/{project_id}/{image_id}/{}";
 
+const listContainerId = "export-selection-container";
+
 interface Props {
     show: boolean;
     setActiveModal: React.Dispatch<React.SetStateAction<number | null>>;
     images: Image[];
+    annotationClasses: AnnotationClass[];
 }
 
 interface FormValues {
+    selectedImages: number[];
+    selectedClasses: number[];
     selectedOption: ExportOption;
     annotationsFormat: ExportFormat;
     propsFormat: MetricsFormat;
@@ -173,9 +179,12 @@ const AnnotationExportModal = (props: Props) => {
 
     const onSubmit = (data: FormValues) => {
         console.log("Exporting with data:", data);
+        const imageIds = props.images.map((d: Image) => d.id);
+        const annotationClassIds = props.annotationClasses.map((d: AnnotationClass) => d.id);
+
         switch (Number(data.selectedOption)) {
             case ExportOption.LOCAL:
-                downloadAnnotations([1], [1])
+                downloadAnnotations(imageIds, annotationClassIds)
                     .then(() => console.log("Download successful"))
                     .catch((error) => console.error("Download failed:", error));
                 break;
@@ -202,6 +211,13 @@ const AnnotationExportModal = (props: Props) => {
             </Modal.Header>
             <Modal.Body>
                 <p>{MODAL_DATA.EXPORT_CONF.description}</p>
+                <hr />
+                <div id={`${listContainerId}-images`}>
+                    <IdNameList items={props.images} containerId={`${listContainerId}-images`} />
+                </div>
+                <div id={`${listContainerId}-classes`}>
+                    <IdNameList items={props.annotationClasses} containerId={`${listContainerId}-classes`} />
+                </div>
                 <hr />
                 <FormProvider {...methods}>
                     <form onSubmit={methods.handleSubmit(onSubmit)}>

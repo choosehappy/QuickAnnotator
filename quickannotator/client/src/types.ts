@@ -1,13 +1,33 @@
 import {Point, Polygon, Feature} from "geojson"
 import { TILE_STATUS } from "./helpers/config";
 
-export interface AnnotationClass {
+export interface IdNameElement {
     id: number;
-    project_id: number;
     name: string;
+}
+
+export interface Project extends IdNameElement{
+    description: string;
+    date: Date;
+}
+
+export interface AnnotationClass extends IdNameElement {
+    project_id: number;
     color: string;
     work_mag: number;
     work_tilesize: number;
+    date: Date;
+}
+
+export interface Image extends IdNameElement{
+    project_id: number;
+    path: string;
+    base_height: number;
+    base_width: number;
+    dz_tilesize: number;
+    embeddingCoord: string;
+    group_id: number;
+    split: number;
     date: Date;
 }
 
@@ -80,26 +100,7 @@ export interface PutAnnArgs {
     is_gt: boolean;
 }
 
-export interface Image {
-    id: number;
-    project_id: number;
-    name: string;
-    path: string;
-    base_height: number;
-    base_width: number;
-    dz_tilesize: number;
-    embeddingCoord: string;
-    group_id: number;
-    split: number;
-    date: Date;
-}
 
-export interface Project {
-    id: number;
-    name: string;
-    description: string;
-    date: Date;
-}
 
 export interface TileIds {
     tile_ids: number[];

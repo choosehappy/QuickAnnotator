@@ -193,22 +193,23 @@ export const getAnnotationsWithinPolygon = async (image_id: number, annotation_c
     return await post<QueryAnnsByPolygonArgs, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/withinpoly`, requestBody);
 }
 
-export const downloadAnnotations = async (image_ids: number[], annotation_class_ids: number[], format: string = 'geojson', metrics_export_format?: string) => {
-    const query = new URLSearchParams({
-        image_ids: image_ids.join(','),
-        annotation_class_ids: annotation_class_ids.join(','),
-        format: format,
-    });
+export const downloadAnnotations = async (image_ids?: number[], annotation_class_ids?: number[], annotations_format: string = 'GEOJSON', props_format?: string | null) => {
+    const requestBody = {
+        image_ids: image_ids || [],
+        annotation_class_ids: annotation_class_ids || [],
+        annotations_format: annotations_format,
+    };
 
-    if (metrics_export_format) {
-        query.append('metrics_export_format', metrics_export_format);
+    if (props_format) {
+        requestBody['props_format'] = props_format;
     }
 
-    const response = await fetch(`${API_URL}/annotation/export/tar?${query.toString()}`, {
-        method: 'GET',
+    const response = await fetch(`${API_URL}/annotation/export/local`, {
+        method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
+        body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -219,7 +220,7 @@ export const downloadAnnotations = async (image_ids: number[], annotation_class_
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'annotations.zip';
+    link.download = `annotations_${new Date().toISOString().replace(/[:.]/g, '-')}.tar.gz`;
     document.body.appendChild(link);
     link.click();
     link.remove();

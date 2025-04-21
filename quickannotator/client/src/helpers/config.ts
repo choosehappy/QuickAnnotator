@@ -44,3 +44,5 @@ export const MODAL_DATA: { [key: string]: ModalData } = {
 export const POPOVER_DATA = {
 
 }
+
+export const TISSUE_MASK_CLASS_ID = 1;
