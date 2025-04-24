@@ -1,27 +1,11 @@
 import * as React from 'react';
 import {Column, GridOption, SlickgridReactInstance, SlickgridReact, } from "slickgrid-react";
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
-import { IdNameElement } from "../types.ts";
+import { DataItem, IdNameElement } from "../types.ts";
 
 interface Props {
-    items: IdNameElement[];
+    items: DataItem[];
     containerId: string;
-}
-
-class DataItem {
-    id: number;
-    name: string;
-    selected: boolean;
-
-    constructor(elem: IdNameElement) {
-        this.id = elem.id;
-        this.name = elem.name;
-        this.selected = true;
-    }
-
-    toggleSelected() {
-        this.selected = !this.selected;
-    }
 }
 
 export default class IdNameList extends React.Component<Props, any> {
@@ -39,26 +23,13 @@ export default class IdNameList extends React.Component<Props, any> {
     componentDidMount() {
         // define the grid options & columns and then create the grid itself
         this.defineGrid();
-    }
 
-    componentDidUpdate(prevProps: Props) {
-        this.checkItems(prevProps);
-    }
-
-    checkItems(prevProps: Props) {
-        if (prevProps.items !== this.props.items) {
-            this.state.reactGrid?.gridService.resetGrid();
-            this.setState(() => ({
-                ...this.state,
-                dataset: this.props.items.map((item) => new DataItem(item)),
-            }));
-        }
     }
 
     toggleCompletedProperty(item: any) {    // https://github.com/ghiscoding/slickgrid-react/blob/master/src/examples/slickgrid/Example2.tsx
         // toggle property
         if (typeof item === 'object') {
-          item.completed = !item.completed;
+          item.selected = !item.selected;
         this.state.reactGrid?.gridService.updateItemById(item.id, item, { highlightRow: false });
         }
     }
@@ -92,9 +63,9 @@ export default class IdNameList extends React.Component<Props, any> {
                 minWidth: 30, 
                 maxWidth: 100, 
                 resizable: false, 
-                onCellClick: (e, args) => {
-                    this.toggleCompletedProperty(args?.dataContext);
-                }
+                // onCellClick: (e, args) => {
+                //     this.toggleCompletedProperty(args?.dataContext);
+                // }
             },
         ];
 
@@ -115,7 +86,7 @@ export default class IdNameList extends React.Component<Props, any> {
             ...this.state,
             columnDefinitions: columns,
             gridOptions,
-            dataset: [],
+            dataset: this.props.items,
         }));
 
     }

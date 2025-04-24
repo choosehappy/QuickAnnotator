@@ -1,17 +1,20 @@
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.tile import TileStoreFactory
-from quickannotator.db.crud.annotation import write_annotations_to_tarfile
+from quickannotator.db.crud.annotation import write_annotations_to_tarfile, stream_annotations_tar
 import quickannotator.db.models as db_models
 from . import models as server_models
+from quickannotator import constants
+from quickannotator.db.crud.annotation import build_annotation_table_name
 
 from flask.views import MethodView
-from flask import Response
 from shapely.geometry import shape, mapping
 import json
 import geojson
 from typing import List
 from flask_smorest import Blueprint
 from datetime import datetime
+import os
+import numpy as np
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
 
@@ -123,22 +126,39 @@ class AnnotationOperation(MethodView):
 
         return resp, 200
     
+@bp.route('/download/<int:image_id>/<int:annotation_class_id>/<str:format>')
+class DownloadAnnotations(MethodView):
+    def get(self, image_id, annotation_class_id, format):
+        """   download a tar archive corresponding to a single image and annotation class   """
+        # check if a tar file in the correct format already exists within the directory structure.
 
 @bp.route('/export/local')
 class DownloadAnnotations(MethodView):
     @bp.arguments(server_models.DownloadAnnsArgsSchema, location='json')
-    @bp.response(200, {"format": "binary", "type": "string"}, content_type="application/x-tar")
     def post(self, args):
-        """ Export annotations for multiple images and annotation classes as a TAR file """
+        """ Export annotations for multiple images and annotation classes as a TAR file with progress updates """
 
-        image_ids = args['image_ids']
-        annotation_class_ids = args['annotation_class_ids']
-        format = args.get('format', 'geojson')
-        tar_buffer = write_annotations_to_tarfile(image_ids, annotation_class_ids, format)
-        response = Response(tar_buffer.getvalue(), mimetype="application/x-tar")
+        image_ids = np.array(args['image_ids'])
+        annotation_class_ids = np.array(args['annotation_class_ids'])
+        annotations_format = args.get('format', 'geojson')
+
+        # Compute the cartesian product of image_ids and annotation_class_ids
+        image_ids_grid, annotation_class_ids_grid = np.meshgrid(image_ids, annotation_class_ids, indexing='ij')
+        image_class_pairs = list(zip(image_ids_grid.ravel(), annotation_class_ids_grid.ravel()))
+
+        tablenames = [build_annotation_table_name(image_id, annotation_class_id, True) for image_id, annotation_class_id in image_class_pairs]
+
+        # Use a generator-based function to stream the tarfile with progress updates
+
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        response.headers.set("Content-Disposition", "attachment", filename=f"annotations_{timestamp}.tar.gz")
-        return response
+        headers = {
+            "Content-Disposition": f"attachment; filename=annotations_{timestamp}.tar",
+            "Content-Type": "application/octet-stream",
+        }
+
+        # Return a streaming response with progress updates
+        return Response(stream_annotations_tar(tablenames), headers=headers, direct_passthrough=True)
 
 @bp.route('/export/server')
 class ExportAnnotationsToServer(MethodView):

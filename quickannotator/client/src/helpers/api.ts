@@ -193,16 +193,20 @@ export const getAnnotationsWithinPolygon = async (image_id: number, annotation_c
     return await post<QueryAnnsByPolygonArgs, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/withinpoly`, requestBody);
 }
 
-export const downloadAnnotations = async (image_ids?: number[], annotation_class_ids?: number[], annotations_format: string = 'GEOJSON', props_format?: string | null) => {
-    const requestBody = {
-        image_ids: image_ids || [],
-        annotation_class_ids: annotation_class_ids || [],
-        annotations_format: annotations_format,
-    };
+export const downloadAnnotations = async (
+    image_ids: number[],
+    annotation_class_ids: number[],
+    onProgress: (progress: number) => void,
+    annotations_format: string = 'GEOJSON',
+    props_format: string = 'TSV',
 
-    if (props_format) {
-        requestBody['props_format'] = props_format;
-    }
+) => {
+    const requestBody = {
+        image_ids: image_ids,
+        annotation_class_ids: annotation_class_ids,
+        annotations_format: annotations_format,
+        props_format: props_format || null,
+    };
 
     const response = await fetch(`${API_URL}/annotation/export/local`, {
         method: 'POST',
@@ -216,7 +220,10 @@ export const downloadAnnotations = async (image_ids?: number[], annotation_class
         throw new Error(`Failed to download annotations: ${response.statusText}`);
     }
 
-    const blob = await response.blob();
+    // Use the helper function to handle progress tracking
+    const blob = await streamWithProgress(response, onProgress);
+
+    // Create a download link for the file
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -236,3 +243,35 @@ export const fetchTileBoundingBox = async (image_id: number, annotation_class_id
     const query = new URLSearchParams({ tile_id: tile_id.toString() });
     return await get<{ bbox_polygon: Polygon }>(`/tile/${image_id}/${annotation_class_id}/bbox?${query}`);
 }
+
+export const streamWithProgress = async (response: Response, onProgress: (progress: number) => void): Promise<Blob> => {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let receivedLength = 0;
+
+    const chunks = [];
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        receivedLength += chunk.length;
+
+        // Check if the chunk contains progress updates
+        const progressMatch = chunk.match(/data:\s*({.*})/);
+        if (progressMatch) {
+            const progressData = JSON.parse(progressMatch[1]);
+            if (progressData.progress) {
+                // Call the onProgress callback with the progress value
+                onProgress(progressData.progress);
+            }
+        }
+
+        // Store the chunk for later use (e.g., assembling the tar file)
+        chunks.push(chunk);
+    }
+
+    // Combine all chunks into a single Blob or process the tar file
+    const blob = new Blob(chunks, { type: 'application/octet-stream' });
+    return blob;
+};

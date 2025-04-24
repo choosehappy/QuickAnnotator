@@ -3,7 +3,7 @@ import { Modal, Button, Form, ListGroup } from "react-bootstrap";
 import { useForm, FormProvider, useFormContext } from "react-hook-form";
 import { MODAL_DATA } from "../helpers/config";
 import { downloadAnnotations } from "../helpers/api";
-import { AnnotationClass, Image } from "../types";
+import { AnnotationClass, Image, DataItem } from "../types";
 import IdNameList from "./IdNameList";
 
 enum ExportOption {
@@ -35,13 +35,13 @@ const listContainerId = "export-selection-container";
 interface Props {
     show: boolean;
     setActiveModal: React.Dispatch<React.SetStateAction<number | null>>;
-    images: Image[];
-    annotationClasses: AnnotationClass[];
+    images: DataItem[];
+    annotationClasses: DataItem[];
 }
 
 interface FormValues {
-    selectedImages: number[];
-    selectedClasses: number[];
+    selectedImages: number[];   // TODO: remove
+    selectedClasses: number[];  // TODO: remove
     selectedOption: ExportOption;
     annotationsFormat: ExportFormat;
     propsFormat: MetricsFormat;
@@ -168,7 +168,14 @@ const ExportOptions = () => {
     );
 };
 
+function updateProgressBar(progress: number) {
+    console.log(`Progress: ${progress}%`);
+}
+
 const AnnotationExportModal = (props: Props) => {
+    const [selectedImages, setSelectedImages] = React.useState<number[]>([]);
+    const [selectedClasses, setSelectedClasses] = React.useState<number[]>([]);
+
     const methods = useForm<FormValues>({
         defaultValues: {
             selectedOption: ExportOption.LOCAL,
@@ -179,12 +186,21 @@ const AnnotationExportModal = (props: Props) => {
 
     const onSubmit = (data: FormValues) => {
         console.log("Exporting with data:", data);
-        const imageIds = props.images.map((d: Image) => d.id);
-        const annotationClassIds = props.annotationClasses.map((d: AnnotationClass) => d.id);
+        const imageIds = props.images.filter((item: DataItem) => item.selected).map((item: DataItem) => item.id);
+        const annotationClassIds = props.annotationClasses.filter((item: DataItem) => item.selected).map((item: DataItem) => item.id);
+
+        if (imageIds.length === 0) {
+            console.error("No images selected for export");
+            return;
+        }
+        if (annotationClassIds.length === 0) {
+            console.error("No annotation classes selected for export");
+            return;
+        }
 
         switch (Number(data.selectedOption)) {
             case ExportOption.LOCAL:
-                downloadAnnotations(imageIds, annotationClassIds)
+                downloadAnnotations(imageIds, annotationClassIds, updateProgressBar, undefined, undefined)
                     .then(() => console.log("Download successful"))
                     .catch((error) => console.error("Download failed:", error));
                 break;

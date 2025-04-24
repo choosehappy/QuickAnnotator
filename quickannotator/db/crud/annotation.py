@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Query
 import quickannotator.db.models as db_models
+import quickannotator.constants as constants
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
 from quickannotator.db import Base, db_session
 from quickannotator.db.crud.misc import compute_custom_metrics
@@ -17,15 +18,14 @@ from typing import List
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Query
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
-from quickannotator.constants import TileStatus
 from quickannotator.db import db_session, Base
 import quickannotator.db.models as models
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
-from sqlalchemy.ext.declarative import declarative_base
 from quickannotator.db.logging import qa_logger
 import geojson
 from io import BytesIO
 import tarfile
+import json
 
 
 def get_annotation_query(model, scale_factor: float=1.0) -> Query:
@@ -88,42 +88,38 @@ def anns_to_feature_collection(annotations: List[models.Annotation]) -> geojson.
     
     return geojson.FeatureCollection(features)
 
-
-def write_annotations_to_tarfile(image_ids, annotation_class_ids, format) -> BytesIO:
-    """
-    Writes the annotations for the given image IDs and annotation class IDs to a tarfile.
-
-    Args:
-        image_ids (List[int]): A list of image IDs.
-        annotation_class_ids (List[int]): A list of annotation class IDs.
-
-    Returns:
-        BytesIO: A BytesIO object containing the tarfile data.
-    """
-    buffer = BytesIO()
-    with tarfile.open(fileobj=buffer, mode='w') as tar:
-        for image_id in image_ids:
-            for annotation_class_id in annotation_class_ids:
-                table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=True)
+# TODO: Remove this function and use the one in AnnotationStore instead.
+def stream_annotations_tar(tablenames: List[str]):
+    with BytesIO() as tar_buffer:
+        with tarfile.open(fileobj=tar_buffer, mode='w') as tar:
+            for i, table_name in enumerate(tablenames):
                 try:
+                    # Attempt to create a dynamic model for the table
                     model = create_dynamic_model(table_name)
-                except sqlalchemy.exc.NoSuchTableError:
-                    qa_logger.info(f"Failed to find annotation table during export. Table {table_name} does not exist. Skipping.")
-                    continue
-                else:
                     annotations = get_annotation_query(model).all()
                     feature_collection = anns_to_feature_collection(annotations)
                     feature_collection_json = geojson.dumps(feature_collection)
-                    
-                    # Create a tarinfo object
+
+                    # Create a tarinfo object for the GeoJSON file
                     tarinfo = tarfile.TarInfo(name=f"{table_name}.geojson")
                     tarinfo.size = len(feature_collection_json)
-                    
-                    # Add the file to the tar archive
+
+                    # Add the GeoJSON file to the tar archive
                     tar.addfile(tarinfo, BytesIO(feature_collection_json.encode('utf-8')))
-    
-    buffer.seek(0)
-    return buffer
+                except sqlalchemy.exc.NoSuchTableError:
+                    qa_logger.info(f"Table {table_name} does not exist. Skipping.")
+                    continue
+                except Exception as e:
+                    qa_logger.error(f"Error processing table {table_name}: {e}")
+                    continue
+
+                # Flush the tar buffer and yield its content in chunks
+                tar_buffer.seek(0)
+                while chunk := tar_buffer.read(constants.STREAMING_CHUNK_SIZE):  # Read in 8KB chunks
+                    yield chunk
+                tar_buffer.seek(0)  # Reset buffer position
+                tar_buffer.truncate(0)  # Clear the buffer after yielding
+
 
 
 class AnnotationStore:
@@ -157,6 +153,7 @@ class AnnotationStore:
             self.model = model
         else:
             self.model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt))
+
 
     # CREATE
     # TODO: consider adding optional parameter to allow tileids to be passed in.
@@ -202,23 +199,48 @@ class AnnotationStore:
         result = get_annotation_query(self.model, 1/self.scaling_factor).filter_by(id=annotation_id).first()
         return result
 
+
     def get_annotations_by_ids(self, annotation_ids: List[int]) -> List[db_models.Annotation]:
         result = get_annotation_query(self.model, 1/self.scaling_factor).filter(self.model.id.in_(annotation_ids)).all()
         return result
+
 
     def get_annotations_for_tiles(self, tile_ids: List[int]) -> List[db_models.Annotation]:
         result = get_annotation_query(self.model, 1/self.scaling_factor).filter(self.model.tile_id.in_(tile_ids)).all()
         return result
     
+
     def get_all_annotations(self) -> List[models.Annotation]:
         result = get_annotation_query(self.model, 1/self.scaling_factor).all()
         return result
+
 
     def get_annotations_within_poly(self, polygon: BaseGeometry) -> List[db_models.Annotation]:
         scaled_polygon = self.scale_polygon(polygon, self.scaling_factor)
         # NOTE: Sqlite may not use the spatial index here.
         result = get_annotation_query(self.model, 1/self.scaling_factor).filter(func.ST_Intersects(self.model.polygon, func.ST_GeomFromText(scaled_polygon.wkt, 0))).all()
         return result
+    
+
+    def export_all_annotations_to_tar(self, tarname: str):
+        """
+        Saves all annotations to a tar archive.
+
+        Args:
+            tarname (str): The name of the tar file to save the annotations to.
+        """
+        with tarfile.open(tarname, mode='w') as tar:
+            annotations = self.get_all_annotations()
+            feature_collection = anns_to_feature_collection(annotations)
+            feature_collection_json = geojson.dumps(feature_collection)
+
+            # Create a tarinfo object for the GeoJSON file
+            tarinfo = tarfile.TarInfo(name=f"{self.get_annotation_table_name()}.geojson")
+            tarinfo.size = len(feature_collection_json)
+
+            # Add the GeoJSON file to the tar archive
+            tar.addfile(tarinfo, BytesIO(feature_collection_json.encode('utf-8')))
+
 
     # UPDATE
     def update_annotation(self, annotation_id: int, polygon: BaseGeometry) -> db_models.Annotation:
@@ -257,6 +279,7 @@ class AnnotationStore:
         db_session.commit()
         return result
 
+
     def delete_annotations(self, annotation_ids: List[int]) -> List[int]:
         """
         Deletes multiple annotations by their IDs.
@@ -270,6 +293,7 @@ class AnnotationStore:
         result = db_session.execute(stmt).scalars().all()
         db_session.commit()
         return result
+
 
     def delete_annotations_by_tile(self, tile_id: int) -> List[int]:
         """
@@ -285,9 +309,18 @@ class AnnotationStore:
         db_session.commit()
         return result
 
+
     def delete_all_annotations(self):
         db_session.query(self.model).delete()
 
+
+    # MISC
+    def get_annotation_table_name(self) -> str:
+        """
+        Returns the name of the annotation table.
+        """
+        return build_annotation_table_name(self.image_id, self.annotation_class_id, is_gt=self.is_gt)
+    
 
     @staticmethod
     def create_annotation_table(image_id: int, annotation_class_id: int, is_gt: bool):
@@ -296,7 +329,6 @@ class AnnotationStore:
         Base.metadata.create_all(bind=db_session.bind, tables=[table])
 
         return create_dynamic_model(table_name)
-
 
 
     @staticmethod

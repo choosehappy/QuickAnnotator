@@ -1,5 +1,6 @@
 import {Point, Polygon, Feature} from "geojson"
 import { TILE_STATUS } from "./helpers/config";
+import { IdNameElement } from "./types";
 
 export interface IdNameElement {
     id: number;
@@ -166,4 +167,19 @@ export interface ModalData {
     id: number;
     title: string;
     description: string;
+}
+export class DataItem {
+    id: number;
+    name: string;
+    selected: boolean;
+
+    constructor(elem: IdNameElement) {
+        this.id = elem.id;
+        this.name = elem.name;
+        this.selected = true;
+    }
+
+    toggleSelected() {
+        this.selected = !this.selected;
+    }
 }
