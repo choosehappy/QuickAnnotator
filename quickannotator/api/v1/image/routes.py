@@ -45,7 +45,7 @@ class Image(MethodView):
     def delete(self, args):
         """     delete an Image   """
 
-        db_session.query(db_models.Image).filter(id=args['image_id']).delete()
+        db_session.query(db_models.Image).filter(db_models.Image.id == args['image_id']).delete()
         return 204
 
 #################################################################################
