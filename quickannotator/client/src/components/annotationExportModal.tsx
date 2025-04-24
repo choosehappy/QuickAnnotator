@@ -173,9 +173,6 @@ function updateProgressBar(progress: number) {
 }
 
 const AnnotationExportModal = (props: Props) => {
-    const [selectedImages, setSelectedImages] = React.useState<number[]>([]);
-    const [selectedClasses, setSelectedClasses] = React.useState<number[]>([]);
-
     const methods = useForm<FormValues>({
         defaultValues: {
             selectedOption: ExportOption.LOCAL,
