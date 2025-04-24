@@ -1,6 +1,6 @@
 // Generic response type
 type ApiResponse<T> = Promise<T>;
-import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, TileIds, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileIdsByPolygonArgs } from "../types.ts";
+import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, TileIds, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileIdsByPolygonArgs, PostAnnClassArgs } from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
 
 interface FetchOptions extends RequestInit {
@@ -144,6 +144,17 @@ export const fetchAnnotationClassById = async (annotation_class_id: number) => {
 // Start processing annotation class
 export const startProcessingAnnotationClass = async (annotation_class_id: number) => {
     return await post<null, void>(`/class/${annotation_class_id}/startproc`, null);
+};
+
+export const createAnnotationClass = async (project_id: number, name: string, color: string, work_mag: number) => {
+    const requestBody: PostAnnClassArgs = {
+        project_id,
+        name,
+        color,
+        work_mag,
+    };
+
+    return await post<PostAnnClassArgs, { annotation_class_id: number }>('/class/', requestBody);
 };
 
 // Search tile IDs by bounding box

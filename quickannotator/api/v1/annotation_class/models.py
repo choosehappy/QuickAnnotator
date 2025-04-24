@@ -16,7 +16,7 @@ class PostAnnClassArgsSchema(Schema):
     color = fields.Str(required=True)
     work_mag = fields.Int(required=True)
 
-class PutAnnClassArgsSchema(Schema):
+class PutAnnClassArgsSchema(GetAnnClassArgsSchema):
     name = fields.Str(required=False)
     color = fields.Str(required=False)
 

@@ -45,6 +45,7 @@ def test_client():
                 raise
         db_session.remove()
 
+
 @pytest.fixture(scope="function")
 def db_session():
 

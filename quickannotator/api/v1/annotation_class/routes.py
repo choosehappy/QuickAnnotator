@@ -2,7 +2,7 @@ from . import models as server_models
 from flask import abort
 import quickannotator.db.models as db_models
 from quickannotator.db import db_session
-from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
+from quickannotator.db.crud.annotation_class import get_annotation_class_by_id, insert_annotation_class, put_annotation_class
 from quickannotator.dl.ray_jackson import start_processing
 
 from flask.views import MethodView
@@ -30,21 +30,24 @@ class AnnotationClass(MethodView):
     def post(self, args):
         """     create a new AnnotationClass   """
 
-        annotation_class = db_models.AnnotationClass(project_id=args['project_id'],
-                                          name=args['name'],
-                                          color=args['color'],
-                                          work_mag=args['work_mag'],
-                                          work_tilesize=2048
-                                          )
-        db_session.add(annotation_class)
+        annotation_class = insert_annotation_class(
+            project_id=args['project_id'],
+            name=args['name'],
+            color=args['color'],
+            work_mag=args['work_mag'],
+            work_tilesize=2048)
+        
         return {'annotation_class_id':annotation_class.id}, 200
 
 
     @bp.arguments(server_models.PutAnnClassArgsSchema, location='query')
-    @bp.response(201, description="AnnotationClass updated")
+    @bp.response(201, server_models.AnnClassRespSchema, description="AnnotationClass updated")
     def put(self, args):
         """     update an existing AnnotationClass      """
-        return 201
+        annotation_class = put_annotation_class(args['annotation_class_id'],
+                             name=args['name'],
+                             color=args['color'])
+        return annotation_class, 201
 
     @bp.arguments(server_models.GetAnnClassArgsSchema, location='query')
     @bp.response(204, description="AnnotationClass deleted")

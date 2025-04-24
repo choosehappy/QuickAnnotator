@@ -8,7 +8,7 @@ export interface AnnotationClass {
     color: string;
     work_mag: number;
     work_tilesize: number;
-    date: Date;
+    datetime: Date;
 }
 
 export interface AnnotationResponse {
@@ -78,6 +78,13 @@ export interface PutAnnArgs {
     polygon: string;
     annotation_id: number;
     is_gt: boolean;
+}
+
+export interface PostAnnClassArgs {
+    name: string;
+    color: string;
+    work_mag: number;
+    project_id: number;
 }
 
 export interface Image {
