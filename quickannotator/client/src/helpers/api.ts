@@ -214,3 +214,14 @@ export const fetchTileBoundingBox = async (image_id: number, annotation_class_id
     const query = new URLSearchParams({ tile_id: tile_id.toString() });
     return await get<{ bbox_polygon: Polygon }>(`/tile/${image_id}/${annotation_class_id}/bbox?${query}`);
 }
+
+// Fetch a new color for a project
+export const fetchNewColor = async (project_id: number) => {
+    return await get<{ color: string }>(`/class/color/${project_id}`);
+};
+
+// Fetch available magnifications
+export const fetchMagnifications = async () => {
+    return await get<{ magnifications: number[] }>('/class/magnifications');
+};
+

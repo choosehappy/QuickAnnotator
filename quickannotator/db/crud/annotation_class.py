@@ -32,3 +32,9 @@ def put_annotation_class(annotation_class_id, name: str=None, color: str=None):
 
     db_session.commit()
     return annotation_class
+
+def search_annotation_class_by_name(name: str):
+    return db_session.query(db_models.AnnotationClass).filter(db_models.AnnotationClass.name == name).all()
+
+def search_annotation_class_by_project_id(project_id: int):
+    return db_session.query(db_models.AnnotationClass).filter(db_models.AnnotationClass.project_id == project_id).all()

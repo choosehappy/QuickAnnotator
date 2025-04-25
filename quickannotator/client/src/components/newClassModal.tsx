@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { AnnotationClass, ModalData, Project } from '../types';
-import { createAnnotationClass, fetchAnnotationClasses } from '../helpers/api';
+import { createAnnotationClass, fetchAnnotationClasses, fetchMagnifications, fetchNewColor } from '../helpers/api';
 import { useForm, FormProvider, useFormContext } from "react-hook-form";
 
 interface NewClassModalProps {
@@ -13,11 +13,29 @@ interface NewClassModalProps {
 }
 
 const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) => {
+    const [magOptions, setMagOptions] = useState<number[]>([]);
+    const [defaultColor, setDefaultColor] = useState<string>("#000000");
     // TODO: use react-query for managing API responses.
     useEffect(() => {
-        fetchAnnotationClasses().then((resp) => {
-            props.setAnnotationClasses(resp.data);
+        // Fetch suggested magnification options from the server
+        fetchMagnifications().then((resp) => {
+            if (resp.status !== 200) {
+                console.error("Error fetching magnification options:", resp);
+                return;
+            }
+            setMagOptions(resp.data.magnifications);
         });
+
+        fetchNewColor(props.currentProject.id).then((resp) => {
+            if (resp.status !== 200) {
+                console.error("Error fetching new color:", resp);
+                return;
+            }
+            setDefaultColor(resp.data.color);
+        });
+
+        // Fetch suggested color from the server
+
     }, []);
 
     function onSubmit() {
@@ -48,16 +66,17 @@ const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) 
                         </Form.Group>
                         <Form.Group controlId="formBasicColor">
                             <Form.Label>Color</Form.Label>
-                            <Form.Control type="color" defaultValue="#000000" />
+                            <Form.Control type="color" defaultValue={defaultColor} />
                         </Form.Group>
                         <Form.Group controlId="formBasicMagnification">
                             <Form.Label>Magnification</Form.Label>
                             <Form.Control as="select" defaultValue="">
                                 <option value="" disabled>Select magnification</option>
-                                <option value="10x">10x</option>
-                                <option value="20x">20x</option>
-                                <option value="40x">40x</option>
-                                <option value="100x">100x</option>
+                                {magOptions.map((option, index) => (
+                                    <option key={index} value={option}>
+                                        {option}x
+                                    </option>
+                                ))}
                             </Form.Control>
                         </Form.Group>
                     </Form>

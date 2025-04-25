@@ -1,3 +1,5 @@
+from quickannotator import constants
+from quickannotator.db.colors import ColorPalette
 from . import models as server_models
 from flask import abort
 import quickannotator.db.models as db_models
@@ -85,3 +87,24 @@ class DLActor(MethodView):
             return {}, 200
 
 ####################################################################################################
+
+@bp.route('/color/<int:project_id>')
+class NewColor(MethodView):
+    @bp.response(200, description="New color generated")
+    def get(self, project_id):
+        """     generate a new color for the current project     """
+        try:
+            color_palette = ColorPalette(project_id)
+            new_color = color_palette.get_unused_color()
+            return {'color': new_color}, 200
+        except ValueError as e:
+            abort(400, message=str(e))
+        except KeyError as e:
+            abort(400, message=str(e))
+
+@bp.route('/magnifications')
+class Magnifications(MethodView):
+    @bp.response(200, description="Available magnifications")
+    def get(self):
+        """     get the available magnifications     """
+        return {'magnifications': constants.MAGNIFICATION_OPTIONS}, 200
