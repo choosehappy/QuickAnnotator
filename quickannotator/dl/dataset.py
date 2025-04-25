@@ -6,9 +6,10 @@ from torch.utils.data import IterableDataset
 
 from sqlalchemy import  select, update, case, func
 
+from build.lib.quickannotator.db.crud.annotation import create_dynamic_model
 from quickannotator.db import get_session
 from quickannotator.db.models import Tile
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from build.lib.quickannotator.db.crud.annotation import build_annotation_table_name
 from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
 from datetime import datetime
 

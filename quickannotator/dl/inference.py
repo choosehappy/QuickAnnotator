@@ -8,9 +8,10 @@ import shapely.affinity
 
 from sqlalchemy import func, select, update
 
+from build.lib.quickannotator.db.crud.annotation import create_dynamic_model
 from quickannotator.db.models import Tile
 from quickannotator.db import get_session
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from build.lib.quickannotator.db.crud.annotation import build_annotation_table_name
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 
 from quickannotator.constants import TileStatus

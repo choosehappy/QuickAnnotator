@@ -1,9 +1,10 @@
 from sqlalchemy.orm import Query
+from build.lib.quickannotator.db.crud.annotation import create_dynamic_model
 import quickannotator.db.models as db_models
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
 from quickannotator.db import Base, db_session
 from quickannotator.db.crud.misc import compute_custom_metrics
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from build.lib.quickannotator.db.crud.annotation import build_annotation_table_name
 
 
 import sqlalchemy

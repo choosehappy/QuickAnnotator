@@ -4,6 +4,7 @@ from shapely.geometry import Polygon, shape
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy import case, update
+from build.lib.quickannotator.db.crud.annotation import create_dynamic_model
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
 from quickannotator.constants import MASK_CLASS_ID, MASK_DILATION, TileStatus
 import quickannotator.constants as constants
@@ -20,7 +21,7 @@ import cv2
 from typing import List
 from abc import ABC
 
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from build.lib.quickannotator.db.crud.annotation import build_annotation_table_name
 
 
 class TileStore(ABC):   # Only an ABC to prevent instantiation
