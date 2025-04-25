@@ -1,34 +1,41 @@
 import Card from 'react-bootstrap/Card';
-import { useEffect, useState } from "react";
-import { ListGroup } from "react-bootstrap";
+import { useEffect } from "react";
+import { Button, ListGroup } from "react-bootstrap";
 import { AnnotationClass } from "../types.ts";
-import { fetchAnnotationClasses, fetchAnnotationClassById } from "../helpers/api.ts";
+import { Plus } from 'react-bootstrap-icons';
+import { MODAL_DATA } from '../helpers/config.ts';
 
 interface Props {
     currentClass: AnnotationClass | null;
     setCurrentClass: (currentClass: AnnotationClass) => void;
+    setActiveModal: (activeModal: number | null) => void;
+    classes: AnnotationClass[];
+    setClasses: (classes: AnnotationClass[]) => void;
 }
 
-
 const ClassesPane = (props: Props) => {
-    const [classes, setClasses] = useState<AnnotationClass[]>([]);
-    useEffect(() => {
-        fetchAnnotationClasses().then((resp) => {
-            setClasses(resp.data);
-        })
-        fetchAnnotationClassById(2).then((resp) => {
-            props.setCurrentClass(resp.data);
-        });
-    }, []);
-
     return (
         <Card>
-            <Card.Header as={'h5'}>Classes</Card.Header>
+            <Card.Header as={'h5'} className='d-flex justify-content-between align-items-center'>
+                Classes
+                <Button variant="secondary" className='btn btn-primary btn-sm'>
+                    <Plus onClick={() => props.setActiveModal(MODAL_DATA.ADD_CLASS.id)}/>
+                </Button>
+            </Card.Header>
             <Card.Body>
-                <ListGroup>
-                    {classes.map((c) => {
+                <ListGroup 
+                    defaultActiveKey={props.currentClass?.id} 
+                    style={{ maxHeight: '300px', overflowY: 'auto' }}
+                >
+                    {props.classes.map((c) => {
                             return (
-                                <ListGroup.Item key={c.id} onClick={() => {props.setCurrentClass(c)}}>{c.name}</ListGroup.Item>
+                                <ListGroup.Item 
+                                    key={c.id}
+                                    action onClick={() => {props.setCurrentClass(c)}}>
+                                        <span>{c.name}</span>
+                                        <span>Edit button</span>
+                                        <span>Delete button</span>
+                                </ListGroup.Item>
                             )
                         }
                     )}

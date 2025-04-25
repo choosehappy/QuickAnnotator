@@ -10,11 +10,12 @@ import ConfirmationModal from '../components/confirmationModal.tsx';
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
-import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass } from "../helpers/api.ts";
+import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass, fetchAnnotationClasses, fetchAnnotationClassById, createAnnotationClass } from "../helpers/api.ts";
 import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation } from "../types.ts";
-import { MODAL_DATA, TOOLBAR_KEYS } from '../helpers/config.ts';
+import { DEFAULT_CLASS_ID, MODAL_DATA, TOOLBAR_KEYS } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
+import NewClassModal from '../components/newClassModal.tsx';
 
 function usePrevious<T>(value: T): T | undefined {
     const ref = useRef<T>();
@@ -26,7 +27,7 @@ function usePrevious<T>(value: T): T | undefined {
 
 const AnnotationPage = () => {
     const { projectid, imageid } = useParams();
-    const { currentImage, setCurrentImage, setCurrentProject } = useOutletContext<OutletContextType>();
+    const { currentImage, setCurrentImage, currentProject, setCurrentProject } = useOutletContext<OutletContextType>();
 
     const [currentClass, setCurrentClass] = useState<AnnotationClass | null>(null);
     const [gts, setGts] = useState<Annotation[]>([]);
@@ -37,6 +38,7 @@ const AnnotationPage = () => {
     const [highlightedPreds, setHighlightedPreds] = useState<Annotation[] | null>(null); // TODO: should just be a list of annotations
     const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
     const [activeModal, setActiveModal] = useState<number | null>(null);
+    const [classes, setClasses] = useState<AnnotationClass[]>([]);
 
     function handleConfirmImport() {
         // Set activeModal to null
@@ -57,6 +59,12 @@ const AnnotationPage = () => {
         setCurrentTool(TOOLBAR_KEYS.POINTER);
     }
 
+
+    function cancelAddClass() {
+        setActiveModal(null);
+    }
+
+
     useEffect(() => {
         if (projectid && imageid) {
             fetchProject(parseInt(projectid)).then((resp) => {
@@ -67,6 +75,12 @@ const AnnotationPage = () => {
                 setCurrentImage(resp.data);
             });
         }
+
+        fetchAnnotationClasses().then((resp) => {
+            setClasses(resp.data);
+            setCurrentClass(resp.data[DEFAULT_CLASS_ID - 1]);
+        });
+        
     }, [])
 
     useEffect(() => {
@@ -78,11 +92,18 @@ const AnnotationPage = () => {
     }
     , [currentClass]);
 
+    useEffect(() => {
+        fetchAnnotationClasses().then((resp) => {
+            setClasses(resp.data);
+        });
+    }, []);
+
     if (currentImage) {
         return (
             <>
                 <Container fluid className="pb-3 bg-dark d-flex flex-column flex-grow-1">
-                    <ConfirmationModal show={activeModal === MODAL_DATA.IMPORT_CONF.id} title={MODAL_DATA.IMPORT_CONF.title} description={MODAL_DATA.IMPORT_CONF.description} onConfirm={handleConfirmImport} onCancel={handleCancelImport}/>
+                    <ConfirmationModal activeModal={activeModal} config={MODAL_DATA.IMPORT_CONF} onConfirm={handleConfirmImport} onCancel={handleCancelImport}/>
+                    <NewClassModal activeModal={activeModal} setActiveModal={setActiveModal} config={MODAL_DATA.ADD_CLASS} currentProject={currentProject} setClasses={setClasses}/>
                     <Row className="d-flex flex-grow-1">
                         <Col className="d-flex flex-grow-1">
                             <Card className="flex-grow-1">
@@ -122,7 +143,7 @@ const AnnotationPage = () => {
                         <Col xs={3}>
                             <Stack gap={3}>
                                 <ClassesPane
-                                    {...{ currentClass, setCurrentClass }}
+                                    {...{ currentClass, setCurrentClass, setActiveModal, classes, setClasses }}
                                 />
                                 <GroundTruthPane
                                     {...{ gts, setGts, currentAnnotation, setCurrentAnnotation }}
