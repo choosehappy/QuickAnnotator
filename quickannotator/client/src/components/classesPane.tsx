@@ -6,7 +6,7 @@ import { Plus } from 'react-bootstrap-icons';
 import { MODAL_DATA } from '../helpers/config.ts';
 
 interface Props {
-    currentClass: AnnotationClass | null;
+    currentAnnotationClass: AnnotationClass | null;
     setCurrentClass: (currentClass: AnnotationClass) => void;
     setActiveModal: (activeModal: number | null) => void;
     classes: AnnotationClass[];
@@ -24,7 +24,7 @@ const ClassesPane = (props: Props) => {
             </Card.Header>
             <Card.Body>
                 <ListGroup 
-                    defaultActiveKey={props.currentClass?.id} 
+                    defaultActiveKey={props.currentAnnotationClass?.id} 
                     style={{ maxHeight: '300px', overflowY: 'auto' }}
                 >
                     {props.classes.map((c) => {

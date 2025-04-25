@@ -29,7 +29,7 @@ const AnnotationPage = () => {
     const { projectid, imageid } = useParams();
     const { currentImage, setCurrentImage, currentProject, setCurrentProject } = useOutletContext<OutletContextType>();
 
-    const [currentClass, setCurrentClass] = useState<AnnotationClass | null>(null);
+    const [currentAnnotationClass, setCurrentAnnotationClass] = useState<AnnotationClass | null>(null);
     const [gts, setGts] = useState<Annotation[]>([]);
     const [preds, setPreds] = useState<Annotation[]>([]);
     const [currentTool, setCurrentTool] = useState<string | null>('0');
@@ -38,7 +38,7 @@ const AnnotationPage = () => {
     const [highlightedPreds, setHighlightedPreds] = useState<Annotation[] | null>(null); // TODO: should just be a list of annotations
     const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
     const [activeModal, setActiveModal] = useState<number | null>(null);
-    const [classes, setClasses] = useState<AnnotationClass[]>([]);
+    const [annotationClasses, setAnnotationClasses] = useState<AnnotationClass[]>([]);
 
     function handleConfirmImport() {
         // Set activeModal to null
@@ -46,7 +46,7 @@ const AnnotationPage = () => {
 
         // POST new annotations as ground truth
         // if (!highlightedPreds) return;
-        postAnnotations(currentImage.id, currentClass?.id, highlightedPreds?.map(ann => ann.parsedPolygon)).then((resp) => {
+        postAnnotations(currentImage.id, currentAnnotationClass?.id, highlightedPreds?.map(ann => ann.parsedPolygon)).then((resp) => {
             setHighlightedPreds(null);
             setCurrentTool(TOOLBAR_KEYS.POINTER);
         });
@@ -77,24 +77,24 @@ const AnnotationPage = () => {
         }
 
         fetchAnnotationClasses().then((resp) => {
-            setClasses(resp.data);
-            setCurrentClass(resp.data[DEFAULT_CLASS_ID - 1]);
+            setAnnotationClasses(resp.data);
+            setCurrentAnnotationClass(resp.data[DEFAULT_CLASS_ID - 1]);
         });
         
     }, [])
 
     useEffect(() => {
-        startProcessingAnnotationClass(currentClass?.id).then((resp) => {
+        startProcessingAnnotationClass(currentAnnotationClass?.id).then((resp) => {
             if (resp.status === 200) {
                 console.log("Processing started");
             }
         });
     }
-    , [currentClass]);
+    , [currentAnnotationClass]);
 
     useEffect(() => {
         fetchAnnotationClasses().then((resp) => {
-            setClasses(resp.data);
+            setAnnotationClasses(resp.data);
         });
     }, []);
 
@@ -103,7 +103,7 @@ const AnnotationPage = () => {
             <>
                 <Container fluid className="pb-3 bg-dark d-flex flex-column flex-grow-1">
                     <ConfirmationModal activeModal={activeModal} config={MODAL_DATA.IMPORT_CONF} onConfirm={handleConfirmImport} onCancel={handleCancelImport}/>
-                    <NewClassModal activeModal={activeModal} setActiveModal={setActiveModal} config={MODAL_DATA.ADD_CLASS} currentProject={currentProject} setClasses={setClasses}/>
+                    <NewClassModal activeModal={activeModal} setActiveModal={setActiveModal} config={MODAL_DATA.ADD_CLASS} currentProject={currentProject}  setAnnotationClasses={setAnnotationClasses}/>
                     <Row className="d-flex flex-grow-1">
                         <Col className="d-flex flex-grow-1">
                             <Card className="flex-grow-1">
@@ -122,7 +122,7 @@ const AnnotationPage = () => {
                                                 setAction }} /></Card.Header>
                                 <Card.Body style={{ padding: "0px" }}>
                                     <ViewportMap {...{ currentImage, 
-                                                    currentClass, 
+                                                    currentAnnotationClass, 
                                                     gts, 
                                                     setGts, 
                                                     preds, 
@@ -143,7 +143,7 @@ const AnnotationPage = () => {
                         <Col xs={3}>
                             <Stack gap={3}>
                                 <ClassesPane
-                                    {...{ currentClass, setCurrentClass, setActiveModal, classes, setClasses }}
+                                    {...{ currentAnnotationClass, setCurrentClass: setCurrentAnnotationClass, setActiveModal, classes: annotationClasses, setClasses: setAnnotationClasses }}
                                 />
                                 <GroundTruthPane
                                     {...{ gts, setGts, currentAnnotation, setCurrentAnnotation }}
