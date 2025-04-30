@@ -20,7 +20,9 @@ class Annotation(MethodView):
     def get(self, args, image_id, annotation_class_id):
         """     returns an Annotation
         """
-        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=False)
+        in_work_mag = False
+
+        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=in_work_mag)
         result: db_models.Annotation = store.get_annotation_by_id(args['annotation_id'])
         return result, 200
 
@@ -31,8 +33,11 @@ class Annotation(MethodView):
         
         This method is primarily used for ground truth annotations. Predictions should only by saved by the model.
         """
+        is_gt = True
+        in_work_mag = False
+
         polygons: List[geojson.Polygon] = args['polygons']
-        store = AnnotationStore(image_id, annotation_class_id, is_gt=True, in_work_mag=False)
+        store = AnnotationStore(image_id, annotation_class_id, is_gt=is_gt, in_work_mag=in_work_mag)
         anns = store.insert_annotations([shape(poly) for poly in polygons])
         tilestore = TileStoreFactory.get_tilestore()
         tilestore.upsert_gt_tiles(image_id, annotation_class_id, {ann.tile_id for ann in anns})
@@ -44,7 +49,9 @@ class Annotation(MethodView):
     def put(self, args, image_id, annotation_class_id):
         """     create or update an annotation directly in the db
         """
-        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=False)
+        in_work_mag = False
+
+        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=in_work_mag)
         ann = store.update_annotation(args['annotation_id'], shape(args['polygon']))
 
         return ann, 201
@@ -68,8 +75,9 @@ class AnnotationByTileIds(MethodView):
     def post(self, args, image_id, annotation_class_id):
         """     get all annotations for a given tile
         """
+        in_work_mag = False
 
-        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=False)
+        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=in_work_mag)
         anns = store.get_annotations_for_tiles(args['tile_ids'])
 
         return anns, 200
@@ -81,7 +89,9 @@ class AnnotationsWithinPolygon(MethodView):
     def post(self, args, image_id, annotation_class_id):
         """     get all annotations within a polygon
         """
-        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=False)
+        in_work_mag = False
+
+        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=in_work_mag)
         anns = store.get_annotations_within_poly(shape(args['polygon']))
         return anns, 200
 
