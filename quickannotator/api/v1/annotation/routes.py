@@ -1,3 +1,4 @@
+from quickannotator.constants import PolygonOperations
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.tile import TileStoreFactory
 import quickannotator.db.models as db_models
@@ -119,7 +120,7 @@ class AnnotationOperation(MethodView):
         poly2 = shape(args['polygon2'])
         operation = args['operation']
 
-        if operation == 0:
+        if operation == PolygonOperations.UNION:
             union = poly1.union(poly2)
         
             resp = {field: args[field] for field in server_models.AnnRespSchema().fields.keys() if field in args} # Basically a copy of args without "polygon2" or "operation"

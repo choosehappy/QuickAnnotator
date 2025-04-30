@@ -6,6 +6,10 @@ class TileStatus(enum.IntEnum):
     PROCESSING = 2
     DONEPROCESSING = 3
 
+class PolygonOperations(enum.IntEnum):
+    UNION = 0
+    DIFFERENCE = 1
+
 MASK_DILATION = 1
 BASE_PATH = '/opt/QuickAnnotator/quickannotator'
 
