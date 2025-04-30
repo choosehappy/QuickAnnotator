@@ -2,7 +2,7 @@ from flask_smorest import abort
 from flask.views import MethodView
 from flask import current_app, send_from_directory, send_file
 from sqlalchemy import func
-from quickannotator.constants import ImageReturnType
+from quickannotator.constants import ImageType
 from quickannotator.db import db_session
 import large_image
 import os
@@ -67,9 +67,9 @@ class ImageFile(MethodView):
         """     returns an Image file   """
         result = db_session.query(db_models.Image).filter(db_models.Image.id == image_id).first()
 
-        if file_type == ImageReturnType.IMAGE:
+        if file_type == ImageType.IMAGE:
             return send_from_directory(result['path'], result['name'])
-        elif file_type == ImageReturnType.THUMBNAIL:
+        elif file_type == ImageType.THUMBNAIL:
             # TODO implement thumbnail file
             pass
 
@@ -87,10 +87,10 @@ class ImageFile(MethodView):
 
         result = db_session.query(db_models.Image).filter(db_models.Image.id == image_id).first()
 
-        if file_type == 1:  # image file
+        if file_type == ImageType.IMAGE:
             # TODO implement image file deletion
             pass
-        elif file_type == 2:  # thumbnail file
+        elif file_type == ImageType.THUMBNAIL:
             # TODO implement thumbnail file deletion
             pass
         return 204
