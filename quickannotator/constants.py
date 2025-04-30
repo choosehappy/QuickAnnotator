@@ -10,6 +10,10 @@ class PolygonOperations(enum.IntEnum):
     UNION = 0
     DIFFERENCE = 1
 
+class ImageReturnType(enum.IntEnum):
+    IMAGE = 0
+    THUMBNAIL = 1
+
 MASK_DILATION = 1
 BASE_PATH = '/opt/QuickAnnotator/quickannotator'
 
