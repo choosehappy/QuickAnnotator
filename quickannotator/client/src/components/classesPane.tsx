@@ -17,7 +17,7 @@ const ClassesPane = (props: Props) => {
     return (
         <Card>
             <Card.Header as={'h5'} className='d-flex justify-content-between align-items-center'>
-                Classes
+                Annotation Classes
                 <Button variant="secondary" className='btn btn-primary btn-sm'>
                     <Plus onClick={() => props.setActiveModal(MODAL_DATA.ADD_CLASS.id)}/>
                 </Button>
