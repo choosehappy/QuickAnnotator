@@ -1,12 +1,12 @@
 from quickannotator.db import get_session
 import logging
-import quickannotator.db.models as models
+import quickannotator.db.models as db_models
 from datetime import datetime
 
 class SQLAlchemyHandler(logging.Handler):
     def emit(self, record):
         with get_session() as db_session:
-            log_entry = models.Log(
+            log_entry = db_models.Log(
                 name=record.name,
                 timestamp=datetime.fromtimestamp(record.created),
                 level=record.levelname,

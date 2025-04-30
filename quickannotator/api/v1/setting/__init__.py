@@ -2,7 +2,7 @@ from flask_smorest import Blueprint
 from marshmallow import fields, Schema
 from flask.views import MethodView
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-import quickannotator.db.models as models
+import quickannotator.db.models as db_models
 
 bp = Blueprint('setting', __name__, description='Setting operations')
 
@@ -10,7 +10,7 @@ bp = Blueprint('setting', __name__, description='Setting operations')
 # ------------------------ RESPONSE MODELS ------------------------
 class SettingRespSchema(SQLAlchemyAutoSchema):
     class Meta:
-        model = models.Setting
+        model = db_models.Setting
 
 class GetSettingArgsSchema(Schema):
     setting_id = fields.Integer()

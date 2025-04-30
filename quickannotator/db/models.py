@@ -13,6 +13,9 @@ from datetime import datetime
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
 
+log_level_enum = Enum('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', name='log_level_enum')
+
+
 class Project(Base):
     """
     The projects table will store all the projects created by the user.
@@ -153,7 +156,7 @@ class Log(Base):
     # columns
     name = Column(Text, nullable=False)
     timestamp = Column(DateTime, nullable=False)
-    level = Column(Enum('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'), nullable=False, default='INFO')
+    level = Column(log_level_enum, nullable=False, default='INFO')
     message = Column(Text, nullable=False, default="")
 
 

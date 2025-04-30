@@ -1,10 +1,11 @@
 import configparser
 import sys
+import os
 
 # initialize a new config file:
-config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
+config = configparser.ConfigParser()
 
-config.read("quickannotator/config/config.ini")
+config.read(os.path.join(os.path.dirname(__file__), "config.ini"))
 
 def get_database_uri():
   if "pytest" in sys.modules:

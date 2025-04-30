@@ -2,7 +2,7 @@ from flask import Flask
 from quickannotator.constants import TileStatus
 import geojson
 import pytest
-import quickannotator.db.models as models
+import quickannotator.db.models as db_models
 from datetime import datetime, timedelta
 import quickannotator.constants as constants
 

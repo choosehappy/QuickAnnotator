@@ -13,10 +13,10 @@ import ray.train.torch
 import ray.train
 from torch.nn import CrossEntropyLoss, MSELoss
 from torch.optim import Adam
-from quickannotator.db.annotation_class_crud import get_annotation_class_by_id
+from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
 import quickannotator.constants as constants
 from quickannotator.db import get_session
-from quickannotator.db.annotation_class_crud import build_actor_name
+from quickannotator.db.crud.annotation_class import build_actor_name
 from quickannotator.db.models import Tile
 import sqlalchemy
 from quickannotator.dl.training import train_pred_loop

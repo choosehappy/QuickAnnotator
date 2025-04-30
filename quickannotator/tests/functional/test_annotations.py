@@ -1,6 +1,6 @@
 import geojson
 from conftest import assert_geojson_equal
-import quickannotator.db.models as models
+import quickannotator.db.models as db_models
 
 def test_annotations_within_polygon(test_client, annotations_seed):
     """
@@ -74,7 +74,7 @@ def test_post_annotation(test_client, annotations_seed, db_session):
 
     # Check that the corresponding tile has been updated in the database
     tile_id = annotation['tile_id']
-    tile = db_session.query(models.Tile).filter_by(image_id=image_id, annotation_class_id=annotation_class_id, tile_id=tile_id).first()
+    tile = db_session.query(db_models.Tile).filter_by(image_id=image_id, annotation_class_id=annotation_class_id, tile_id=tile_id).first()
     assert tile is not None
     assert tile.gt_counter == 0
 

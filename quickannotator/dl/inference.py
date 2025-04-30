@@ -11,10 +11,12 @@ from sqlalchemy import func, select, update
 from quickannotator.db.models import Tile
 from quickannotator.db import get_session
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 
 from quickannotator.constants import TileStatus
 from quickannotator.dl.utils import decompress_from_image_bytestream, get_memcached_client, load_tile
-from quickannotator.api.v1.utils.shared_crud import AnnotationStore, upsert_pred_tiles
+from quickannotator.db.crud.annotation import AnnotationStore
+
 from datetime import datetime
 
 
@@ -173,7 +175,8 @@ def run_inference(device, model, tiles):
                 
     
     print("updating tile status")
-    result = upsert_pred_tiles(image_id=tiles[0].image_id, 
+    tilestore: TileStore = TileStoreFactory.get_tilestore()
+    result = tilestore.upsert_pred_tiles(image_id=tiles[0].image_id, 
                       annotation_class_id=tiles[0].annotation_class_id, 
                       tile_ids={tile.tile_id for tile in tiles}, 
                       pred_status=TileStatus.DONEPROCESSING, 

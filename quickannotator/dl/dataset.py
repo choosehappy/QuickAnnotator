@@ -9,7 +9,7 @@ from sqlalchemy import  select, update, case, func
 from quickannotator.db import get_session
 from quickannotator.db.models import Tile
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
-from quickannotator.db.annotation_class_crud import get_annotation_class_by_id
+from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
 from datetime import datetime
 
 
