@@ -2,7 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { AnnotationClass, ModalData, Project } from '../types';
 import { createAnnotationClass, fetchAnnotationClasses, fetchMagnifications, fetchNewColor } from '../helpers/api';
-import { useForm, FormProvider, useFormContext } from "react-hook-form";
+import { useForm, SubmitHandler, FormProvider } from "react-hook-form";
+
+interface IFormInput {
+    formBasicName: string;
+    formBasicColor: string;
+    formBasicMagnification: string;
+}
 
 interface NewClassModalProps {
     currentProject: Project;
@@ -15,7 +21,8 @@ interface NewClassModalProps {
 const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) => {
     const [magOptions, setMagOptions] = useState<number[]>([]);
     const [defaultColor, setDefaultColor] = useState<string>("#000000");
-    // TODO: use react-query for managing API responses.
+    const methods = useForm<IFormInput>(); // Initialize useForm with type
+
     useEffect(() => {
         // Fetch suggested magnification options from the server
         fetchMagnifications().then((resp) => {
@@ -33,19 +40,38 @@ const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) 
             }
             setDefaultColor(resp.data.color);
         });
-
-        // Fetch suggested color from the server
-
     }, []);
 
-    function onSubmit() {
-        createAnnotationClass(props.currentProject.id, "New Class", "#000000", 1).then((resp) => {});
-        fetchAnnotationClasses().then((resp) => {
-            props.setAnnotationClasses(resp.data);
-        });
-        props.setActiveModal(null);
-        
-    }
+    const onSubmit: SubmitHandler<IFormInput> = async (data) => {
+        try {
+            console.log("Form data:", data);
+            const createResp = await createAnnotationClass(
+                props.currentProject.id,
+                data.formBasicName,
+                data.formBasicColor,
+                parseInt(data.formBasicMagnification)
+            );
+
+            if (createResp.status !== 200) {
+                console.error("Error creating annotation class:", createResp);
+                alert("Failed to create annotation class. Please try again.");
+                return;
+            }
+
+            const fetchResp = await fetchAnnotationClasses();
+            if (fetchResp.status !== 200) {
+                console.error("Error fetching annotation classes:", fetchResp);
+                alert("Failed to fetch updated annotation classes. Please refresh the page.");
+                return;
+            }
+
+            props.setAnnotationClasses(fetchResp.data);
+            props.setActiveModal(null);
+        } catch (error) {
+            console.error("Unexpected error:", error);
+            alert("An unexpected error occurred. Please try again later.");
+        }
+    };
 
     function onCancel() {
         props.setActiveModal(null);
@@ -58,19 +84,31 @@ const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) 
             </Modal.Header>
             <Modal.Body>
                 <p>{props.config.description}</p>
-                <FormProvider {...useForm()}>
-                    <Form onSubmit={onSubmit}>
+                <FormProvider {...methods}>
+                    <Form onSubmit={methods.handleSubmit(onSubmit)}>
                         <Form.Group controlId="formBasicName">
                             <Form.Label>Name</Form.Label>
-                            <Form.Control type="text" placeholder="Enter class name" />
+                            <Form.Control
+                                type="text"
+                                placeholder="Enter class name"
+                                {...methods.register("formBasicName")}
+                            />
                         </Form.Group>
                         <Form.Group controlId="formBasicColor">
                             <Form.Label>Color</Form.Label>
-                            <Form.Control type="color" defaultValue={defaultColor} />
+                            <Form.Control
+                                type="color"
+                                defaultValue={defaultColor}
+                                {...methods.register("formBasicColor")}
+                            />
                         </Form.Group>
                         <Form.Group controlId="formBasicMagnification">
                             <Form.Label>Magnification</Form.Label>
-                            <Form.Control as="select" defaultValue="">
+                            <Form.Control
+                                as="select"
+                                defaultValue=""
+                                {...methods.register("formBasicMagnification")}
+                            >
                                 <option value="" disabled>Select magnification</option>
                                 {magOptions.map((option, index) => (
                                     <option key={index} value={option}>
@@ -79,17 +117,17 @@ const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) 
                                 ))}
                             </Form.Control>
                         </Form.Group>
+                        <Modal.Footer>
+                            <Button variant="secondary" onClick={onCancel}>
+                                Cancel
+                            </Button>
+                            <Button variant="primary" type="submit">
+                                Confirm
+                            </Button>
+                        </Modal.Footer>
                     </Form>
                 </FormProvider>
             </Modal.Body>
-            <Modal.Footer>
-                <Button variant="secondary" onClick={onCancel}>
-                    Cancel
-                </Button>
-                <Button variant="primary" type='submit'>
-                    Confirm
-                </Button>
-            </Modal.Footer>
         </Modal>
     );
 };

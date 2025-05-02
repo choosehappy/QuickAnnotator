@@ -147,14 +147,14 @@ export const startProcessingAnnotationClass = async (annotation_class_id: number
 };
 
 export const createAnnotationClass = async (project_id: number, name: string, color: string, work_mag: number) => {
-    const requestBody: PostAnnClassArgs = {
-        project_id,
-        name,
-        color,
-        work_mag,
-    };
+    const query = new URLSearchParams({
+        project_id: project_id.toString(),
+        name: name,
+        color: color,
+        work_mag: work_mag.toString(),
+    });
 
-    return await post<PostAnnClassArgs, { annotation_class_id: number }>('/class/', requestBody);
+    return await post<null, { annotation_class_id: number }>(`/class/?${query}`, null);
 };
 
 // Search tile IDs by bounding box

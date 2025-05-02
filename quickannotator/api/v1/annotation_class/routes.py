@@ -32,7 +32,7 @@ class AnnotationClass(MethodView):
     def post(self, args):
         """     create a new AnnotationClass   """
 
-        work_tilesize = 2048
+        work_tilesize = constants.TILESIZE_OPTIONS[3]
 
         annotation_class = db_models.AnnotationClass(project_id=args['project_id'],
                                           name=args['name'],

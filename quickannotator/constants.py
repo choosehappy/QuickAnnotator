@@ -35,3 +35,5 @@ COLOR_PALETTES = {
 
 # TODO: move to project settings
 MAGNIFICATION_OPTIONS = [1.25, 2.5, 5.0, 10.0, 20.0, 40.0]  
+
+TILESIZE_OPTIONS = [256, 512, 1024, 2048] # in pixels
