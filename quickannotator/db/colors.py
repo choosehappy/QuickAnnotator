@@ -5,10 +5,10 @@ class ColorPalette():
     def __init__(self, project_id):
         color_palette_name = 'default'  # TODO: get this from project settings
 
-        if color_palette_name not in constants.COLOR_PALETTES:
+        if color_palette_name not in constants.ANNOTATION_CLASS_COLOR_PALETTES:
             raise KeyError(f"Color palette '{color_palette_name}' does not exist in constants.COLOR_PALETTES.")
         
-        self.color_set = constants.COLOR_PALETTES[color_palette_name]
+        self.color_set = constants.ANNOTATION_CLASS_COLOR_PALETTES[color_palette_name]
 
     def get_unused_color(self):
         annotation_classes = search_annotation_class_by_project_id(self.project_id)

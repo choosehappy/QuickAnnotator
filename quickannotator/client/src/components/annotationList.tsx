@@ -1,14 +1,15 @@
 import * as React from 'react';
 import {Column, GridOption, SlickgridReactInstance, SlickgridReact, } from "slickgrid-react";
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
-import { Annotation, CurrentAnnotation } from "../types.ts";
+import { Annotation, AnnotationClass, CurrentAnnotation } from "../types.ts";
 import { Point, Polygon, Position } from 'geojson';
 
 interface Props {
     annotations: Annotation[];
     containerId: string;
-    currentAnnotation: CurrentAnnotation;
-    setCurrentAnnotation: React.Dispatch<React.SetStateAction<CurrentAnnotation | null>>;
+    currentAnnotation?: CurrentAnnotation | null;
+    setCurrentAnnotation?: React.Dispatch<React.SetStateAction<CurrentAnnotation | null>>;
+    annotationClasses: AnnotationClass[];
 }
 
 export default class AnnotationList extends React.Component<Props, any> {
@@ -80,8 +81,9 @@ export default class AnnotationList extends React.Component<Props, any> {
 
     defineGrid() {
 
-        const polygonFormatter = (_row: number, _cell: number, value: Polygon, _columnDef: Column, _dataContext: any) => {
-
+        const polygonFormatter = (_row: number, _cell: number, value: Polygon, _columnDef: Column, _dataContext: Annotation) => {
+            const color = this.props.annotationClasses.find((annotationClass: AnnotationClass) => annotationClass.id === _dataContext.annotation_class_id)?.color;
+            const opacity = 0.5;
             const coordinates = value.coordinates[0];
             // Find min and max coordinates for scaling
             const xCoords = coordinates.map((coord: Position) => coord[0]);
@@ -94,15 +96,18 @@ export default class AnnotationList extends React.Component<Props, any> {
             // Calculate scaling factor to fit within 100x100 SVG dimensions
             const scale = Math.min(20 / (maxX - minX), 20 / (maxY - minY));
 
-            // Scale coordinates to fit within SVG
+            // Add padding around the polygon
+            const padding = 2;
+
+            // Scale coordinates to fit within SVG with padding
             const points = coordinates.map(coord => {
-                const x = (coord[0] - minX) * scale;
-                const y = (coord[1] - minY) * scale;
+                const x = (coord[0] - minX) * scale + padding;
+                const y = (coord[1] - minY) * scale + padding;
                 return `${x},${y}`;
             }).join(' ');
 
-            // Construct SVG with scaled points
-            const svg = `<svg width='100' height='20'><polygon points='${points}' style='fill:lime;stroke:purple;stroke-width:1' /></svg>`;
+            // Construct SVG with scaled points and padding
+            const svg = `<svg width='${20 + padding * 2}' height='${20 + padding * 2}'><polygon points='${points}' style='fill:${color};fill-opacity:${opacity};stroke:white;stroke-width:1;filter:drop-shadow(1px 1px 1px rgba(0,0,0,0.5))' /></svg>`;
             return svg;
         }
 
@@ -115,7 +120,7 @@ export default class AnnotationList extends React.Component<Props, any> {
         }
 
         const columns: Column[] = [
-            { id: 'thumbnail', name: 'Thumbnail', field: 'parsedPolygon', sortable: true, minWidth: 100, formatter: polygonFormatter },
+            { id: 'Poly', name: 'Poly', field: 'parsedPolygon', sortable: true, minWidth: 40, formatter: polygonFormatter },
             { id: 'area', name: 'Area', field: 'area', sortable: true, minWidth: 100 },
             { id: 'centroidX', name: 'CentroidX', field: 'parsedCentroid', sortable: true, minWidth: 100, formatter: centroidXFormatter },
             { id: 'centroidY', name: 'CentroidY', field: 'parsedCentroid', sortable: true, minWidth: 100, formatter: centroidYFormatter },

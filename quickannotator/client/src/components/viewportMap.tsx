@@ -67,7 +67,7 @@ const ViewportMap = (props: Props) => {
                 const annotations = resp.data.map(annResp => new Annotation(annResp, props.currentAnnotationClass.id));
                 if (currentCallToken !== activeCallRef.current) return;
                 anns = anns.concat(annotations);
-                const feature = createGTTileFeature({ tile_id: tileId }, annotations, layer, props.currentAnnotation?.currentState?.id, props.currentAnnotationClass.id);
+                const feature = createGTTileFeature({ tile_id: tileId }, annotations, layer, props.currentAnnotation?.currentState?.id, props.currentAnnotationClass);
                 feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
             } else {
                 const webGLFeature = getTileFeatureById(layer, tileId);

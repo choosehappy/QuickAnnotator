@@ -9,8 +9,8 @@ interface Props {
     currentAnnotationClass: AnnotationClass | null;
     setCurrentClass: (currentClass: AnnotationClass) => void;
     setActiveModal: (activeModal: number | null) => void;
-    classes: AnnotationClass[];
-    setClasses: (classes: AnnotationClass[]) => void;
+    annotationClasses: AnnotationClass[];
+    setAnnotationClasses: (classes: AnnotationClass[]) => void;
 }
 
 const ClassesPane = (props: Props) => {
@@ -27,7 +27,7 @@ const ClassesPane = (props: Props) => {
                     defaultActiveKey={props.currentAnnotationClass?.id} 
                     style={{ maxHeight: '300px', overflowY: 'auto' }}
                 >
-                    {props.classes.map((c) => {
+                    {props.annotationClasses.map((c) => {
                             return (
                                 <ListGroup.Item 
                                     key={c.id}
@@ -38,17 +38,6 @@ const ClassesPane = (props: Props) => {
                                 >
                                     <span>{c.name}</span>
                                     <div>
-                                        <Button 
-                                            variant="outline-primary" 
-                                            size="sm" 
-                                            className="me-2"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                // Handle edit logic here
-                                            }}
-                                        >
-                                            <Pencil />
-                                        </Button>
                                         <Button 
                                             variant="outline-danger" 
                                             size="sm"
@@ -61,7 +50,7 @@ const ClassesPane = (props: Props) => {
                                         </Button>
                                         <Button 
                                             disabled 
-                                            size="sm" 
+                                            size="lg" 
                                             style={{ backgroundColor: c.color, border: 'none' }}
                                             className="ms-2"
                                         >

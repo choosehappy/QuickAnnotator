@@ -1,13 +1,14 @@
 import Card from 'react-bootstrap/Card';
 import AnnotationList from "./annotationList.tsx";
-import { Annotation, CurrentAnnotation } from "../types.ts"
+import { Annotation, AnnotationClass, CurrentAnnotation } from "../types.ts"
 import { propTypes } from 'react-bootstrap/esm/Image';
 
 interface Props {
     gts: Annotation[];
     setGts: (gts: Annotation[]) => void;
-    currentAnnotation: CurrentAnnotation;
+    currentAnnotation: CurrentAnnotation | null;
     setCurrentAnnotation: React.Dispatch<React.SetStateAction<CurrentAnnotation | null>>;
+    annotationClasses: AnnotationClass[];
 }
 const GroundTruthPane = (props: Props) => {
     const id = 'gt'; // hardcoded ids should ideally not be used.
@@ -20,6 +21,7 @@ const GroundTruthPane = (props: Props) => {
                                 annotations={props.gts} 
                                 currentAnnotation={props.currentAnnotation} 
                                 setCurrentAnnotation={props.setCurrentAnnotation}
+                                annotationClasses={props.annotationClasses}
                                 />
             </Card.Body>
         </Card>

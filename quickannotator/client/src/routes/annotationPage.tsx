@@ -143,13 +143,13 @@ const AnnotationPage = () => {
                         <Col xs={3}>
                             <Stack gap={3}>
                                 <ClassesPane
-                                    {...{ currentAnnotationClass, setCurrentClass: setCurrentAnnotationClass, setActiveModal, classes: annotationClasses, setClasses: setAnnotationClasses }}
+                                    {...{ currentAnnotationClass, setCurrentClass: setCurrentAnnotationClass, setActiveModal, annotationClasses, setAnnotationClasses }}
                                 />
                                 <GroundTruthPane
-                                    {...{ gts, setGts, currentAnnotation, setCurrentAnnotation }}
+                                    {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, annotationClasses }}
                                 />
                                 <PredictionsPane
-                                    {...{ preds, setPreds, currentAnnotation }}
+                                    {...{ preds, setPreds, currentAnnotation, annotationClasses }}
                                 />
                             </Stack>
                         </Col>

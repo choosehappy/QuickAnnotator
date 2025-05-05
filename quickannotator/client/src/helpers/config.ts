@@ -46,3 +46,15 @@ export const MODAL_DATA: { [key: string]: ModalData } = {
 export const POPOVER_DATA = {
 
 }
+
+// Viewport settings
+export const UI_SETTINGS = {
+    gtOpacity: 0.5,
+    gtStrokeColor: 'white',
+    gtCurrentAnnotationStrokeColor: 'black',
+    gtStrokeWidth: 2,
+    predOpacity: 0.5,
+    highlightedPredColor: 'red',
+    pendingTileFillColor: 'grey',
+    pendingTileFillOpacity: 0.5,
+}

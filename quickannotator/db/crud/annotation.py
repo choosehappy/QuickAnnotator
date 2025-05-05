@@ -1,16 +1,14 @@
 from sqlalchemy.orm import Query
-from build.lib.quickannotator.db.crud.annotation import create_dynamic_model
 import quickannotator.db.models as db_models
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
-from quickannotator.db import Base, db_session
+from quickannotator.db import Base, db_session, engine
 from quickannotator.db.crud.misc import compute_custom_metrics
-from build.lib.quickannotator.db.crud.annotation import build_annotation_table_name
 
 
 import sqlalchemy
 from shapely.affinity import scale
 from shapely.geometry.base import BaseGeometry
-from sqlalchemy import func
+from sqlalchemy import func, Table
 
 
 from datetime import datetime
@@ -222,3 +220,17 @@ class AnnotationStore:
     @staticmethod
     def scale_polygon(polygon: BaseGeometry, scaling_factor: float) -> BaseGeometry:   # Added for safety - I've forgotten the origin param several times.
         return scale(polygon, xfact=scaling_factor, yfact=scaling_factor, origin=(0, 0))
+    
+
+def build_annotation_table_name(image_id: int, annotation_class_id: int, is_gt: bool):
+    gtpred = 'gt' if is_gt else 'pred'
+    table_name = f"annotation_{image_id}_{annotation_class_id}_{gtpred}"
+    return table_name
+
+
+def create_dynamic_model(table_name, base=Base):
+    class DynamicAnnotation(base):
+        __tablename__ = table_name
+        __table__ = Table(table_name, base.metadata, autoload_with=engine)
+
+    return DynamicAnnotation
