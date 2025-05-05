@@ -32,13 +32,11 @@ class AnnotationClass(MethodView):
     def post(self, args):
         """     create a new AnnotationClass   """
 
-        work_tilesize = constants.TILESIZE_OPTIONS[3]
-
         annotation_class = db_models.AnnotationClass(project_id=args['project_id'],
                                           name=args['name'],
                                           color=args['color'],
                                           work_mag=args['work_mag'],
-                                          work_tilesize=work_tilesize
+                                          work_tilesize=args['tile_size']
                                           )
         db_session.add(annotation_class)
         return {'annotation_class_id':annotation_class.id}, 200
@@ -110,3 +108,10 @@ class Magnifications(MethodView):
     def get(self):
         """     get the available magnifications     """
         return {'magnifications': constants.MAGNIFICATION_OPTIONS}, 200
+    
+@bp.route('/tilesizes')
+class Tilesizes(MethodView):
+    @bp.response(200, description="Available tilesizes")
+    def get(self):
+        """     get the available tilesizes     """
+        return {'tilesizes': constants.TILESIZE_OPTIONS}, 200

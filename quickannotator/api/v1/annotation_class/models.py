@@ -14,7 +14,8 @@ class PostAnnClassArgsSchema(Schema):
     project_id = fields.Int(required=True)
     name = fields.Str(required=True)
     color = fields.Str(required=True)
-    work_mag = fields.Int(required=True)
+    work_mag = fields.Float(required=True)
+    tile_size = fields.Int(required=True)
 
 class PutAnnClassArgsSchema(GetAnnClassArgsSchema):
     name = fields.Str(required=False)

@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { AnnotationClass, ModalData, Project } from '../types';
-import { createAnnotationClass, fetchAnnotationClasses, fetchMagnifications, fetchNewColor } from '../helpers/api';
+import { createAnnotationClass, fetchAnnotationClasses, fetchMagnifications, fetchNewColor, fetchTilesizes } from '../helpers/api';
 import { useForm, SubmitHandler, FormProvider } from "react-hook-form";
 
 interface IFormInput {
     formBasicName: string;
     formBasicColor: string;
     formBasicMagnification: string;
+    formBasicTilesize: string;
 }
 
 interface NewClassModalProps {
@@ -20,6 +21,7 @@ interface NewClassModalProps {
 
 const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) => {
     const [magOptions, setMagOptions] = useState<number[]>([]);
+    const [tilesizeOptions, setTilesizeOptions] = useState<number[]>([]);
     const [defaultColor, setDefaultColor] = useState<string>("#000000");
     const methods = useForm<IFormInput>(); // Initialize useForm with type
 
@@ -40,6 +42,15 @@ const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) 
             }
             setDefaultColor(resp.data.color);
         });
+
+        // Fetch suggested tile size options from the server
+        fetchTilesizes().then((resp) => {
+            if (resp.status !== 200) {
+                console.error("Error fetching tile size options:", resp);
+                return;
+            }
+            setTilesizeOptions(resp.data.tilesizes);
+        });
     }, []);
 
     const onSubmit: SubmitHandler<IFormInput> = async (data) => {
@@ -49,7 +60,8 @@ const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) 
                 props.currentProject.id,
                 data.formBasicName,
                 data.formBasicColor,
-                parseInt(data.formBasicMagnification)
+                parseInt(data.formBasicMagnification),
+                parseInt(data.formBasicTilesize)
             );
 
             if (createResp.status !== 200) {
@@ -113,6 +125,21 @@ const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) 
                                 {magOptions.map((option, index) => (
                                     <option key={index} value={option}>
                                         {option}x
+                                    </option>
+                                ))}
+                            </Form.Control>
+                        </Form.Group>
+                        <Form.Group controlId="formBasicTilesize">
+                            <Form.Label>Tile Size</Form.Label>
+                            <Form.Control
+                                as="select"
+                                defaultValue=""
+                                {...methods.register("formBasicTilesize")}
+                            >
+                                <option value="" disabled>Select tile size</option>
+                                {tilesizeOptions.map((option, index) => (
+                                    <option key={index} value={option}>
+                                        {option}
                                     </option>
                                 ))}
                             </Form.Control>

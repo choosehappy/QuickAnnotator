@@ -146,12 +146,13 @@ export const startProcessingAnnotationClass = async (annotation_class_id: number
     return await post<null, void>(`/class/${annotation_class_id}/startproc`, null);
 };
 
-export const createAnnotationClass = async (project_id: number, name: string, color: string, work_mag: number) => {
+export const createAnnotationClass = async (project_id: number, name: string, color: string, work_mag: number, tile_size: number) => {
     const query = new URLSearchParams({
         project_id: project_id.toString(),
         name: name,
         color: color,
         work_mag: work_mag.toString(),
+        tile_size: tile_size.toString(),
     });
 
     return await post<null, { annotation_class_id: number }>(`/class/?${query}`, null);
@@ -225,3 +226,7 @@ export const fetchMagnifications = async () => {
     return await get<{ magnifications: number[] }>('/class/magnifications');
 };
 
+// Fetch all available tile sizes
+export const fetchTilesizes = async () => {
+    return await get<{ tilesizes: number[] }>('/class/tilesizes');
+}
