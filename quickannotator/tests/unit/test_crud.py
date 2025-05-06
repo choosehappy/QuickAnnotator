@@ -1,6 +1,6 @@
 import pytest
 from shapely.geometry import Polygon, shape
-from quickannotator.db.crud.annotation import AnnotationStore
+from quickannotator.db.crud.annotation import AnnotationStore, table_exists
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 from quickannotator.tests.conftest import assert_geojson_equal
 from shapely.geometry import mapping
@@ -16,6 +16,32 @@ def annotation_store(db_session, seed, annotations_seed):
     annotation_class_id = 2
     is_gt = True
     return AnnotationStore(image_id, annotation_class_id, is_gt)
+
+
+def test_table_exists_with_existing_table(db_session, annotations_seed):
+    # Arrange
+    image_id = 1
+    annotation_class_id = 2
+    is_gt = True
+    table_name = f"annotation_{image_id}_{annotation_class_id}_gt"
+
+    # Act
+    result = table_exists(table_name)
+
+    # Assert
+    assert result is True
+
+
+def test_table_exists_with_nonexistent_table(db_session, annotations_seed):
+    # Arrange
+    table_name = "nonexistent_table"
+
+    # Act
+    result = table_exists(table_name)
+
+    # Assert
+    assert result is False
+
 
 def test_annotation_store_initialization_with_existing_table(db_session, annotations_seed):
     # Arrange

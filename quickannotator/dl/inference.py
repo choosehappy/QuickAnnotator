@@ -168,7 +168,7 @@ def run_inference(device, model, tiles):
             ]
             print(f'saving annotations for tile {tiles[j].id}. Setting pred_status to DONEPROCESSING')
             with get_session() as db_session:
-                store = AnnotationStore(tiles[j].image_id, tiles[j].annotation_class_id, is_gt=False, in_work_mag=True)
+                store = AnnotationStore(tiles[j].image_id, tiles[j].annotation_class_id, is_gt=False, in_work_mag=True, create_table=True)
                 store.delete_annotations_by_tile(tiles[j].tile_id)
                 store.insert_annotations(translated_polygons, tiles[j].tile_id)
                 

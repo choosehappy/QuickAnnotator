@@ -6,10 +6,11 @@ from quickannotator.db.crud.misc import compute_custom_metrics
 import sqlalchemy
 from shapely.affinity import scale
 from shapely.geometry.base import BaseGeometry
-from sqlalchemy import func, Table
+from sqlalchemy import func, Table, MetaData
 from datetime import datetime
 from typing import List
 from sqlalchemy import inspect
+
 
 
 def get_annotation_query(model, scale_factor: float=1.0) -> Query:
@@ -71,16 +72,15 @@ class AnnotationStore:
         self.is_gt = is_gt
         self.scaling_factor = 1.0 if in_work_mag else base_to_work_scaling_factor(image_id, annotation_class_id)
 
-        if create_table:
-            model = self.create_annotation_table(image_id, annotation_class_id, is_gt)
-            self.model = model
+        table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt)
+        if table_exists(table_name):
+            self.model = create_dynamic_model(table_name)
         else:
-            inspector = inspect(engine)
-            table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt)
-            if inspector.has_table(table_name):
-                self.model = create_dynamic_model(table_name)
+            if create_table:
+                self.model = self.create_annotation_table(image_id, annotation_class_id, is_gt)
             else:
                 raise ValueError(f"Table {table_name} does not exist. Set create_table=True to create it.")
+
 
     # CREATE
     # TODO: consider adding optional parameter to allow tileids to be passed in.
@@ -252,3 +252,15 @@ def create_dynamic_model(table_name, base=Base):
         __table__ = Table(table_name, base.metadata, autoload_with=engine)
 
     return DynamicAnnotation
+
+def table_exists(table_name: str) -> bool:
+    """
+    Check if a table exists in the database.
+    Args:
+        table_name (str): The name of the table to check.
+    Returns:
+        bool: True if the table exists, False otherwise.
+    """
+    metadata = MetaData()
+    metadata.reflect(bind=engine)
+    return table_name in metadata.tables

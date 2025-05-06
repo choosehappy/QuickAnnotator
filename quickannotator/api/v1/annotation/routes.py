@@ -38,7 +38,7 @@ class Annotation(MethodView):
         in_work_mag = False
 
         polygons: List[geojson.Polygon] = args['polygons']
-        store = AnnotationStore(image_id, annotation_class_id, is_gt=is_gt, in_work_mag=in_work_mag)
+        store = AnnotationStore(image_id, annotation_class_id, is_gt=is_gt, in_work_mag=in_work_mag, create_table=True)
         anns = store.insert_annotations([shape(poly) for poly in polygons])
         tilestore = TileStoreFactory.get_tilestore()
         tilestore.upsert_gt_tiles(image_id, annotation_class_id, {ann.tile_id for ann in anns})
