@@ -64,7 +64,7 @@ const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) 
                 parseInt(data.formBasicTilesize)
             );
 
-            if (createResp.status !== 200) {
+            if (createResp.status !== 201) {
                 console.error("Error creating annotation class:", createResp);
                 alert("Failed to create annotation class. Please try again.");
                 return;

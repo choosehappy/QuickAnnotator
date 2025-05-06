@@ -61,7 +61,7 @@ const AnnotationPage = () => {
 
     async function handleDeleteClass() {
         const deleteResp = await deleteAnnotationClass(currentAnnotationClass?.id)
-        if (deleteResp.status !== 200) {
+        if (deleteResp.status !== 204) {
             console.error("Error deleting annotation class:", deleteResp);
             return;
         }
@@ -71,6 +71,12 @@ const AnnotationPage = () => {
             return;
         }
         setAnnotationClasses(getResp.data);
+        const newCurrentAnnotation = getResp.data.find((c) => c.id === DEFAULT_CLASS_ID);
+        if (!newCurrentAnnotation) {
+            console.error("Error: Default annotation class not found");
+            return;
+        }
+        setCurrentAnnotationClass(newCurrentAnnotation);  // Assumed to be the tissue mask class
         setActiveModal(null);
     }
 
