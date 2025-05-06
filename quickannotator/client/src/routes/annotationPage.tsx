@@ -164,7 +164,7 @@ const AnnotationPage = () => {
                         <Col xs={3}>
                             <Stack gap={3}>
                                 <ClassesPane
-                                    {...{ currentAnnotationClass, setCurrentClass: setCurrentAnnotationClass, setActiveModal, annotationClasses, setAnnotationClasses }}
+                                    {...{ currentAnnotationClass, setcurrentAnnotationClass: setCurrentAnnotationClass, setActiveModal, annotationClasses, setAnnotationClasses }}
                                 />
                                 <GroundTruthPane
                                     {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, annotationClasses }}

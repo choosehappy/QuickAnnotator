@@ -164,7 +164,7 @@ const ViewportMap = (props: Props) => {
 
         console.log(ctx.current.currentAnnotation);
         const currentAnn: CurrentAnnotation = ctx.current.currentAnnotation;
-        const currentClass: AnnotationClass = ctx.current.currentClass;
+        const currentAnnotationClass: AnnotationClass = ctx.current.currentAnnotationClass;
         const currentImage: Image = ctx.current.currentImage;
 
         if (!polygonClicked.current && currentAnn) {
@@ -184,12 +184,12 @@ const ViewportMap = (props: Props) => {
         const currentState: Annotation | undefined = currentAnn.currentState;
         const tile_id = currentState?.tile_id;
         const currentImage: Image = ctx.current.currentImage;
-        const currentClass: AnnotationClass = ctx.current.currentClass;
+        const currentAnnotationClass: AnnotationClass = ctx.current.currentAnnotationClass;
         const annotationId = currentState?.id;
         const layer = geojs_map.current.layers()[LAYER_KEYS.GT];
 
-        if (annotationId && currentImage && currentClass && tile_id) {
-            removeAnnotation(currentImage.id, currentClass.id, annotationId, true).then(() => {
+        if (annotationId && currentImage && currentAnnotationClass && tile_id) {
+            removeAnnotation(currentImage.id, currentAnnotationClass.id, annotationId, true).then(() => {
                 const feature = getTileFeatureById(layer, tile_id);
                 const data = feature.data();
                 const deletedData = data.filter((d: Annotation) => d.id !== annotationId);
@@ -219,11 +219,11 @@ const ViewportMap = (props: Props) => {
 
     const addAnnotation = (newPolygon: Polygon) => {
         const currentImage: Image = ctx.current.currentImage;
-        const currentClass: Annotation = ctx.current.currentClass;
+        const currentAnnotationClass: Annotation = ctx.current.currentAnnotationClass;
 
-        postAnnotations(currentImage.id, currentClass.id, [newPolygon]).then((resp) => {
+        postAnnotations(currentImage.id, currentAnnotationClass.id, [newPolygon]).then((resp) => {
             if (resp.status === 200) {
-                const annotation = new Annotation(resp.data[0], currentClass.id);
+                const annotation = new Annotation(resp.data[0], currentAnnotationClass.id);
                 const tile_id = annotation.tile_id;
                 const layer = geojs_map.current.layers()[LAYER_KEYS.GT];
                 if (!tile_id) {
@@ -236,7 +236,7 @@ const ViewportMap = (props: Props) => {
                     const updatedData = data.concat(annotation);
                     redrawTileFeature(feature, {}, updatedData);
                 } else {
-                    const feature = createGTTileFeature({}, [annotation], layer, currentClass.id);
+                    const feature = createGTTileFeature({}, [annotation], layer, currentAnnotationClass.id);
                     feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
                 }
                 props.setGts((prev: Annotation[]) => prev.concat(annotation));
@@ -250,11 +250,11 @@ const ViewportMap = (props: Props) => {
         const polygonList = annotationLayer.toPolygonList()[0][0].map((p: number[]) => [p[0], -p[1]]);
 
         const currentImage: Image = ctx.current.currentImage;
-        const currentClass: AnnotationClass = ctx.current.currentClass;
+        const currentAnnotationClass: AnnotationClass = ctx.current.currentAnnotationClass;
         const currentAnn: CurrentAnnotation = ctx.current.currentAnnotation;
         const currentTool: string = ctx.current.currentTool;
 
-        if (!(polygonList.length > 0 && currentImage && currentClass)) {
+        if (!(polygonList.length > 0 && currentImage && currentAnnotationClass)) {
             console.log("Polygon list is empty.")
             return;
         }
@@ -275,12 +275,12 @@ const ViewportMap = (props: Props) => {
                 addAnnotation(polygon2);
             }
         } else if (currentTool === TOOLBAR_KEYS.IMPORT) {
-            const resp = await getAnnotationsWithinPolygon(currentImage.id, currentClass.id, false, polygon2);
+            const resp = await getAnnotationsWithinPolygon(currentImage.id, currentAnnotationClass.id, false, polygon2);
             if (resp.status === 200) {
-                const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentClass.id));
+                const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentAnnotationClass.id));
 
                 // Get the ids for the features to redraw
-                const tilesResp = await searchTileIdsWithinPolygon(currentImage.id, currentClass.id, polygon2, false);
+                const tilesResp = await searchTileIdsWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon2, false);
                 if (tilesResp.status === 200) {
                     const tileIds = tilesResp.data.tile_ids;
                     featureIdsToUpdate.current = tileIds;

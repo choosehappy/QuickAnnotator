@@ -7,7 +7,7 @@ import { MODAL_DATA, MASK_CLASS_ID } from '../helpers/config.ts';
 
 interface Props {
     currentAnnotationClass: AnnotationClass | null;
-    setCurrentClass: (currentClass: AnnotationClass) => void;
+    setcurrentAnnotationClass: (currentAnnotationClass: AnnotationClass) => void;
     setActiveModal: (activeModal: number | null) => void;
     annotationClasses: AnnotationClass[];
     setAnnotationClasses: (classes: AnnotationClass[]) => void;
@@ -32,7 +32,7 @@ const ClassesPane = (props: Props) => {
                                 <ListGroup.Item 
                                     key={c.id}
                                     action 
-                                    onClick={() => {props.setCurrentClass(c)}}
+                                    onClick={() => {props.setcurrentAnnotationClass(c)}}
                                     active={props.currentAnnotationClass?.id === c.id}
                                     className="d-flex justify-content-between align-items-center list-group-item-secondary"
                                 >
