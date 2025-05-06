@@ -40,6 +40,11 @@ export const MODAL_DATA: { [key: string]: ModalData } = {
         title: 'Add a new annotation class',
         description: 'Configure the new annotation class',
     },
+    DELETE_CLASS: {
+        id: 2,
+        title: 'Delete annotation class',
+        description: 'Are you sure you want to delete this annotation class? This action will remove all annotations of this class and will permenantly delete the deep learning model.',
+    }
 }
 
 
@@ -58,3 +63,5 @@ export const UI_SETTINGS = {
     pendingTileFillColor: 'grey',
     pendingTileFillOpacity: 0.5,
 }
+
+export const MASK_CLASS_ID = 1;

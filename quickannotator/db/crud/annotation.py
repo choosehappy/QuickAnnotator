@@ -3,16 +3,13 @@ import quickannotator.db.models as db_models
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
 from quickannotator.db import Base, db_session, engine
 from quickannotator.db.crud.misc import compute_custom_metrics
-
-
 import sqlalchemy
 from shapely.affinity import scale
 from shapely.geometry.base import BaseGeometry
 from sqlalchemy import func, Table
-
-
 from datetime import datetime
 from typing import List
+from sqlalchemy import inspect
 
 
 def get_annotation_query(model, scale_factor: float=1.0) -> Query:
@@ -78,7 +75,12 @@ class AnnotationStore:
             model = self.create_annotation_table(image_id, annotation_class_id, is_gt)
             self.model = model
         else:
-            self.model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt))
+            inspector = inspect(engine)
+            table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt)
+            if inspector.has_table(table_name):
+                self.model = create_dynamic_model(table_name)
+            else:
+                raise ValueError(f"Table {table_name} does not exist. Set create_table=True to create it.")
 
     # CREATE
     # TODO: consider adding optional parameter to allow tileids to be passed in.
@@ -118,19 +120,21 @@ class AnnotationStore:
 
         return result
 
-
     # READ
     def get_annotation_by_id(self, annotation_id: int) -> db_models.Annotation:
         result = get_annotation_query(self.model, 1/self.scaling_factor).filter_by(id=annotation_id).first()
         return result
 
+
     def get_annotations_by_ids(self, annotation_ids: List[int]) -> List[db_models.Annotation]:
         result = get_annotation_query(self.model, 1/self.scaling_factor).filter(self.model.id.in_(annotation_ids)).all()
         return result
 
+
     def get_annotations_for_tiles(self, tile_ids: List[int]) -> List[db_models.Annotation]:
         result = get_annotation_query(self.model, 1/self.scaling_factor).filter(self.model.tile_id.in_(tile_ids)).all()
         return result
+
 
     def get_annotations_within_poly(self, polygon: BaseGeometry) -> List[db_models.Annotation]:
         scaled_polygon = self.scale_polygon(polygon, self.scaling_factor)
@@ -159,7 +163,6 @@ class AnnotationStore:
 
         return None  # Handle case where annotation_id is not found
 
-
     # DELETE
     def delete_annotation(self, annotation_id: int) -> int:
         """
@@ -175,6 +178,7 @@ class AnnotationStore:
         db_session.commit()
         return result
 
+
     def delete_annotations(self, annotation_ids: List[int]) -> List[int]:
         """
         Deletes multiple annotations by their IDs.
@@ -188,6 +192,7 @@ class AnnotationStore:
         result = db_session.execute(stmt).scalars().all()
         db_session.commit()
         return result
+
 
     def delete_annotations_by_tile(self, tile_id: int) -> List[int]:
         """
@@ -203,9 +208,22 @@ class AnnotationStore:
         db_session.commit()
         return result
 
+
     def delete_all_annotations(self):
         db_session.query(self.model).delete()
 
+
+    def drop_table(self):
+        """
+        Drops the annotation table.
+        Returns:
+            bool: True if the table was successfully dropped, False otherwise.
+        """
+        try:
+            self.model.__table__.drop(db_session.bind, checkfirst=True)
+        except Exception as e:
+            raise e
+        
 
     @staticmethod
     def create_annotation_table(image_id: int, annotation_class_id: int, is_gt: bool):

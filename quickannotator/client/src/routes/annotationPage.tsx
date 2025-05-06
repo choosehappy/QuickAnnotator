@@ -10,7 +10,7 @@ import ConfirmationModal from '../components/confirmationModal.tsx';
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
-import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass, fetchAnnotationClasses, fetchAnnotationClassById, createAnnotationClass } from "../helpers/api.ts";
+import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass, fetchAnnotationClasses, fetchAnnotationClassById, createAnnotationClass, deleteAnnotationClass } from "../helpers/api.ts";
 import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation } from "../types.ts";
 import { DEFAULT_CLASS_ID, MODAL_DATA, TOOLBAR_KEYS } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
@@ -59,8 +59,22 @@ const AnnotationPage = () => {
         setCurrentTool(TOOLBAR_KEYS.POINTER);
     }
 
+    async function handleDeleteClass() {
+        const deleteResp = await deleteAnnotationClass(currentAnnotationClass?.id)
+        if (deleteResp.status !== 200) {
+            console.error("Error deleting annotation class:", deleteResp);
+            return;
+        }
+        const getResp = await fetchAnnotationClasses();
+        if (getResp.status !== 200) {
+            console.error("Error fetching annotation classes:", getResp);
+            return;
+        }
+        setAnnotationClasses(getResp.data);
+        setActiveModal(null);
+    }
 
-    function cancelAddClass() {
+    function handleCancelDeleteClass() {
         setActiveModal(null);
     }
 
@@ -104,6 +118,7 @@ const AnnotationPage = () => {
                 <Container fluid className="pb-3 bg-dark d-flex flex-column flex-grow-1">
                     <ConfirmationModal activeModal={activeModal} config={MODAL_DATA.IMPORT_CONF} onConfirm={handleConfirmImport} onCancel={handleCancelImport}/>
                     <NewClassModal activeModal={activeModal} setActiveModal={setActiveModal} config={MODAL_DATA.ADD_CLASS} currentProject={currentProject}  setAnnotationClasses={setAnnotationClasses}/>
+                    <ConfirmationModal activeModal={activeModal} config={MODAL_DATA.DELETE_CLASS} onConfirm={handleDeleteClass} onCancel={handleCancelDeleteClass}/>
                     <Row className="d-flex flex-grow-1">
                         <Col className="d-flex flex-grow-1">
                             <Card className="flex-grow-1">

@@ -17,6 +17,34 @@ def annotation_store(db_session, seed, annotations_seed):
     is_gt = True
     return AnnotationStore(image_id, annotation_class_id, is_gt)
 
+def test_annotation_store_initialization_with_existing_table(db_session, annotations_seed):
+    # Arrange
+    image_id = 1
+    annotation_class_id = 2
+    is_gt = True
+
+    # Act
+    store = AnnotationStore(image_id, annotation_class_id, is_gt)
+
+    # Assert
+    assert store is not None
+    assert store.image_id == image_id
+    assert store.annotation_class_id == annotation_class_id
+    assert store.is_gt == is_gt
+
+def test_annotation_store_initialization_with_nonexistent_table(db_session, annotations_seed):
+    # Arrange
+    image_id = 1
+    annotation_class_id = 9999
+    is_gt = True
+
+    # Act & Assert
+    with pytest.raises(ValueError) as excinfo:
+        AnnotationStore(image_id, annotation_class_id, is_gt)
+
+    # Verify the exception message
+    assert "Table annotation_1_9999_gt does not exist. Set create_table=True to create it." in str(excinfo.value)
+
 
 def test_insert_annotations(annotation_store):
     # Arrange
@@ -183,6 +211,21 @@ def test_delete_annotation_not_found(annotation_store):
 
     # Assert
     assert result is None
+
+
+def test_drop_table(annotation_store):
+    # Arrange
+    annotation_id = 1
+
+    # Act
+    result = annotation_store.drop_table()
+
+    # Assert
+    assert result is None
+
+    # Verify that the table no longer exists
+    with pytest.raises(Exception):
+        annotation_store.get_annotation_by_id(annotation_id)
 
 
 # UPSERT TILES TESTS

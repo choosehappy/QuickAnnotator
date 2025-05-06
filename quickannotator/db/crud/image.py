@@ -29,3 +29,6 @@ def add_image_by_path(project_id, full_path):
 
 def get_image_by_id(image_id: int) -> db_models.Image:
     return db_session.query(db_models.Image).get(image_id)
+
+def get_images_for_project(project_id: int) -> list[db_models.Image]:
+    return db_session.query(db_models.Image).filter(db_models.Image.project_id == project_id).all()

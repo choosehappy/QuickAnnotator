@@ -33,6 +33,15 @@ def put_annotation_class(annotation_class_id, name: str=None, color: str=None):
     db_session.commit()
     return annotation_class
 
+def delete_annotation_class(annotation_class_id: int) -> db_models.AnnotationClass:
+    annotation_class: db_models.AnnotationClass = db_session.query(db_models.AnnotationClass).get(annotation_class_id)
+    if annotation_class is None:
+        return None
+
+    db_session.delete(annotation_class)
+    db_session.commit()
+    return annotation_class
+
 def search_annotation_class_by_name(name: str):
     return db_session.query(db_models.AnnotationClass).filter(db_models.AnnotationClass.name == name).all()
 

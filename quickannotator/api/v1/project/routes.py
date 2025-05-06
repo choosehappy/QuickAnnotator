@@ -19,7 +19,7 @@ class Project(MethodView):
         if project is not None:
             return project
         else:
-            abort(404, message="Project not found")
+            abort(404, "Project not found")
 
     @bp.arguments(server_models.PostProjectArgsSchema, location='json')
     @bp.response(200, description="Project created")

@@ -108,7 +108,10 @@ def tissue_mask_seed(db_session, seed):
     # Insert a mask annotation which envelopes all annotations
     minx, miny, maxx, maxy = 0, 0, 10000, 10000
     mask_poly = Polygon([(minx, miny), (maxx, miny), (maxx, maxy), (minx, maxy), (minx, miny)])
-    mask_store.insert_annotations([mask_poly])
+    anns = mask_store.insert_annotations([mask_poly])
+
+    tilestore = TileStoreFactory.get_tilestore()
+    tilestore.upsert_gt_tiles(image_id, annotation_class_id, list({ann.tile_id for ann in anns}))
 
     db_session.commit()
 
@@ -143,10 +146,15 @@ def annotations_seed(db_session, tissue_mask_seed, polygons):
     prediction_store = AnnotationStore(image_id, annotation_class_id, is_gt=False, in_work_mag=False, create_table=True)
 
     # Insert the annotations
-    annotation_store.insert_annotations(polygons)
+    gt_anns = annotation_store.insert_annotations(polygons)
+    tilestore = TileStoreFactory.get_tilestore()
+    tilestore.upsert_gt_tiles(image_id, annotation_class_id, list({ann.tile_id for ann in gt_anns}))
 
     # Also insert as predictions
-    prediction_store.insert_annotations(polygons)
+    pred_anns = prediction_store.insert_annotations(polygons)
+    tilestore.upsert_pred_tiles(image_id, annotation_class_id, list({ann.tile_id for ann in pred_anns}))
+
+
 
     db_session.commit()
 

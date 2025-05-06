@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { Button, ListGroup } from "react-bootstrap";
 import { AnnotationClass } from "../types.ts";
 import { Plus, Pencil, Trash } from 'react-bootstrap-icons';
-import { MODAL_DATA } from '../helpers/config.ts';
+import { MODAL_DATA, MASK_CLASS_ID } from '../helpers/config.ts';
 
 interface Props {
     currentAnnotationClass: AnnotationClass | null;
@@ -38,16 +38,18 @@ const ClassesPane = (props: Props) => {
                                 >
                                     <span>{c.name}</span>
                                     <div>
-                                        <Button 
-                                            variant="outline-danger" 
-                                            size="sm"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                // Handle delete logic here
-                                            }}
-                                        >
-                                            <Trash />
-                                        </Button>
+                                        {c.id !== MASK_CLASS_ID && c.id === props.currentAnnotationClass?.id && (
+                                            <Button 
+                                                variant="outline-danger" 
+                                                size="sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    props.setActiveModal(MODAL_DATA.DELETE_CLASS.id);
+                                                }}
+                                            >
+                                                <Trash />
+                                            </Button>
+                                        )}
                                         <Button 
                                             disabled 
                                             size="lg" 

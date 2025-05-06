@@ -28,11 +28,11 @@ def test_get_annotation_class(test_client, db_session):
     assert data['work_tilesize'] == annotation_class.work_tilesize
 
 
-def test_post_annotation_class(test_client, db_session):
+def test_post_annotation_class(test_client, db_session, seed):
     """
     GIVEN a test client and new annotation class data
     WHEN the client creates the annotation class using a POST request
-    THEN the response should have a status code of 200 and the annotation class should be added to the database
+    THEN the response should have a status code of 201 and the annotation class should be added to the database
     """
 
     # Arrange
@@ -40,23 +40,29 @@ def test_post_annotation_class(test_client, db_session):
         'project_id': 1,
         'name': "New Class",
         'color': "#000000",
-        'work_mag': 20
+        'work_mag': 20,
+        'tile_size': 2048
     }
 
     # Act
     response = test_client.post('/api/v1/class/', query_string=params)
 
     # Assert
-    assert response.status_code == 200
+    assert response.status_code == 201
     data = response.get_json()
-    assert 'annotation_class_id' in data
+    assert data['id'] is not None
+    assert data['name'] == params['name']
+    assert data['color'] == params['color']
+    assert data['work_mag'] == params['work_mag']
+    assert data['work_tilesize'] == params['tile_size']
 
     # Verify in the database
-    annotation_class = db_session.query(AnnotationClass).get(data['annotation_class_id'])
+    annotation_class = db_session.query(AnnotationClass).get(data['id'])
     assert annotation_class is not None
     assert annotation_class.name == params['name']
     assert annotation_class.color == params['color']
     assert annotation_class.work_mag == params['work_mag']
+    assert annotation_class.work_tilesize == params['tile_size']
 
 
 def test_put_annotation_class(test_client, db_session):
@@ -89,7 +95,7 @@ def test_put_annotation_class(test_client, db_session):
     assert annotation_class.color == params['color']
 
 
-def test_delete_annotation_class(test_client, db_session):
+def test_delete_annotation_class(test_client, db_session, annotations_seed):
     """
     GIVEN a test client and an existing annotation class
     WHEN the client deletes the annotation class using a DELETE request
@@ -97,9 +103,7 @@ def test_delete_annotation_class(test_client, db_session):
     """
 
     # Arrange
-    annotation_class = AnnotationClass(project_id=1, name="To Be Deleted", color="#FF0000", work_mag=10, work_tilesize=2048)
-    db_session.add(annotation_class)
-    db_session.commit()
+    annotation_class = db_session.query(AnnotationClass).get(2)
 
     params = {'annotation_class_id': annotation_class.id}
 
@@ -112,6 +116,43 @@ def test_delete_annotation_class(test_client, db_session):
     # Verify in the database
     deleted_class = db_session.query(AnnotationClass).get(annotation_class.id)
     assert deleted_class is None
+
+
+def test_delete_non_existent_annotation_class(test_client, db_session, annotations_seed):
+    """
+    GIVEN a test client and a non-existent annotation class ID
+    WHEN the client tries to delete the annotation class using a DELETE request
+    THEN the response should have a status code of 404
+    """
+
+    # Arrange
+    params = {'annotation_class_id': 9999}  # Non-existent ID
+
+    # Act
+    response = test_client.delete('/api/v1/class/', query_string=params)
+
+    # Assert
+    assert response.status_code == 404
+    data = response.get_json()
+
+def test_delete_mask_annotation_class(test_client, db_session, annotations_seed):
+    """
+    GIVEN a test client and the mask annotation class ID
+    WHEN the client tries to delete the mask annotation class using a DELETE request
+    THEN the response should have a status code of 400 and the appropriate error message
+    """
+
+    # Arrange
+    mask_class_id = 1  # Assuming 1 is the MASK_CLASS_ID
+    params = {'annotation_class_id': mask_class_id}
+
+    # Act
+    response = test_client.delete('/api/v1/class/', query_string=params)
+
+    # Assert
+    assert response.status_code == 400
+    data = response.get_json()
+
 
 
 def test_search_annotation_class(test_client, db_session):
