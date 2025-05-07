@@ -124,7 +124,7 @@ const AnnotationPage = () => {
             <>
                 <Container fluid className="pb-3 bg-dark d-flex flex-column flex-grow-1">
                     <ConfirmationModal activeModal={activeModal} config={MODAL_DATA.IMPORT_CONF} onConfirm={handleConfirmImport} onCancel={handleCancelImport}/>
-                    <NewClassModal activeModal={activeModal} setActiveModal={setActiveModal} config={MODAL_DATA.ADD_CLASS} currentProject={currentProject}  setAnnotationClasses={setAnnotationClasses}/>
+                    <NewClassModal activeModal={activeModal} setActiveModal={setActiveModal} config={MODAL_DATA.ADD_CLASS} currentProject={currentProject} annotationClasses={annotationClasses} setAnnotationClasses={setAnnotationClasses}/>
                     <ConfirmationModal activeModal={activeModal} config={MODAL_DATA.DELETE_CLASS} onConfirm={handleDeleteClass} onCancel={handleCancelDeleteClass}/>
                     <Row className="d-flex flex-grow-1">
                         <Col className="d-flex flex-grow-1">

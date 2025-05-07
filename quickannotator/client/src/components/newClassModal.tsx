@@ -15,6 +15,7 @@ interface NewClassModalProps {
     currentProject: Project;
     activeModal: number | null;
     config: ModalData;
+    annotationClasses: AnnotationClass[];
     setAnnotationClasses: React.Dispatch<React.SetStateAction<AnnotationClass[]>>;
     setActiveModal: React.Dispatch<React.SetStateAction<number | null>>;
 }
@@ -51,7 +52,7 @@ const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) 
             }
             setTilesizeOptions(resp.data.tilesizes);
         });
-    }, []);
+    }, [props.annotationClasses]);
 
     const onSubmit: SubmitHandler<IFormInput> = async (data) => {
         try {
@@ -78,6 +79,7 @@ const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) 
             }
 
             props.setAnnotationClasses(fetchResp.data);
+            methods.reset(); // Reset the form after successful submission
             props.setActiveModal(null);
         } catch (error) {
             console.error("Unexpected error:", error);
@@ -86,6 +88,7 @@ const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) 
     };
 
     function onCancel() {
+        methods.reset(); // Reset the form when the modal is closed
         props.setActiveModal(null);
     }
 

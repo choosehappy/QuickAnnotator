@@ -28,13 +28,13 @@ FLASK_DATETIME_FORMAT = 'iso'
 ANNOTATION_CLASS_COLOR_PALETTES = {
     # https://informatics-isi-edu.github.io/atlas-d2k-docs/docs/color-palette-for-image-annotation/
     'default': [
-        "#D5FF00", "#00FF00", "#FF937E", "#91D0CB", 
-        "#0000FF", "#00AE7E", "#FF00F6", "#5FAD4E", 
-        "#01D0FF", "#BB8800", "#BDC6FF", "#008F9C", 
-        "#A5FFD2", "#FFA6FE", "#FFDB66", "#00FFC6", 
-        "#00B917", "#BDD393", "#004754", "#010067", 
-        "#0E4CA1", "#005F39", "#6B6882", "#683D3B", 
-        "#43002C", "#788231"
+        "#d5ff00", "#00ff00", "#ff937e", "#91d0cb", 
+        "#0000ff", "#00ae7e", "#ff00f6", "#5fad4e", 
+        "#01d0ff", "#bb8800", "#bdc6ff", "#008f9c", 
+        "#a5ffd2", "#ffa6fe", "#ffdb66", "#00ffc6", 
+        "#00b917", "#bdd393", "#004754", "#010067", 
+        "#0e4ca1", "#005f39", "#6b6882", "#683d3b", 
+        "#43002c", "#788231"
     ]
 }
 
