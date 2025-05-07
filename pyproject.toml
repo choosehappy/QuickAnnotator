@@ -72,7 +72,7 @@ Homepage = "https://github.com/choosehappy/QuickAnnotator"
 
 # ----------------------------------------------------------------------------------
 [project.scripts]
-run_module = "quickannotator.__main__:main"
+quickannotator = "quickannotator.__main__:main"
 
 # ----------------------------------------------------------------------------------
 [tool.setuptools_scm]
