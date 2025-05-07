@@ -30,7 +30,7 @@ export const redrawTileFeature = (feature: any, options = {}, data?: any[]) => {
     feature.draw(options);
 }
 
-export const createGTTileFeature = (featureProps: any, annotations: Annotation[], layer: any, currentAnnotationId: number | null = null, annotationClass: AnnotationClass) => {
+export const createGTTileFeature = (featureProps: any, annotations: Annotation[], layer: any, annotationClass: AnnotationClass, currentAnnotationId: number | null = null,) => {
     const feature = layer.createFeature('polygon');
     const color = annotationClass.color;
     feature.props = featureProps;
@@ -66,7 +66,7 @@ export const createGTTileFeature = (featureProps: any, annotations: Annotation[]
 }
 
 
-export const createPredTileFeature = (featureProps: any, annotations: Annotation[], layer: any, highlightedPolyIds: number[] | null = null, annotationClass: AnnotationClass) => {
+export const createPredTileFeature = (featureProps: any, annotations: Annotation[], layer: any, annotationClass: AnnotationClass, highlightedPolyIds: number[] | null = null) => {
     const feature = layer.createFeature('polygon');
     const color = annotationClass.color;
     featureProps.type = 'annotation';

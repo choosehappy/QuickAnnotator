@@ -10,6 +10,7 @@ from quickannotator.db import db_session
 from quickannotator.db.crud.annotation_class import delete_annotation_class, get_annotation_class_by_id, insert_annotation_class, put_annotation_class
 from quickannotator.dl.ray_jackson import start_processing
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
+from flask import Response
 
 from flask.views import MethodView
 from flask_smorest import Blueprint
@@ -117,7 +118,7 @@ class DLActor(MethodView):
         actor = start_processing(annotation_class_id)
 
         if actor is None:
-            abort(404, "Failed to create DL Actor")
+            abort(404, description="Failed to create DL Actor")
         else:
             return {}, 200
 

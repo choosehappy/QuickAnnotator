@@ -66,8 +66,8 @@ const ViewportMap = (props: Props) => {
                 const resp = await getAnnotationsForTileIds(props.currentImage.id, props.currentAnnotationClass.id, [tileId], true);
                 const annotations = resp.data.map(annResp => new Annotation(annResp, props.currentAnnotationClass.id));
                 if (currentCallToken !== activeCallRef.current) return;
-                anns = anns.concat(annotations);
-                const feature = createGTTileFeature({ tile_id: tileId }, annotations, layer, props.currentAnnotation?.currentState?.id, props.currentAnnotationClass);
+                anns = anns.concat(annotations);                
+                const feature = createGTTileFeature({ tile_id: tileId }, annotations, layer, props.currentAnnotationClass, props.currentAnnotation?.currentState?.id,);
                 feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
             } else {
                 const webGLFeature = getTileFeatureById(layer, tileId);
@@ -115,7 +115,7 @@ const ViewportMap = (props: Props) => {
                     const annotations = resp.data.map(annResp => new Annotation(annResp, props.currentAnnotationClass.id));
                     if (currentCallToken !== activeCallRef.current) return;
                     anns = anns.concat(annotations);
-                    createPredTileFeature({ tile_id: tileId }, annotations, layer);
+                    createPredTileFeature({ tile_id: tileId }, annotations, layer, props.currentAnnotationClass);
                 } else {
                     // Get a polygon for the tile and plot it on the map.
                     if (currentCallToken !== activeCallRef.current) return;
@@ -164,8 +164,6 @@ const ViewportMap = (props: Props) => {
 
         console.log(ctx.current.currentAnnotation);
         const currentAnn: CurrentAnnotation = ctx.current.currentAnnotation;
-        const currentAnnotationClass: AnnotationClass = ctx.current.currentAnnotationClass;
-        const currentImage: Image = ctx.current.currentImage;
 
         if (!polygonClicked.current && currentAnn) {
             const currentState = currentAnn.currentState;
@@ -219,7 +217,7 @@ const ViewportMap = (props: Props) => {
 
     const addAnnotation = (newPolygon: Polygon) => {
         const currentImage: Image = ctx.current.currentImage;
-        const currentAnnotationClass: Annotation = ctx.current.currentAnnotationClass;
+        const currentAnnotationClass: AnnotationClass = ctx.current.currentAnnotationClass;
 
         postAnnotations(currentImage.id, currentAnnotationClass.id, [newPolygon]).then((resp) => {
             if (resp.status === 200) {
@@ -236,7 +234,7 @@ const ViewportMap = (props: Props) => {
                     const updatedData = data.concat(annotation);
                     redrawTileFeature(feature, {}, updatedData);
                 } else {
-                    const feature = createGTTileFeature({}, [annotation], layer, currentAnnotationClass.id);
+                    const feature = createGTTileFeature({}, [annotation], layer, currentAnnotationClass);
                     feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
                 }
                 props.setGts((prev: Annotation[]) => prev.concat(annotation));

@@ -104,6 +104,7 @@ const AnnotationPage = () => {
     }, [])
 
     useEffect(() => {
+        if (!currentAnnotationClass) return;
         startProcessingAnnotationClass(currentAnnotationClass?.id).then((resp) => {
             if (resp.status === 200) {
                 console.log("Processing started");
