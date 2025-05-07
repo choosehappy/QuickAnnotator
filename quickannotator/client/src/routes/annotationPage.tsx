@@ -15,6 +15,7 @@ import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation } fro
 import { MODAL_DATA, TOOLBAR_KEYS } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
+import Legend from '../components/legend.tsx';
 
 function usePrevious<T>(value: T): T | undefined {
     const ref = useRef<T>();
@@ -95,10 +96,12 @@ const AnnotationPage = () => {
                                     borderColor: "rgba(0, 0, 0, 0.8)",
                                     borderRadius: 6,
                                     zIndex: 10,
-                                }}><Toolbar {...{ currentTool, 
+                                }}>
+                                    <Toolbar {...{ currentTool, 
                                                 setCurrentTool, 
                                                 action, 
-                                                setAction }} /></Card.Header>
+                                                setAction }} />
+                                </Card.Header>
                                 <Card.Body style={{ padding: "0px" }}>
                                     <ViewportMap {...{ currentImage, 
                                                     currentClass, 
@@ -116,6 +119,7 @@ const AnnotationPage = () => {
                                                     activeModal,
                                                     setActiveModal
                                                     }} />
+                                                    <Legend/>
                                 </Card.Body>
                             </Card>
                         </Col>
