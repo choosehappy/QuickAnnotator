@@ -8,7 +8,7 @@ def test_ERD(test_client):
     AND the response data should not be empty
     """
     # Arrange
-    target_img_path = 'quickannotator/tests/data/ERD.png'
+    target_img_path = 'quickannotator/tests/testdata/ERD.png'
 
     # Act
     response = test_client.get('/api/v1/misc/erd')
