@@ -10,7 +10,7 @@ bp = Blueprint('misc', __name__, description='Miscellaneous operations')
 @bp.route('/erd')
 class ERD(MethodView):
     def get(self):
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=True) as tmp_file:
             tmp_filepath = tmp_file.name
             # Generate the ER diagram using eralchemy
             render_er(Base.metadata, tmp_filepath)
