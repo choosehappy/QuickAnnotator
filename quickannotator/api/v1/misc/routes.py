@@ -15,4 +15,4 @@ class ERD(MethodView):
             # Generate the ER diagram using eralchemy
             render_er(Base.metadata, tmp_filepath)
 
-        return send_file(tmp_filepath, mimetype='image/png')
+            return send_file(tmp_filepath, mimetype='image/png')
