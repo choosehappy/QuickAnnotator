@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Card from "react-bootstrap/Card";
 
 interface Props {
-    mouseCoords: number[];
+    mouseCoords: { x: number, y: number };
 }
 
 const Legend = React.memo((props: Props) => {
@@ -21,11 +21,9 @@ const Legend = React.memo((props: Props) => {
                 <h6 style={{ margin: 0 }}>Legend</h6>
             </Card.Header>
             <Card.Body>
-                <ul style={{ margin: 0, padding: 0, listStyleType: "none" }}>
-                    <li><span style={{ color: "red" }}>●</span> Ground Truth</li>
-                    <li><span style={{ color: "blue" }}>●</span> Predictions</li>
-                    <li><span style={{ color: "green" }}>●</span> Current Annotation</li>
-                </ul>
+                <div style={{ marginTop: "10px", fontSize: "0.9em", color: "gray" }}>
+                    x: {props.mouseCoords.x}, y: {props.mouseCoords.y}
+                </div>
             </Card.Body>
         </Card>
     )

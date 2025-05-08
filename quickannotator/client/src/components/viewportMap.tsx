@@ -23,6 +23,7 @@ interface Props {
     setHighlightedPreds: React.Dispatch<React.SetStateAction<Annotation[] | null>>;
     activeModal: number | null;
     setActiveModal: React.Dispatch<React.SetStateAction<number | null>>;
+    setMouseCoords: React.Dispatch<React.SetStateAction<{ x: number, y: number } | null>>;
 }
 
 const useLocalContext = (data: any) => {
@@ -375,9 +376,8 @@ const ViewportMap = (props: Props) => {
 
             const params = geo.util.pixelCoordinateParams(
                 viewRef.current, img.base_width, img.base_height, img.dz_tilesize, img.dz_tilesize);
-            const interactor = geo.mapInteractor({ alwaysTouch: true });
-            const map = geo.map({ ...params.map, interactor: interactor });
-            // map.interactor(geo.mapInteractor({alwaysTouch: true}))
+
+            const map =     geo.map(params.map);
             params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
             console.log("OSM layer loaded.");
 
@@ -395,8 +395,14 @@ const ViewportMap = (props: Props) => {
 
             const uiLayer = map.createLayer('ui')
             uiLayer.createWidget('scale', {
-                position: { left : 10, bottom: 10 },
+                position: { left: 10, bottom: 10 },
+                units: [  
+                    {unit: 'μm', scale: 1},  // microns  
+                    {unit: 'mm', scale: 1000}       // millimeters  
+                  ],  
             });
+
+            
             annotationLayer.geoOn(geo.event.mousedown, handleMousedown);
             annotationLayer.geoOn(geo.event.annotation.state, handleNewAnnotation);
             annotationLayer.geoOn(geo.event.annotation.mode, handleAnnotationModeChange);
@@ -406,7 +412,7 @@ const ViewportMap = (props: Props) => {
                 }
             }
 
-            map.geoOn(geo.event.mousemove, function (evt: any) { this.showCoordinates });
+            map.geoOn(geo.event.mousemove, function (evt: any) { props.setMouseCoords({x: evt.geo.x.toFixed(2), y: evt.geo.y.toFixed(2) }) });
             map.geoOn(geo.event.zoom, handleZoomPan);
             map.geoOn(geo.event.pan, handleZoomPan);
             geojs_map.current = map;

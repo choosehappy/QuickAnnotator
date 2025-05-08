@@ -38,6 +38,7 @@ const AnnotationPage = () => {
     const [highlightedPreds, setHighlightedPreds] = useState<Annotation[] | null>(null); // TODO: should just be a list of annotations
     const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
     const [activeModal, setActiveModal] = useState<number | null>(null);
+    const [mouseCoords, setMouseCoords] = useState<{ x: number, y: number }>({x: 0, y: 0});
 
     function handleConfirmImport() {
         // Set activeModal to null
@@ -117,9 +118,10 @@ const AnnotationPage = () => {
                                                     highlightedPreds,
                                                     setHighlightedPreds,
                                                     activeModal,
-                                                    setActiveModal
+                                                    setActiveModal,
+                                                    setMouseCoords
                                                     }} />
-                                                    <Legend/>
+                                                    <Legend mouseCoords={mouseCoords}/>
                                 </Card.Body>
                             </Card>
                         </Col>
