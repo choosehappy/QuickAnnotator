@@ -74,6 +74,11 @@ export const fetchImage = async (image_id: number) => {
     return await get<Image>(`/image/?${query}`);
 }
 
+// Fetch image metadata
+export const fetchImageMetadata = async (image_id: number) => {
+    return await get<{ mpp: number }>(`/image/${image_id}/metadata`);
+};
+
 // Fetch project by ID
 export const fetchProject = async (project_id: number) => {
     const query = new URLSearchParams({ project_id: project_id.toString() });
@@ -203,3 +208,4 @@ export const fetchTileBoundingBox = async (image_id: number, annotation_class_id
     const query = new URLSearchParams({ tile_id: tile_id.toString() });
     return await get<{ bbox_polygon: Polygon }>(`/tile/${image_id}/${annotation_class_id}/bbox?${query}`);
 }
+

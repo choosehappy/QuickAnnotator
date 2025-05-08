@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse } from "../types.ts"
-import { searchTileIds, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileIdsWithinPolygon, fetchTileBoundingBox } from "../helpers/api.ts";
+import { searchTileIds, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileIdsWithinPolygon, fetchTileBoundingBox, fetchImageMetadata } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 import { TOOLBAR_KEYS, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY } from "../helpers/config.ts";
 
@@ -376,8 +376,8 @@ const ViewportMap = (props: Props) => {
 
             const params = geo.util.pixelCoordinateParams(
                 viewRef.current, img.base_width, img.base_height, img.dz_tilesize, img.dz_tilesize);
-
-            const map =     geo.map(params.map);
+            
+            const map = geo.map({ ...params.map, max: 20 });
             params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
             console.log("OSM layer loaded.");
 
@@ -390,19 +390,26 @@ const ViewportMap = (props: Props) => {
                 {
                     active: true,
                     zIndex: 2,
-                    // renderer: featureLayer.renderer()
                 });
 
-            const uiLayer = map.createLayer('ui')
-            uiLayer.createWidget('scale', {
-                position: { left: 10, bottom: 10 },
-                units: [  
-                    {unit: 'μm', scale: 1},  // microns  
-                    {unit: 'mm', scale: 1000}       // millimeters  
-                  ],  
-            });
+            const uiLayer = map.createLayer('ui');
 
-            
+            // Fetch image metadata and set scale
+            try {
+                const metadataResp = await fetchImageMetadata(img.id);
+                const mpp = metadataResp.data.mpp; // microns per pixel
+                const micronUnits = [
+                    { unit: 'µm', scale: 1 }, // for single micron
+                ];
+                uiLayer.createWidget('scale', {
+                    position: { left: 10, bottom: 10 },
+                    units: micronUnits,
+                    scale: mpp,
+                });
+            } catch (error) {
+                console.error("Failed to fetch image metadata:", error);
+            }
+
             annotationLayer.geoOn(geo.event.mousedown, handleMousedown);
             annotationLayer.geoOn(geo.event.annotation.state, handleNewAnnotation);
             annotationLayer.geoOn(geo.event.annotation.mode, handleAnnotationModeChange);

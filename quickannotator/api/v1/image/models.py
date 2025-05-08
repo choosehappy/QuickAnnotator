@@ -29,3 +29,6 @@ class DeleteImageArgsSchema(GetImageArgsSchema):
 
 class UploadFileArgsSchema(Schema):
     file = Upload(required=True)
+
+class ImageMetadataRespSchema(Schema):
+    mpp = fields.Float()

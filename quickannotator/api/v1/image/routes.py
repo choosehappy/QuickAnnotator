@@ -8,6 +8,7 @@ import large_image
 import os
 import io
 
+from quickannotator.db.crud.image import get_image_by_id
 import quickannotator.db.models as db_models
 from . import models as server_models
 from flask_smorest import Blueprint
@@ -65,7 +66,7 @@ class ImageSearch(MethodView):
 class ImageFile(MethodView):
     def get(self, image_id, file_type):
         """     returns an Image file   """
-        result = db_session.query(db_models.Image).filter(db_models.Image.id == image_id).first()
+        result = get_image_by_id(image_id)
 
         if file_type == ImageType.IMAGE:
             return send_from_directory(result['path'], result['name'])
@@ -85,7 +86,7 @@ class ImageFile(MethodView):
     def delete(self, image_id, file_type):
         """     delete an Image file   """
 
-        result = db_session.query(db_models.Image).filter(db_models.Image.id == image_id).first()
+        result = get_image_by_id(image_id)
 
         if file_type == ImageType.IMAGE:
             # TODO implement image file deletion
@@ -102,7 +103,7 @@ class PatchFile(MethodView):
     def get(self, image_id, level, col, row, file_format):
         """     returns a patch file   """
 
-        path = db_models.Image.query.get(image_id).path
+        path = get_image_by_id(image_id).path
         full_path = os.path.join(current_app.root_path, path)
         img = large_image.open(full_path)
 
@@ -117,3 +118,21 @@ class PatchFile(MethodView):
         # Return the image as a PNG file
         return send_file(img_bytes, mimetype='image/png')
 
+@bp.route('/<int:image_id>/metadata', endpoint="image_metadata")
+class ImageMetadata(MethodView):
+    @bp.response(200, server_models.ImageMetadataRespSchema)
+    def get(self, image_id):
+        """     returns metadata of an Image   """
+        result = get_image_by_id(image_id)
+        if result is not None:
+            full_path = os.path.join(current_app.root_path, result.path)
+            try:
+                img = large_image.open(full_path)
+                metadata = img.getMetadata()
+                return {
+                    "mpp": metadata.get("mm_x") * 1000  # Convert to microns per pixel
+                }, 200
+            except Exception as e:
+                abort(500, message=f"Error retrieving metadata: {str(e)}")
+        else:
+            abort(404, message="Image metadata not found")

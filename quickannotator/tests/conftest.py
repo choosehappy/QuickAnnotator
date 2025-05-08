@@ -21,6 +21,9 @@ def test_client():
     # Set the Testing configuration prior to creating the Flask application
     app = Flask(__name__)
     
+    # Set the application root path
+    app.root_path = constants.BASE_PATH
+
     # Configure the in-memory database
     app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
