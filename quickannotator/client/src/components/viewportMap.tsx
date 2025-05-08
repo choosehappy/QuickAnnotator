@@ -400,6 +400,8 @@ const ViewportMap = (props: Props) => {
                 const mpp = metadataResp.data.mpp; // microns per pixel
                 const micronUnits = [
                     { unit: 'µm', scale: 1 }, // for single micron
+                    { unit: 'mm', scale: 1000 }, // for millimeters
+                    { unit: 'cm', scale: 10000 }, // for centimeters
                 ];
                 uiLayer.createWidget('scale', {
                     position: { left: 10, bottom: 10 },
