@@ -2,7 +2,7 @@ import requests
 import urllib.parse
 import json
 
-class DSASDK:
+class DSAClient:
     # NOTE: may alternatively want to accept a token.
     def __init__(self, base_url, api_key, duration=1):
         """
@@ -109,3 +109,47 @@ class DSASDK:
         }
         response = requests.post(url, headers=headers, params=params, data=chunk)
         return response
+    
+    def get_item_by_name(self, folderId, name):
+        """
+        Get an item by its name from the DSA server.
+
+        Args:
+            folderId (str): The ID of the folder to search in.
+            name (str): The name of the item to search for.
+
+        Returns:
+            dict: The item object if found, otherwise None.
+        """
+        url = f"{self.base_url}/api/v1/item"
+        params = {
+            "folderId": folderId,
+            "name": name
+        }
+        headers = {
+            'Girder-Token': self.token,
+            'Content-Type': 'application/json'
+        }
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code == 200:
+            items = response.json()
+            if items:
+                return items[0]
+        return None
+    
+    def get_user_by_token(self):
+        """
+        Get the user associated with the current token.
+
+        Returns:
+            dict: The user object if found, otherwise None.
+        """
+        url = f"{self.base_url}/api/v1/user/me"
+        headers = {
+            'Girder-Token': self.token,
+            'Content-Type': 'application/json'
+        }
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        return None

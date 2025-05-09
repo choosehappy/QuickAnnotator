@@ -1,12 +1,13 @@
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.tile import TileStoreFactory
-from quickannotator.db.crud.annotation import write_annotations_to_tarfile, stream_annotations_tar
+from quickannotator.db.crud.annotation import stream_annotations_tar
 import quickannotator.db.models as db_models
 from . import models as server_models
 from quickannotator import constants
 from quickannotator.db.crud.annotation import build_annotation_table_name
 
 from flask.views import MethodView
+from flask import Response
 from shapely.geometry import shape, mapping
 import json
 import geojson
@@ -126,11 +127,11 @@ class AnnotationOperation(MethodView):
 
         return resp, 200
     
-@bp.route('/download/<int:image_id>/<int:annotation_class_id>/<str:format>')
-class DownloadAnnotations(MethodView):
-    def get(self, image_id, annotation_class_id, format):
-        """   download a tar archive corresponding to a single image and annotation class   """
-        # check if a tar file in the correct format already exists within the directory structure.
+# @bp.route('/download/<int:image_id>/<int:annotation_class_id>/<str:format>')
+# class DownloadAnnotations(MethodView):
+#     def get(self, image_id, annotation_class_id, format):
+#         """   download a tar archive corresponding to a single image and annotation class   """
+#         # check if a tar file in the correct format already exists within the directory structure.
 
 @bp.route('/export/local')
 class DownloadAnnotations(MethodView):
@@ -169,7 +170,7 @@ class ExportAnnotationsToServer(MethodView):
         image_ids = args['image_ids']
         annotation_class_ids = args['annotation_class_ids']
         format = args.get('format', 'geojson')
-        write_annotations_to_tarfile(image_ids, annotation_class_ids, format)
+        # write_annotations_to_tarfile(image_ids, annotation_class_ids, format)
         return {"message": "Annotations exported successfully"}, 200
     
 
