@@ -5,6 +5,7 @@ from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_fa
 from quickannotator.db import Base, db_session
 from quickannotator.db.crud.misc import compute_custom_metrics
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from quickannotator.dsa_sdk import DSASDK
 
 
 import sqlalchemy
@@ -74,14 +75,17 @@ def anns_to_feature_collection(annotations: List[models.Annotation]) -> geojson.
     features = []
     for annotation in annotations:
         feature = geojson.Feature(
+            id=annotation.id,
             geometry=geojson.loads(annotation.polygon),
             properties={
-                'id': annotation.id,
-                'tile_id': annotation.tile_id,
-                'centroid': geojson.loads(annotation.centroid),
-                'area': annotation.area,
-                'custom_metrics': annotation.custom_metrics,
-                'datetime': annotation.datetime.isoformat()
+                # 'id': annotation.id,
+                # 'tile_id': annotation.tile_id,
+                # 'centroid': geojson.loads(annotation.centroid),
+                # 'area': annotation.area,
+                # 'custom_metrics': annotation.custom_metrics,
+                # 'datetime': annotation.datetime.isoformat()
+                'objectType': 'annotation'
+
             }
         )
         features.append(feature)
@@ -240,6 +244,32 @@ class AnnotationStore:
 
             # Add the GeoJSON file to the tar archive
             tar.addfile(tarinfo, BytesIO(feature_collection_json.encode('utf-8')))
+
+    def export_annotations_to_dsa(self, base_url: str, api_key: str, parent_id: str, user_id: str, name: str):
+        dsa_sdk = DSASDK(base_url=base_url, api_key=api_key)
+
+        annotations = self.get_all_annotations()
+        feature_collection = anns_to_feature_collection(annotations)
+        feature_collection_json = geojson.dumps(feature_collection)
+        feature_collection_bytes = feature_collection_json.encode('utf-8')
+
+        upload_id = dsa_sdk.post_file(
+            parent_id=parent_id,
+            file_id=hex(int(parent_id, 16) + 1)[2:].zfill(24),  # TODO: this is janky, ideally should be done by
+            name=name,
+            user_id=user_id,
+            payload_size=len(feature_collection_bytes)
+        )
+        
+        offset = 0
+        while offset < len(feature_collection_bytes):
+            chunk = feature_collection_bytes[offset:offset + constants.POST_FILE_CHUNK_SIZE]
+            chunk_resp = dsa_sdk.post_file_chunk(chunk, upload_id, offset=offset)
+            if chunk_resp.status_code != 200:
+                raise Exception(f"Failed to upload chunk: {chunk_resp.status_code} {chunk_resp.text}")
+            offset += constants.POST_FILE_CHUNK_SIZE
+
+
 
 
     # UPDATE
