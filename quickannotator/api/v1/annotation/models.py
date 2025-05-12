@@ -1,4 +1,4 @@
-from marshmallow import fields, Schema
+from marshmallow import fields, Schema, ValidationError
 import quickannotator.db.models as db_models
 import quickannotator.constants as constants
 
@@ -63,9 +63,21 @@ class DownloadAnnsArgsSchema(Schema):
 class RemoteSaveAnnsArgsSchema(DownloadAnnsArgsSchema):
     save_path = fields.Str(required=True)
 
+def validate_non_empty_list(value):
+    if not value:
+        raise ValidationError("List cannot be empty.")
+
 class ExportToDSASchema(Schema):
-    image_ids = fields.List(fields.Int(), required=True)
-    annotation_class_ids = fields.List(fields.Int(), required=True)
+    image_ids = fields.List(
+        fields.Int(),
+        required=True,
+        validate=validate_non_empty_list
+    )
+    annotation_class_ids = fields.List(
+        fields.Int(),
+        required=True,
+        validate=validate_non_empty_list
+    )
     api_uri = fields.Str(required=True)
     api_key = fields.Str(required=True)
     folder_id = fields.Str(required=True)
