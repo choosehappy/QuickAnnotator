@@ -93,7 +93,7 @@ const AnnotationPage = () => {
                             show={activeModal === MODAL_DATA.EXPORT_CONF.id} 
                             setActiveModal={setActiveModal} 
                             images={[currentImage].map((item: IdNameElement) => new DataItem(item))} 
-                            annotationClasses={[currentImage].map((item: IdNameElement) => new DataItem(item))}
+                            annotationClasses={[currentClass].map((item: IdNameElement) => new DataItem(item))} // TODO: the annotation classes PR should raise the classes state up to the annotationPage
                         />
                     )}
                     <Row className="d-flex flex-grow-1">

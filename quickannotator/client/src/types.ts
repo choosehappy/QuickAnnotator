@@ -1,6 +1,5 @@
 import {Point, Polygon, Feature} from "geojson"
 import { TILE_STATUS } from "./helpers/config";
-import { IdNameElement } from "./types";
 
 export interface IdNameElement {
     id: number;

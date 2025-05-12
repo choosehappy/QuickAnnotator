@@ -63,9 +63,6 @@ export default class IdNameList extends React.Component<Props, any> {
                 minWidth: 30, 
                 maxWidth: 100, 
                 resizable: false, 
-                // onCellClick: (e, args) => {
-                //     this.toggleCompletedProperty(args?.dataContext);
-                // }
             },
         ];
 
@@ -80,6 +77,7 @@ export default class IdNameList extends React.Component<Props, any> {
             enableRowSelection: true,
             multiSelect: false,
             showHeaderRow: false, // Hide the header row
+            showColumnHeader: false, // Hide the column names row
         };
 
         this.setState(() => ({

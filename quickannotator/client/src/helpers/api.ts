@@ -275,3 +275,30 @@ export const streamWithProgress = async (response: Response, onProgress: (progre
     const blob = new Blob(chunks, { type: 'application/octet-stream' });
     return blob;
 };
+
+export const exportAnnotationsToDSA = async (
+    image_ids: number[],
+    annotation_class_ids: number[],
+    api_uri: string,
+    api_key: string,
+    folder_id: string
+) => {
+    const requestBody = {
+        image_ids: image_ids,
+        annotation_class_ids: annotation_class_ids,
+        api_uri: api_uri,
+        api_key: api_key,
+        folder_id: folder_id,
+    };
+
+    const response = await post<typeof requestBody, { message: string; progress_actor_id: string }>(
+        `/annotation/export/dsa`,
+        requestBody
+    );
+
+    if (response.status !== 202) {
+        throw new Error(`Failed to export annotations to DSA: ${response.data.message}`);
+    }
+
+    return response.data;
+};

@@ -2,7 +2,7 @@ import React from "react";
 import { Modal, Button, Form, ListGroup } from "react-bootstrap";
 import { useForm, FormProvider, useFormContext } from "react-hook-form";
 import { MODAL_DATA } from "../helpers/config";
-import { downloadAnnotations } from "../helpers/api";
+import { downloadAnnotations, exportAnnotationsToDSA } from "../helpers/api";
 import { AnnotationClass, Image, DataItem } from "../types";
 import IdNameList from "./IdNameList";
 
@@ -49,32 +49,27 @@ interface FormValues {
     apiKey?: string;
     collectionName?: string;
     folderName?: string;
+    apiUrl?: string;
 }
 
 const ExportOptions = () => {
     const { register, watch } = useFormContext<FormValues>();
     const selectedOption = Number(watch("selectedOption"));
 
-    // Debugging log to check the value of selectedOption
-    console.log("Selected Option:", selectedOption);
-
     return (
         <>
             <Form>
-                {Object.entries(exportOptionsLabels).map(([key, value]) => {
-
-                    return (
-                        <Form.Check
-                            key={key}
-                            type="radio"
-                            label={value}
-                            id={key}
-                            value={key} // Ensure this matches the enum values
-                            {...register("selectedOption")}
-                            defaultChecked={key === ExportOption.LOCAL.toString()}
-                        />
-                    );
-                })}
+                {Object.entries(exportOptionsLabels).map(([key, value]) => (
+                    <Form.Check
+                        key={key}
+                        type="radio"
+                        label={value}
+                        id={key}
+                        value={key}
+                        {...register("selectedOption")}
+                        defaultChecked={key === ExportOption.LOCAL.toString()}
+                    />
+                ))}
             </Form>
             <hr />
 
@@ -138,6 +133,14 @@ const ExportOptions = () => {
 
             {selectedOption === ExportOption.DSA && (
                 <>
+                    <Form.Group controlId="apiUrl">
+                        <Form.Label>API URL</Form.Label>
+                        <Form.Control
+                            type="text"
+                            placeholder="Enter API URL"
+                            {...register("apiUrl")}
+                        />
+                    </Form.Group>
                     <Form.Group controlId="apiKey">
                         <Form.Label>API Key</Form.Label>
                         <Form.Control
@@ -146,19 +149,11 @@ const ExportOptions = () => {
                             {...register("apiKey")}
                         />
                     </Form.Group>
-                    <Form.Group controlId="collectionName">
-                        <Form.Label>Collection Name</Form.Label>
-                        <Form.Control
-                            type="text"
-                            placeholder="Enter collection name"
-                            {...register("collectionName")}
-                        />
-                    </Form.Group>
                     <Form.Group controlId="folderName">
-                        <Form.Label>Folder Name</Form.Label>
+                        <Form.Label>Folder ID</Form.Label>
                         <Form.Control
                             type="text"
-                            placeholder="Enter folder name"
+                            placeholder="Enter folder ID"
                             {...register("folderName")}
                         />
                     </Form.Group>
@@ -197,7 +192,7 @@ const AnnotationExportModal = (props: Props) => {
 
         switch (Number(data.selectedOption)) {
             case ExportOption.LOCAL:
-                downloadAnnotations(imageIds, annotationClassIds, updateProgressBar, undefined, undefined)
+                downloadAnnotations(imageIds, annotationClassIds, updateProgressBar, data.annotationsFormat, data.propsFormat)
                     .then(() => console.log("Download successful"))
                     .catch((error) => console.error("Download failed:", error));
                 break;
@@ -205,7 +200,19 @@ const AnnotationExportModal = (props: Props) => {
                 console.log("Exporting remotely with data:", data);
                 break;
             case ExportOption.DSA:
-                console.log("Exporting to DSA with data:", data);
+                if (!data.apiUrl || !data.apiKey || !data.folderName) {
+                    console.error("Missing required fields for DSA export");
+                    return;
+                }
+                exportAnnotationsToDSA(
+                    imageIds,
+                    annotationClassIds,
+                    data.apiUrl,
+                    data.apiKey,
+                    data.folderName
+                )
+                    .then(() => console.log("Export to DSA successful"))
+                    .catch((error) => console.error("Export to DSA failed:", error));
                 break;
             default:
                 console.error("Unknown export option:", data.selectedOption);
@@ -226,9 +233,12 @@ const AnnotationExportModal = (props: Props) => {
                 <p>{MODAL_DATA.EXPORT_CONF.description}</p>
                 <hr />
                 <div id={`${listContainerId}-images`}>
+                    <h5>Image List</h5> {/* Added title for the Image List */}
                     <IdNameList items={props.images} containerId={`${listContainerId}-images`} />
                 </div>
+                <hr />
                 <div id={`${listContainerId}-classes`}>
+                    <h5>Annotation Class List</h5> {/* Added title for the Annotation Class List */}
                     <IdNameList items={props.annotationClasses} containerId={`${listContainerId}-classes`} />
                 </div>
                 <hr />

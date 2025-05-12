@@ -3,6 +3,8 @@ import requests
 import urllib.parse
 import json
 
+from quickannotator.api.v1.annotation.utils import AnnotationExporter
+
 def dsa_post_file(parent_id, file_id, name, user_id, payload_size, token):
     """
     Constructs and sends an HTTP POST request to the DSA server.
@@ -129,67 +131,8 @@ while offset < payload_size:
 
 print(response.text)
 # %%
-from quickannotator.db.crud.annotation import AnnotationStore
-from quickannotator.dsa_sdk import DSAClient
-from quickannotator.db import get_session
+from quickannotator.api.v1.annotation.utils import ProgressTracker
 import ray
-import numpy as np
 import time
 import asyncio
 
-# %%
-base_url = "http://somai-serv04.emory.edu:5000"
-api_key = 'ynklVBL4CCoVj7YPxzZlXDiAvgICaKbEXbD6Kfu8'
-parent_id = "681da5dcf39ed19f8523b7ef"
-
-user_id = "681d13553ab94dbb6772e1d4"
-
-#%%
-
-
-@ray.remote
-class ProgressTracker:
-    def __init__(self, total):
-        self.total = total
-        self.progress = 0
-
-    def increment(self):
-        self.progress += 1
-
-    def get_progress(self):
-        return (self.progress / self.total) * 100
-
-
-@ray.remote
-class AnnotationExporter:
-    def __init__(self, image_ids, annotation_class_ids, progress_actor):
-        self.id_tuples = np.array(np.meshgrid(image_ids, annotation_class_ids)).T.reshape(-1, 2).tolist()
-        self.progress_actor = progress_actor
-
-    def process_annotations(self, base_url, api_key, parent_id, user_id):
-        client = DSAClient(base_url, api_key)
-        for image_id, annotation_class_id in self.id_tuples:
-            with get_session() as db_session:
-                store = AnnotationStore(image_id, annotation_class_id, True, False)
-                store.export_annotations_to_dsa(client, parent_id, user_id)
-            self.progress_actor.increment.remote()  # Async, won't block
-
-
-
-# example usage
-image_ids = [1]
-annotation_class_ids = [1,2]
-progress_actor = ProgressTracker.remote(len(image_ids) * len(annotation_class_ids))
-exporter = AnnotationExporter.remote(image_ids, annotation_class_ids, progress_actor)
-
-exporter.process_annotations.remote(base_url, api_key, parent_id, user_id)
-
-# poll for progress
-while True:
-    progress = ray.get(progress_actor.get_progress.remote())
-    print(f"Progress: {progress:.2f}%")
-    if progress >= 100:
-        break
-    time.sleep(1)
-
-# %%

@@ -245,29 +245,17 @@ class AnnotationStore:
             # Add the GeoJSON file to the tar archive
             tar.addfile(tarinfo, BytesIO(feature_collection_json.encode('utf-8')))
 
-    def export_annotations_to_dsa(self, client: DSAClient, parent_id: str, user_id: str):
+
+    def get_all_annotations_as_feature_collection(self) -> bytes:
+        """
+        Returns all annotations as a byte string.
+
+        Returns:
+            bytes: The byte string representation of the annotations.
+        """
         annotations = self.get_all_annotations()
         feature_collection = anns_to_feature_collection(annotations)
-        feature_collection_json = geojson.dumps(feature_collection)
-        feature_collection_bytes = feature_collection_json.encode('utf-8')
-
-        upload_id = client.post_file(
-            parent_id=parent_id,
-            file_id=hex(int(parent_id, 16) + 1)[2:].zfill(24),  # TODO: this is janky, ideally should be done by
-            name="annotations.geojson",
-            user_id=user_id,
-            payload_size=len(feature_collection_bytes)
-        )
-        
-        offset = 0
-        while offset < len(feature_collection_bytes):
-            chunk = feature_collection_bytes[offset:offset + constants.POST_FILE_CHUNK_SIZE]
-            chunk_resp = client.post_file_chunk(chunk, upload_id, offset=offset)
-            if chunk_resp.status_code != 200:
-                raise Exception(f"Failed to upload chunk: {chunk_resp.status_code} {chunk_resp.text}")
-            offset += constants.POST_FILE_CHUNK_SIZE
-
-
+        return feature_collection
 
 
     # UPDATE

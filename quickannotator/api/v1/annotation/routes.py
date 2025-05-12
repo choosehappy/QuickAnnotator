@@ -1,5 +1,6 @@
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.tile import TileStoreFactory
+from .utils import ProgressTracker, AnnotationExporter
 from quickannotator.db.crud.annotation import stream_annotations_tar
 import quickannotator.db.models as db_models
 from . import models as server_models
@@ -16,6 +17,8 @@ from flask_smorest import Blueprint
 from datetime import datetime
 import os
 import numpy as np
+import time
+import ray
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
 
@@ -184,10 +187,19 @@ class ExportAnnotationsToDSA(MethodView):
         annotation_class_ids = args['annotation_class_ids']
         api_uri = args['api_uri']
         api_key = args['api_key']
-        collection_name = args['collection_name']
-        folder_name = args['folder_name']
+        folder_id = args['folder_id']
+        progress_actor = ProgressTracker.remote(len(image_ids) * len(annotation_class_ids))
+        exporter = AnnotationExporter.remote(image_ids, annotation_class_ids, progress_actor)
+        exporter.process_annotations.remote(api_uri, api_key, folder_id)
 
-        # Implement the logic to export annotations to DSA here
-        # For example, you might want to call a function that handles the export process
+        # TODO: remove this once we have a proper progress tracking system
+        # while True:
+        #     progress = ray.get(progress_actor.get_progress.remote())
+        #     print(f"Progress: {progress:.2f}%")
+        #     if progress >= 100:
+        #         break
+        #     time.sleep(1)
 
-        return {"message": "Annotations exported to DSA successfully"}, 200
+        # Return the progress actor handle so the client can poll for updates
+        return {"message": "Annotations export initiated", "progress_actor_id": progress_actor._actor_id.hex()}, 202
+    

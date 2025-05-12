@@ -68,5 +68,4 @@ class ExportToDSASchema(Schema):
     annotation_class_ids = fields.List(fields.Int(), required=True)
     api_uri = fields.Str(required=True)
     api_key = fields.Str(required=True)
-    collection_name = fields.Str(required=True)
-    folder_name = fields.Str(required=True)
+    folder_id = fields.Str(required=True)
