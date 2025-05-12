@@ -19,6 +19,7 @@ export const get = async <T>(url: string, options: FetchOptions = {}): ApiRespon
         ...options,
     });
     const text = await response.text();
+    console.log(text)
     const data = text ? JSON.parse(text) : {};
     return { data, status: response.status };
 };
@@ -79,6 +80,25 @@ export const fetchProject = async (project_id: number) => {
     const query = new URLSearchParams({ project_id: project_id.toString() });
     return await get<Project>(`/project/?${query}`);
 }
+// Fetch all projects 
+export const fetchAllProjects = async () => {
+    return await get<Project[]>(`/project/all`);
+}
+// create a new project
+export const createProject = async (project: Project) => {
+    return await post<Project, Project>(`/project/`, project);
+}
+
+// update a existing project
+export const updateProject = async (project: Project) => {
+    return await put<Project, Project>(`/project/`, project);
+}
+
+export const removeProject = async (project_id: number) => {
+    const query = new URLSearchParams({ project_id: project_id.toString()});
+    return await remove(`/project/?${query}`);
+}
+
 
 // Fetch annotations
 export const fetchAllAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean) => {

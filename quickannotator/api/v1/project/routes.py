@@ -4,7 +4,8 @@ from quickannotator.db import db_session
 import quickannotator.db.models as db_models
 from . import models as server_models
 from flask_smorest import Blueprint
-
+from datetime import datetime
+import sqlalchemy
 bp = Blueprint('project', __name__, description='Project operations')
 
 @bp.route('/')
@@ -26,9 +27,8 @@ class Project(MethodView):
     def post(self, args):
         """     create a new Project
         """
-
-        db_session.add(db_models.Project(name=args['name'], description=args['description'], is_dataset_large=args['is_dataset_large']))
-        return 200
+        project = db_session.add(db_models.Project(name=args['name'], description=args['description'], is_dataset_large=args['is_dataset_large']))
+        return project, 200  
 
 
     @bp.arguments(server_models.PutProjectArgsSchema, location='json')
@@ -37,8 +37,19 @@ class Project(MethodView):
         """     update a Project
 
         """
+        id = args['project_id']        
+        name = args['name']
+        description = args['description']
+        is_dataset_large = args['is_dataset_large']
+        project = db_session.query(db_models.Project).filter(db_models.Project.id == id).first()
 
-        return 201
+        if project:
+            project.name = name
+            project.is_dataset_large = is_dataset_large
+            project.description = description
+            project.datetime = datetime.now()
+            db_session.commit()
+        return {'id':project.id, 'description':project.description, 'is_dataset_large':project.is_dataset_large, 'datetime':project.datetime}, 201
 
     @bp.arguments(server_models.DeleteProjectArgsSchema, location='query')
     @bp.response(204, description="Project deleted")
@@ -46,8 +57,14 @@ class Project(MethodView):
         """     delete a Project
 
         """
-
-        return 204
+        id = args['project_id']
+        stmt = sqlalchemy.delete(db_models.Project).where(db_models.Project.id == id).returning(db_models.Project.id)
+        result = db_session.execute(stmt).scalar_one_or_none()
+        db_session.commit()
+        if result:
+            return {}, 204
+        else:
+            return {"message": "Project not found"}, 404
 
 @bp.route('/all')
 class SearchProject(MethodView):
@@ -57,5 +74,5 @@ class SearchProject(MethodView):
     @bp.arguments(server_models.SearchProjectArgsSchema, location='query')
     @bp.response(200, server_models.ProjectRespSchema(many=True))
     def get(self, args):
-        result = db_session.query(db_models.Project).all()
-        return result
+        projects = db_session.query(db_models.Project).all()
+        return projects

@@ -97,8 +97,9 @@ export interface Image {
 export interface Project {
     id: number;
     name: string;
+    is_dataset_large: boolean;
     description: string;
-    date: Date;
+    datetime: Date;
 }
 
 export interface TileIds {
