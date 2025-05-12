@@ -19,7 +19,6 @@ export const get = async <T>(url: string, options: FetchOptions = {}): ApiRespon
         ...options,
     });
     const text = await response.text();
-    console.log(text)
     const data = text ? JSON.parse(text) : {};
     return { data, status: response.status };
 };
@@ -73,6 +72,15 @@ export const remove = async <T>(url: string, options: FetchOptions = {}): ApiRes
 export const fetchImage = async (image_id: number) => {
     const query = new URLSearchParams({ image_id: image_id.toString() });
     return await get<Image>(`/image/?${query}`);
+}
+// Fetch image by ID
+export const fetchImageByProjectId = async (project_id: number) => {
+    // const query = new URLSearchParams({ project_id: project_id.toString() });
+    return await get<Image>(`/image/project/${project_id}`);
+}
+export const removeImage = async (image_id: number) => {
+    const query = new URLSearchParams({image_id: image_id.toString() });
+    return await remove(`/image/?${query}`);
 }
 
 // Fetch project by ID
