@@ -12,6 +12,15 @@ class AnnsFormatEnum(enum.IntEnum):
 
 class PropsFormatEnum(enum.IntEnum):
     TSV = 0
+    
+class PolygonOperations(enum.IntEnum):
+    UNION = 0
+    DIFFERENCE = 1
+
+class ImageType(enum.IntEnum):
+    IMAGE = 0
+    THUMBNAIL = 1
+
 
 MASK_DILATION = 1
 BASE_PATH = '/opt/QuickAnnotator/quickannotator'

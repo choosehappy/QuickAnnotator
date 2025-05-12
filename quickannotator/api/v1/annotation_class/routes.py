@@ -30,11 +30,13 @@ class AnnotationClass(MethodView):
     def post(self, args):
         """     create a new AnnotationClass   """
 
+        work_tilesize = 2048
+
         annotation_class = db_models.AnnotationClass(project_id=args['project_id'],
                                           name=args['name'],
                                           color=args['color'],
                                           work_mag=args['work_mag'],
-                                          work_tilesize=2048
+                                          work_tilesize=work_tilesize
                                           )
         db_session.add(annotation_class)
         return {'annotation_class_id':annotation_class.id}, 200
