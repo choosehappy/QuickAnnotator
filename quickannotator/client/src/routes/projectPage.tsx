@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, ListGroup } from "react-bootstrap";
 import { Fullscreen, CloudArrowUp, GearFill, Download, AspectRatioFill, Brush, Magic, Eraser, Heptagon, CurrencyBitcoin } from 'react-bootstrap-icons';
 
-import { fetchProject, fetchImageByProjectId, removeImage } from "../helpers/api.ts"
+import { fetchProject, fetchImagesByProjectId, removeImage } from "../helpers/api.ts"
 import { Image, OutletContextType } from "../types.ts";
 import './project.css'
 import ImageTable from '../components/imageTable/imageTable.tsx';
@@ -27,7 +27,7 @@ const ProjectPage = () => {
         fetchProject(parseInt(projectid)).then((resp) => {
             setCurrentProject(resp);
         });
-        fetchImageByProjectId(parseInt(projectid)).then((resp) => {
+        fetchImagesByProjectId(parseInt(projectid)).then((resp) => {
             console.log(resp)
             if (resp.status === 200) {
                 setImages(resp.data);
@@ -39,7 +39,7 @@ const ProjectPage = () => {
     useEffect(() => {
 
         if (reloadImages)
-            fetchImageByProjectId(parseInt(projectid)).then((resp) => {
+            fetchImagesByProjectId(parseInt(projectid)).then((resp) => {
                 console.log(resp)
                 if (resp.status === 200) {
                     setImages(resp.data);
@@ -56,7 +56,7 @@ const ProjectPage = () => {
         setSettingShow(!settingShow)
     };
 
-    const handleEnbeddingShow = () => {
+    const handleEmbeddingShow = () => {
         if (settingShow) setSettingShow(false)
         setEmbeddingShow(!embeddingShow)
     };
@@ -99,7 +99,7 @@ const ProjectPage = () => {
                             <ButtonToolbar aria-label="Toolbar with button groups">
                                 <ButtonGroup className={"me-2"}>
                                     <Button variant="primary" title="Show Enbedding" className={`${embeddingShow ? 'active' : ''}`}
-                                        onClick={handleEnbeddingShow}
+                                        onClick={handleEmbeddingShow}
                                     ><AspectRatioFill /></Button>
                                     <Button variant="primary" title="Export Annotations" className={`${exportAnnotationsShow ? 'active' : ''}`}
                                         onClick={handleExportShow}

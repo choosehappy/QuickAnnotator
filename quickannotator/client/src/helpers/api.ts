@@ -74,9 +74,8 @@ export const fetchImage = async (image_id: number) => {
     return await get<Image>(`/image/?${query}`);
 }
 // Fetch image by ID
-export const fetchImageByProjectId = async (project_id: number) => {
-    // const query = new URLSearchParams({ project_id: project_id.toString() });
-    return await get<Image>(`/image/project/${project_id}`);
+export const fetchImagesByProjectId = async (project_id: number) => {
+    return await get<Image[]>(`/image/project/${project_id}`);
 }
 export const removeImage = async (image_id: number) => {
     const query = new URLSearchParams({image_id: image_id.toString() });

@@ -10,7 +10,7 @@ interface Props {
     images: Image[];
     changed: boolean;
     containerId: string;
-    deleteHandler: ()=>{};
+    deleteHandler: (imageId: number)=>void;
     gridOptions: any
 }
 

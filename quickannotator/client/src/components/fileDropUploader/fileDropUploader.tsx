@@ -43,7 +43,7 @@ const FileDropUploader = (props: any) => {
     const handleDone = (e) => {
         e.stopPropagation();
         setFiles([])
-        setFilesStatus([])
+        setFilesStatus({})
     }
 
 
