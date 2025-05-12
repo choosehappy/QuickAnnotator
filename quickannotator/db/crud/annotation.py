@@ -92,39 +92,6 @@ def anns_to_feature_collection(annotations: List[models.Annotation]) -> geojson.
     
     return geojson.FeatureCollection(features)
 
-# TODO: Remove this function and use the one in AnnotationStore instead.
-def stream_annotations_tar(tablenames: List[str]):
-    with BytesIO() as tar_buffer:
-        with tarfile.open(fileobj=tar_buffer, mode='w') as tar:
-            for i, table_name in enumerate(tablenames):
-                try:
-                    # Attempt to create a dynamic model for the table
-                    model = create_dynamic_model(table_name)
-                    annotations = get_annotation_query(model).all()
-                    feature_collection = anns_to_feature_collection(annotations)
-                    feature_collection_json = geojson.dumps(feature_collection)
-
-                    # Create a tarinfo object for the GeoJSON file
-                    tarinfo = tarfile.TarInfo(name=f"{table_name}.geojson")
-                    tarinfo.size = len(feature_collection_json)
-
-                    # Add the GeoJSON file to the tar archive
-                    tar.addfile(tarinfo, BytesIO(feature_collection_json.encode('utf-8')))
-                except sqlalchemy.exc.NoSuchTableError:
-                    qa_logger.info(f"Table {table_name} does not exist. Skipping.")
-                    continue
-                except Exception as e:
-                    qa_logger.error(f"Error processing table {table_name}: {e}")
-                    continue
-
-                # Flush the tar buffer and yield its content in chunks
-                tar_buffer.seek(0)
-                while chunk := tar_buffer.read(constants.STREAMING_CHUNK_SIZE):  # Read in 8KB chunks
-                    yield chunk
-                tar_buffer.seek(0)  # Reset buffer position
-                tar_buffer.truncate(0)  # Clear the buffer after yielding
-
-
 
 class AnnotationStore:
     def __init__(self, image_id: int, annotation_class_id: int, is_gt: bool, in_work_mag=True, create_table=False):
@@ -158,6 +125,7 @@ class AnnotationStore:
         else:
             self.model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt))
 
+        self.query = get_annotation_query(self.model, 1/self.scaling_factor)
 
     # CREATE
     # TODO: consider adding optional parameter to allow tileids to be passed in.
@@ -200,40 +168,40 @@ class AnnotationStore:
 
     # READ
     def get_annotation_by_id(self, annotation_id: int) -> db_models.Annotation:
-        result = get_annotation_query(self.model, 1/self.scaling_factor).filter_by(id=annotation_id).first()
+        result = self.query.filter_by(id=annotation_id).first()
         return result
 
 
     def get_annotations_by_ids(self, annotation_ids: List[int]) -> List[db_models.Annotation]:
-        result = get_annotation_query(self.model, 1/self.scaling_factor).filter(self.model.id.in_(annotation_ids)).all()
+        result = self.query.filter(self.model.id.in_(annotation_ids)).all()
         return result
 
 
     def get_annotations_for_tiles(self, tile_ids: List[int]) -> List[db_models.Annotation]:
-        result = get_annotation_query(self.model, 1/self.scaling_factor).filter(self.model.tile_id.in_(tile_ids)).all()
+        result = self.query.filter(self.model.tile_id.in_(tile_ids)).all()
         return result
     
 
     def get_all_annotations(self) -> List[models.Annotation]:
-        result = get_annotation_query(self.model, 1/self.scaling_factor).all()
+        result = self.query.all()
         return result
 
 
     def get_annotations_within_poly(self, polygon: BaseGeometry) -> List[db_models.Annotation]:
         scaled_polygon = self.scale_polygon(polygon, self.scaling_factor)
         # NOTE: Sqlite may not use the spatial index here.
-        result = get_annotation_query(self.model, 1/self.scaling_factor).filter(func.ST_Intersects(self.model.polygon, func.ST_GeomFromText(scaled_polygon.wkt, 0))).all()
+        result = self.query.filter(func.ST_Intersects(self.model.polygon, func.ST_GeomFromText(scaled_polygon.wkt, 0))).all()
         return result
     
 
-    def export_all_annotations_to_tar(self, tarname: str):
+    def export_all_annotations_to_tar(self, tarpath: str):
         """
         Saves all annotations to a tar archive.
 
         Args:
             tarname (str): The name of the tar file to save the annotations to.
         """
-        with tarfile.open(tarname, mode='w') as tar:
+        with tarfile.open(tarpath, mode='w') as tar:
             annotations = self.get_all_annotations()
             feature_collection = anns_to_feature_collection(annotations)
             feature_collection_json = geojson.dumps(feature_collection)

@@ -2,8 +2,10 @@
 import numpy as np
 import ray
 import time
+import os
 
 from quickannotator.db import get_session
+from quickannotator.db.utils import FileSystemManager, build_annotation_table_name
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.dsa_sdk import DSAClient
 import geojson
@@ -27,10 +29,11 @@ class ProgressTracker:
 @ray.remote
 class AnnotationExporter:
     def __init__(self, image_ids, annotation_class_ids, progress_actor):
-        self.id_pairs = np.array(np.meshgrid(image_ids, annotation_class_ids)).T.reshape(-1, 2).tolist()
+        image_ids_grid, annotation_class_ids_grid = np.meshgrid(image_ids, annotation_class_ids, indexing='ij')
+        self.id_pairs = list(zip(image_ids_grid.ravel(), annotation_class_ids_grid.ravel()))
         self.progress_actor = progress_actor
 
-    def process_annotations(self, api_uri, api_key, folder_id):
+    def export_to_dsa(self, api_uri, api_key, folder_id):
         client = DSAClient(api_uri, api_key)
         user = client.get_user_by_token()
         if user is None:
@@ -68,7 +71,19 @@ class AnnotationExporter:
 
             self.progress_actor.increment.remote()  # Async, won't block
 
+    def export_remotely(self, project_id):
+        fsman = FileSystemManager()
 
+        for image_id, annotation_class_id in self.id_pairs:
+            with get_session() as db_session:
+                save_path = fsman.get_project_mask_path(project_id, image_id)
+                table_name = build_annotation_table_name(image_id, annotation_class_id, True)
+                tarpath = os.path.join(save_path, f'{table_name}.tar')
+                store = AnnotationStore(image_id, annotation_class_id, True, False) # NOTE: may need to set in_work_mag to false
+                store.export_all_annotations_to_tar(tarpath)
+
+                
+                
 # %%
 base_url = "http://somai-serv04.emory.edu:5000"
 api_key = 'ynklVBL4CCoVj7YPxzZlXDiAvgICaKbEXbD6Kfu8'

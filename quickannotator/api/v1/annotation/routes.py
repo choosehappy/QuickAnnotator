@@ -190,7 +190,7 @@ class ExportAnnotationsToDSA(MethodView):
         folder_id = args['folder_id']
         progress_actor = ProgressTracker.remote(len(image_ids) * len(annotation_class_ids))
         exporter = AnnotationExporter.remote(image_ids, annotation_class_ids, progress_actor)
-        exporter.process_annotations.remote(api_uri, api_key, folder_id)
+        exporter.export_to_dsa.remote(api_uri, api_key, folder_id)
 
         # TODO: remove this once we have a proper progress tracking system
         # while True:
