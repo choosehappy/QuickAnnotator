@@ -59,7 +59,9 @@ dependencies = [
     "pytest-cov~=6.0.0",
     "matplotlib~=3.10.1",
     "tensorboard~=2.19.0",
-    "torchsummary~=1.5.1"
+    "torchsummary~=1.5.1",
+    "eralchemy[pygraphviz]~=1.5.0",
+    
 
 ]
 dynamic = ["version"]
@@ -70,7 +72,7 @@ Homepage = "https://github.com/choosehappy/QuickAnnotator"
 
 # ----------------------------------------------------------------------------------
 [project.scripts]
-run_module = "quickannotator.__main__:main"
+quickannotator = "quickannotator.__main__:main"
 
 # ----------------------------------------------------------------------------------
 [tool.setuptools_scm]
