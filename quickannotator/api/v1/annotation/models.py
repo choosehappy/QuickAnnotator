@@ -53,21 +53,11 @@ class PostDryRunArgsSchema(Schema):
     polygon = fields.String(required=True)
     script = fields.Str(required=True)
 
-class DownloadAnnsArgsSchema(Schema):
-    image_ids = fields.List(fields.Int(), required=True)
-    annotation_class_ids = fields.List(fields.Int(), required=True)
-
-    annotations_format = fields.Enum(constants.AnnsFormatEnum, required=False, default=constants.AnnsFormatEnum.GEOJSON)
-    props_format = fields.Enum(constants.PropsFormatEnum, required=False, default=None)
-
-class RemoteSaveAnnsArgsSchema(DownloadAnnsArgsSchema):
-    save_path = fields.Str(required=True)
-
 def validate_non_empty_list(value):
     if not value:
         raise ValidationError("List cannot be empty.")
-
-class ExportToDSASchema(Schema):
+    
+class GetAnnsByImageAndAnnotationClassIds(Schema):
     image_ids = fields.List(
         fields.Int(),
         required=True,
@@ -78,6 +68,12 @@ class ExportToDSASchema(Schema):
         required=True,
         validate=validate_non_empty_list
     )
+    
+class SaveAnnsArgsSchema(GetAnnsByImageAndAnnotationClassIds):
+    annotations_format = fields.Enum(constants.AnnsFormatEnum, required=False, default=constants.AnnsFormatEnum.GEOJSON)
+    props_format = fields.Enum(constants.PropsFormatEnum, required=False, default=None)
+
+class ExportToDSASchema(GetAnnsByImageAndAnnotationClassIds):
     api_uri = fields.Str(required=True)
     api_key = fields.Str(required=True)
     folder_id = fields.Str(required=True)

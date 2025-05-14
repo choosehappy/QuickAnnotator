@@ -109,3 +109,43 @@ class DSAClient:
         }
         response = requests.post(url, headers=headers, params=params, data=chunk)
         return response
+    
+    def get_user_by_token(self):
+        """
+        Get the user information using the authentication token.
+
+        Returns:
+            dict: The user information.
+        """
+        url = f"{self.base_url}/api/v1/user/me"
+        headers = {'Girder-Token': self.token}
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"Failed to get user by token: {response.status_code} {response.text}")
+        
+
+    def get_item_by_name(self, folder_id, name):
+        """
+        Get the first item by its name in a specific folder.
+
+        Args:
+            folder_id (str): The ID of the folder.
+            name (str): The name of the item.
+
+        Returns:
+            dict: The first item information, if found.
+        """
+        url = f"{self.base_url}/api/v1/item"
+        headers = {'Girder-Token': self.token}
+        params = {'folderId': folder_id, 'name': name}
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code == 200:
+            items = response.json()
+            if items:
+                return items[0]  # Return the first item
+            else:
+                raise Exception("No items found with the specified name.")
+        else:
+            raise Exception(f"Failed to get item by name: {response.status_code} {response.text}")

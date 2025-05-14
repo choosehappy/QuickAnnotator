@@ -1,4 +1,5 @@
 #%%
+import threading
 import numpy as np
 import ray
 import time
@@ -13,25 +14,28 @@ from quickannotator import constants
 from quickannotator.db.crud.image import get_image_by_id
 
 
-@ray.remote
 class ProgressTracker:
-    def __init__(self, total):
+    def __init__(self, total: int):
         self.total = total
         self.progress = 0
+        self.lock = threading.Lock()  # Add a threading lock for thread safety
 
     def increment(self):
-        self.progress += 1
+        with self.lock:  # Ensure thread safety by locking during increment
+            self.progress += 1
 
-    def get_progress(self):
-        return (self.progress / self.total) * 100
+    def get_progress(self) -> float:
+        with self.lock:  # Lock when accessing progress
+            return (self.progress / self.total) * 100
 
 
-@ray.remote
-class AnnotationExporter:
-    def __init__(self, image_ids, annotation_class_ids, progress_actor):
+@ray.remote(max_concurrency=2)  # Add max_concurrency=2
+class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
+    def __init__(self, image_ids, annotation_class_ids):
         image_ids_grid, annotation_class_ids_grid = np.meshgrid(image_ids, annotation_class_ids, indexing='ij')
-        self.id_pairs = list(zip(image_ids_grid.ravel(), annotation_class_ids_grid.ravel()))
-        self.progress_actor = progress_actor
+        self.id_pairs = [(int(image_id), int(annotation_class_id)) for image_id, annotation_class_id in zip(image_ids_grid.ravel(), annotation_class_ids_grid.ravel())]
+        super().__init__(len(self.id_pairs))  # Initialize ProgressTracker
+        
 
     def export_to_dsa(self, api_uri, api_key, folder_id):
         client = DSAClient(api_uri, api_key)
@@ -69,22 +73,45 @@ class AnnotationExporter:
                         raise Exception(f"Failed to upload chunk: {chunk_resp.status_code} {chunk_resp.text}")
                     offset += constants.POST_FILE_CHUNK_SIZE
 
-            self.progress_actor.increment.remote()  # Async, won't block
+            self.increment()  # Use inherited increment method
 
-    def export_remotely(self, project_id):
+    def export_remotely(self):
         fsman = FileSystemManager()
 
         for image_id, annotation_class_id in self.id_pairs:
             with get_session() as db_session:
+                project_id = get_image_by_id(image_id).project_id
                 save_path = fsman.get_project_mask_path(project_id, image_id)
+                os.makedirs(save_path, exist_ok=True)
                 table_name = build_annotation_table_name(image_id, annotation_class_id, True)
                 tarpath = os.path.join(save_path, f'{table_name}.tar')
                 store = AnnotationStore(image_id, annotation_class_id, True, False) # NOTE: may need to set in_work_mag to false
                 store.export_all_annotations_to_tar(tarpath)
+            self.increment()  # Use inherited increment method
 
                 
                 
 # %%
-base_url = "http://somai-serv04.emory.edu:5000"
-api_key = 'ynklVBL4CCoVj7YPxzZlXDiAvgICaKbEXbD6Kfu8'
-folder_id = "681d185bf39ed19f8523b729"
+# base_url = "http://somai-serv04.emory.edu:5000"
+# api_key = 'ynklVBL4CCoVj7YPxzZlXDiAvgICaKbEXbD6Kfu8'
+# folder_id = "681d185bf39ed19f8523b729"
+
+# # Example usage of the export_remotely function
+# image_ids = [1]  # Replace with actual image IDs
+# annotation_class_ids = [1, 2]  # Replace with actual annotation class IDs
+
+# # Initialize the AnnotationExporter
+# exporter = AnnotationExporter.remote(image_ids, annotation_class_ids)
+
+# # Call the export_remotely function
+# ray.get(exporter.export_remotely.remote())
+
+# # Print progress
+# while True:
+#     progress = ray.get(exporter.get_progress.remote())
+#     print(f"Export progress: {progress:.2f}%")
+#     if progress >= 100:
+#         break
+#     time.sleep(1)
+# print(f"Export progress: {progress:.2f}%")
+# %%

@@ -2,7 +2,6 @@ from quickannotator.constants import PolygonOperations
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.tile import TileStoreFactory
 from .utils import ProgressTracker, AnnotationExporter
-from quickannotator.db.crud.annotation import stream_annotations_tar
 import quickannotator.db.models as db_models
 from . import models as server_models
 from quickannotator import constants
@@ -147,43 +146,46 @@ class AnnotationOperation(MethodView):
 #         """   download a tar archive corresponding to a single image and annotation class   """
 #         # check if a tar file in the correct format already exists within the directory structure.
 
-@bp.route('/export/local')
-class DownloadAnnotations(MethodView):
-    @bp.arguments(server_models.DownloadAnnsArgsSchema, location='json')
-    def post(self, args):
-        """ Export annotations for multiple images and annotation classes as a TAR file with progress updates """
+# @bp.route('/export/local')
+# class DownloadAnnotations(MethodView):
+#     @bp.arguments(server_models.SaveAnnsArgsSchema, location='json')
+#     def post(self, args):
+#         """ Export annotations for multiple images and annotation classes as a TAR file with progress updates """
 
-        image_ids = np.array(args['image_ids'])
-        annotation_class_ids = np.array(args['annotation_class_ids'])
-        annotations_format = args.get('format', 'geojson')
+#         image_ids = np.array(args['image_ids'])
+#         annotation_class_ids = np.array(args['annotation_class_ids'])
+#         annotations_format = args.get('format', 'geojson')
 
-        # Compute the cartesian product of image_ids and annotation_class_ids
-        image_ids_grid, annotation_class_ids_grid = np.meshgrid(image_ids, annotation_class_ids, indexing='ij')
-        image_class_pairs = list(zip(image_ids_grid.ravel(), annotation_class_ids_grid.ravel()))
+#         # Compute the cartesian product of image_ids and annotation_class_ids
+#         image_ids_grid, annotation_class_ids_grid = np.meshgrid(image_ids, annotation_class_ids, indexing='ij')
+#         image_class_pairs = list(zip(image_ids_grid.ravel(), annotation_class_ids_grid.ravel()))
 
-        tablenames = [build_annotation_table_name(image_id, annotation_class_id, True) for image_id, annotation_class_id in image_class_pairs]
+#         tablenames = [build_annotation_table_name(image_id, annotation_class_id, True) for image_id, annotation_class_id in image_class_pairs]
 
-        # Use a generator-based function to stream the tarfile with progress updates
+#         # Use a generator-based function to stream the tarfile with progress updates
 
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        headers = {
-            "Content-Disposition": f"attachment; filename=annotations_{timestamp}.tar",
-            "Content-Type": "application/octet-stream",
-        }
+#         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+#         headers = {
+#             "Content-Disposition": f"attachment; filename=annotations_{timestamp}.tar",
+#             "Content-Type": "application/octet-stream",
+#         }
 
-        # Return a streaming response with progress updates
-        return Response(stream_annotations_tar(tablenames), headers=headers, direct_passthrough=True)
+#         # Return a streaming response with progress updates
+#         return Response(stream_annotations_tar(tablenames), headers=headers, direct_passthrough=True)
 
 @bp.route('/export/server')
 class ExportAnnotationsToServer(MethodView):
-    @bp.arguments(server_models.DownloadAnnsArgsSchema, location='query')
+    @bp.arguments(server_models.SaveAnnsArgsSchema, location='query')
     def post(self, args):
         """ Export annotations for multiple images and annotation classes to the server """
 
         image_ids = args['image_ids']
         annotation_class_ids = args['annotation_class_ids']
-        format = args.get('format', 'geojson')
+        annotations_format = args['annotations_format']
+        props_format = args['props_format']
+
+
         # write_annotations_to_tarfile(image_ids, annotation_class_ids, format)
         return {"message": "Annotations exported successfully"}, 200
     
@@ -199,18 +201,17 @@ class ExportAnnotationsToDSA(MethodView):
         api_uri = args['api_uri']
         api_key = args['api_key']
         folder_id = args['folder_id']
-        progress_actor = ProgressTracker.remote(len(image_ids) * len(annotation_class_ids))
-        exporter = AnnotationExporter.remote(image_ids, annotation_class_ids, progress_actor)
+        exporter = AnnotationExporter.remote(image_ids, annotation_class_ids)
         exporter.export_to_dsa.remote(api_uri, api_key, folder_id)
 
         # TODO: remove this once we have a proper progress tracking system
-        # while True:
-        #     progress = ray.get(progress_actor.get_progress.remote())
-        #     print(f"Progress: {progress:.2f}%")
-        #     if progress >= 100:
-        #         break
-        #     time.sleep(1)
+        while True:
+            progress = ray.get(exporter.get_progress.remote())
+            print(f"Progress: {progress:.2f}%")
+            if progress >= 100:
+                break
+            time.sleep(1)
 
         # Return the progress actor handle so the client can poll for updates
-        return {"message": "Annotations export initiated", "progress_actor_id": progress_actor._actor_id.hex()}, 202
+        return {"message": "Annotations export initiated", "progress_actor_id": exporter._actor_id.hex()}, 202
     
