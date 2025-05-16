@@ -4,6 +4,7 @@ from quickannotator import constants
 import os
 from datetime import datetime
 
+from quickannotator.db.crud.image import get_image_by_id
 
 def create_dynamic_model(table_name, base=Base):
     class DynamicAnnotation(base):
@@ -17,6 +18,51 @@ def build_annotation_table_name(image_id: int, annotation_class_id: int, is_gt: 
     gtpred = 'gt' if is_gt else 'pred'
     table_name = f"annotation_{image_id}_{annotation_class_id}_{gtpred}"
     return table_name
+
+def build_tarpath(image_id: int, annotation_class_id: int, is_gt: bool):
+    fsman = FileSystemManager()
+    project_id = get_image_by_id(image_id).project_id
+    save_path = fsman.get_project_mask_path(project_id, image_id)
+    tarname = build_tarname(image_id, annotation_class_id, is_gt)
+    tarpath = os.path.join(save_path, tarname)
+    return tarpath
+
+def build_tarname(image_id: int, annotation_class_id: int, is_gt: bool):
+    """
+    Build the tar name for a given image and annotation class.
+
+    Args:
+        image_id (int): The ID of the image.
+        annotation_class_id (int): The ID of the annotation class.
+        is_gt (bool): Flag indicating if the annotations are ground truth.
+
+    Returns:
+        str: The tar name for the specified image and annotation class.
+    """
+    table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
+    tarname = f'{table_name}.tar.gz'
+    return tarname
+
+def search_for_tarfile(tarname: str) -> str:   # TODO: add image_id for faster search?
+    """
+    Search for a tar file in the specified directories.
+
+    Args:
+        tarname (str): The name of the tar file to search for.
+
+    Returns:
+        str: The full path to the tar file if found, otherwise None.
+    """
+    fsman = FileSystemManager()
+    directories = [fsman.get_nas_write()]
+    
+    for directory in directories:
+        for root, _, files in os.walk(directory):
+            if tarname in files:
+                return os.path.join(root, tarname)
+    
+    return None
+
 
 class FileSystemManager:
     """
@@ -32,6 +78,33 @@ class FileSystemManager:
         self.nas_read = os.path.join(self.base_path, "nas_read")
         self.nas_write = os.path.join(self.base_path, "nas_write")
         self.nas_high_speed = os.path.join(self.base_path, "nas_high_speed")
+
+    def get_nas_read(self):
+        """
+        Get the read-only NAS path.
+
+        Returns:
+            str: The read-only NAS path.
+        """
+        return self.nas_read
+    
+    def get_nas_write(self):
+        """
+        Get the write-enabled NAS path.
+
+        Returns:
+            str: The write-enabled NAS path.
+        """
+        return self.nas_write
+    
+    def get_nas_high_speed(self):
+        """
+        Get the high-speed NAS path.
+
+        Returns:
+            str: The high-speed NAS path.
+        """
+        return self.nas_high_speed
 
     def get_input_images_path(self):
         """

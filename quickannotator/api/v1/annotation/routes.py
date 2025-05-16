@@ -1,6 +1,8 @@
+from itertools import product
 from quickannotator.constants import PolygonOperations
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.tile import TileStoreFactory
+from quickannotator.db.utils import build_tarname, build_tarpath, search_for_tarfile
 from .utils import ProgressTracker, AnnotationExporter
 import quickannotator.db.models as db_models
 from . import models as server_models
@@ -140,54 +142,33 @@ class AnnotationOperation(MethodView):
 
         return resp, 200
     
-# @bp.route('/download/<int:image_id>/<int:annotation_class_id>/<str:format>')
-# class DownloadAnnotations(MethodView):
-#     def get(self, image_id, annotation_class_id, format):
-#         """   download a tar archive corresponding to a single image and annotation class   """
-#         # check if a tar file in the correct format already exists within the directory structure.
-
-# @bp.route('/export/local')
-# class DownloadAnnotations(MethodView):
-#     @bp.arguments(server_models.SaveAnnsArgsSchema, location='json')
-#     def post(self, args):
-#         """ Export annotations for multiple images and annotation classes as a TAR file with progress updates """
-
-#         image_ids = np.array(args['image_ids'])
-#         annotation_class_ids = np.array(args['annotation_class_ids'])
-#         annotations_format = args.get('format', 'geojson')
-
-#         # Compute the cartesian product of image_ids and annotation_class_ids
-#         image_ids_grid, annotation_class_ids_grid = np.meshgrid(image_ids, annotation_class_ids, indexing='ij')
-#         image_class_pairs = list(zip(image_ids_grid.ravel(), annotation_class_ids_grid.ravel()))
-
-#         tablenames = [build_annotation_table_name(image_id, annotation_class_id, True) for image_id, annotation_class_id in image_class_pairs]
-
-#         # Use a generator-based function to stream the tarfile with progress updates
-
-
-#         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-#         headers = {
-#             "Content-Disposition": f"attachment; filename=annotations_{timestamp}.tar",
-#             "Content-Type": "application/octet-stream",
-#         }
-
-#         # Return a streaming response with progress updates
-#         return Response(stream_annotations_tar(tablenames), headers=headers, direct_passthrough=True)
 
 @bp.route('/export/server')
 class ExportAnnotationsToServer(MethodView):
     @bp.arguments(server_models.SaveAnnsArgsSchema, location='query')
+    @bp.response(200, server_models.ExportServerRespSchema(many=True))
     def post(self, args):
         """ Export annotations for multiple images and annotation classes to the server """
 
         image_ids = args['image_ids']
         annotation_class_ids = args['annotation_class_ids']
+
+        # TODO: add support for multiple formats
         annotations_format = args['annotations_format']
         props_format = args['props_format']
 
+        resp = [{   # may be a little
+            "image_id": image_id, 
+            "annotation_class_id": annotation_class_id, 
+            "filename": build_tarname(image_id, annotation_class_id, True),
+            } for image_id, annotation_class_id in list(product(image_ids, annotation_class_ids))]
+
+        exporter = AnnotationExporter.remote(image_ids, annotation_class_ids)
+        exporter.export_remotely.remote()
+
 
         # write_annotations_to_tarfile(image_ids, annotation_class_ids, format)
-        return {"message": "Annotations exported successfully"}, 200
+        return resp, 200
     
 
 @bp.route('/export/dsa')
@@ -215,3 +196,28 @@ class ExportAnnotationsToDSA(MethodView):
         # Return the progress actor handle so the client can poll for updates
         return {"message": "Annotations export initiated", "progress_actor_id": exporter._actor_id.hex()}, 202
     
+
+@bp.route('/export/download')
+class DownloadAnnotations(MethodView):
+    @bp.arguments(server_models.DownloadTarArgsSchema, location='query')
+    def get(self, args):
+        """ Download existing annotations by passing in image_id, annotation_class_id, and tarname """
+
+        tarname = args['tarname']
+
+        tarpath = search_for_tarfile(tarname)
+
+        if not tarpath:
+            return {"message": "Requested tar file does not exist"}, 404
+
+        headers = {
+            "Content-Disposition": f"attachment; filename={tarname}",
+            "Content-Type": "application/octet-stream",
+        }
+
+        def generate():
+            with open(tarpath, 'rb') as f:
+                while chunk := f.read(constants.STREAMING_CHUNK_SIZE):
+                    yield chunk
+
+        return Response(generate(), headers=headers, direct_passthrough=True)

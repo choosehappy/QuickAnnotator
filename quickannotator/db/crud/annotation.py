@@ -27,6 +27,7 @@ import geojson
 from io import BytesIO
 import tarfile
 import json
+import os
 
 
 def get_annotation_query(model, scale_factor: float=1.0) -> Query:
@@ -201,6 +202,9 @@ class AnnotationStore:
         Args:
             tarname (str): The name of the tar file to save the annotations to.
         """
+        # Ensure the directory for the tar file exists
+        os.makedirs(os.path.dirname(tarpath), exist_ok=True)
+
         with tarfile.open(tarpath, mode='w') as tar:
             annotations = self.get_all_annotations()
             feature_collection = anns_to_feature_collection(annotations)

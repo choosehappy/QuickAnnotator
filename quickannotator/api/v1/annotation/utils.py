@@ -6,7 +6,7 @@ import time
 import os
 
 from quickannotator.db import get_session
-from quickannotator.db.utils import FileSystemManager, build_annotation_table_name
+from quickannotator.db.utils import FileSystemManager, build_annotation_table_name, build_tarpath
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.dsa_sdk import DSAClient
 import geojson
@@ -53,7 +53,7 @@ class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
                     raise Exception(f"Item with name {image_name} not found in folder {folder_id}")
                 
                 dsa_item_id = dsa_item['_id']
-                store = AnnotationStore(image_id, annotation_class_id, True, False)
+                store = AnnotationStore(image_id, annotation_class_id, True, False, False)
                 feature_collection = store.get_all_annotations_as_feature_collection()    # TODO: this should probably be done with tempfile to avoid memory issues
                 feature_collection_json = geojson.dumps(feature_collection)
                 fc_bytes = feature_collection_json.encode('utf-8')
@@ -76,16 +76,10 @@ class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
             self.increment()  # Use inherited increment method
 
     def export_remotely(self):
-        fsman = FileSystemManager()
-
         for image_id, annotation_class_id in self.id_pairs:
             with get_session() as db_session:
-                project_id = get_image_by_id(image_id).project_id
-                save_path = fsman.get_project_mask_path(project_id, image_id)
-                os.makedirs(save_path, exist_ok=True)
-                table_name = build_annotation_table_name(image_id, annotation_class_id, True)
-                tarpath = os.path.join(save_path, f'{table_name}.tar')
-                store = AnnotationStore(image_id, annotation_class_id, True, False) # NOTE: may need to set in_work_mag to false
+                tarpath = build_tarpath(image_id, annotation_class_id, is_gt=True)
+                store = AnnotationStore(image_id, annotation_class_id, True, False, False)
                 store.export_all_annotations_to_tar(tarpath)
             self.increment()  # Use inherited increment method
 
