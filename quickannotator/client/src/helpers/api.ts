@@ -204,38 +204,6 @@ export const fetchTileBoundingBox = async (image_id: number, annotation_class_id
     return await get<{ bbox_polygon: Polygon }>(`/tile/${image_id}/${annotation_class_id}/bbox?${query}`);
 }
 
-export const streamWithProgress = async (response: Response, onProgress: (progress: number) => void): Promise<Blob> => {
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let receivedLength = 0;
-
-    const chunks = [];
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        receivedLength += chunk.length;
-
-        // Check if the chunk contains progress updates
-        const progressMatch = chunk.match(/data:\s*({.*})/);
-        if (progressMatch) {
-            const progressData = JSON.parse(progressMatch[1]);
-            if (progressData.progress) {
-                // Call the onProgress callback with the progress value
-                onProgress(progressData.progress);
-            }
-        }
-
-        // Store the chunk for later use (e.g., assembling the tar file)
-        chunks.push(chunk);
-    }
-
-    // Combine all chunks into a single Blob or process the tar file
-    const blob = new Blob(chunks, { type: 'application/octet-stream' });
-    return blob;
-};
-
 export const exportAnnotationsToDSA = async (
     image_ids: number[],
     annotation_class_ids: number[],
