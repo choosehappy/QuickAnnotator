@@ -2,19 +2,18 @@ import React from "react";
 import { Modal, Button, Form, ListGroup } from "react-bootstrap";
 import { useForm, FormProvider, useFormContext } from "react-hook-form";
 import { MODAL_DATA } from "../helpers/config";
-import { downloadAnnotations, exportAnnotationsToDSA } from "../helpers/api";
-import { AnnotationClass, Image, DataItem } from "../types";
+import { exportAnnotationsToServer, exportAnnotationsToDSA } from "../helpers/api";
+import { DataItem } from "../types";
 import IdNameList from "./IdNameList";
 
 enum ExportOption {
-    LOCAL = 0,
-    REMOTE,
+    SERVER=0,
     DSA,
 }
 
 enum ExportFormat {
-    GEOJSON = "GeoJSON",
-    GEOJSON_NO_PROPS = "GeoJSON (no properties)",
+    GEOJSON = "GEOJSON",
+    GEOJSON_NO_PROPS = "GEOJSON_NO_PROPS",
 }
 
 enum MetricsFormat {
@@ -23,12 +22,9 @@ enum MetricsFormat {
 }
 
 const exportOptionsLabels = {
-    [ExportOption.LOCAL]: "Save locally",
-    [ExportOption.REMOTE]: "Save remotely",
+    [ExportOption.SERVER]: "Save remotely",
     [ExportOption.DSA]: "Push to Digital Slide Archive",
 };
-
-const savePathPlaceholder = "Default: data/{project_id}/{image_id}/{}";
 
 const listContainerId = "export-selection-container";
 
@@ -40,12 +36,9 @@ interface Props {
 }
 
 interface FormValues {
-    selectedImages: number[];   // TODO: remove
-    selectedClasses: number[];  // TODO: remove
     selectedOption: ExportOption;
     annotationsFormat: ExportFormat;
     propsFormat: MetricsFormat;
-    savePath?: string;
     apiKey?: string;
     collectionName?: string;
     folderName?: string;
@@ -67,13 +60,13 @@ const ExportOptions = () => {
                         id={key}
                         value={key}
                         {...register("selectedOption")}
-                        defaultChecked={key === ExportOption.LOCAL.toString()}
+                        defaultChecked={key === ExportOption.SERVER.toString()}
                     />
                 ))}
             </Form>
             <hr />
 
-            {selectedOption === ExportOption.LOCAL && (
+            {selectedOption === ExportOption.SERVER && (
                 <>
                     <Form.Group controlId="annotationsFormat">
                         <Form.Label>Annotations Export Format</Form.Label>
@@ -94,39 +87,6 @@ const ExportOptions = () => {
                                 </option>
                             ))}
                         </Form.Control>
-                    </Form.Group>
-                </>
-            )}
-
-            {selectedOption === ExportOption.REMOTE && (
-                <>
-                    <Form.Group controlId="annotationsFormat">
-                        <Form.Label>Annotations Export Format</Form.Label>
-                        <Form.Control as="select" {...register("annotationsFormat")}>
-                            {Object.values(ExportFormat).map((format) => (
-                                <option key={format} value={format}>
-                                    {format}
-                                </option>
-                            ))}
-                        </Form.Control>
-                    </Form.Group>
-                    <Form.Group controlId="metricsFormat">
-                        <Form.Label>Metrics Export Format</Form.Label>
-                        <Form.Control as="select" {...register("propsFormat")}>
-                            {Object.values(MetricsFormat).map((format) => (
-                                <option key={format} value={format}>
-                                    {format}
-                                </option>
-                            ))}
-                        </Form.Control>
-                    </Form.Group>
-                    <Form.Group controlId="savePath">
-                        <Form.Label>Save Path</Form.Label>
-                        <Form.Control
-                            type="text"
-                            placeholder={savePathPlaceholder}
-                            {...register("savePath")}
-                        />
                     </Form.Group>
                 </>
             )}
@@ -170,7 +130,7 @@ function updateProgressBar(progress: number) {
 const AnnotationExportModal = (props: Props) => {
     const methods = useForm<FormValues>({
         defaultValues: {
-            selectedOption: ExportOption.LOCAL,
+            selectedOption: ExportOption.SERVER,
             annotationsFormat: ExportFormat.GEOJSON,
             propsFormat: MetricsFormat.DO_NOT_EXPORT,
         },
@@ -191,14 +151,18 @@ const AnnotationExportModal = (props: Props) => {
         }
 
         switch (Number(data.selectedOption)) {
-            case ExportOption.LOCAL:
-                downloadAnnotations(imageIds, annotationClassIds, updateProgressBar, data.annotationsFormat, data.propsFormat)
-                    .then(() => console.log("Download successful"))
-                    .catch((error) => console.error("Download failed:", error));
+            case ExportOption.SERVER:
+                exportAnnotationsToServer(
+                    imageIds,
+                    annotationClassIds,
+                    data.annotationsFormat,
+                    data.propsFormat,
+                )
+                    .then(() => console.log("Export to server successful"))
+                    .catch((error) => console.error("Export to server failed:", error));
                 break;
-            case ExportOption.REMOTE:
-                console.log("Exporting remotely with data:", data);
-                break;
+
+                
             case ExportOption.DSA:
                 if (!data.apiUrl || !data.apiKey || !data.folderName) {
                     console.error("Missing required fields for DSA export");

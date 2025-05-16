@@ -135,7 +135,7 @@ class AnnotationOperation(MethodView):
 
 @bp.route('/export/server')
 class ExportAnnotationsToServer(MethodView):
-    @bp.arguments(server_models.SaveAnnsArgsSchema, location='query')
+    @bp.arguments(server_models.ExportToServerSchema, location='query')
     @bp.response(200, server_models.ExportServerRespSchema(many=True))
     def post(self, args):
         """ Export annotations for multiple images and annotation classes to the server """

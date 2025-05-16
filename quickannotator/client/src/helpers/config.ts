@@ -46,3 +46,6 @@ export const POPOVER_DATA = {
 }
 
 export const TISSUE_MASK_CLASS_ID = 1;
+
+export const SERVER_URL = 'http://localhost:5000'; // Your Flask backend
+export const API_URI = '/api/v1';

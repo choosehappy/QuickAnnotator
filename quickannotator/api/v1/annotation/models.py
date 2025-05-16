@@ -79,7 +79,7 @@ class GetAnnsByImageAndAnnotationClassIds(Schema):
         validate=validate_non_empty_list
     )
     
-class SaveAnnsArgsSchema(GetAnnsByImageAndAnnotationClassIds):
+class ExportToServerSchema(GetAnnsByImageAndAnnotationClassIds):
     annotations_format = fields.Enum(constants.AnnsFormatEnum, required=False, default=constants.AnnsFormatEnum.GEOJSON)
     props_format = fields.Enum(constants.PropsFormatEnum, required=False, default=None)
 
