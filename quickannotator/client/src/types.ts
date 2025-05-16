@@ -95,7 +95,7 @@ export interface Image {
 }
 
 export interface Project {
-    id: number;
+    id: number | null;
     name: string;
     is_dataset_large: boolean;
     description: string;

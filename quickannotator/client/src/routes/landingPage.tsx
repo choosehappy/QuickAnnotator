@@ -1,14 +1,19 @@
-import { Link, useOutletContext } from 'react-router-dom';
-import { useRef, useState, useEffect, createElement } from "react";
+
+import {useState, useEffect } from "react";
 import { Plus, PencilSquare, Trash } from 'react-bootstrap-icons';
-import { Alert, Form, Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button } from "react-bootstrap";
+import { Alert, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button } from "react-bootstrap";
 import ProjectTable from '../components/projectTable/projectTable.tsx';
+import ConfigModal from '../components/modals/project/configModal/configModal.tsx';
+import DeleteModal from '../components/modals/project/deleteModal/deleteModal.tsx';
 import { Project } from "../types.ts";
 import { fetchAllProjects, createProject, updateProject, removeProject } from "../helpers/api.ts"
-import { PROJECT_EDIT_MODAL_DATA } from "../helpers/config.ts"
+
 const LandingPage = () => {
-    const [projectDeleteModalShow, setProjectDeleteModalShow] = useState<boolean>(false)
-    const [projectConfigModalShow, setProjectConfigModalShow] = useState<boolean>(false)
+    // const [deleteModalShow, setDeleteModalShow] = useState<boolean>(false)
+
+    // const [configModalShow, setConfigModalShow] = useState<boolean>(false)
+    // 0 - create, 1 - update, 2 - remove 
+    const [modalStatus, setModalStatus] = useState<0 | 1 | 2 | undefined>(undefined)
 
     const [projects, setProjects] = useState<Project[]>([])
     const [showAlert, setShowAlert] = useState<boolean>(false)
@@ -36,27 +41,24 @@ const LandingPage = () => {
         });
     }
 
-    const handleCloseDeleteModal = () => {
-        setProjectDeleteModalShow(false)
-    }
-    const handleCloseConfigModal = () => {
-        setProjectConfigModalShow(false)
+    const closeModalHandle = () => {
+        setModalStatus(undefined)
     }
 
     const showDeleteModalHandle = (data) => {
         setDeletedId(data.id)
-        setProjectDeleteModalShow(true)
+        setModalStatus(2)
     }
     const showConfigModalHandle = (data) => {
         setSelectedProject(data)
-        setProjectConfigModalShow(true)
+        data?setModalStatus(1):setModalStatus(0)
+        
     }
 
     const deleteProject = async () => {
         const rs = await removeProject(deletedId)
-        setProjectDeleteModalShow(false)
+        setModalStatus(undefined)
         reloadProjects()
-        console.log('reload 3')
     }
 
     const createOrUpdateProject = async (e) => {
@@ -69,7 +71,7 @@ const LandingPage = () => {
             formDataObj.project_id = selectedProject.id
             updateProject(formDataObj).then((resp) => {
                 if (resp.status == 200) {
-                    setProjectConfigModalShow(false)
+                    setModalStatus(undefined)
                     setSelectedProject(undefined)
                     reloadProjects()
                     console.log('reload 2')
@@ -83,7 +85,7 @@ const LandingPage = () => {
             // create a new project
             createProject(formDataObj).then((resp) => {
                 if (resp.status == 200) {
-                    setProjectConfigModalShow(false)
+                    setModalStatus(undefined)
                     setSelectedProject(undefined)
                     reloadProjects()
                     console.log('reload 1')
@@ -122,62 +124,11 @@ const LandingPage = () => {
                 </Row>
             </Container>
             {/* delete project modal */}
-            <Modal show={projectDeleteModalShow} onHide={handleCloseDeleteModal}>
-                <Modal.Header closeButton>
-                    {/* <Modal.Title>Are You</Modal.Title> */}
-                </Modal.Header>
-                <Modal.Body>Are you sure you want to delete this project?</Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={handleCloseDeleteModal}>
-                        Cancel
-                    </Button>
-                    <Button variant="danger" onClick={deleteProject}>
-                        Delete
-                    </Button>
-                </Modal.Footer>
-            </Modal>
-            {/* create project modal */}
-            <Modal show={projectConfigModalShow} onHide={handleCloseConfigModal}>
-                <Form onSubmit={createOrUpdateProject}>
-                    <Modal.Header closeButton>
-                        <Modal.Title>{selectedProject && selectedProject.id ? PROJECT_EDIT_MODAL_DATA.EDIT.title : PROJECT_EDIT_MODAL_DATA.ADD.title}
-                        </Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                        <Form.Text className="text-muted">
-                            {selectedProject && selectedProject.id ? PROJECT_EDIT_MODAL_DATA.EDIT.text : PROJECT_EDIT_MODAL_DATA.ADD.text}
-                        </Form.Text>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Name</Form.Label>
-                            <Form.Control name="name" type="text" placeholder="Enter Project Name" defaultValue={selectedProject && selectedProject.id ? selectedProject.name : ''} />
-                        </Form.Group>
+            <ConfigModal show={(modalStatus == 0 || modalStatus == 1)} status={modalStatus} data={selectedProject} closeHandle={closeModalHandle} submitHandle={createOrUpdateProject} />
+            {/* delete project modal */}
+            <DeleteModal show={modalStatus == 2} closeHandle={closeModalHandle} submitHandle={deleteProject}/>
 
-                        <Form.Group className="mb-3">
-                            <Form.Label>Dataset Size</Form.Label>
-                            <Form.Select name="is_dataset_large" value={selectedProject && selectedProject.id ? selectedProject.is_dataset_large : false} onChange={(e) => {
-                                setSelectedProject({ ...selectedProject, is_dataset_large: e.target.value })
-                            }}>
-                                <option value="false" >{"< 1000 Whole Slide Images"}</option>
-                                <option value="true" >{"> 1000 Whole Slide Images"}</option>
-                            </Form.Select>
-                        </Form.Group>
 
-                        <Form.Group className="mb-3">
-                            <Form.Label>Description</Form.Label>
-                            <Form.Control name="description" as="textarea" placeholder="Enter Project Description" rows={3} defaultValue={selectedProject && selectedProject.id ? selectedProject.description : ''} />
-                        </Form.Group>
-
-                    </Modal.Body>
-                    <Modal.Footer>
-                        <Button variant="secondary" onClick={handleCloseConfigModal}>
-                            Cancel
-                        </Button>
-                        <Button variant="primary" type="submit">
-                            {selectedProject && selectedProject.id ? PROJECT_EDIT_MODAL_DATA.EDIT.btnText : PROJECT_EDIT_MODAL_DATA.ADD.btnText}
-                        </Button>
-                    </Modal.Footer>
-                </Form>
-            </Modal>
 
         </>
     )

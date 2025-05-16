@@ -1,10 +1,16 @@
 import quickannotator.db.models as db_models
 from quickannotator.db import db_session
-
+import sqlalchemy
+from typing import List
 
 def get_annotation_class_by_id(annotation_class_id: int) -> db_models.AnnotationClass:
     return db_session.query(db_models.AnnotationClass).get(annotation_class_id)
 
+
+def get_all_annotation_class_ids() ->List[int]:
+    stmt = sqlalchemy.select(db_models.AnnotationClass.id)
+    result = db_session.execute(stmt).scalars().all()
+    return result
 
 def build_actor_name(annotation_class_id):
     return f"dl_actor_class_{annotation_class_id}"

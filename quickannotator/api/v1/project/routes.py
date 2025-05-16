@@ -5,6 +5,8 @@ import quickannotator.db.models as db_models
 from . import models as server_models
 from flask_smorest import Blueprint
 from datetime import datetime
+from quickannotator.db.crud.annotation import AnnotationStore
+from quickannotator.db.crud.image import get_image_ids_by_project_id
 import sqlalchemy
 bp = Blueprint('project', __name__, description='Project operations')
 
@@ -62,12 +64,31 @@ class Project(MethodView):
     def delete(self, args):
         """     delete a Project
         """
-        id = args['project_id']
-        stmt = sqlalchemy.delete(db_models.Project).where(db_models.Project.id == id).returning(db_models.Project.id)
-        result = db_session.execute(stmt).scalar_one_or_none()
-        db_session.commit()
-        if result:
-            return {}, 204
+        project_id = args['project_id']
+        try:
+            # get all image ids by project id
+            image_ids = get_image_ids_by_project_id(project_id)
+            # delete all annotation tables
+            for image_id in image_ids:
+                AnnotationStore.delele_annotation_table(image_id=image_id)
+            
+            # delete images
+            stmt = sqlalchemy.delete(db_models.Image).where(db_models.Image.id.in_(image_ids)).returning(db_models.Image.id)
+            image_ids = db_session.execute(stmt).scalars().all()
+
+            # delete project
+            stmt = sqlalchemy.delete(db_models.Project).where(db_models.Project.id == project_id).returning(db_models.Project.id)
+            project_id = db_session.execute(stmt).scalar_one_or_none()
+            db_session.commit()
+        except Exception as e:
+            db_session.rollback()
+            print(f"Error: {e}")
+            raise
+        finally:
+            db_session.remove()
+        # return response
+        if project_id:
+            return {'project_id': project_id}, 204
         else:
             return {"message": "Project not found"}, 404
 
