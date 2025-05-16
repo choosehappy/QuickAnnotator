@@ -107,16 +107,6 @@ class AnnotationsWithinPolygon(MethodView):
         anns = store.get_annotations_within_poly(shape(args['polygon']))
         return anns, 200
 
-# TODO: This endpoint will be needed when we build in custom scripting.
-# @bp.route('/<int:annotation_class_id>/dryrun')
-# class AnnotationDryRun(MethodView):
-#     @bp.arguments(PostDryRunArgsSchema, location='json')
-#     def post(self, args, annotation_class_id):
-#         """     perform a dry run for the given annotation
-
-#         """
-
-#         return 200
 
 @bp.route('/operation')
 class AnnotationOperation(MethodView):
@@ -166,8 +156,6 @@ class ExportAnnotationsToServer(MethodView):
         exporter = AnnotationExporter.remote(image_ids, annotation_class_ids)
         exporter.export_remotely.remote()
 
-
-        # write_annotations_to_tarfile(image_ids, annotation_class_ids, format)
         return resp, 200
     
 
@@ -184,14 +172,6 @@ class ExportAnnotationsToDSA(MethodView):
         folder_id = args['folder_id']
         exporter = AnnotationExporter.remote(image_ids, annotation_class_ids)
         exporter.export_to_dsa.remote(api_uri, api_key, folder_id)
-
-        # TODO: remove this once we have a proper progress tracking system
-        while True:
-            progress = ray.get(exporter.get_progress.remote())
-            print(f"Progress: {progress:.2f}%")
-            if progress >= 100:
-                break
-            time.sleep(1)
 
         # Return the progress actor handle so the client can poll for updates
         return {"message": "Annotations export initiated", "progress_actor_id": exporter._actor_id.hex()}, 202
