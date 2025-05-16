@@ -84,28 +84,3 @@ class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
             self.increment()  # Use inherited increment method
 
                 
-                
-# %%
-# base_url = "http://somai-serv04.emory.edu:5000"
-# api_key = 'ynklVBL4CCoVj7YPxzZlXDiAvgICaKbEXbD6Kfu8'
-# folder_id = "681d185bf39ed19f8523b729"
-
-# # Example usage of the export_remotely function
-# image_ids = [1]  # Replace with actual image IDs
-# annotation_class_ids = [1, 2]  # Replace with actual annotation class IDs
-
-# # Initialize the AnnotationExporter
-# exporter = AnnotationExporter.remote(image_ids, annotation_class_ids)
-
-# # Call the export_remotely function
-# ray.get(exporter.export_remotely.remote())
-
-# # Print progress
-# while True:
-#     progress = ray.get(exporter.get_progress.remote())
-#     print(f"Export progress: {progress:.2f}%")
-#     if progress >= 100:
-#         break
-#     time.sleep(1)
-# print(f"Export progress: {progress:.2f}%")
-# %%
