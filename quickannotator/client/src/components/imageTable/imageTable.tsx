@@ -11,7 +11,6 @@ interface Props {
     changed: boolean;
     containerId: string;
     deleteHandler: (imageId: number)=>void;
-    gridOptions: any
 }
 
 export default class ImageTable extends React.PureComponent {
@@ -44,9 +43,8 @@ export default class ImageTable extends React.PureComponent {
     }
     
     componentDidUpdate(prevProps: Props, prevStates) {
-        console.log('update')
         if (prevProps.images !== this.props.images) {
-            console.log(this.props.images)
+            this.state.reactGrid?.gridService.resetGrid();
             this.setState(() => ({
                 ...this.state,
                 dataset: this.getData(this.props.images),
@@ -64,13 +62,14 @@ export default class ImageTable extends React.PureComponent {
     }
 
     reactGridReady(reactGrid: SlickgridReactInstance) {
-        this.reactGrid = reactGrid;
+        this.setState({ reactGrid });
     }
 
     defineGrid() {
+        console.log('defineGrid',this.props)
         const thumbnailFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
 
-            return `<a target="_blank" href="./project/${this.props.project.id}/annotate/${value}"><img src='http://localhost:5000/api/v1/image/${value}/1/file' height='64'></img></a>`
+            return `<a target="_blank" href="../project/${this.props.project.id}/annotate/${value}"><img src='../api/v1/image/${value}/1/file' height='64'></img></a>`
         }
         const actionFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
             console.log(dataContext)
@@ -81,9 +80,6 @@ export default class ImageTable extends React.PureComponent {
             delBtn.textContent = 'delete'
             delBtn.addEventListener('click', ()=>{this.clickOnDelete(dataContext)})
             return delBtn
-        }
-        const tilesizeFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
-            return value
         }
         const columns: Column[] = [
             { id: 'thumbnail', name: '', field: 'id', sortable: true, formatter: thumbnailFormatter },
@@ -145,7 +141,7 @@ export default class ImageTable extends React.PureComponent {
                     <Modal.Header closeButton>
                         <Modal.Title>Modal heading</Modal.Title>
                     </Modal.Header>
-                    <Modal.Body>Do you sure you want to delete <bold>{this.state.deletedImageId}: {this.state.deletedImageName}</bold></Modal.Body>
+                    <Modal.Body>Do you sure you want to delete <strong>{this.state.deletedImageId}: {this.state.deletedImageName}</strong></Modal.Body>
                     <Modal.Footer>
                         <Button variant="secondary" onClick={this.handleClose}>
                             Cancel

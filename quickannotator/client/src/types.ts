@@ -161,7 +161,12 @@ export class CurrentAnnotation {
         }
     }
 }
-
+export interface ProjectModalData {
+    id: number;
+    title: string;
+    text: string;
+    btnText: string;
+}
 export interface ModalData {
     id: number;
     title: string;

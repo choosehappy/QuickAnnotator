@@ -4,7 +4,8 @@ interface ExportAnnotationsModal {
     show: boolean;
     handleClose: () => void;
 }
-
+// TODO it need to be removed after a merge
+// 
 const ExportAnnotationsModal = (props: ExportAnnotationsModal) => {
     return (
         <Modal show={props.show} onHide={props.handleClose} size="sm" centered>

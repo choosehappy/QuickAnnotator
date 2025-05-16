@@ -10,22 +10,10 @@ import FileProgressPanel from './fileProgressPanel/fileProgressPanel.tsx'
 import './fileDropUploader.css'
 import { Prev } from "react-bootstrap/esm/PageItem";
 
+import {UPLOAD_ACCEPTED_FILES, WSI_EXTS, JSON_EXTS} from '../../helpers/config.ts'
 interface Props {
-    // gts: Annotation[];
-    // setGts: (gts: Annotation[]) => void;
-    // currentAnnotation: CurrentAnnotation
+
 }
-
-const accept_file = {
-    'application/x-svs': ['.svs', '.ndpi'],
-    'application/dicom': ['.dcm'],
-    'application/json': ['.json', '.geojson'],
-}
-
-const WSIExts = ['svs', 'tif','dcm','vms', 'vmu', 'ndpi',
-    'scn', 'mrxs','tiff','svslide','bif','czi']
-const JSONExts = ['json','geojosn']
-
 
 const FileDropUploader = (props: any) => {
 
@@ -74,21 +62,20 @@ const FileDropUploader = (props: any) => {
     
     const filterByExtensions = (files, exts) => {
         const regex = new RegExp(`\\.(${exts.join('|')})$`, 'i');
-        return files.filter(file => regex.test(file));
+        return files.filter((f) => regex.test(f));
     }
     const fileNameVerify = () => {
-        // const WSIFiles = filterByExts(files, WSIExts)
-        // const annotFiles = filterByExts(files, JSONExts)
-        // console.log(WSIFiles)
-        // console.log(annotFiles)
-
-        // annotFiles = files.filter()
+        const WSIFiles = filterByExtensions(files, WSI_EXTS)
+        const annotFiles = filterByExtensions(files, JSON_EXTS)
+        return 
     }
 
     const handleUpload = async (e) => {
         e.stopPropagation();
         // TODO verify by file name
-        // fileNameVerify()
+        // if(fileNameVerify()) {
+        //     console.error('Tthe format is not supported!')
+        // }
 
         files.forEach((d) => {
             const xhr = new XMLHttpRequest();
@@ -99,7 +86,6 @@ const FileDropUploader = (props: any) => {
                 if (event.lengthComputable && filesStatus[d.name]) {
                     const newStatus = {}
                     newStatus[d.name] = { progress: Math.round((event.loaded / event.total) * 100), status: 1 }
-                    // const newStatus = {d.name: {progress: Math.round((event.loaded / event.total) * 100) ,status:1 }}
                     setFilesStatus((prev) => ({
                         ...prev,
                         ...newStatus
@@ -117,7 +103,7 @@ const FileDropUploader = (props: any) => {
                             ...prev,
                             ...newStatus
                         }));
-                        props.reloadHandler(true)
+                        props.reloadHandler()
                     }
                 } else {
                     console.error(`Error uploading ${d.name}`);
@@ -130,7 +116,7 @@ const FileDropUploader = (props: any) => {
                 // console.error(`Error uploading ${file.name}`);
             };
 
-            xhr.open("POST", "http://localhost:5000/api/v1/image/upload/file", true);
+            xhr.open("POST", "../api/v1/image/upload/file", true);
             xhr.send(formData);
         });
 
@@ -144,7 +130,7 @@ const FileDropUploader = (props: any) => {
         getRootProps,
         getInputProps
     } = useDropzone({
-        accept: accept_file
+        accept: UPLOAD_ACCEPTED_FILES
     });
 
     const acceptedFileItems = acceptedFiles.map(file => (
@@ -168,7 +154,7 @@ const FileDropUploader = (props: any) => {
 
     return (
 
-        <Dropzone accept={accept_file} onDrop={handleDrop} multiple>
+        <Dropzone accept={UPLOAD_ACCEPTED_FILES} onDrop={handleDrop} multiple>
             {({ getRootProps, getInputProps }) => (
                 <section style={{ width: '50%' }} {...getRootProps({ className: 'document-uploader upload-info upload-box' })}>
                     <div className="upload-box">

@@ -14,39 +14,38 @@ import ExportAnnotationsModal from '../components/exportAnnotationsModal/exportA
 const ProjectPage = () => {
     const { projectid } = useParams();
     const { currentProject, setCurrentProject } = useOutletContext<OutletContextType>();
-
     const [images, setImages] = useState<Image[]>([])
-
     const [settingShow, setSettingShow] = useState<boolean>(false)
-    const [reloadImages, setReloadImages] = useState<boolean>(false)
     const [embeddingShow, setEmbeddingShow] = useState<boolean>(false)
     const [exportAnnotationsShow, setExportAnnotationsShow] = useState<boolean>(false)
 
-
     useEffect(() => {
-        fetchProject(parseInt(projectid)).then((resp) => {
-            setCurrentProject(resp);
-        });
-        fetchImagesByProjectId(parseInt(projectid)).then((resp) => {
-            console.log(resp)
-            if (resp.status === 200) {
-                setImages(resp.data);
-            }
+        if (projectid) {
+            fetchProject(parseInt(projectid)).then((resp) => {
+                if (resp.status === 200) {
+                    setCurrentProject(resp.data);
+                }
 
-        });
-
-    }, [])
-    useEffect(() => {
-
-        if (reloadImages)
+            });
             fetchImagesByProjectId(parseInt(projectid)).then((resp) => {
-                console.log(resp)
                 if (resp.status === 200) {
                     setImages(resp.data);
-                    setReloadImages(false);
+                }
+
+            });
+        }
+
+    }, [])
+
+    const reloadImages = () => {
+        if (projectid) {
+            fetchImagesByProjectId(parseInt(projectid)).then((resp) => {
+                if (resp.status === 200) {
+                    setImages(resp.data);
                 }
             });
-    }, [reloadImages])
+        }
+    }
 
     const handleExportClose = () => setExportAnnotationsShow(false);
     const handleExportShow = () => setExportAnnotationsShow(true);
@@ -64,32 +63,13 @@ const ProjectPage = () => {
     const handleExport = () => {
         console.log('export Annotation...')
     }
-    const deleteImageHandle = (imageId) => {
-
+    const deleteImageHandle = (imageId: number) => {
         console.log('deleteImageHandle', imageId)
         removeImage(imageId).then((resp) => {
             console.log('remove image', resp)
-            setReloadImages(true);
+            reloadImages()
         })
     };
-
-    // const settingClickHandler = () => {
-    // }
-    // const settingClickHandler = () => {
-    // }
-    // const { currentProject, setCurrentProject, currentImage, setCurrentImage } = useOutletContext<OutletContextType>();
-    // const imageid = 1;
-    // const { projectid } = useParams();
-
-    // useEffect(() => {
-    //     setCurrentImage(null);
-    //     fetchProject(parseInt(projectid)).then((resp) => {
-    //         setCurrentProject(resp);
-    //     })
-    // }, [])
-    console.log('projectid', projectid)
-    console.log('setCurrentProject', currentProject)
-    // if (currentProject) {
     return (
         <>
             <Container fluid className="pb-3 bg-dark d-flex flex-column flex-grow-1">
@@ -119,7 +99,7 @@ const ProjectPage = () => {
                                 <ImageTable containerId='img_table' project={currentProject} images={images} changed={(!embeddingShow && !settingShow)} deleteHandler={deleteImageHandle} />
                             </Card.Body>
                             <Card.Footer className='d-flex justify-content-center'>
-                                <FileDropUploader project_id={projectid} reloadHandler={setReloadImages} />
+                                <FileDropUploader project_id={projectid} reloadHandler={reloadImages} />
                             </Card.Footer>
                         </Card>
                     </Col>

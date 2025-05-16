@@ -6,14 +6,18 @@ from werkzeug.utils import secure_filename
 from quickannotator.constants import ImageType
 from quickannotator.db import db_session
 import large_image
+from tqdm import tqdm
 import openslide as ops
 import os
 import io
 import shutil
+from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 import json
+from shapely.geometry import shape
 import quickannotator.db.models as db_models
 from . import models as server_models
 from flask_smorest import Blueprint
+from quickannotator.db.crud.annotation import AnnotationStore
 
 projects_path = 'data/nas_write/projects'
 
@@ -62,20 +66,6 @@ class Image(MethodView):
         def get(self, args, project_id):
             """     returns a list of Images
             """
-            result = db_session.query(db_models.Image).filter(db_models.Image.project_id == project_id).all()
-            return result, 200
-    @bp.route('/project/<int:project_id>', endpoint="images")
-    class ImageSearch(MethodView):
-        @bp.arguments(server_models.SearchImageArgsSchema, location='query')
-        @bp.response(200, server_models.ImageRespSchema(many=True))
-        def get(self, args, project_id):
-            """     returns a list of Images
-            """
-            # images = db.session.query(qadb.Image).filter(qadb.Image.project_id == project_id).all()
-            # if images is not None:
-            #     return images
-            # else:
-            #     abort(404, message="Images not found")
             images = db_session.query(
                 *[getattr(db_models.Image, column.name) for column in db_models.Image.__table__.columns],
                 func.ST_AsGeoJSON(db_models.Image.embedding_coord).label('embedding_coord')
@@ -89,53 +79,41 @@ WSI_extensions = ['svs', 'tif','dcm','vms', 'vmu', 'ndpi',
                   'scn', 'mrxs','tiff','svslide','bif','czi']
 JSON_extensions = ['json','geojson']
 
-def import_geojson_annotation_file(image_id, annotation_class_id, gtpred, filepath):
+
+# TODO move this method to somewhere (can't move it to db/crud/annotation.py or db/utils.py cause this method need to use tile store, )
+def import_geojson_annotation_file(image_id: int, annotation_class_id: int, isgt: bool, filepath: str):
     '''
     This is expected to be a geojson feature collection file, with each polygon being a feature.
     
     '''
-    # path = filepath.split("quickannotator/")[1]
+    path = filepath.split("quickannotator/")[1]
+
+    # TODO use urjson to read fast
     with open(filepath, 'r') as file:
         # Load the JSON data into a Python dictionary
         data = json.load(file)["features"]
-    all_anno = []
     
-    table_name = f"{image_id}_{annotation_class_id}_{gtpred}_annotation"
-    
-    
-    for i, d in enumerate(tqdm(data)):
 
-        shapely_geometry = shape(d['geometry'])
-        annotation = {
-            "image_id": image_id,
-            "annotation_class_id": annotation_class_id,
-            "isgt": gtpred == "gt",
-            "centroid": shapely_geometry.centroid.wkt,
-            "area": shapely_geometry.area,
-            "polygon": shapely_geometry.wkt,
-            "custom_metrics": json.dumps({"iou": 0.5}) 
-        }
-        
-        all_anno.append(annotation)
+
+    tile_store: TileStore = TileStoreFactory.get_tilestore()
+    annotation_store = AnnotationStore(image_id, annotation_class_id, isgt, in_work_mag=False)
+    all_anno = []
+    for i, d in enumerate(tqdm(data)):
+        all_anno.append(shape(d['geometry']))
         
         if len(all_anno)==1_000:
-            table = Table(table_name, Base.metadata, autoload_with=engine)
-            stmt = insert(table).values(all_anno)
-            db_session.execute(stmt)
+            anns = annotation_store.insert_annotations(all_anno)
+            tile_ids = {ann.tile_id for ann in anns}
+            tile_store.upsert_gt_tiles(image_id=image_id, annotation_class_id=annotation_class_id, tile_ids=tile_ids)
             db_session.commit()
             all_anno = []
     
     # commit any remaining annotations
-
-    table = Table(table_name, Base.metadata, autoload_with=engine)
-    stmt = insert(table).values(all_anno)
-    db_session.execute(stmt)
-    db_session.commit()
-
-def create_annotation_table(image_id, annotation_class_id, gtpred):
-    table_name = f"{image_id}_{annotation_class_id}_{gtpred}_annotation"
-    table = models.Annotation.__table__.to_metadata(Base.metadata, name=table_name)
-    Base.metadata.create_all(bind=engine, tables=[table])
+    if all_anno:
+        anns = annotation_store.insert_annotations(all_anno)
+        tile_ids = {ann.tile_id for ann in anns}
+        tile_store.upsert_gt_tiles(image_id=image_id, annotation_class_id=annotation_class_id, tile_ids=tile_ids)
+        db_session.commit()
 
 @bp.route('/upload/file', methods=["POST"])
 def upload_files():
@@ -143,8 +121,6 @@ def upload_files():
     
     file = request.files["file"]
     project_id = request.form.get('project_id')
-    print('upload_files ~~~~~~~~~')
-    print(project_id)
     if file and project_id:
         filename = secure_filename(file.filename)
 
@@ -186,21 +162,21 @@ def upload_files():
             db_session.add(image)
             db_session.commit()
 
-            # TODO import annotation if it exist in temp dir
+            # import annotation if it exist in temp dir
             annot_file_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp/{file_basename}_annotations.json')
             print(annot_file_path)
             if os.path.exists(annot_file_path):
+                
                 print(f"json File exists: {annot_file_path}")
-                create_annotation_table(image_id, 2, 'gt')
-                import_geojson_annotation_file(image_id, 2, 'gt', annot_file_path)
+                store = AnnotationStore(image_id, 1, is_gt=True, create_table=True)
+                import_geojson_annotation_file(image_id, 1, isgt=True, filepath=annot_file_path)
+            
             annot_file_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp/{file_basename}_annotations.geojson')
             print(annot_file_path)
             if os.path.exists(annot_file_path):
                 print(f"geojson File exists: {annot_file_path}")
-                create_annotation_table(image_id, 2, 'gt')
-                import_geojson_annotation_file(image_id, 2, 'gt', annot_file_path)
-            # TODO move 
-            
+                store = AnnotationStore(image_id, 1, is_gt=True, create_table=True)
+                import_geojson_annotation_file(image_id, 1, isgt=True ,filepath=annot_file_path)
 
         # handle annotation file
         if file_ext in JSON_extensions:
@@ -210,11 +186,9 @@ def upload_files():
             # save annot to temp folder
             os.makedirs(full_project_path, exist_ok=True)
             file.save(temp_annot_path)
-        
-
-        return 'file uploaded successfully'
-    
-    return 'error'
+        return {}, 200
+    else:
+        abort(404, message="No project id foundin Args")
     
 @bp.route('/<int:image_id>/<int:file_type>/file', endpoint="file")
 class ImageFile(MethodView):

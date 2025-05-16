@@ -1,4 +1,4 @@
-import { ModalData } from "../types";
+import { ModalData, ProjectModalData } from "../types";
 
 export enum TOOLBAR_KEYS {
     POINTER = '0',
@@ -39,3 +39,33 @@ export const MODAL_DATA: { [key: string]: ModalData } = {
 export const POPOVER_DATA = {
 
 }
+
+// upload accepted files format
+export const PROJECT_EDIT_MODAL_DATA: { [key: string]: ProjectModalData } = {
+    ADD: {
+        id: 0,
+        title: 'New Project',
+        text: 'Create a New Project Below',
+        btnText:'Add'
+    },
+    EDIT: {
+        id: 1,
+        title: 'Edit Project',
+        text: 'Update The Project Below',
+        btnText:'Update'
+    }
+}
+
+
+export const UPLOAD_ACCEPTED_FILES = {
+    'application/x-svs': ['.svs', '.ndpi'],
+    'application/dicom': ['.dcm'],
+    'application/json': ['.json', '.geojson'],
+}
+
+// WSI file extension
+export const WSI_EXTS = ['svs', 'tif','dcm','vms', 'vmu', 'ndpi',
+    'scn', 'mrxs','tiff','svslide','bif','czi']
+
+// JSON file extension
+export const JSON_EXTS = ['json','geojosn']
