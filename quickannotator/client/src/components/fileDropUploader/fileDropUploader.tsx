@@ -116,7 +116,8 @@ const FileDropUploader = (props: any) => {
                 // console.error(`Error uploading ${file.name}`);
             };
 
-            xhr.open("POST", "../api/v1/image/upload/file", true);
+            // xhr.open("POST", "../api/v1/image/upload/file", true);
+            xhr.open("POST", `../api/v1/image/upload`, true);
             xhr.send(formData);
         });
 

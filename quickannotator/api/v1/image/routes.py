@@ -115,80 +115,84 @@ def import_geojson_annotation_file(image_id: int, annotation_class_id: int, isgt
         tile_store.upsert_gt_tiles(image_id=image_id, annotation_class_id=annotation_class_id, tile_ids=tile_ids)
         db_session.commit()
 
-@bp.route('/upload/file', methods=["POST"])
-def upload_files():
-    """Upload a file"""
-    
-    file = request.files["file"]
-    project_id = request.form.get('project_id')
-    if file and project_id:
-        filename = secure_filename(file.filename)
 
-        # get file extension
-        file_basename, file_ext = os.path.splitext(filename)
-        file_ext = file_ext[1:]
-        # handle image file
-        if file_ext in WSI_extensions:
-            full_project_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp')
-            temp_slide_path = os.path.join(full_project_path,filename)
-            # save image to temp folder
-            os.makedirs(full_project_path, exist_ok=True)
-            file.save(temp_slide_path)
-            
-            # read image info and insert to image table
-            slide = large_image.getTileSource(temp_slide_path)
-            image = db_models.Image(project_id=project_id,
-                        name=filename,
-                        path=temp_slide_path,
-                        base_height=slide.sizeY,
-                        base_width=slide.sizeX,
-                        dz_tilesize=slide.tileWidth,
-                        embedding_coord="POINT (1 1)",
-                        group_id=0,
-                        split=0
-                        )
-            db_session.add(image)
-            db_session.commit()
-        
-            image = db_session.query(db_models.Image).filter_by(name=filename, path=temp_slide_path).first()
-            image_id = image.id
-            slide_folder_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/img_{image_id}')
-            image_full_path = os.path.join(slide_folder_path, filename)
-            # move image file to img_{id} folder
-            os.makedirs(slide_folder_path, exist_ok=True)
-            shutil.move(temp_slide_path, image_full_path)
+    # @bp.arguments(server_models.PostAnnsArgsSchema, location='json')
+    # @bp.response(200, server_models.AnnRespSchema(many=True))
+@bp.route('/upload')
+class FileUpload(MethodView):
+    @bp.arguments(server_models.UploadFileArgsSchema, location='form')
+    def post(self, args):
+        """Upload a file"""
+        file = request.files['file']
+        project_id = args["project_id"]
+        if file and project_id:
+            filename = secure_filename(file.filename)
 
-            image.path = image_full_path
-            db_session.add(image)
-            db_session.commit()
-
-            # import annotation if it exist in temp dir
-            annot_file_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp/{file_basename}_annotations.json')
-            print(annot_file_path)
-            if os.path.exists(annot_file_path):
+            # get file extension
+            file_basename, file_ext = os.path.splitext(filename)
+            file_ext = file_ext[1:]
+            # handle image file
+            if file_ext in WSI_extensions:
+                full_project_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp')
+                temp_slide_path = os.path.join(full_project_path,filename)
+                # save image to temp folder
+                os.makedirs(full_project_path, exist_ok=True)
+                file.save(temp_slide_path)
                 
-                print(f"json File exists: {annot_file_path}")
-                store = AnnotationStore(image_id, 1, is_gt=True, create_table=True)
-                import_geojson_annotation_file(image_id, 1, isgt=True, filepath=annot_file_path)
+                # read image info and insert to image table
+                slide = large_image.getTileSource(temp_slide_path)
+                image = db_models.Image(project_id=project_id,
+                            name=filename,
+                            path=temp_slide_path,
+                            base_height=slide.sizeY,
+                            base_width=slide.sizeX,
+                            dz_tilesize=slide.tileWidth,
+                            embedding_coord="POINT (1 1)",
+                            group_id=0,
+                            split=0
+                            )
+                db_session.add(image)
+                db_session.commit()
             
-            annot_file_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp/{file_basename}_annotations.geojson')
-            print(annot_file_path)
-            if os.path.exists(annot_file_path):
-                print(f"geojson File exists: {annot_file_path}")
-                store = AnnotationStore(image_id, 1, is_gt=True, create_table=True)
-                import_geojson_annotation_file(image_id, 1, isgt=True ,filepath=annot_file_path)
+                image = db_session.query(db_models.Image).filter_by(name=filename, path=temp_slide_path).first()
+                image_id = image.id
+                slide_folder_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/img_{image_id}')
+                image_full_path = os.path.join(slide_folder_path, filename)
+                # move image file to img_{id} folder
+                os.makedirs(slide_folder_path, exist_ok=True)
+                shutil.move(temp_slide_path, image_full_path)
 
-        # handle annotation file
-        if file_ext in JSON_extensions:
-            full_project_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp')
-            temp_annot_path = os.path.join(full_project_path,filename)
+                image.path = image_full_path
+                db_session.add(image)
+                db_session.commit()
 
-            # save annot to temp folder
-            os.makedirs(full_project_path, exist_ok=True)
-            file.save(temp_annot_path)
-        return {}, 200
-    else:
-        abort(404, message="No project id foundin Args")
+                # import annotation if it exist in temp dir
+                annot_file_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp/{file_basename}_annotations.json')
+                print(annot_file_path)
+                if os.path.exists(annot_file_path):
+                    
+                    print(f"json File exists: {annot_file_path}")
+                    store = AnnotationStore(image_id, 1, is_gt=True, create_table=True)
+                    import_geojson_annotation_file(image_id, 1, isgt=True, filepath=annot_file_path)
+                
+                annot_file_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp/{file_basename}_annotations.geojson')
+                print(annot_file_path)
+                if os.path.exists(annot_file_path):
+                    print(f"geojson File exists: {annot_file_path}")
+                    store = AnnotationStore(image_id, 1, is_gt=True, create_table=True)
+                    import_geojson_annotation_file(image_id, 1, isgt=True ,filepath=annot_file_path)
+
+            # handle annotation file
+            if file_ext in JSON_extensions:
+                full_project_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp')
+                temp_annot_path = os.path.join(full_project_path,filename)
+
+                # save annot to temp folder
+                os.makedirs(full_project_path, exist_ok=True)
+                file.save(temp_annot_path)
+            return {}, 200
+        else:
+            abort(404, message="No project id foundin Args")
     
 @bp.route('/<int:image_id>/<int:file_type>/file', endpoint="file")
 class ImageFile(MethodView):
