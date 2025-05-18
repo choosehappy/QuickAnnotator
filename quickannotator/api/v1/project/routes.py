@@ -1,5 +1,8 @@
 from flask_smorest import abort
 from flask.views import MethodView
+from flask import current_app
+import os
+import shutil
 from quickannotator.db import db_session
 import quickannotator.db.models as db_models
 from . import models as server_models
@@ -73,19 +76,28 @@ class Project(MethodView):
                 AnnotationStore.delele_annotation_table(image_id=image_id)
             
             # delete images
-            stmt = sqlalchemy.delete(db_models.Image).where(db_models.Image.id.in_(image_ids)).returning(db_models.Image.id)
-            image_ids = db_session.execute(stmt).scalars().all()
-
+            db_session.query(db_models.Image).filter(db_models.Image.project_id == project_id).delete()
             # delete project
-            stmt = sqlalchemy.delete(db_models.Project).where(db_models.Project.id == project_id).returning(db_models.Project.id)
-            project_id = db_session.execute(stmt).scalar_one_or_none()
+            db_session.query(db_models.Project).filter(db_models.Project.id == project_id).delete()
+
             db_session.commit()
+
+            # remove the project folders
+            projects_path = 'data/nas_write/projects'
+            full_project_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}')
+            if os.path.exists(full_project_path):
+                try:
+                    shutil.rmtree(full_project_path)
+                except OSError as e:
+                    print(f"Error deleting folder '{full_project_path}': {e}")
+                    
         except Exception as e:
             db_session.rollback()
             print(f"Error: {e}")
             raise
         finally:
             db_session.remove()
+            #
         # return response
         if project_id:
             return {'project_id': project_id}, 204

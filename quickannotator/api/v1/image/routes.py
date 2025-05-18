@@ -54,8 +54,23 @@ class Image(MethodView):
     @bp.response(204, description="Image  deleted")
     def delete(self, args):
         """     delete an Image   """
+        image_id = args['image_id']
+        image = db_session.query(db_models.Image).filter(db_models.Image.id==image_id).first()
+        project_id = image.project_id
+        print(f'projec_id - {project_id}')
+        # delete image's annotation tables
+        AnnotationStore.delele_annotation_table(image_id=image_id)
+        # delete image from DB
+        db_session.query(db_models.Image).filter(db_models.Image.id == image_id).delete()
+        db_session.commit()
 
-        db_session.query(db_models.Image).filter(db_models.Image.id == args['image_id']).delete()
+        # remove image folder TODO need to save file system path in static variable
+        image_path = os.path.join(current_app.root_path, f'data/nas_write/projects/proj_{project_id}/images/img_{image_id}')
+        if os.path.exists(image_path):
+            try:
+                shutil.rmtree(image_path)
+            except OSError as e:
+                print(f"Error deleting folder '{image_path}': {e}")
         return 204
 
 #################################################################################
