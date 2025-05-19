@@ -10,6 +10,7 @@ from tqdm import tqdm
 import openslide as ops
 import os
 import io
+import ujson
 import shutil
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 import json
@@ -101,19 +102,22 @@ def import_geojson_annotation_file(image_id: int, annotation_class_id: int, isgt
     This is expected to be a geojson feature collection file, with each polygon being a feature.
     
     '''
-    path = filepath.split("quickannotator/")[1]
+    # path = filepath.split("quickannotator/")[1]
 
-    # TODO use urjson to read fast
-    with open(filepath, 'r') as file:
+# with open(filepath, 'r', encoding='utf-8') as regfile:
+#     data = ujson.loads(regfile.read())
+
+    # use ujson to read fast
+    with open(filepath, 'r', encoding='utf-8') as file:
         # Load the JSON data into a Python dictionary
-        data = json.load(file)["features"]
-    
+        data = json.loads(file.read())
+        features = data["features"]
 
 
     tile_store: TileStore = TileStoreFactory.get_tilestore()
     annotation_store = AnnotationStore(image_id, annotation_class_id, isgt, in_work_mag=False)
     all_anno = []
-    for i, d in enumerate(tqdm(data)):
+    for i, d in enumerate(tqdm(features)):
         all_anno.append(shape(d['geometry']))
         
         if len(all_anno)==1_000:
