@@ -20,7 +20,7 @@ from . import models as server_models
 from flask_smorest import Blueprint
 from quickannotator.db.crud.annotation import AnnotationStore
 
-projects_path = 'data/nas_write/projects'
+projects_path = 'mounts/nas_write/projects'
 
 bp = Blueprint('image', __name__, description='Image operations')
 
