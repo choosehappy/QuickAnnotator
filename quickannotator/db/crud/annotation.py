@@ -73,23 +73,16 @@ def anns_to_feature_collection(annotations: List[models.Annotation]) -> geojson.
     Returns:
         geojson.FeatureCollection: A GeoJSON FeatureCollection containing the annotations.
     """
-    features = []
-    for annotation in annotations:
-        feature = geojson.Feature(
+    features = [
+        geojson.Feature(
             id=annotation.id,
             geometry=geojson.loads(annotation.polygon),
             properties={
-                # 'id': annotation.id,
-                # 'tile_id': annotation.tile_id,
-                # 'centroid': geojson.loads(annotation.centroid),
-                # 'area': annotation.area,
-                # 'custom_metrics': annotation.custom_metrics,
-                # 'datetime': annotation.datetime.isoformat()
                 'objectType': 'annotation'
-
             }
         )
-        features.append(feature)
+        for annotation in annotations
+    ]
     
     return geojson.FeatureCollection(features)
 
