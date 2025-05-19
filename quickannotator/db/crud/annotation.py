@@ -197,15 +197,17 @@ class AnnotationStore:
 
     def export_all_annotations_to_tar(self, tarpath: str):
         """
-        Saves all annotations to a tar archive.
+        Saves all annotations to a tar archive. If the tarpath ends with .gz, the archive will be gzipped.
 
         Args:
-            tarname (str): The name of the tar file to save the annotations to.
+            tarpath (str): The path of the tar file to save the annotations to.
         """
         # Ensure the directory for the tar file exists
         os.makedirs(os.path.dirname(tarpath), exist_ok=True)
 
-        with tarfile.open(tarpath, mode='w') as tar:
+        mode = 'w:gz' if tarpath.endswith('.gz') else 'w'
+
+        with tarfile.open(tarpath, mode=mode) as tar:
             annotations = self.get_all_annotations()
             feature_collection = anns_to_feature_collection(annotations)
             feature_collection_json = geojson.dumps(feature_collection)
