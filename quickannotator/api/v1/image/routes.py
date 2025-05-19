@@ -4,6 +4,7 @@ from flask import current_app, send_from_directory, send_file
 from sqlalchemy import func
 from quickannotator.constants import ImageType
 from quickannotator.db import db_session
+from quickannotator.db.fsmanager import fsmanager
 import large_image
 import os
 import io
@@ -103,7 +104,7 @@ class PatchFile(MethodView):
         """     returns a patch file   """
 
         path = db_models.Image.query.get(image_id).path
-        full_path = os.path.join(current_app.root_path, path)
+        full_path = fsmanager.nas_read.relative_to_global(path)
         img = large_image.open(full_path)
 
         # Get the image patch

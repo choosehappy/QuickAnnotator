@@ -1,8 +1,10 @@
 from itertools import product
 from quickannotator.constants import PolygonOperations
 from quickannotator.db.crud.annotation import AnnotationStore
+from quickannotator.db.crud.image import get_image_by_id
 from quickannotator.db.crud.tile import TileStoreFactory
-from quickannotator.db.utils import build_tarname, build_tarpath, search_for_tarfile
+from quickannotator.db.utils import build_tarpath
+from quickannotator.db.fsmanager import fsmanager
 from .utils import ProgressTracker, AnnotationExporter
 import quickannotator.db.models as db_models
 from . import models as server_models
@@ -142,15 +144,14 @@ class ExportAnnotationsToServer(MethodView):
 
         image_ids = args['image_ids']
         annotation_class_ids = args['annotation_class_ids']
+        is_gt = True
 
         # TODO: add support for multiple formats
         annotations_format = args['annotations_format']
         props_format = args['props_format']
 
-        resp = [{   # may be a little
-            "image_id": image_id, 
-            "annotation_class_id": annotation_class_id, 
-            "filename": build_tarname(image_id, annotation_class_id, True),
+        resp = [{
+            "filepath": fsmanager.nas_write.global_to_relative(build_tarpath(image_id, annotation_class_id, is_gt)),
             } for image_id, annotation_class_id in list(product(image_ids, annotation_class_ids))]
 
         exporter = AnnotationExporter.remote(image_ids, annotation_class_ids)
@@ -177,26 +178,23 @@ class ExportAnnotationsToDSA(MethodView):
         return {"message": "Annotations export initiated", "progress_actor_id": exporter._actor_id.hex()}, 202
     
 
-@bp.route('/export/download')
+@bp.route('/export/download/<path:tarpath>')
 class DownloadAnnotations(MethodView):
-    @bp.arguments(server_models.DownloadTarArgsSchema, location='query')
-    def get(self, args):
+    def get(self, tarpath):
         """ Download existing annotations by passing in image_id, annotation_class_id, and tarname """
 
-        tarname = args['tarname']
+        fullpath = fsmanager.nas_write.relative_to_global(tarpath)
 
-        tarpath = search_for_tarfile(tarname)
-
-        if not tarpath:
-            return {"message": "Requested tar file does not exist"}, 404
+        if not os.path.exists(fullpath):
+            return {"message": "Tar file not found"}, 404
 
         headers = {
-            "Content-Disposition": f"attachment; filename={tarname}",
+            "Content-Disposition": f"attachment; filename={os.path.basename(tarpath)}",
             "Content-Type": "application/octet-stream",
         }
 
         def generate():
-            with open(tarpath, 'rb') as f:
+            with open(fullpath, 'rb') as f:
                 while chunk := f.read(constants.STREAMING_CHUNK_SIZE):
                     yield chunk
 

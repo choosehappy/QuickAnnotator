@@ -1,4 +1,6 @@
 import enum
+import os
+
 
 class TileStatus(enum.IntEnum):
     UNSEEN = 0
@@ -23,7 +25,8 @@ class ImageType(enum.IntEnum):
 
 
 MASK_DILATION = 1
-BASE_PATH = '/opt/QuickAnnotator/quickannotator'
+BASE_PATH = '/opt/QuickAnnotator'
+MOUNTS_PATH = os.path.join(BASE_PATH, 'quickannotator/mounts')
 
 MASK_CLASS_ID = 1
 

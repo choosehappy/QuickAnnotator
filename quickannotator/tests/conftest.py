@@ -14,6 +14,7 @@ from quickannotator.constants import TileStatus
 from shapely.geometry import Polygon
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
 import quickannotator.constants as constants
+from quickannotator.db.fsmanager import fsmanager
 
 
 @pytest.fixture(scope='module')
@@ -61,30 +62,27 @@ def seed(db_session):   # here db_session is the fixture
     # Add a project
     add_project(name="Test Project", description="A test project", is_dataset_large=False)
     
-    # Add an image
-    # This image has a base magnification of 40x. The dimensions are 150784x71936 pixels.
+    # Add images using fsmanager
     add_image_by_path(
-                    project_id=1,
-                    full_path="quickannotator/data/test_ndpi/13_266069_040_003 L02 PAS.ndpi"    # TODO: add test data
-                    )
-    
-    # Add an annotation class
+        project_id=1,
+        relative_path="test_ndpi/13_266069_040_003 L02 PAS.ndpi"
+    )
+
+        # Add annotation classes
     insert_annotation_class(
-                        project_id=None,
-                        name="Tissue Mask",
-                        color="black",
-                        work_mag=1.25,
-                        work_tilesize=2048,
-                        )
-    
-    # Add a second annotation class
+        project_id=None,
+        name="Tissue Mask",
+        color="black",
+        work_mag=1.25,
+        work_tilesize=2048,
+    )
     insert_annotation_class(
-                        project_id=1,
-                        name="Fake Class",
-                        color="red",
-                        work_mag=10,
-                        work_tilesize=2048, # At base (40x) magnification, this is 2048 * 40 / 10 = 8192 pixels
-                        )
+        project_id=1,
+        name="Fake Class",
+        color="red",
+        work_mag=10,
+        work_tilesize=2048,  # At base (40x) magnification, this is 2048 * 40 / 10 = 8192 pixels
+    )
 
     # Add a tile
     tilestore: TileStore = TileStoreFactory.get_tilestore()

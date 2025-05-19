@@ -15,13 +15,8 @@ class AnnRespSchema(Schema):
 
 class ExportServerRespSchema(Schema):
     """     Download link schema      """
-    image_id = fields.Int()
-    annotation_class_id = fields.Int()
-    filename = fields.Str()
+    filepath = fields.Str()
 
-class DownloadTarArgsSchema(Schema):
-    """     Download tar file schema      """
-    tarname = fields.Str(required=True)
 
 class GetAnnArgsSchema(Schema):
     is_gt = fields.Bool(required=True)

@@ -1,16 +1,16 @@
 // Generic response type
 type ApiResponse<T> = Promise<T>;
-import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, TileIds, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileIdsByPolygonArgs } from "../types.ts";
+import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, TileIds, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileIdsByPolygonArgs, PostAnnClassArgs } from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
-import { API_URI } from "./config.ts";
-import { SERVER_URL } from './config'; // Import SERVER_URL
 
 interface FetchOptions extends RequestInit {
     headers?: HeadersInit;
 }
+const API_URL = '/api/v1';
+
 // GET request method
 export const get = async <T>(url: string, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
-    const response = await fetch(`${API_URI}${url}`, {
+    const response = await fetch(`${API_URL}${url}`, {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json',
@@ -25,7 +25,7 @@ export const get = async <T>(url: string, options: FetchOptions = {}): ApiRespon
 
 // POST request method
 export const post = async <U, T>(url: string, data: U, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
-    const response = await fetch(`${API_URI}${url}`, {
+    const response = await fetch(`${API_URL}${url}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -40,7 +40,7 @@ export const post = async <U, T>(url: string, data: U, options: FetchOptions = {
 
 // PUT request method
 export const put = async <T, U>(url: string, data: U, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
-    const response = await fetch(`${API_URI}${url}`, {
+    const response = await fetch(`${API_URL}${url}`, {
         method: 'PUT',
         headers: {
             'Content-Type': 'application/json',
@@ -55,7 +55,7 @@ export const put = async <T, U>(url: string, data: U, options: FetchOptions = {}
 
 // DELETE request method
 export const remove = async <T>(url: string, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
-    const response = await fetch(`${API_URI}${url}`, {
+    const response = await fetch(`${API_URL}${url}`, {
         method: 'DELETE',
         headers: {
             'Content-Type': 'application/json',
@@ -146,6 +146,17 @@ export const startProcessingAnnotationClass = async (annotation_class_id: number
     return await post<null, void>(`/class/${annotation_class_id}/startproc`, null);
 };
 
+export const createAnnotationClass = async (project_id: number, name: string, color: string, work_mag: number) => {
+    const requestBody: PostAnnClassArgs = {
+        project_id,
+        name,
+        color,
+        work_mag,
+    };
+
+    return await post<PostAnnClassArgs, { annotation_class_id: number }>('/class/', requestBody);
+};
+
 // Search tile IDs by bounding box
 export const searchTileIds = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number, hasgt=false) => {
     const query = new URLSearchParams({
@@ -204,69 +215,13 @@ export const fetchTileBoundingBox = async (image_id: number, annotation_class_id
     return await get<{ bbox_polygon: Polygon }>(`/tile/${image_id}/${annotation_class_id}/bbox?${query}`);
 }
 
-export const exportAnnotationsToDSA = async (
-    image_ids: number[],
-    annotation_class_ids: number[],
-    api_uri: string,
-    api_key: string,
-    folder_id: string
-) => {
-    const requestBody = {
-        image_ids: image_ids,
-        annotation_class_ids: annotation_class_ids,
-        api_uri: api_uri,
-        api_key: api_key,
-        folder_id: folder_id,
-    };
-
-    const response = await post<typeof requestBody, { message: string; progress_actor_id: string }>(
-        `/annotation/export/dsa`,
-        requestBody
-    );
-
-    if (response.status !== 202) {
-        throw new Error(`Failed to export annotations to DSA: ${response.data.message}`);
-    }
-
-    return response.data;
+// Fetch a new color for a project
+export const fetchNewColor = async (project_id: number) => {
+    return await get<{ color: string }>(`/class/color/${project_id}`);
 };
 
-export const exportAnnotationsToServer = async (
-    image_ids: number[],
-    annotation_class_ids: number[],
-    annotations_format: string,
-    props_format: string,
-) => {
-    const query = new URLSearchParams({
-        image_ids: image_ids.join(','),
-        annotation_class_ids: annotation_class_ids.join(','),
-        annotations_format: annotations_format,
-        props_format: props_format,
-    });
-
-    const response = await post<null, { image_id: number; annotation_class_id: number; filename: string }[]>(
-        `/annotation/export/server?${query}`,
-        null
-    );
-
-    if (response.status !== 200) {
-        throw new Error(`Failed to export annotations to server`);
-    }
-
-    const manifestContent = response.data
-        .map(({ filename }) => `${window.location.origin}${API_URI}/annotation/export/download?tarname=${filename}`)
-        .join('\n');
-
-    const blob = new Blob([manifestContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'manifest.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-
-    return response.data;
+// Fetch available magnifications
+export const fetchMagnifications = async () => {
+    return await get<{ magnifications: number[] }>('/class/magnifications');
 };
+

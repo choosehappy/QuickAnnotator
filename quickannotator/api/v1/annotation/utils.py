@@ -6,7 +6,7 @@ import time
 import os
 
 from quickannotator.db import get_session
-from quickannotator.db.utils import FileSystemManager, build_annotation_table_name, build_tarpath
+from quickannotator.db.utils import build_annotation_table_name, build_tarpath
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.dsa_sdk import DSAClient
 import geojson
