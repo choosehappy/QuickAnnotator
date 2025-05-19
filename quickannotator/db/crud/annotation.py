@@ -210,14 +210,14 @@ class AnnotationStore:
         with tarfile.open(tarpath, mode=mode) as tar:
             annotations = self.get_all_annotations()
             feature_collection = anns_to_feature_collection(annotations)
-            feature_collection_json = geojson.dumps(feature_collection)
+            feature_collection_json_bytes = geojson.dumps(feature_collection).encode('utf-8')
 
             # Create a tarinfo object for the GeoJSON file
             tarinfo = tarfile.TarInfo(name=f"{self.get_annotation_table_name()}.geojson")
-            tarinfo.size = len(feature_collection_json)
+            tarinfo.size = len(feature_collection_json_bytes)
 
             # Add the GeoJSON file to the tar archive
-            tar.addfile(tarinfo, BytesIO(feature_collection_json.encode('utf-8')))
+            tar.addfile(tarinfo, BytesIO(feature_collection_json_bytes))
 
 
     def get_all_annotations_as_feature_collection(self) -> bytes:
