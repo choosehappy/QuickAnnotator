@@ -5,7 +5,7 @@ from quickannotator.db.crud.image import get_image_by_id
 from quickannotator.db.crud.tile import TileStoreFactory
 from quickannotator.db.utils import build_tarpath
 from quickannotator.db.fsmanager import fsmanager
-from .utils import ProgressTracker, AnnotationExporter
+from .utils import ProgressTracker, AnnotationExporter, compute_actor_name
 import quickannotator.db.models as db_models
 from . import models as server_models
 from quickannotator import constants
@@ -138,26 +138,29 @@ class AnnotationOperation(MethodView):
 @bp.route('/export/server')
 class ExportAnnotationsToServer(MethodView):
     @bp.arguments(server_models.ExportToServerSchema, location='query')
-    @bp.response(200, server_models.ExportServerRespSchema(many=True))
+    @bp.response(200, server_models.ExportServerRespSchema)
     def post(self, args):
         """ Export annotations for multiple images and annotation classes to the server """
 
         image_ids = args['image_ids']
         annotation_class_ids = args['annotation_class_ids']
         is_gt = True
+        project_id = get_image_by_id(image_ids[0]).project_id     # NOTE: This is only used for naming the actor, so it's not critical.
 
         # TODO: add support for multiple formats
         annotations_format = args['annotations_format']
         props_format = args['props_format']
 
-        resp = [{
-            "filepath": fsmanager.nas_write.global_to_relative(build_tarpath(image_id, annotation_class_id, is_gt)),
-            } for image_id, annotation_class_id in list(product(image_ids, annotation_class_ids))]
+        filepaths = [
+            fsmanager.nas_write.global_to_relative(build_tarpath(image_id, annotation_class_id, is_gt))
+            for image_id, annotation_class_id in list(product(image_ids, annotation_class_ids))
+        ]
 
-        exporter = AnnotationExporter.remote(image_ids, annotation_class_ids)
+        actor_name = compute_actor_name(project_id, constants.NamedRayActorType.ANNOTATION_EXPORTER)
+        exporter = AnnotationExporter.options(name=actor_name).remote(image_ids, annotation_class_ids)
         exporter.export_remotely.remote()
 
-        return resp, 200
+        return {"actor_name": actor_name, "filepaths": filepaths}, 202
     
 
 @bp.route('/export/dsa')
@@ -171,11 +174,14 @@ class ExportAnnotationsToDSA(MethodView):
         api_uri = args['api_uri']
         api_key = args['api_key']
         folder_id = args['folder_id']
-        exporter = AnnotationExporter.remote(image_ids, annotation_class_ids)
+        project_id = get_image_by_id(image_ids[0]).project_id     # NOTE: This is only used for naming the actor, so it's not critical.
+
+        actor_name = compute_actor_name(project_id, constants.NamedRayActorType.ANNOTATION_EXPORTER)
+        exporter = AnnotationExporter.options(name=actor_name).remote(image_ids, annotation_class_ids)
         exporter.export_to_dsa.remote(api_uri, api_key, folder_id)
 
         # Return the progress actor handle so the client can poll for updates
-        return {"message": "Annotations export initiated", "progress_actor_id": exporter._actor_id.hex()}, 202
+        return {"actor_name": actor_name}, 202
     
 
 @bp.route('/export/download/<path:tarpath>')

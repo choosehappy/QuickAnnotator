@@ -83,4 +83,17 @@ class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
                 store.export_all_annotations_to_tar(tarpath)
             self.increment()  # Use inherited increment method
 
-                
+
+def compute_actor_name(project_id: int, type: constants.NamedRayActorType=constants.NamedRayActorType.ANNOTATION_EXPORTER) -> str:
+    """
+    Generate a unique name for the actor using project ID and current timestamp.
+    
+    Args:
+        project_id (int): The ID of the project.
+        type (constants.NamedRayActorType): The type of the actor.
+    
+    Returns:
+        str: The generated actor name.
+    """
+    timestamp = time.strftime('%Y%m%d%H%M%S')
+    return f"{project_id}_{type.value}_{timestamp}"

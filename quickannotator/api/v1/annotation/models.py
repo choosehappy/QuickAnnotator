@@ -13,9 +13,12 @@ class AnnRespSchema(Schema):
 
     datetime = fields.DateTime(format=constants.FLASK_DATETIME_FORMAT)
 
-class ExportServerRespSchema(Schema):
+class ActorRespSchema(Schema):
+    actor_name = fields.Str()
+
+class ExportServerRespSchema(ActorRespSchema):
     """     Download link schema      """
-    filepath = fields.Str()
+    filepaths = fields.List(fields.Str())
 
 
 class GetAnnArgsSchema(Schema):

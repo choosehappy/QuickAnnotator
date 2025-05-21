@@ -23,6 +23,10 @@ class ImageType(enum.IntEnum):
     IMAGE = 0
     THUMBNAIL = 1
 
+class NamedRayActorType(enum.Enum):
+    ANNOTATION_EXPORTER = 'exporter'
+    
+
 
 MASK_DILATION = 1
 BASE_PATH = '/opt/QuickAnnotator'

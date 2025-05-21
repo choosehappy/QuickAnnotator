@@ -239,17 +239,17 @@ export const exportAnnotationsToServer = async (
         props_format: props_format,
     });
 
-    const response = await post<null, { filepath: string }[]>(
+    const response = await post<null, { actor_name: string; filepaths: string[] }>(
         `/annotation/export/server?${query}`,
         null
     );
 
-    if (response.status !== 200) {
+    if (response.status !== 202) {
         throw new Error(`Failed to export annotations to server`);
     }
 
-    const manifestContent = response.data
-        .map(({ filepath }) => `${window.location.origin}${API_URI}/annotation/export/download/${filepath}`)
+    const manifestContent = response.data.filepaths
+        .map(filepath => `${window.location.origin}${API_URI}/annotation/export/download/${filepath}`)
         .join('\n');
 
     const blob = new Blob([manifestContent], { type: 'text/plain' });
@@ -266,7 +266,6 @@ export const exportAnnotationsToServer = async (
     return response.data;
 };
 
-
 export const exportAnnotationsToDSA = async (
     image_ids: number[],
     annotation_class_ids: number[],
@@ -282,13 +281,13 @@ export const exportAnnotationsToDSA = async (
         folder_id: folder_id,
     };
 
-    const response = await post<typeof requestBody, { message: string; progress_actor_id: string }>(
+    const response = await post<typeof requestBody, { actor_name: string }>(
         `/annotation/export/dsa`,
         requestBody
     );
 
     if (response.status !== 202) {
-        throw new Error(`Failed to export annotations to DSA: ${response.data.message}`);
+        throw new Error(`Failed to export annotations to DSA`);
     }
 
     return response.data;
