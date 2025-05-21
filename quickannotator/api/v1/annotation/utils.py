@@ -84,7 +84,7 @@ class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
             self.increment()  # Use inherited increment method
 
 
-def compute_actor_name(project_id: int, type: constants.NamedRayActorType=constants.NamedRayActorType.ANNOTATION_EXPORTER) -> str:
+def compute_actor_name(project_id: int, type: constants.NamedRayActorType) -> str:
     """
     Generate a unique name for the actor using project ID and current timestamp.
     
