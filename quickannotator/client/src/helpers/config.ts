@@ -40,6 +40,12 @@ export const POPOVER_DATA = {
 
 }
 
+export enum PROJECT_MODAL_STATUS {
+    // 0 - create, 1 - update, 2 - remove
+    CREATE = 0,
+    UPDATE,
+    REMOVE
+}
 // upload accepted files format
 export const PROJECT_EDIT_MODAL_DATA: { [key: string]: ProjectModalData } = {
     ADD: {
@@ -55,6 +61,11 @@ export const PROJECT_EDIT_MODAL_DATA: { [key: string]: ProjectModalData } = {
         btnText:'Update'
     }
 }
+
+export const PROJECT_CONFIG_OPTIONS = [
+    {'text':'< 1000 Whole Slide Images','value':'false'},
+    {'text':'> 1000 Whole Slide Images','value':'true'}
+]
 
 
 export const UPLOAD_ACCEPTED_FILES = {

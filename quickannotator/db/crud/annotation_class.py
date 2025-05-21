@@ -7,8 +7,8 @@ def get_annotation_class_by_id(annotation_class_id: int) -> db_models.Annotation
     return db_session.query(db_models.AnnotationClass).get(annotation_class_id)
 
 
-def get_all_annotation_class_ids() ->List[int]:
-    stmt = sqlalchemy.select(db_models.AnnotationClass.id)
+def get_all_annotation_class() ->List[db_models.AnnotationClass]:
+    stmt = sqlalchemy.select(db_models.AnnotationClass)
     result = db_session.execute(stmt).scalars().all()
     return result
 

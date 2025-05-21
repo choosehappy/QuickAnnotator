@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Query
 import quickannotator.db.models as db_models
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
-from quickannotator.db.crud.annotation_class import get_all_annotation_class_ids
+from quickannotator.db.crud.annotation_class import get_all_annotation_class
 from quickannotator.db import Base, db_session
 from quickannotator.db.crud.misc import compute_custom_metrics
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
@@ -208,10 +208,6 @@ class AnnotationStore:
     def delete_all_annotations(self):
         db_session.query(self.model).delete()
 
-    def delete_all_annotations_by_project_id(self, project_id: int) -> List[int]:
-        db_session.query(self.model).delete()
-
-
     @staticmethod
     def create_annotation_table(image_id: int, annotation_class_id: int, is_gt: bool):
         table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt)
@@ -222,11 +218,12 @@ class AnnotationStore:
         build_annotation_table_name
     
     @staticmethod
-    def delele_annotation_table(image_id: int):
+    def delete_annotation_tables_by_image_id(image_id: int):
         # get all annotation class ids
-        anno_class_ids = get_all_annotation_class_ids()
+        all_class = get_all_annotation_class()
         all_annotation_tables = []
-        for anno_class_id in anno_class_ids:
+        for anno_class in all_class:
+            anno_class_id = anno_class.id
             anno_table_gt_name = build_annotation_table_name(image_id, anno_class_id, is_gt=True)
             anno_table_gt = db_models.Annotation.__table__.to_metadata(Base.metadata, name=anno_table_gt_name)
             anno_table_pred_name = build_annotation_table_name(image_id, anno_class_id, is_gt=False)

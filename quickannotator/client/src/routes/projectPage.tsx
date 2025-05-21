@@ -46,7 +46,7 @@ const ProjectPage = () => {
             });
         }
     }
-
+    // TODO need to remove after merge
     const handleExportClose = () => setExportAnnotationsShow(false);
     const handleExportShow = () => setExportAnnotationsShow(true);
 

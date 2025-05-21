@@ -7,13 +7,10 @@ import ConfigModal from '../components/modals/project/configModal/configModal.ts
 import DeleteModal from '../components/modals/project/deleteModal/deleteModal.tsx';
 import { Project } from "../types.ts";
 import { fetchAllProjects, createProject, updateProject, removeProject } from "../helpers/api.ts"
-
+import {PROJECT_MODAL_STATUS} from '../helpers/config.ts'
 const LandingPage = () => {
-    // const [deleteModalShow, setDeleteModalShow] = useState<boolean>(false)
-
-    // const [configModalShow, setConfigModalShow] = useState<boolean>(false)
     // 0 - create, 1 - update, 2 - remove 
-    const [modalStatus, setModalStatus] = useState<0 | 1 | 2 | undefined>(undefined)
+    const [modalStatus, setModalStatus] = useState<PROJECT_MODAL_STATUS.CREATE | PROJECT_MODAL_STATUS.REMOVE | PROJECT_MODAL_STATUS.UPDATE | undefined>(undefined)
 
     const [projects, setProjects] = useState<Project[]>([])
     const [showAlert, setShowAlert] = useState<boolean>(false)
@@ -47,11 +44,11 @@ const LandingPage = () => {
 
     const showDeleteModalHandle = (data) => {
         setDeletedId(data.id)
-        setModalStatus(2)
+        setModalStatus(PROJECT_MODAL_STATUS.REMOVE)
     }
     const showConfigModalHandle = (data) => {
         setSelectedProject(data)
-        data?setModalStatus(1):setModalStatus(0)
+        data?setModalStatus(PROJECT_MODAL_STATUS.UPDATE):setModalStatus(PROJECT_MODAL_STATUS.CREATE)
         
     }
 

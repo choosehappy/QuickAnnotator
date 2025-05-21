@@ -1,5 +1,5 @@
 import { Modal, Form, Button } from "react-bootstrap";
-import { PROJECT_EDIT_MODAL_DATA } from "../../../../helpers/config";
+import { PROJECT_EDIT_MODAL_DATA, PROJECT_CONFIG_OPTIONS } from "../../../../helpers/config";
 import { useState, useEffect } from "react";
 import { Project } from "../../../../types";
 
@@ -62,8 +62,9 @@ const ConfigModal = (props: ConfigModal) => {
                     <Form.Group className="mb-3">
                         <Form.Label>Dataset Size</Form.Label>
                         <Form.Select name="is_dataset_large" value={formData.is_dataset_large} onChange={handleChange}>
-                            <option value="false" >{"< 1000 Whole Slide Images"}</option>
-                            <option value="true" >{"> 1000 Whole Slide Images"}</option>
+                            {/* <option value="false" >{"< 1000 Whole Slide Images"}</option>
+                            <option value="true" >{"> 1000 Whole Slide Images"}</option> */}
+                            {PROJECT_CONFIG_OPTIONS.map(opt => <option value={opt.value}>{opt.text}</option>)}
                         </Form.Select>
                     </Form.Group>
                     <Form.Group className="mb-3">

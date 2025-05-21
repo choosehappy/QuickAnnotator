@@ -6,20 +6,16 @@ from werkzeug.utils import secure_filename
 from quickannotator.constants import ImageType
 from quickannotator.db import db_session
 import large_image
-from tqdm import tqdm
 import openslide as ops
 import os
 import io
 import ujson
 import shutil
-from quickannotator.db.crud.tile import TileStoreFactory, TileStore
-import json
-from shapely.geometry import shape
 import quickannotator.db.models as db_models
 from . import models as server_models
 from flask_smorest import Blueprint
 from quickannotator.db.crud.annotation import AnnotationStore
-
+from quickannotator.api.v1.image.utils import import_geojson_annotation_file
 projects_path = 'mounts/nas_write/projects'
 
 bp = Blueprint('image', __name__, description='Image operations')
@@ -60,7 +56,7 @@ class Image(MethodView):
         project_id = image.project_id
         print(f'projec_id - {project_id}')
         # delete image's annotation tables
-        AnnotationStore.delele_annotation_table(image_id=image_id)
+        AnnotationStore.delete_annotation_tables_by_image_id(image_id=image_id)
         # delete image from DB
         db_session.query(db_models.Image).filter(db_models.Image.id == image_id).delete()
         db_session.commit()
@@ -97,49 +93,14 @@ JSON_extensions = ['json','geojson']
 
 
 # TODO move this method to somewhere (can't move it to db/crud/annotation.py or db/utils.py cause this method need to use tile store, )
-def import_geojson_annotation_file(image_id: int, annotation_class_id: int, isgt: bool, filepath: str):
-    '''
-    This is expected to be a geojson feature collection file, with each polygon being a feature.
-    
-    '''
-    # path = filepath.split("quickannotator/")[1]
+def createTableAndImportAnnotation(image_id: int, annot_file_path):
+    store = AnnotationStore(image_id, 1, is_gt=True, create_table=True)
+    import_geojson_annotation_file(image_id, 1, isgt=True, filepath=annot_file_path)
 
-# with open(filepath, 'r', encoding='utf-8') as regfile:
-#     data = ujson.loads(regfile.read())
-
-    # use ujson to read fast
-    with open(filepath, 'r', encoding='utf-8') as file:
-        # Load the JSON data into a Python dictionary
-        data = json.loads(file.read())
-        features = data["features"]
-
-
-    tile_store: TileStore = TileStoreFactory.get_tilestore()
-    annotation_store = AnnotationStore(image_id, annotation_class_id, isgt, in_work_mag=False)
-    all_anno = []
-    for i, d in enumerate(tqdm(features)):
-        all_anno.append(shape(d['geometry']))
-        
-        if len(all_anno)==1_000:
-            anns = annotation_store.insert_annotations(all_anno)
-            tile_ids = {ann.tile_id for ann in anns}
-            tile_store.upsert_gt_tiles(image_id=image_id, annotation_class_id=annotation_class_id, tile_ids=tile_ids)
-            db_session.commit()
-            all_anno = []
-    
-    # commit any remaining annotations
-    if all_anno:
-        anns = annotation_store.insert_annotations(all_anno)
-        tile_ids = {ann.tile_id for ann in anns}
-        tile_store.upsert_gt_tiles(image_id=image_id, annotation_class_id=annotation_class_id, tile_ids=tile_ids)
-        db_session.commit()
-
-
-    # @bp.arguments(server_models.PostAnnsArgsSchema, location='json')
-    # @bp.response(200, server_models.AnnRespSchema(many=True))
 @bp.route('/upload')
 class FileUpload(MethodView):
     @bp.arguments(server_models.UploadFileArgsSchema, location='form')
+    @bp.response(200, server_models.UploadFileSchema)
     def post(self, args):
         """Upload a file"""
         file = request.files['file']
@@ -160,8 +121,9 @@ class FileUpload(MethodView):
                 
                 # read image info and insert to image table
                 slide = large_image.getTileSource(temp_slide_path)
+                name = os.path.basename(temp_slide_path)
                 image = db_models.Image(project_id=project_id,
-                            name=filename,
+                            name=name,
                             path=temp_slide_path,
                             base_height=slide.sizeY,
                             base_width=slide.sizeX,
@@ -172,8 +134,8 @@ class FileUpload(MethodView):
                             )
                 db_session.add(image)
                 db_session.commit()
-            
-                image = db_session.query(db_models.Image).filter_by(name=filename, path=temp_slide_path).first()
+                # move the actual slides file and update the slide path after create image in DB
+                # image = db_session.query(db_models.Image).filter_by(name=name, path=temp_slide_path).first()
                 image_id = image.id
                 slide_folder_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/img_{image_id}')
                 image_full_path = os.path.join(slide_folder_path, filename)
@@ -187,19 +149,13 @@ class FileUpload(MethodView):
 
                 # import annotation if it exist in temp dir
                 annot_file_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp/{file_basename}_annotations.json')
-                print(annot_file_path)
+                # for geojson
                 if os.path.exists(annot_file_path):
-                    
-                    print(f"json File exists: {annot_file_path}")
-                    store = AnnotationStore(image_id, 1, is_gt=True, create_table=True)
-                    import_geojson_annotation_file(image_id, 1, isgt=True, filepath=annot_file_path)
-                
+                    createTableAndImportAnnotation(image_id, annot_file_path)
                 annot_file_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp/{file_basename}_annotations.geojson')
-                print(annot_file_path)
+                # for geojson
                 if os.path.exists(annot_file_path):
-                    print(f"geojson File exists: {annot_file_path}")
-                    store = AnnotationStore(image_id, 1, is_gt=True, create_table=True)
-                    import_geojson_annotation_file(image_id, 1, isgt=True ,filepath=annot_file_path)
+                    createTableAndImportAnnotation(image_id, annot_file_path)
 
             # handle annotation file
             if file_ext in JSON_extensions:
@@ -209,7 +165,7 @@ class FileUpload(MethodView):
                 # save annot to temp folder
                 os.makedirs(full_project_path, exist_ok=True)
                 file.save(temp_annot_path)
-            return {}, 200
+            return {'name':filename}, 200
         else:
             abort(404, message="No project id foundin Args")
     
@@ -223,14 +179,11 @@ class ImageFile(MethodView):
         if file_type == ImageType.IMAGE:
             return send_from_directory(full_path, result['name'])
         elif file_type == ImageType.THUMBNAIL:
-            try:
-                slide = ops.OpenSlide(full_path)
-                thumbnail = slide.get_thumbnail((256, 256))
-            except ops.OpenSlideError as e:
-                print("Error opening slide:", e)
+            slide = large_image.open(full_path)
+            thumbnail, mimeType = slide.getThumbnail(format='PNG',width=256,height=256)
             # Save thumbnail to bytes buffer
             img_buffer = io.BytesIO()
-            thumbnail.save(img_buffer, format='PNG')
+            thumbnail.save(img_buffer, 'PNG')
             img_buffer.seek(0)
             return send_file(img_buffer, mimetype='image/png')
 
@@ -265,7 +218,6 @@ class PatchFile(MethodView):
         path = db_models.Image.query.get(image_id).path
         full_path = os.path.join(current_app.root_path, path)
         img = large_image.open(full_path)
-
         # Get the image patch
         patch = img.getTile(col, row, level, pilImageAllowed=True)
 
