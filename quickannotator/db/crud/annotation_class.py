@@ -8,10 +8,8 @@ def get_annotation_class_by_id(annotation_class_id: int) -> db_models.Annotation
 
 
 def get_all_annotation_class() ->List[db_models.AnnotationClass]:
-    stmt = sqlalchemy.select(db_models.AnnotationClass)
-    result = db_session.execute(stmt).scalars().all()
-    return result
-
+    return db_session.query(db_models.AnnotationClass).all()
+    
 def build_actor_name(annotation_class_id):
     return f"dl_actor_class_{annotation_class_id}"
 

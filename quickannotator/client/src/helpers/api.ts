@@ -230,3 +230,7 @@ export const fetchTileBoundingBox = async (image_id: number, annotation_class_id
     const query = new URLSearchParams({ tile_id: tile_id.toString() });
     return await get<{ bbox_polygon: Polygon }>(`/tile/${image_id}/${annotation_class_id}/bbox?${query}`);
 }
+
+export const getAnnotationPageURL = (project_id: number, image_id: number) => `/project/${project_id}/annotate/${image_id}`
+
+export const getImageThumbnailURL = (image_id: number) =>`/api/v1/image/${image_id}/1/file`

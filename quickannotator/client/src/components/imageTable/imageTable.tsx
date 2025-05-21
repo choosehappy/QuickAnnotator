@@ -4,7 +4,7 @@ import { Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, L
 
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
 import { Image, Project } from "../../types.ts";
-
+import {getAnnotationPageURL, getImageThumbnailURL } from "../../helpers/api.ts";
 interface Props {
     project: Project;
     images: Image[];
@@ -66,10 +66,9 @@ export default class ImageTable extends React.PureComponent {
     }
 
     defineGrid() {
-        console.log('defineGrid',this.props)
         const thumbnailFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
 
-            return `<a target="_blank" href="../project/${this.props.project.id}/annotate/${value}"><img src='../api/v1/image/${value}/1/file' height='64'></img></a>`
+            return `<a target="_blank" href="..${getAnnotationPageURL(this.props.project.id,value)}"><img src='../api/v1/image/${value}/1/file' height='64'></img></a>`
         }
         const actionFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
             console.log(dataContext)

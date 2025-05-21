@@ -3,7 +3,7 @@ from tqdm import tqdm
 from quickannotator.db import db_session
 from shapely.geometry import shape
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
-from quickannotator.constants import BATCH_SIZE
+from quickannotator.constants import IMPORT_ANNOTATION_BATCH_SIZE
 from quickannotator.db.crud.annotation import AnnotationStore
 def import_geojson_annotation_file(image_id: int, annotation_class_id: int, isgt: bool, filepath: str):
     '''
@@ -23,7 +23,7 @@ def import_geojson_annotation_file(image_id: int, annotation_class_id: int, isgt
     for i, d in enumerate(tqdm(features)):
         all_anno.append(shape(d['geometry']))
         
-        if len(all_anno)==BATCH_SIZE:
+        if len(all_anno)==IMPORT_ANNOTATION_BATCH_SIZE:
             anns = annotation_store.insert_annotations(all_anno)
             tile_ids = {ann.tile_id for ann in anns}
             tile_store.upsert_gt_tiles(image_id=image_id, annotation_class_id=annotation_class_id, tile_ids=tile_ids)

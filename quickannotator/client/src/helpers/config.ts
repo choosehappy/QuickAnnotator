@@ -59,6 +59,12 @@ export const PROJECT_EDIT_MODAL_DATA: { [key: string]: ProjectModalData } = {
         title: 'Edit Project',
         text: 'Update The Project Below',
         btnText:'Update'
+    },
+    REMOVE: {
+        id: 2,
+        title: 'Delete Project',
+        text: 'Are you sure you want to delete this project?',
+        btnText:'Delete'
     }
 }
 

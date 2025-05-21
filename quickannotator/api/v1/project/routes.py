@@ -9,7 +9,7 @@ from . import models as server_models
 from flask_smorest import Blueprint
 from datetime import datetime
 from quickannotator.db.crud.annotation import AnnotationStore
-from quickannotator.db.crud.image import get_image_ids_by_project_id
+from quickannotator.db.crud.image import get_images_by_project_id
 import sqlalchemy
 bp = Blueprint('project', __name__, description='Project operations')
 
@@ -64,35 +64,30 @@ class Project(MethodView):
         """     delete a Project
         """
         project_id = args['project_id']
-        try:
-            # get all image ids by project id
-            image_ids = get_image_ids_by_project_id(project_id)
-            # delete all annotation tables
-            for image_id in image_ids:
-                AnnotationStore.delete_annotation_tables_by_image_id(image_id=image_id)
-            
-            # delete images
-            db_session.query(db_models.Image).filter(db_models.Image.project_id == project_id).delete()
-            # delete project
-            db_session.query(db_models.Project).filter(db_models.Project.id == project_id).delete()
+    
+        # get all image ids by project id
+        images = get_images_by_project_id(project_id)
+        # delete all annotation tables
+        for img in images:
+            AnnotationStore.delete_annotation_tables_by_image_id(image_id=img.id)
+        
+        # delete images
+        db_session.query(db_models.Image).filter(db_models.Image.project_id == project_id).delete()
+        # delete project
+        db_session.query(db_models.Project).filter(db_models.Project.id == project_id).delete()
 
-            db_session.commit()
+        db_session.commit()
 
-            # remove the project folders
-            projects_path = 'mounts/nas_write/projects'
-            full_project_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}')
-            if os.path.exists(full_project_path):
-                try:
-                    shutil.rmtree(full_project_path)
-                except OSError as e:
-                    print(f"Error deleting folder '{full_project_path}': {e}")
-                    
-        except Exception as e:
-            print(f"Error: {e}")
-            raise
-        finally:
-            db_session.remove()
-            #
+        # remove the project folders
+        projects_path = 'mounts/nas_write/projects'
+        full_project_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}')
+        if os.path.exists(full_project_path):
+            try:
+                shutil.rmtree(full_project_path)
+            except OSError as e:
+                print(f"Error deleting folder '{full_project_path}': {e}")
+                
+        
         # return response
         if project_id:
             return {'project_id': project_id}, 204

@@ -26,9 +26,8 @@ def add_image_by_path(project_id, full_path):
 
     db_session.add(image)
 
-def get_image_ids_by_project_id(project_id: int) -> List[int]:
-    stmt = sqlalchemy.select(db_models.Image.id).where(db_models.Image.project_id==project_id)
-    return db_session.execute(stmt).scalars().all()
+def get_images_by_project_id(project_id: int) -> List[db_models.Image]:
+    return db_session.query(db_models.Image).filter(db_models.Image.project_id==project_id).all()
 
 def get_image_by_id(image_id: int) -> db_models.Image:
     return db_session.query(db_models.Image).get(image_id)

@@ -1,4 +1,5 @@
 import { Modal, Button } from "react-bootstrap";
+import { PROJECT_EDIT_MODAL_DATA } from "../../../../helpers/config";
 
 interface DeleteModal {
     show: boolean;
@@ -11,15 +12,15 @@ const DeleteModal = (props: DeleteModal) => {
     return (
         <Modal show={show} onHide={closeHandle}>
             <Modal.Header closeButton>
-                {/* <Modal.Title>Are You</Modal.Title> */}
+            {PROJECT_EDIT_MODAL_DATA.REMOVE.title}
             </Modal.Header>
-            <Modal.Body>Are you sure you want to delete this project?</Modal.Body>
+            <Modal.Body>{PROJECT_EDIT_MODAL_DATA.REMOVE.text}</Modal.Body>
             <Modal.Footer>
                 <Button variant="secondary" onClick={closeHandle}>
                     Cancel
                 </Button>
                 <Button variant="danger" onClick={submitHandle}>
-                    Delete
+                    {PROJECT_EDIT_MODAL_DATA.REMOVE.btnText}
                 </Button>
             </Modal.Footer>
         </Modal>

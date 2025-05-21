@@ -71,21 +71,21 @@ class Image(MethodView):
         return 204
 
 #################################################################################
-    @bp.route('/<int:project_id>/search', endpoint="image_search")
-    class ImageSearch(MethodView):
-        @bp.arguments(server_models.SearchImageArgsSchema, location='query')
-        @bp.response(200, server_models.ImageRespSchema(many=True))
-        def get(self, args, project_id):
-            """     returns a list of Images
-            """
-            images = db_session.query(
-                *[getattr(db_models.Image, column.name) for column in db_models.Image.__table__.columns],
-                func.ST_AsGeoJSON(db_models.Image.embedding_coord).label('embedding_coord')
-            ).filter(db_models.Image.project_id == project_id).all()
-            if images is not None:
-                return images, 200
-            else:
-                abort(404, message="Image not found")
+@bp.route('/<int:project_id>/search', endpoint="image_search")
+class ImageSearch(MethodView):
+    @bp.arguments(server_models.SearchImageArgsSchema, location='query')
+    @bp.response(200, server_models.ImageRespSchema(many=True))
+    def get(self, args, project_id):
+        """     returns a list of Images
+        """
+        images = db_session.query(
+            *[getattr(db_models.Image, column.name) for column in db_models.Image.__table__.columns],
+            func.ST_AsGeoJSON(db_models.Image.embedding_coord).label('embedding_coord')
+        ).filter(db_models.Image.project_id == project_id).all()
+        if images is not None:
+            return images, 200
+        else:
+            abort(404, message="Image not found")
 #################################################################################
 WSI_extensions = ['svs', 'tif','dcm','vms', 'vmu', 'ndpi',
                   'scn', 'mrxs','tiff','svslide','bif','czi']
