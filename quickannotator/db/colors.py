@@ -13,9 +13,9 @@ class ColorPalette():
 
     def get_unused_color(self):
         annotation_classes = search_annotation_class_by_project_id(self.project_id)
-        used_colors = {str(ac.color) for ac in annotation_classes}
-        unused_colors = list(set(self.color_list) - used_colors)
-        if len(unused_colors) > 0:
-            return unused_colors[0]
+        used_colors = {ac.color for ac in annotation_classes}
+        for color in self.color_list:
+            if color not in used_colors:
+                return color
         
         raise ValueError("No unused colors available in the color palette.")
