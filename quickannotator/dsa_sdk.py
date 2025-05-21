@@ -16,7 +16,7 @@ class DSAClient:
         self.base_url = base_url.rstrip('/')
         self.token = None
         try:
-            self.get_token_with_api_key(api_key, duration)
+            self.token = self.get_token_with_api_key(api_key, duration)
         except Exception as e:
             raise Exception(f"Failed to get token: {e}")
 
@@ -46,7 +46,6 @@ class DSAClient:
 
         response = requests.post(url, headers=headers, params=params)
         if response.status_code == 200:
-            self.token = response.json()['authToken']['token']
             return self.token
         else:
             raise Exception(f"Failed to retrieve token: {response.status_code} {response.text}")
