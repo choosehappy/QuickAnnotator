@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Query
 import quickannotator.db.models as db_models
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
-from quickannotator.db.crud.annotation_class import get_all_annotation_class
 from quickannotator.db import Base, db_session
 from quickannotator.db.crud.misc import compute_custom_metrics
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
@@ -208,6 +207,17 @@ class AnnotationStore:
     def delete_all_annotations(self):
         db_session.query(self.model).delete()
 
+    def drop_table(self):
+        """
+        Drops the annotation table.
+        Returns:
+            bool: True if the table was successfully dropped, False otherwise.
+        """
+        try:
+            self.model.__table__.drop(db_session.bind, checkfirst=True)
+        except Exception as e:
+            raise e
+
     @staticmethod
     def create_annotation_table(image_id: int, annotation_class_id: int, is_gt: bool):
         table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt)
@@ -216,28 +226,6 @@ class AnnotationStore:
 
         return create_dynamic_model(table_name)
         build_annotation_table_name
-    
-    @staticmethod
-    def delete_annotation_tables_by_image_id(image_id: int):
-        # get all annotation class ids
-        all_class = get_all_annotation_class()
-        all_annotation_tables = []
-        for anno_class in all_class:
-            anno_class_id = anno_class.id
-            anno_table_gt_name = build_annotation_table_name(image_id, anno_class_id, is_gt=True)
-            anno_table_gt = db_models.Annotation.__table__.to_metadata(Base.metadata, name=anno_table_gt_name)
-            anno_table_pred_name = build_annotation_table_name(image_id, anno_class_id, is_gt=False)
-            anno_table_pred = db_models.Annotation.__table__.to_metadata(Base.metadata, name=anno_table_pred_name)
-            all_annotation_tables.append(anno_table_gt)
-            all_annotation_tables.append(anno_table_pred)
-        # drop tables
-        if len(all_annotation_tables) >0:
-            Base.metadata.drop_all(bind=db_session.bind, tables=all_annotation_tables)
-        
-        
-
-
-
 
     @staticmethod
     def scale_polygon(polygon: BaseGeometry, scaling_factor: float) -> BaseGeometry:   # Added for safety - I've forgotten the origin param several times.

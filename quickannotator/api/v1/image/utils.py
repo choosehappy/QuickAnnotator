@@ -5,6 +5,7 @@ from shapely.geometry import shape
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 from quickannotator.constants import IMPORT_ANNOTATION_BATCH_SIZE
 from quickannotator.db.crud.annotation import AnnotationStore
+from quickannotator.db.crud.annotation_class import get_all_annotation_class
 def import_geojson_annotation_file(image_id: int, annotation_class_id: int, isgt: bool, filepath: str):
     '''
     This is expected to be a geojson feature collection file, with each polygon being a feature.
@@ -36,4 +37,21 @@ def import_geojson_annotation_file(image_id: int, annotation_class_id: int, isgt
         tile_ids = {ann.tile_id for ann in anns}
         tile_store.upsert_gt_tiles(image_id=image_id, annotation_class_id=annotation_class_id, tile_ids=tile_ids)
         db_session.commit()
+
+def delete_annotation_tables_by_image_id(image_id: int):
+    # get all annotation class ids
+    all_class = get_all_annotation_class()
+    all_annotation_tables = []
+    for anno_class in all_class:
+        try: 
+            gt_store = AnnotationStore(image_id.id, anno_class.id, is_gt=True)
+        except Exception as e:
+            continue
+        gt_store.drop_table()
+
+        try: 
+            pred_store = AnnotationStore(image_id.id, anno_class.id, is_gt=False)
+        except Exception as e:
+            continue
+        pred_store.drop_table()
 

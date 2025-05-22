@@ -1,7 +1,5 @@
 import quickannotator.db.models as db_models
 from quickannotator.db import db_session
-import sqlalchemy
-
 import large_image
 
 from typing import List
@@ -24,6 +22,7 @@ def add_image_by_path(project_id, path) -> db_models.Image:
                     )
 
     db_session.add(image)
+    db_session.commit()
     return image
 
 def get_images_by_project_id(project_id: int) -> List[db_models.Image]:

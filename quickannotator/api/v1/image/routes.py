@@ -16,7 +16,7 @@ from . import models as server_models
 from flask_smorest import Blueprint
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.image import add_image_by_path
-from quickannotator.api.v1.image.utils import import_geojson_annotation_file
+from quickannotator.api.v1.image.utils import import_geojson_annotation_file, delete_annotation_tables_by_image_id
 projects_path = 'mounts/nas_write/projects'
 
 bp = Blueprint('image', __name__, description='Image operations')
@@ -57,7 +57,7 @@ class Image(MethodView):
         project_id = image.project_id
         print(f'projec_id - {project_id}')
         # delete image's annotation tables
-        AnnotationStore.delete_annotation_tables_by_image_id(image_id=image_id)
+        delete_annotation_tables_by_image_id(image_id)
         # delete image from DB
         db_session.query(db_models.Image).filter(db_models.Image.id == image_id).delete()
         db_session.commit()
@@ -122,7 +122,9 @@ class FileUpload(MethodView):
                 
                 # read image info and insert to image table
                 new_image = add_image_by_path(project_id, temp_slide_path)
-
+                print('new_image ~~~~~~~~~~~~~~~~~')
+                print(new_image.id)
+                print(new_image.path)
                 # move the actual slides file and update the slide path after create image in DB
                 # image = db_session.query(db_models.Image).filter_by(name=name, path=temp_slide_path).first()
                 image_id = new_image.id
