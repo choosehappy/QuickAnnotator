@@ -421,7 +421,9 @@ const ViewportMap = (props: Props) => {
                 }
             }
 
-            map.geoOn(geo.event.mousemove, function (evt: any) { props.setMouseCoords({x: evt.geo.x.toFixed(2), y: evt.geo.y.toFixed(2) }) });
+            map.geoOn(geo.event.mousemove, function (evt: any) { 
+                props.setMouseCoords({ x: Math.round(evt.geo.x * 100) / 100, y: Math.round(evt.geo.y * 100) / 100 });
+            });
             map.geoOn(geo.event.zoom, handleZoomPan);
             map.geoOn(geo.event.pan, handleZoomPan);
             geojs_map.current = map;
