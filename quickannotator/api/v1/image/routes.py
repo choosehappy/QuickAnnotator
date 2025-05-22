@@ -69,7 +69,7 @@ class ImageFile(MethodView):
         result = get_image_by_id(image_id)
 
         if file_type == ImageType.IMAGE:
-            return send_from_directory(result['path'], result['name'])
+            return send_from_directory(result.path, result.name)
         elif file_type == ImageType.THUMBNAIL:
             # TODO implement thumbnail file
             pass
