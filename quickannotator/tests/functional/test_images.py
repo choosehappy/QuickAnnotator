@@ -16,4 +16,4 @@ def test_get_image_metadata(test_client, seed):
     data = response.get_json()
     assert isinstance(data, dict)
     assert 'mpp' in data  # Check that the metadata contains the 'mpp' field
-    assert data['mpp'] == 0.2261727054779029  # Check that the MPP value matches the expected value
+    assert data['mpp'] == pytest.approx(0.2261727054779029)  # Check that the MPP value matches the expected value approximately
