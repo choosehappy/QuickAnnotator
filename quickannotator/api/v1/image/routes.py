@@ -15,6 +15,7 @@ import quickannotator.db.models as db_models
 from . import models as server_models
 from flask_smorest import Blueprint
 from quickannotator.db.crud.annotation import AnnotationStore
+from quickannotator.db.crud.image import add_image_by_path
 from quickannotator.api.v1.image.utils import import_geojson_annotation_file
 projects_path = 'mounts/nas_write/projects'
 
@@ -120,31 +121,19 @@ class FileUpload(MethodView):
                 file.save(temp_slide_path)
                 
                 # read image info and insert to image table
-                slide = large_image.getTileSource(temp_slide_path)
-                name = os.path.basename(temp_slide_path)
-                image = db_models.Image(project_id=project_id,
-                            name=name,
-                            path=temp_slide_path,
-                            base_height=slide.sizeY,
-                            base_width=slide.sizeX,
-                            dz_tilesize=slide.tileWidth,
-                            embedding_coord="POINT (1 1)",
-                            group_id=0,
-                            split=0
-                            )
-                db_session.add(image)
-                db_session.commit()
+                new_image = add_image_by_path(project_id, temp_slide_path)
+
                 # move the actual slides file and update the slide path after create image in DB
                 # image = db_session.query(db_models.Image).filter_by(name=name, path=temp_slide_path).first()
-                image_id = image.id
+                image_id = new_image.id
                 slide_folder_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/img_{image_id}')
                 image_full_path = os.path.join(slide_folder_path, filename)
                 # move image file to img_{id} folder
                 os.makedirs(slide_folder_path, exist_ok=True)
                 shutil.move(temp_slide_path, image_full_path)
 
-                image.path = image_full_path
-                db_session.add(image)
+                new_image.path = image_full_path
+                db_session.add(new_image)
                 db_session.commit()
 
                 # import annotation if it exist in temp dir
