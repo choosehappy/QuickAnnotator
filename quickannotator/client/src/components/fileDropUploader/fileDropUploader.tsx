@@ -4,7 +4,7 @@ import { UploadedFiles } from "../../types.ts";
 import Dropzone from 'react-dropzone';
 import { useDropzone } from 'react-dropzone';
 import { CloudArrowUp } from 'react-bootstrap-icons';
-import { uploadFiles } from '../../helpers/api.ts';
+import { UploadImageURL } from '../../helpers/api.ts';
 import Button from 'react-bootstrap/Button';
 import FileProgressPanel from './fileProgressPanel/fileProgressPanel.tsx'
 import './fileDropUploader.css'
@@ -115,9 +115,8 @@ const FileDropUploader = (props: any) => {
                 console.log(e)
                 // console.error(`Error uploading ${file.name}`);
             };
-
-            // xhr.open("POST", "../api/v1/image/upload/file", true);
-            xhr.open("POST", `../api/v1/image/upload`, true);
+            console.log()
+            xhr.open("POST", `..${UploadImageURL()}`, true);
             xhr.send(formData);
         });
 

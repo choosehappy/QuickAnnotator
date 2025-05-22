@@ -234,3 +234,5 @@ export const fetchTileBoundingBox = async (image_id: number, annotation_class_id
 export const getAnnotationPageURL = (project_id: number, image_id: number) => `/project/${project_id}/annotate/${image_id}`
 
 export const getImageThumbnailURL = (image_id: number) =>`/api/v1/image/${image_id}/1/file`
+
+export const UploadImageURL = () =>`/api/v1/image/upload`
