@@ -103,7 +103,7 @@ def tissue_mask_seed(db_session, seed):
     annotation_class_id = 1
 
     # Create the mask annotation table
-    mask_store = AnnotationStore(image_id, annotation_class_id, in_work_mag=False, is_gt=True, create_table=True)
+    mask_store = AnnotationStore(image_id, annotation_class_id, in_work_mag=False, is_gt=True)
 
     # Insert a mask annotation which envelopes all annotations
     minx, miny, maxx, maxy = 0, 0, 10000, 10000
@@ -140,10 +140,10 @@ def annotations_seed(db_session, tissue_mask_seed, polygons):
     annotation_class_id = 2
 
     # Create the annotation table
-    annotation_store = AnnotationStore(image_id, annotation_class_id, is_gt=True, in_work_mag=False, create_table=True)
+    annotation_store = AnnotationStore(image_id, annotation_class_id, is_gt=True, in_work_mag=False)
 
     # Create the prediction table
-    prediction_store = AnnotationStore(image_id, annotation_class_id, is_gt=False, in_work_mag=False, create_table=True)
+    prediction_store = AnnotationStore(image_id, annotation_class_id, is_gt=False, in_work_mag=False)
 
     # Insert the annotations
     gt_anns = annotation_store.insert_annotations(polygons)

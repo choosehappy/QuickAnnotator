@@ -58,19 +58,6 @@ def test_annotation_store_initialization_with_existing_table(db_session, annotat
     assert store.annotation_class_id == annotation_class_id
     assert store.is_gt == is_gt
 
-def test_annotation_store_initialization_with_nonexistent_table(db_session, annotations_seed):
-    # Arrange
-    image_id = 1
-    annotation_class_id = 9999
-    is_gt = True
-
-    # Act & Assert
-    with pytest.raises(ValueError) as excinfo:
-        AnnotationStore(image_id, annotation_class_id, is_gt)
-
-    # Verify the exception message
-    assert "Table annotation_1_9999_gt does not exist. Set create_table=True to create it." in str(excinfo.value)
-
 
 def test_insert_annotations(annotation_store):
     # Arrange
@@ -180,7 +167,7 @@ def test_create_annotation_table(seed):
     polygons = [Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])]
 
     # Act
-    store = AnnotationStore(1, 2, True, create_table=True)
+    store = AnnotationStore(1, 2, True)
     
     # Assert 
     result = store.insert_annotations(polygons)

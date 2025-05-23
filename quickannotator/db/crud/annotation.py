@@ -47,7 +47,7 @@ def get_annotation_query(model, scale_factor: float=1.0) -> Query:
 
 
 class AnnotationStore:
-    def __init__(self, image_id: int, annotation_class_id: int, is_gt: bool, in_work_mag=True, create_table=False):
+    def __init__(self, image_id: int, annotation_class_id: int, is_gt: bool, in_work_mag=True):
         """
         Initializes the annotation helper with the given parameters.
 
@@ -57,7 +57,6 @@ class AnnotationStore:
             is_gt (bool): A flag indicating whether the annotation is ground truth.
             in_work_mag (bool, optional): If True, all input and output polygons are in working magnification. Defaults to True. 
                 If False, all input and output polygons are in base magnification.
-            create_table_if_non_existent (bool, optional): If True, creates the annotation table if it does not exist. Defaults to False.
 
         Attributes:
             image_id (int): The ID of the image.
@@ -76,10 +75,7 @@ class AnnotationStore:
         if table_exists(table_name):
             self.model = create_dynamic_model(table_name)
         else:
-            if create_table:
-                self.model = self.create_annotation_table(image_id, annotation_class_id, is_gt)
-            else:
-                raise ValueError(f"Table {table_name} does not exist. Set create_table=True to create it.")
+            self.model = self.create_annotation_table(image_id, annotation_class_id, is_gt)
 
 
     # CREATE
