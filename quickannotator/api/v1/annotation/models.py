@@ -78,8 +78,12 @@ class GetAnnsByImageAndAnnotationClassIds(Schema):
     )
     
 class ExportToServerSchema(GetAnnsByImageAndAnnotationClassIds):
-    annotations_format = fields.Enum(constants.AnnsFormatEnum, required=False, default=constants.AnnsFormatEnum.GEOJSON)
-    props_format = fields.Enum(constants.PropsFormatEnum, required=False, default=None)
+    export_formats = fields.List(
+        fields.Enum(constants.AnnsFormatEnum),
+        required=True,
+        validate=validate_non_empty_list,
+        default=[constants.AnnsFormatEnum.GEOJSON]
+    )
 
 class ExportToDSASchema(GetAnnsByImageAndAnnotationClassIds):
     api_uri = fields.Str(required=True)

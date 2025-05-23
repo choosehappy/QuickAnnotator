@@ -125,6 +125,11 @@ export type OutletContextType = {
     setCurrentImage: (image: Image | null) => void;
 }
 
+export enum ExportFormat {
+    GEOJSON = "geojson",
+    TSV = "tsv"
+}
+
 export class CurrentAnnotation {
     undoStack: Annotation[];
     redoStack: Annotation[];

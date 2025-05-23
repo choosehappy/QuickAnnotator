@@ -1,3 +1,4 @@
+from quickannotator import constants
 from quickannotator.db import Base, engine
 from sqlalchemy import Table
 import os
@@ -19,27 +20,16 @@ def build_annotation_table_name(image_id: int, annotation_class_id: int, is_gt: 
     table_name = f"annotation_{image_id}_{annotation_class_id}_{gtpred}"
     return table_name
 
-def build_tarpath(image_id: int, annotation_class_id: int, is_gt: bool):
+
+def build_export_filepath(image_id: int, annotation_class_id: int, is_gt: bool, extension: constants.ExportFormatExtensions, relative: bool, timestamp: datetime = None) -> str:
+    timestamp = datetime.now() if timestamp is None else timestamp
+        
     project_id = get_image_by_id(image_id).project_id
-    save_path = fsmanager.nas_write.get_project_image_path(project_id, image_id)
-    tarname = build_tarname(image_id, annotation_class_id, is_gt)
-    tarpath = os.path.join(save_path, tarname)
-    return tarpath
+    save_path = fsmanager.nas_write.get_project_image_path(project_id, image_id, relative)
 
-def build_tarname(image_id: int, annotation_class_id: int, is_gt: bool):
-    """
-    Build the tar name for a given image and annotation class.
-
-    Args:
-        image_id (int): The ID of the image.
-        annotation_class_id (int): The ID of the annotation class.
-        is_gt (bool): Flag indicating if the annotations are ground truth.
-
-    Returns:
-        str: The tar name for the specified image and annotation class.
-    """
     table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
-    tarname = f'{table_name}.tar.gz'
-    return tarname
+    filename = f"{table_name}_{timestamp.strftime('%Y%m%d_%H%M%S')}.{extension.value}.gz"
 
+    filepath = os.path.join(save_path, filename)
+    return filepath
 

@@ -14,11 +14,7 @@ enum ExportOption {
 enum ExportFormat {
     GEOJSON = "GEOJSON",
     GEOJSON_NO_PROPS = "GEOJSON_NO_PROPS",
-}
-
-enum MetricsFormat {
     TSV = "TSV",
-    DO_NOT_EXPORT = "Do not export",
 }
 
 const exportOptionsLabels = {
@@ -27,6 +23,12 @@ const exportOptionsLabels = {
 };
 
 const listContainerId = "export-selection-container";
+
+const defaultExportFormats = {
+    [ExportFormat.GEOJSON]: true,
+    [ExportFormat.GEOJSON_NO_PROPS]: false,
+    [ExportFormat.TSV]: false,
+};
 
 interface Props {
     show: boolean;
@@ -37,8 +39,7 @@ interface Props {
 
 interface FormValues {
     selectedOption: ExportOption;
-    annotationsFormat: ExportFormat;
-    propsFormat: MetricsFormat;
+    exportFormats: { [key in ExportFormat]: boolean };
     apiKey?: string;
     collectionName?: string;
     folderName?: string;
@@ -46,8 +47,13 @@ interface FormValues {
 }
 
 const ExportOptions = () => {
-    const { register, watch } = useFormContext<FormValues>();
+    const { register, watch, setValue } = useFormContext<FormValues>();
     const selectedOption = Number(watch("selectedOption"));
+    const exportFormats = watch("exportFormats");
+
+    const handleCheckboxChange = (format: ExportFormat) => {
+        setValue(`exportFormats.${format}`, !exportFormats[format]);    // TODO: fix this
+    };
 
     return (
         <>
@@ -68,25 +74,18 @@ const ExportOptions = () => {
 
             {selectedOption === ExportOption.SERVER && (
                 <>
-                    <Form.Group controlId="annotationsFormat">
-                        <Form.Label>Annotations Export Format</Form.Label>
-                        <Form.Control as="select" {...register("annotationsFormat")}>
-                            {Object.values(ExportFormat).map((format) => (
-                                <option key={format} value={format}>
-                                    {format}
-                                </option>
-                            ))}
-                        </Form.Control>
-                    </Form.Group>
-                    <Form.Group controlId="metricsFormat">
-                        <Form.Label>Metrics Export Format</Form.Label>
-                        <Form.Control as="select" {...register("propsFormat")}>
-                            {Object.values(MetricsFormat).map((format) => (
-                                <option key={format} value={format}>
-                                    {format}
-                                </option>
-                            ))}
-                        </Form.Control>
+                    <Form.Group controlId="exportFormats">
+                        <Form.Label>Select Export Formats</Form.Label>
+                        {Object.values(ExportFormat).map((format) => (
+                            <Form.Check
+                                key={format}
+                                type="checkbox"
+                                label={format}
+                                id={`exportFormat-${format}`}
+                                checked={exportFormats[format]}
+                                onChange={() => handleCheckboxChange(format)}
+                            />
+                        ))}
                     </Form.Group>
                 </>
             )}
@@ -131,8 +130,7 @@ const AnnotationExportModal = (props: Props) => {
     const methods = useForm<FormValues>({
         defaultValues: {
             selectedOption: ExportOption.SERVER,
-            annotationsFormat: ExportFormat.GEOJSON,
-            propsFormat: MetricsFormat.DO_NOT_EXPORT,
+            exportFormats: defaultExportFormats,
         },
     });
 
@@ -150,19 +148,22 @@ const AnnotationExportModal = (props: Props) => {
             return;
         }
 
+        const selectedFormats = Object.entries(data.exportFormats)
+            .filter(([_, isSelected]) => isSelected)
+            .map(([format]) => format as ExportFormat);
+
+        if (selectedFormats.length === 0) {
+            console.error("No export formats selected");
+            return;
+        }
+
         switch (Number(data.selectedOption)) {
             case ExportOption.SERVER:
-                exportAnnotationsToServer(
-                    imageIds,
-                    annotationClassIds,
-                    data.annotationsFormat,
-                    data.propsFormat,
-                )
+                exportAnnotationsToServer(imageIds, annotationClassIds, selectedFormats)
                     .then(() => console.log("Export to server successful"))
                     .catch((error) => console.error("Export to server failed:", error));
                 break;
 
-                
             case ExportOption.DSA:
                 if (!data.apiUrl || !data.apiKey || !data.folderName) {
                     console.error("Missing required fields for DSA export");
@@ -178,6 +179,7 @@ const AnnotationExportModal = (props: Props) => {
                     .then(() => console.log("Export to DSA successful"))
                     .catch((error) => console.error("Export to DSA failed:", error));
                 break;
+
             default:
                 console.error("Unknown export option:", data.selectedOption);
         }

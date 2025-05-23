@@ -25,9 +25,9 @@ from quickannotator.db.utils import build_annotation_table_name, create_dynamic_
 from quickannotator.db.logging import qa_logger
 import geojson
 from io import BytesIO
-import tarfile
 import json
 import os
+import gzip
 
 
 def get_annotation_query(model, scale_factor: float=1.0) -> Query:
@@ -188,29 +188,23 @@ class AnnotationStore:
         return result
     
 
-    def export_all_annotations_to_tar(self, tarpath: str):
+    def export_all_annotations_to_geojson(self, filepath: str):
         """
-        Saves all annotations to a tar archive. If the tarpath ends with .gz, the archive will be gzipped.
+        Exports all annotations to a GeoJSON file compressed with gzip.
 
         Args:
-            tarpath (str): The path of the tar file to save the annotations to.
+            filepath (str): The path to the .geojson.gz file where the annotations will be saved.
         """
-        # Ensure the directory for the tar file exists
-        os.makedirs(os.path.dirname(tarpath), exist_ok=True)
+        # Ensure the directory for the file exists
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
-        mode = 'w:gz' if tarpath.endswith('.gz') else 'w'
+        annotations = self.get_all_annotations()
+        feature_collection = anns_to_feature_collection(annotations)
+        feature_collection_json_bytes = geojson.dumps(feature_collection).encode('utf-8')
 
-        with tarfile.open(tarpath, mode=mode) as tar:
-            annotations = self.get_all_annotations()
-            feature_collection = anns_to_feature_collection(annotations)
-            feature_collection_json_bytes = geojson.dumps(feature_collection).encode('utf-8')
-
-            # Create a tarinfo object for the GeoJSON file
-            tarinfo = tarfile.TarInfo(name=f"{self.get_annotation_table_name()}.geojson")
-            tarinfo.size = len(feature_collection_json_bytes)
-
-            # Add the GeoJSON file to the tar archive
-            tar.addfile(tarinfo, BytesIO(feature_collection_json_bytes))
+        # Save the GeoJSON data directly to a .geojson.gz file
+        with gzip.open(filepath, 'wb') as gz_file:
+            gz_file.write(feature_collection_json_bytes)
 
 
     def get_all_annotations_as_feature_collection(self) -> bytes:

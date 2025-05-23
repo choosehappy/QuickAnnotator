@@ -4,15 +4,15 @@ import numpy as np
 import ray
 import time
 import os
+from datetime import datetime
 
 from quickannotator.db import get_session
-from quickannotator.db.utils import build_annotation_table_name, build_tarpath
+from quickannotator.db.utils import build_export_filepath
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.dsa_sdk import DSAClient
 import geojson
 from quickannotator import constants
 from quickannotator.db.crud.image import get_image_by_id
-from itertools import product
 
 
 class ProgressTracker:
@@ -33,7 +33,8 @@ class ProgressTracker:
 @ray.remote(max_concurrency=2)  # Add max_concurrency=2
 class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
     def __init__(self, image_ids, annotation_class_ids):
-        self.id_pairs = [(int(image_id), int(annotation_class_id)) for image_id, annotation_class_id in product(image_ids, annotation_class_ids)]
+        image_ids_grid, annotation_class_ids_grid = np.meshgrid(image_ids, annotation_class_ids, indexing='ij')
+        self.id_pairs = [(int(image_id), int(annotation_class_id)) for image_id, annotation_class_id in zip(image_ids_grid.ravel(), annotation_class_ids_grid.ravel())]
         super().__init__(len(self.id_pairs))  # Initialize ProgressTracker
         
 
@@ -53,7 +54,7 @@ class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
                     raise Exception(f"Item with name {image_name} not found in folder {folder_id}")
                 
                 dsa_item_id = dsa_item['_id']
-                store = AnnotationStore(image_id, annotation_class_id, True, False, False)
+                store = AnnotationStore(image_id, annotation_class_id, True, False)
                 feature_collection = store.get_all_annotations_as_feature_collection()    # TODO: this should probably be done with tempfile to avoid memory issues
                 feature_collection_json = geojson.dumps(feature_collection)
                 fc_bytes = feature_collection_json.encode('utf-8')
@@ -75,12 +76,29 @@ class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
 
             self.increment()  # Use inherited increment method
 
-    def export_remotely(self):
+    def export_remotely(self, formats: list[constants.AnnsFormatEnum], timestamp: datetime = None):
+        """
+        Export annotations remotely with support for multiple file extensions and optional timestamp.
+
+        Args:
+            timestamp (datetime, optional): Timestamp for naming the export files. Defaults to None.
+            extensions (list, optional): List of file extensions to export. Defaults to ['.tar'].
+        """
+
         for image_id, annotation_class_id in self.id_pairs:
             with get_session() as db_session:
-                tarpath = build_tarpath(image_id, annotation_class_id, is_gt=True)
-                store = AnnotationStore(image_id, annotation_class_id, True, False, False)
-                store.export_all_annotations_to_tar(tarpath)
+                for format in formats:
+                    if format == constants.AnnsFormatEnum.GEOJSON:
+                        filepath = build_export_filepath(
+                            image_id=image_id,
+                            annotation_class_id=annotation_class_id,
+                            is_gt=True,
+                            extension=constants.ExportFormatExtensions.GEOJSON,
+                            relative=False,
+                            timestamp=timestamp
+                        )
+                        store = AnnotationStore(image_id, annotation_class_id, True, False)
+                        store.export_all_annotations_to_geojson(filepath)
             self.increment()  # Use inherited increment method
 
 

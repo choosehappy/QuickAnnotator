@@ -229,14 +229,12 @@ export const fetchMagnifications = async () => {
 export const exportAnnotationsToServer = async (
     image_ids: number[],
     annotation_class_ids: number[],
-    annotations_format: string,
-    props_format: string,
+    export_formats: string[]
 ) => {
     const query = new URLSearchParams({
         image_ids: image_ids.join(','),
         annotation_class_ids: annotation_class_ids.join(','),
-        annotations_format: annotations_format,
-        props_format: props_format,
+        export_formats: export_formats.join(','),
     });
 
     const response = await post<null, { actor_name: string; filepaths: string[] }>(

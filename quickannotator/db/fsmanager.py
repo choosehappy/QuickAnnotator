@@ -106,7 +106,7 @@ class NASWrite(FileStore):
         """
         super().__init__("nas_write")
 
-    def get_project_image_path(self, proj_id: int, img_id: int, relative: bool = False):
+    def get_project_image_path(self, project_id: int, image_id: int, relative: bool = False):
         """
         Get the directory path for project images.
 
@@ -118,10 +118,10 @@ class NASWrite(FileStore):
         Returns:
             str: The directory path for the project images.
         """
-        relative_path = os.path.join("projects", f"proj_{proj_id}", "images", f"img_{img_id}")
+        relative_path = os.path.join("projects", f"proj_{project_id}", "images", f"img_{image_id}")
         return relative_path if relative else self.relative_to_global(relative_path)
 
-    def get_project_mask_path(self, proj_id: int, img_id: int, relative: bool = False):
+    def get_project_mask_path(self, project_id: int, image_id: int, relative: bool = False):
         """
         Get the directory path for project masks.
 
@@ -133,7 +133,7 @@ class NASWrite(FileStore):
         Returns:
             str: The directory path for the project masks.
         """
-        relative_path = os.path.join("projects", f"proj_{proj_id}", "images", f"img_{img_id}", "masks")
+        relative_path = os.path.join("projects", f"proj_{project_id}", "images", f"img_{image_id}", "masks")
         return relative_path if relative else self.relative_to_global(relative_path)
 
     def get_class_checkpoint_path(self, annotation_class_id: int, relative: bool = False):

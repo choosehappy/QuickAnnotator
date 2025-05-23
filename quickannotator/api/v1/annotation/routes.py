@@ -3,7 +3,7 @@ from quickannotator.constants import PolygonOperations
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.image import get_image_by_id
 from quickannotator.db.crud.tile import TileStoreFactory
-from quickannotator.db.utils import build_tarpath
+from quickannotator.db.utils import build_export_filepath
 from quickannotator.db.fsmanager import fsmanager
 from .utils import ProgressTracker, AnnotationExporter, compute_actor_name
 import quickannotator.db.models as db_models
@@ -148,17 +148,23 @@ class ExportAnnotationsToServer(MethodView):
         project_id = get_image_by_id(image_ids[0]).project_id     # NOTE: This is only used for naming the actor, so it's not critical.
 
         # TODO: add support for multiple formats
-        annotations_format = args['annotations_format']
-        props_format = args['props_format']
+        export_formats = args['export_formats']
+
+        timestamp = datetime.now()
 
         filepaths = [
-            fsmanager.nas_write.global_to_relative(build_tarpath(image_id, annotation_class_id, is_gt))
+            build_export_filepath(image_id=image_id,
+                                  annotation_class_id=annotation_class_id,
+                                  is_gt=is_gt,
+                                  extension=constants.ExportFormatExtensions.GEOJSON,
+                                  relative=True,
+                                  timestamp=timestamp)
             for image_id, annotation_class_id in list(product(image_ids, annotation_class_ids))
         ]
 
         actor_name = compute_actor_name(project_id, constants.NamedRayActorType.ANNOTATION_EXPORTER)
         exporter = AnnotationExporter.options(name=actor_name).remote(image_ids, annotation_class_ids)
-        exporter.export_remotely.remote()
+        exporter.export_remotely.remote(export_formats, timestamp)
 
         return {"actor_name": actor_name, "filepaths": filepaths}, 202
     

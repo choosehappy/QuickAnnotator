@@ -26,6 +26,9 @@ class ImageType(enum.IntEnum):
 class NamedRayActorType(enum.Enum):
     ANNOTATION_EXPORTER = 'exporter'
     
+class ExportFormatExtensions(enum.Enum):
+    GEOJSON = 'geojson'
+    TSV = 'tsv'
 
 
 MASK_DILATION = 1
