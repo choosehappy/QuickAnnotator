@@ -13,6 +13,7 @@ from quickannotator.dsa_sdk import DSAClient
 import geojson
 from quickannotator import constants
 from quickannotator.db.crud.image import get_image_by_id
+from itertools import product
 
 
 class ProgressTracker:
@@ -33,8 +34,7 @@ class ProgressTracker:
 @ray.remote(max_concurrency=2)  # Add max_concurrency=2
 class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
     def __init__(self, image_ids, annotation_class_ids):
-        image_ids_grid, annotation_class_ids_grid = np.meshgrid(image_ids, annotation_class_ids, indexing='ij')
-        self.id_pairs = [(int(image_id), int(annotation_class_id)) for image_id, annotation_class_id in zip(image_ids_grid.ravel(), annotation_class_ids_grid.ravel())]
+        self.id_pairs = [(int(image_id), int(annotation_class_id)) for image_id, annotation_class_id in product(image_ids, annotation_class_ids)]
         super().__init__(len(self.id_pairs))  # Initialize ProgressTracker
         
 
