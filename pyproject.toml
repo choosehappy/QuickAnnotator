@@ -61,6 +61,7 @@ dependencies = [
     "tensorboard~=2.19.0",
     "torchsummary~=1.5.1",
     "eralchemy[pygraphviz]~=1.5.0",
+    "gdal==3.4.1",
     
 
 ]

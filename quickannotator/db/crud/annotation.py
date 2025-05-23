@@ -28,6 +28,7 @@ from io import BytesIO
 import json
 import os
 import gzip
+from osgeo import ogr
 
 
 def get_annotation_query(model, scale_factor: float=1.0) -> Query:
@@ -112,6 +113,15 @@ class AnnotationStore:
         self.annotation_class_id = annotation_class_id
         self.is_gt = is_gt
         self.scaling_factor = 1.0 if in_work_mag else base_to_work_scaling_factor(image_id, annotation_class_id)
+        
+        # NOTE: Consider following the TileStoreFactory pattern instead. However, that approach is not necessary here and will change the AnnotationStore initialization interface.
+        engine = db_session.get_bind()
+        if engine.dialect.name == 'sqlite': 
+            self.ogr_conn_str = f"SQLite:{engine.url.database}"
+        elif engine.dialect.name == 'postgresql':
+            self.ogr_conn_str = f"PG:{engine.url}"
+        else:
+            raise ValueError(f"Unsupported database dialect: {engine.dialect.name}")
 
         if create_table:
             model = self.create_annotation_table(image_id, annotation_class_id, is_gt)
@@ -206,6 +216,55 @@ class AnnotationStore:
         with gzip.open(filepath, 'wb') as gz_file:
             gz_file.write(feature_collection_json_bytes)
 
+    def export_to_geojson_file(self, filepath: str = None, compress: bool = False) -> str:
+        """
+        Streams annotations to a GeoJSON file to handle large datasets efficiently.
+        Optionally compresses the output file as gzip.
+
+        Args:
+            filepath (str, optional): Output path. Temporary file is used if None.
+            compress (bool, optional): Whether to gzip the output. Note that Digital Slide Archive does not accept gzip geojson files.
+
+        Returns:
+            str: Path to the output GeoJSON(.gz) file.
+        """
+        table_name = self.get_annotation_table_name()
+        src_ds = ogr.Open(self.ogr_conn_str)
+        layer = src_ds.GetLayerByName(table_name)
+
+        suffix = ".geojson.gz" if compress else ".geojson"
+        if filepath is None:
+            tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+            filepath = tmpfile.name
+            tmpfile.close()
+        else:
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        open_func = gzip.open if compress else open
+        mode = 'wt'  # text mode with UTF-8 encoding
+        with open_func(filepath, mode, encoding='utf-8') as f:
+            f.write('{"type": "FeatureCollection", "features": [\n')
+            first = True
+
+            for feature in layer:
+                geom = feature.GetGeometryRef()
+                geojson_feature = {
+                    "type": "Feature",
+                    "geometry": json.loads(geom.ExportToJson()),
+                    "properties": feature.items()
+                }
+
+                if not first:
+                    f.write(',\n')
+                else:
+                    first = False
+
+                json.dump(geojson_feature, f)
+
+            f.write('\n]}')
+
+        print(f"GeoJSON written to: {filepath}")
+        return filepath
 
     def get_all_annotations_as_feature_collection(self) -> bytes:
         """
