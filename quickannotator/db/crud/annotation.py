@@ -31,7 +31,6 @@ import gzip
 from osgeo import ogr
 import tempfile
 
-
 def get_annotation_query(model, scale_factor: float=1.0) -> Query:
     '''
     Constructs a SQLAlchemy query to retrieve and scale annotation data from the database.
@@ -229,9 +228,9 @@ class AnnotationStore:
         Returns:
             str: Path to the output GeoJSON(.gz) file.
         """
-        table_name = self.get_annotation_table_name()
         src_ds: ogr.DataSource = ogr.Open(self.ogr_conn_str)
-        layer = src_ds.GetLayerByName(table_name)
+        layer: ogr.Layer = src_ds.ExecuteSQL(self.get_query_as_sql())
+
         field_name = "polygon"
 
         suffix = ".geojson.gz" if compress else ".geojson"
@@ -249,10 +248,10 @@ class AnnotationStore:
             first = True
 
             for feature in layer:
-                geom = feature.GetGeomFieldRef(field_name)
+                # geom = feature.GetGeomFieldRef(field_name)    # NOTE: Only useful if we want to use ExportToJson() instead of GetField()
                 geojson_feature = {
                     "type": "Feature",
-                    "geometry": json.loads(geom.ExportToJson()),
+                    "geometry": json.loads(feature.GetField(field_name)),    # NOTE: Could alternatively use geom.ExportToJson(), but this would require a modified query without AS_GeoJSON(). Also, there doesn't seem to be a way to avoid the load + dump.
                     "properties": feature.items()
                 }
 
@@ -358,6 +357,14 @@ class AnnotationStore:
         Returns the name of the annotation table.
         """
         return build_annotation_table_name(self.image_id, self.annotation_class_id, is_gt=self.is_gt)
+    
+    def get_query_as_sql(self) -> str:
+        """
+        Returns the SQL query as a string.
+
+        dialect allows us to avoid code splitting depending on the dialect. If not used, compile() will not use sqlite dialect functions including ScaleCoords
+        """
+        return self.query.statement.compile(compile_kwargs={"literal_binds": True}, dialect=db_session.bind.dialect).string 
     
 
     @staticmethod
