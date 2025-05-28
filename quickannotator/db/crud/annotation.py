@@ -29,6 +29,7 @@ import json
 import os
 import gzip
 from osgeo import ogr
+import tempfile
 
 
 def get_annotation_query(model, scale_factor: float=1.0) -> Query:
@@ -229,8 +230,9 @@ class AnnotationStore:
             str: Path to the output GeoJSON(.gz) file.
         """
         table_name = self.get_annotation_table_name()
-        src_ds = ogr.Open(self.ogr_conn_str)
+        src_ds: ogr.DataSource = ogr.Open(self.ogr_conn_str)
         layer = src_ds.GetLayerByName(table_name)
+        field_name = "polygon"
 
         suffix = ".geojson.gz" if compress else ".geojson"
         if filepath is None:
@@ -247,7 +249,7 @@ class AnnotationStore:
             first = True
 
             for feature in layer:
-                geom = feature.GetGeometryRef()
+                geom = feature.GetGeomFieldRef(field_name)
                 geojson_feature = {
                     "type": "Feature",
                     "geometry": json.loads(geom.ExportToJson()),

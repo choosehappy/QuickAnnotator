@@ -98,7 +98,7 @@ class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
                             timestamp=timestamp
                         )
                         store = AnnotationStore(image_id, annotation_class_id, True, False)
-                        store.export_all_annotations_to_geojson(filepath)
+                        store.export_to_geojson_file(filepath, compress=True)
             self.increment()  # Use inherited increment method
 
 
