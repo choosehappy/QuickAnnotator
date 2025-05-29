@@ -198,24 +198,6 @@ class AnnotationStore:
         return result
     
 
-    def export_all_annotations_to_geojson(self, filepath: str):
-        """
-        Exports all annotations to a GeoJSON file compressed with gzip.
-
-        Args:
-            filepath (str): The path to the .geojson.gz file where the annotations will be saved.
-        """
-        # Ensure the directory for the file exists
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-
-        annotations = self.get_all_annotations()
-        feature_collection = anns_to_feature_collection(annotations)
-        feature_collection_json_bytes = geojson.dumps(feature_collection).encode('utf-8')
-
-        # Save the GeoJSON data directly to a .geojson.gz file
-        with gzip.open(filepath, 'wb') as gz_file:
-            gz_file.write(feature_collection_json_bytes)
-
     def export_to_geojson_file(self, filepath: str = None, compress: bool = False) -> str:
         """
         Streams annotations to a GeoJSON file to handle large datasets efficiently.
