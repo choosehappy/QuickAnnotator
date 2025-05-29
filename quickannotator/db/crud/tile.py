@@ -8,7 +8,7 @@ from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_fa
 from quickannotator.constants import MASK_CLASS_ID, MASK_DILATION, TileStatus
 import quickannotator.constants as constants
 from datetime import datetime, timedelta
-from quickannotator.db import db_session
+from quickannotator.db import Dialects, db_session
 from quickannotator.db.crud.annotation import get_annotation_query
 from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
 from quickannotator.db.crud.image import get_image_by_id
@@ -274,9 +274,9 @@ class TileStoreFactory():
     def get_tilestore() -> TileStore:
         dialect_name = db_session.bind.dialect.name
 
-        if dialect_name == 'postgresql':
+        if dialect_name == Dialects.POSTGRESQL.value:
             return PostgresTileStore()
-        elif dialect_name == 'sqlite':
+        elif dialect_name == Dialects.SQLITE.value:
             return SQLiteTileStore()
         else:
             raise ValueError(f"Unsupported dialect: {dialect_name}")

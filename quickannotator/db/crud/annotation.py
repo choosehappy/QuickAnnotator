@@ -1,30 +1,16 @@
 from sqlalchemy.orm import Query
 import quickannotator.db.models as db_models
-import quickannotator.constants as constants
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
-from quickannotator.db import Base, db_session
+from quickannotator.db import Base, db_session, get_ogr_datasource
 from quickannotator.db.crud.misc import compute_custom_metrics
 from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
-from quickannotator.dsa_sdk import DSAClient
-
-
 import sqlalchemy
 from shapely.affinity import scale
 from shapely.geometry.base import BaseGeometry
 from sqlalchemy import func
-
-
 from datetime import datetime
 from typing import List
-from sqlalchemy.dialects.sqlite import insert
-from sqlalchemy.orm import Query
-from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
-from quickannotator.db import db_session, Base
-import quickannotator.db.models as models
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
-from quickannotator.db.logging import qa_logger
 import geojson
-from io import BytesIO
 import json
 import os
 import gzip
@@ -64,7 +50,7 @@ def get_annotation_query(model, scale_factor: float=1.0) -> Query:
     return query
 
 
-def anns_to_feature_collection(annotations: List[models.Annotation]) -> geojson.FeatureCollection:
+def anns_to_feature_collection(annotations: List[db_models.Annotation]) -> geojson.FeatureCollection:
     """
     Converts a list of annotations to a GeoJSON FeatureCollection.
 
@@ -113,15 +99,6 @@ class AnnotationStore:
         self.annotation_class_id = annotation_class_id
         self.is_gt = is_gt
         self.scaling_factor = 1.0 if in_work_mag else base_to_work_scaling_factor(image_id, annotation_class_id)
-        
-        # NOTE: Consider following the TileStoreFactory pattern instead. However, that approach is not necessary here and will change the AnnotationStore initialization interface.
-        engine = db_session.get_bind()
-        if engine.dialect.name == 'sqlite': 
-            self.ogr_conn_str = f"SQLite:{engine.url.database}"
-        elif engine.dialect.name == 'postgresql':
-            self.ogr_conn_str = f"PG:{engine.url}"
-        else:
-            raise ValueError(f"Unsupported database dialect: {engine.dialect.name}")
 
         if create_table:
             model = self.create_annotation_table(image_id, annotation_class_id, is_gt)
@@ -186,7 +163,7 @@ class AnnotationStore:
         return result
     
 
-    def get_all_annotations(self) -> List[models.Annotation]:
+    def get_all_annotations(self) -> List[db_models.Annotation]:
         result = self.query.all()
         return result
 
@@ -210,11 +187,6 @@ class AnnotationStore:
         Returns:
             str: Path to the output GeoJSON(.gz) file.
         """
-        src_ds: ogr.DataSource = ogr.Open(self.ogr_conn_str)
-        layer: ogr.Layer = src_ds.ExecuteSQL(self.get_query_as_sql())
-
-        field_name = "polygon"
-
         suffix = ".geojson.gz" if compress else ".geojson"
         if filepath is None:
             tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
@@ -222,32 +194,35 @@ class AnnotationStore:
             tmpfile.close()
         else:
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            
+        with get_ogr_datasource() as src_ds:
+            layer: ogr.Layer = src_ds.ExecuteSQL(self.get_query_as_sql())
+            field_name = "polygon"
+            open_func = gzip.open if compress else open
+            mode = 'wt'  # text mode with UTF-8 encoding
+            with open_func(filepath, mode, encoding='utf-8') as f:
+                f.write('{"type": "FeatureCollection", "features": [\n')
+                first = True
 
-        open_func = gzip.open if compress else open
-        mode = 'wt'  # text mode with UTF-8 encoding
-        with open_func(filepath, mode, encoding='utf-8') as f:
-            f.write('{"type": "FeatureCollection", "features": [\n')
-            first = True
+                for feature in layer:
+                    # geom = feature.GetGeomFieldRef(field_name)    # NOTE: Only useful if we want to use ExportToJson() instead of GetField()
+                    geojson_feature = {
+                        "type": "Feature",
+                        "geometry": json.loads(feature.GetField(field_name)),    # NOTE: Could alternatively use geom.ExportToJson(), but this would require a modified query without AS_GeoJSON(). Also, there doesn't seem to be a way to avoid the load + dump.
+                        "properties": feature.items()
+                    }
 
-            for feature in layer:
-                # geom = feature.GetGeomFieldRef(field_name)    # NOTE: Only useful if we want to use ExportToJson() instead of GetField()
-                geojson_feature = {
-                    "type": "Feature",
-                    "geometry": json.loads(feature.GetField(field_name)),    # NOTE: Could alternatively use geom.ExportToJson(), but this would require a modified query without AS_GeoJSON(). Also, there doesn't seem to be a way to avoid the load + dump.
-                    "properties": feature.items()
-                }
+                    if not first:
+                        f.write(',\n')
+                    else:
+                        first = False
 
-                if not first:
-                    f.write(',\n')
-                else:
-                    first = False
+                    json.dump(geojson_feature, f)
 
-                json.dump(geojson_feature, f)
+                f.write('\n]}')
 
-            f.write('\n]}')
-
-        print(f"GeoJSON written to: {filepath}")
-        return filepath
+            print(f"GeoJSON written to: {filepath}")
+            return filepath
 
     def get_all_annotations_as_feature_collection(self) -> bytes:
         """
