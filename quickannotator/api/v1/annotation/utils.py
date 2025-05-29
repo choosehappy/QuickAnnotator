@@ -55,24 +55,22 @@ class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
                 
                 dsa_item_id = dsa_item['_id']
                 store = AnnotationStore(image_id, annotation_class_id, True, False)
-                feature_collection = store.get_all_annotations_as_feature_collection()    # TODO: this should probably be done with tempfile to avoid memory issues
-                feature_collection_json = geojson.dumps(feature_collection)
-                fc_bytes = feature_collection_json.encode('utf-8')
+                geojson_file_path = store.export_to_geojson_file()  # Use export_to_geojson_file to get the file path
                 upload_id = client.post_file(
                     parent_id=dsa_item_id,
-                    file_id=hex(int(dsa_item_id, 16) + 1)[2:].zfill(24),  # TODO: this is janky, ideally should be done by
+                    file_id=hex(int(dsa_item_id, 16) + 1)[2:].zfill(24),  # NOTE: The DSA docs do not specify how to generate file_id, so we use a simple increment based on item ID
                     name="annotations.geojson",
                     user_id=user_id,
-                    payload_size=len(fc_bytes)
+                    payload_size=os.path.getsize(geojson_file_path)  # Get file size for payload
                 )
         
                 offset = 0
-                while offset < len(fc_bytes):
-                    chunk = fc_bytes[offset:offset + constants.POST_FILE_CHUNK_SIZE]
-                    chunk_resp = client.post_file_chunk(chunk, upload_id, offset=offset)
-                    if chunk_resp.status_code != 200:
-                        raise Exception(f"Failed to upload chunk: {chunk_resp.status_code} {chunk_resp.text}")
-                    offset += constants.POST_FILE_CHUNK_SIZE
+                with open(geojson_file_path, 'rb') as f:
+                    while chunk := f.read(constants.POST_FILE_CHUNK_SIZE):  # Read file incrementally
+                        chunk_resp = client.post_file_chunk(chunk, upload_id, offset=offset)
+                        if chunk_resp.status_code != 200:
+                            raise Exception(f"Failed to upload chunk: {chunk_resp.status_code} {chunk_resp.text}")
+                        offset += len(chunk)
 
             self.increment()  # Use inherited increment method
 
