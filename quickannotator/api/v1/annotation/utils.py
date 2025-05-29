@@ -74,7 +74,7 @@ class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
 
             self.increment()  # Use inherited increment method
 
-    def export_remotely(self, formats: list[constants.AnnsFormatEnum], timestamp: datetime = None):
+    def export_to_server_fs(self, formats: list[constants.AnnsFormatEnum], timestamp: datetime = None):
         """
         Export annotations remotely with support for multiple file extensions and optional timestamp.
 

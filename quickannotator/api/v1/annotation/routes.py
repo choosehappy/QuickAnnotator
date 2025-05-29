@@ -164,7 +164,7 @@ class ExportAnnotationsToServer(MethodView):
 
         actor_name = compute_actor_name(project_id, constants.NamedRayActorType.ANNOTATION_EXPORTER)
         exporter = AnnotationExporter.options(name=actor_name).remote(image_ids, annotation_class_ids)
-        exporter.export_remotely.remote(export_formats, timestamp)
+        exporter.export_to_server_fs.remote(export_formats, timestamp)
 
         return {"actor_name": actor_name, "filepaths": filepaths}, 202
     
