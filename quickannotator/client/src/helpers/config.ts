@@ -23,9 +23,9 @@ export enum TILE_STATUS {
     DONEPROCESSING
 }
 
-export const RENDER_PREDICTIONS_INTERVAL = 8000; // ms
-export const RENDER_DELAY = 100; // ms
-export const MAP_TRANSLATION_DELAY = 500; // ms
+export const RENDER_PREDICTIONS_INTERVAL = 8000; // ms  TODO: app setting
+export const RENDER_DELAY = 100; // ms  TODO: app setting
+export const MAP_TRANSLATION_DELAY = 500; // ms TODO: app setting
 
 export const MODAL_DATA: { [key: string]: ModalData } = {
     IMPORT_CONF: {
@@ -47,5 +47,5 @@ export const POPOVER_DATA = {
 
 export const TISSUE_MASK_CLASS_ID = 1;
 
-export const SERVER_URL = 'http://localhost:5000'; // Your Flask backend
-export const API_URI = '/api/v1';
+export const SERVER_URL = 'http://localhost:5000'; // TODO: app setting
+export const API_URI = '/api/v1';   // TODO: app setting
