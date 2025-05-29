@@ -63,7 +63,7 @@ def anns_to_feature_collection(annotations: List[db_models.Annotation]) -> geojs
     features = [
         geojson.Feature(
             id=annotation.id,
-            geometry=geojson.loads(annotation.polygon),
+            geometry=geojson.loads(annotation.polygon), # NOTE: potentially optimize using orjson.loads
             properties={
                 'objectType': 'annotation'
             }
@@ -208,7 +208,7 @@ class AnnotationStore:
                     # geom = feature.GetGeomFieldRef(field_name)    # NOTE: Only useful if we want to use ExportToJson() instead of GetField()
                     geojson_feature = {
                         "type": "Feature",
-                        "geometry": json.loads(feature.GetField(field_name)),    # NOTE: Could alternatively use geom.ExportToJson(), but this would require a modified query without AS_GeoJSON(). Also, there doesn't seem to be a way to avoid the load + dump.
+                        "geometry": json.loads(feature.GetField(field_name)),    # NOTE: Could alternatively use geom.ExportToJson(), but this would require a modified query without AS_GeoJSON(). NOTE: potentially optimize using orjson.loads
                         "properties": feature.items()
                     }
 

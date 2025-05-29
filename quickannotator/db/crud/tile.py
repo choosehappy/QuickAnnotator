@@ -229,7 +229,7 @@ class TileStore(ABC):   # Only an ABC to prevent instantiation
 
         # Get the mask geojson polygons
         model = create_dynamic_model(build_annotation_table_name(image_id, MASK_CLASS_ID, is_gt=True))
-        mask_geojson: geojson.Polygon = [geojson.loads(ann.polygon) for ann in get_annotation_query(model, mask_work_to_base_scale_factor).all()]    # Scales mask to base mag
+        mask_geojson: geojson.Polygon = [geojson.loads(ann.polygon) for ann in get_annotation_query(model, mask_work_to_base_scale_factor).all()]    # Scales mask to base mag NOTE: potentially optimize using orjson.loads
         tilestore = TileStoreFactory.get_tilestore()
 
         tile_ids, mask, processed_polygons = tilestore.get_tile_ids_intersecting_polygons(image_id, annotation_class_id, mask_geojson, mask_dilation)
