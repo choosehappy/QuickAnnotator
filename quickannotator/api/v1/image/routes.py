@@ -9,7 +9,6 @@ import large_image
 import openslide as ops
 import os
 import io
-import ujson
 import shutil
 import quickannotator.db.models as db_models
 from . import models as server_models

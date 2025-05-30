@@ -14,6 +14,7 @@ def import_geojson_annotation_file(image_id: int, annotation_class_id: int, isgt
     # use ujson to read fast
     with open(filepath, 'r', encoding='utf-8') as file:
         # Load the JSON data into a Python dictionary
+        # TODO need to switch to orjson after export annotation and landing page merged.
         data = ujson.loads(file.read())
         features = data["features"]
 
