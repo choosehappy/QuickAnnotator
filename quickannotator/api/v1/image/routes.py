@@ -17,6 +17,7 @@ from flask_smorest import Blueprint
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.image import add_image_by_path
 from quickannotator.api.v1.image.utils import import_geojson_annotation_file, delete_annotation_tables_by_image_id
+# TODO: fs_manager
 projects_path = 'mounts/nas_write/projects'
 
 bp = Blueprint('image', __name__, description='Image operations')
@@ -63,6 +64,7 @@ class Image(MethodView):
         db_session.commit()
 
         # remove image folder TODO need to save file system path in static variable
+        # TODO: fs_manager
         image_path = os.path.join(current_app.root_path, f'data/nas_write/projects/proj_{project_id}/images/img_{image_id}')
         if os.path.exists(image_path):
             try:
@@ -92,8 +94,6 @@ WSI_extensions = ['svs', 'tif','dcm','vms', 'vmu', 'ndpi',
                   'scn', 'mrxs','tiff','svslide','bif','czi']
 JSON_extensions = ['json','geojson']
 
-
-# TODO move this method to somewhere (can't move it to db/crud/annotation.py or db/utils.py cause this method need to use tile store, )
 def createTableAndImportAnnotation(image_id: int, annot_file_path):
     store = AnnotationStore(image_id, 1, is_gt=True, create_table=True)
     import_geojson_annotation_file(image_id, 1, isgt=True, filepath=annot_file_path)
@@ -114,6 +114,7 @@ class FileUpload(MethodView):
             file_ext = file_ext[1:]
             # handle image file
             if file_ext in WSI_extensions:
+                # TODO: fs_manager
                 full_project_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp')
                 temp_slide_path = os.path.join(full_project_path,filename)
                 # save image to temp folder
@@ -122,12 +123,10 @@ class FileUpload(MethodView):
                 
                 # read image info and insert to image table
                 new_image = add_image_by_path(project_id, temp_slide_path)
-                print('new_image ~~~~~~~~~~~~~~~~~')
-                print(new_image.id)
-                print(new_image.path)
                 # move the actual slides file and update the slide path after create image in DB
                 # image = db_session.query(db_models.Image).filter_by(name=name, path=temp_slide_path).first()
                 image_id = new_image.id
+                # TODO: fs_manager
                 slide_folder_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/img_{image_id}')
                 image_full_path = os.path.join(slide_folder_path, filename)
                 # move image file to img_{id} folder
@@ -139,10 +138,12 @@ class FileUpload(MethodView):
                 db_session.commit()
 
                 # import annotation if it exist in temp dir
+                # TODO: fs_manager
                 annot_file_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp/{file_basename}_annotations.json')
                 # for geojson
                 if os.path.exists(annot_file_path):
                     createTableAndImportAnnotation(image_id, annot_file_path)
+                # TODO: fs_manager
                 annot_file_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp/{file_basename}_annotations.geojson')
                 # for geojson
                 if os.path.exists(annot_file_path):
@@ -150,6 +151,7 @@ class FileUpload(MethodView):
 
             # handle annotation file
             if file_ext in JSON_extensions:
+                # TODO: fs_manager
                 full_project_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp')
                 temp_annot_path = os.path.join(full_project_path,filename)
 

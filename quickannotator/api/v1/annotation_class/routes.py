@@ -57,7 +57,6 @@ class AnnotationClass(MethodView):
 ####################################################################################################
 
 @bp.route('/search')
-# TODO logic error - NAN Li
 class SearchAnnotationClass(MethodView):
     @bp.arguments(server_models.SearchAnnClassArgsSchema, location='query')
     @bp.response(200, server_models.AnnClassRespSchema(many=True))
