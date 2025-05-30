@@ -3,7 +3,7 @@ import quickannotator.db.models as db_models
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
 from quickannotator.db import Base, db_session, get_ogr_datasource
 from quickannotator.db.crud.misc import compute_custom_metrics
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model, get_query_as_sql
 import sqlalchemy
 from shapely.affinity import scale
 from shapely.geometry.base import BaseGeometry
@@ -16,6 +16,7 @@ import os
 import gzip
 from osgeo import ogr
 import tempfile
+
 
 def get_annotation_query(model, scale_factor: float=1.0) -> Query:
     '''
@@ -196,7 +197,7 @@ class AnnotationStore:
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
             
         with get_ogr_datasource() as src_ds:
-            layer: ogr.Layer = src_ds.ExecuteSQL(self.get_query_as_sql())
+            layer: ogr.Layer = src_ds.ExecuteSQL(get_query_as_sql(self.query))
             field_name = "polygon"
             open_func = gzip.open if compress else open
             mode = 'wt'  # text mode with UTF-8 encoding
@@ -315,14 +316,6 @@ class AnnotationStore:
         """
         return build_annotation_table_name(self.image_id, self.annotation_class_id, is_gt=self.is_gt)
     
-    def get_query_as_sql(self) -> str:
-        """
-        Returns the SQL query as a string.
-
-        dialect allows us to avoid code splitting depending on the dialect. If not used, compile() will not use sqlite dialect functions including ScaleCoords
-        """
-        return self.query.statement.compile(compile_kwargs={"literal_binds": True}, dialect=db_session.bind.dialect).string 
-    
 
     @staticmethod
     def create_annotation_table(image_id: int, annotation_class_id: int, is_gt: bool):
@@ -336,3 +329,4 @@ class AnnotationStore:
     @staticmethod
     def scale_polygon(polygon: BaseGeometry, scaling_factor: float) -> BaseGeometry:   # Added for safety - I've forgotten the origin param several times.
         return scale(polygon, xfact=scaling_factor, yfact=scaling_factor, origin=(0, 0))
+    

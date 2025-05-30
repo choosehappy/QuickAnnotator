@@ -1,5 +1,6 @@
+from sqlalchemy.orm import Query
 from quickannotator import constants
-from quickannotator.db import Base, engine
+from quickannotator.db import Base, db_session, engine
 from sqlalchemy import Table
 import os
 from datetime import datetime
@@ -32,4 +33,13 @@ def build_export_filepath(image_id: int, annotation_class_id: int, is_gt: bool, 
 
     filepath = os.path.join(save_path, filename)
     return filepath
+
+
+def get_query_as_sql(query: Query) -> str:
+    """
+    Returns the SQL query as a string.
+
+    dialect allows us to avoid code splitting depending on the dialect. If not used, compile() will not use sqlite dialect functions including ScaleCoords
+    """
+    return query.statement.compile(compile_kwargs={"literal_binds": True}, dialect=db_session.bind.dialect).string
 
