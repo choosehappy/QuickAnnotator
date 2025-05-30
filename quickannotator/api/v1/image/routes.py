@@ -3,7 +3,7 @@ from flask.views import MethodView
 from flask import current_app, request, send_from_directory, send_file
 from sqlalchemy import func
 from werkzeug.utils import secure_filename
-from quickannotator.constants import ImageType
+from quickannotator.constants import ImageType, AnnotationFileFormats
 from quickannotator.db import db_session
 import large_image
 import openslide as ops
@@ -56,7 +56,6 @@ class Image(MethodView):
         image_id = args['image_id']
         image = db_session.query(db_models.Image).filter(db_models.Image.id==image_id).first()
         project_id = image.project_id
-        print(f'projec_id - {project_id}')
         # delete image's annotation tables
         delete_annotation_tables_by_image_id(image_id)
         # delete image from DB
@@ -139,16 +138,11 @@ class FileUpload(MethodView):
 
                 # import annotation if it exist in temp dir
                 # TODO: fs_manager
-                annot_file_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp/{file_basename}_annotations.json')
-                # for geojson
-                if os.path.exists(annot_file_path):
-                    createTableAndImportAnnotation(image_id, annot_file_path)
-                # TODO: fs_manager
-                annot_file_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp/{file_basename}_annotations.geojson')
-                # for geojson
-                if os.path.exists(annot_file_path):
-                    createTableAndImportAnnotation(image_id, annot_file_path)
-
+                for format in AnnotationFileFormats:
+                    annot_file_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}/images/temp/{file_basename}_annotations.{format.value}')
+                    # for geojson
+                    if os.path.exists(annot_file_path):
+                        createTableAndImportAnnotation(image_id, annot_file_path)
             # handle annotation file
             if file_ext in JSON_extensions:
                 # TODO: fs_manager
