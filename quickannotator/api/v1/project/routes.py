@@ -80,6 +80,7 @@ class Project(MethodView):
         db_session.commit()
 
         # remove the project folders
+        # TODO: fs_manager
         projects_path = 'mounts/nas_write/projects'
         full_project_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}')
         if os.path.exists(full_project_path):
