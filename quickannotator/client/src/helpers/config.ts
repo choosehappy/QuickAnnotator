@@ -45,7 +45,7 @@ export const MODAL_DATA: { [key: string]: ModalData } = {
         description: 'Are you sure you want to delete this annotation class? This action will remove all annotations of this class and will permenantly delete the deep learning model.',
     },
     EXPORT_CONF: {
-        id: 1,
+        id: 3,
         title: 'Export Annotations',
         description: 'How would you like to export the annotations from this image?',
     },
