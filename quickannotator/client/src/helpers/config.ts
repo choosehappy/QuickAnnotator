@@ -1,4 +1,4 @@
-import { ModalData } from "../types";
+import { ModalData, ProjectModalData } from "../types";
 
 export enum TOOLBAR_KEYS {
     POINTER = '0',
@@ -39,3 +39,50 @@ export const MODAL_DATA: { [key: string]: ModalData } = {
 export const POPOVER_DATA = {
 
 }
+
+export enum PROJECT_MODAL_STATUS {
+    // 0 - create, 1 - update, 2 - remove
+    CREATE = 0,
+    UPDATE,
+    REMOVE
+}
+// upload accepted files format
+export const PROJECT_EDIT_MODAL_DATA: { [key: string]: ProjectModalData } = {
+    ADD: {
+        id: 0,
+        title: 'New Project',
+        text: 'Create a New Project Below',
+        btnText:'Add'
+    },
+    EDIT: {
+        id: 1,
+        title: 'Edit Project',
+        text: 'Update The Project Below',
+        btnText:'Update'
+    },
+    REMOVE: {
+        id: 2,
+        title: 'Delete Project',
+        text: 'Are you sure you want to delete this project?',
+        btnText:'Delete'
+    }
+}
+
+export const PROJECT_CONFIG_OPTIONS = [
+    {'text':'< 1000 Whole Slide Images','value':'false'},
+    {'text':'> 1000 Whole Slide Images','value':'true'}
+]
+
+
+export const UPLOAD_ACCEPTED_FILES = {
+    'application/x-svs': ['.svs', '.ndpi'],
+    'application/dicom': ['.dcm'],
+    'application/json': ['.json', '.geojson'],
+}
+
+// WSI file extension
+export const WSI_EXTS = ['svs', 'tif','dcm','vms', 'vmu', 'ndpi',
+    'scn', 'mrxs','tiff','svslide','bif','czi']
+
+// JSON file extension
+export const JSON_EXTS = ['json','geojosn']

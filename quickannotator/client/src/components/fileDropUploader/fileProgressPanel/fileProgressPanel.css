@@ -1,0 +1,57 @@
+.file-card {
+    max-width: 500px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border: 2px solid rgba(66, 130, 254, 0.325);
+    border-radius: 6px;
+    padding: 0.25rem 0.5rem;
+    margin: .5rem 0;
+
+.file-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+
+}
+.file-icon {
+    width: 36px;
+    height: 36px;
+}
+
+.file-info h6 {
+    overflow: hidden;
+    flex:1;
+    max-width: 375px;
+    font-size: 13px;
+    font-weight: 400;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+
+}
+
+.close-icon {
+    font-size: 18px;
+    cursor: pointer;
+}
+/* .btn-close {
+    font-size: 24px;
+} */
+.check-circle {
+    width: 36px;
+    height: 36px;
+    font-size: .725rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    color:#0d6efd;
+    background-color: #f3f1ff;
+}
+
+.progress {
+    height: 0.5rem;
+    font-size: 0.rem;
+}

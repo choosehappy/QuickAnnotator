@@ -6,8 +6,9 @@ class ProjectRespSchema(Schema):
     """     Project response schema      """
     id = fields.Int()
     name = fields.Str()
+    is_dataset_large = fields.Bool(required=False)
     description = fields.Str()
-    date = fields.DateTime(format=constants.FLASK_DATETIME_FORMAT)
+    datetime = fields.DateTime(format=constants.FLASK_DATETIME_FORMAT)
 
 
 class GetProjectArgsSchema(Schema):

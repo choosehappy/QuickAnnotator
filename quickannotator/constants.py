@@ -24,3 +24,9 @@ TILE_PRED_EXPIRE = 1 # minutes
 MAX_ACTORS_PROCESSING = 1
 
 FLASK_DATETIME_FORMAT = 'iso'
+
+IMPORT_ANNOTATION_BATCH_SIZE= 1000
+
+class AnnotationFileFormats(enum.Enum):
+    JSON = 'json'
+    GEOJSON = 'geojson'

@@ -95,10 +95,11 @@ export interface Image {
 }
 
 export interface Project {
-    id: number;
+    id: number | null;
     name: string;
+    is_dataset_large: boolean;
     description: string;
-    date: Date;
+    datetime: Date;
 }
 
 export interface TileIds {
@@ -160,7 +161,12 @@ export class CurrentAnnotation {
         }
     }
 }
-
+export interface ProjectModalData {
+    id: number;
+    title: string;
+    text: string;
+    btnText: string;
+}
 export interface ModalData {
     id: number;
     title: string;
