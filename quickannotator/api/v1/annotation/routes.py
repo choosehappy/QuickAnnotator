@@ -1,15 +1,13 @@
 from itertools import product
 from quickannotator.constants import PolygonOperations
-from quickannotator.db.crud.annotation import AnnotationStore
+from quickannotator.db.crud.annotation import AnnotationStore, build_export_filepath
 from quickannotator.db.crud.image import get_image_by_id
 from quickannotator.db.crud.tile import TileStoreFactory
-from quickannotator.db.utils import build_export_filepath
 from quickannotator.db.fsmanager import fsmanager
-from .utils import ProgressTracker, AnnotationExporter, compute_actor_name
+from .utils import AnnotationExporter, compute_actor_name
 import quickannotator.db.models as db_models
 from . import models as server_models
 from quickannotator import constants
-from quickannotator.db.crud.annotation import build_annotation_table_name
 
 from flask.views import MethodView
 from flask import Response
@@ -20,9 +18,6 @@ from typing import List
 from flask_smorest import Blueprint
 from datetime import datetime
 import os
-import numpy as np
-import time
-import ray
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
 
