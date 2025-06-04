@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse } from "../types.ts"
-import { searchTileIds, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileIdsWithinPolygon, fetchTileBoundingBox } from "../helpers/api.ts";
+import { searchTileIds, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileIdsWithinPolygon, fetchTileBoundingBox, fetchImageMetadata } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 import { TOOLBAR_KEYS, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY } from "../helpers/config.ts";
 
@@ -23,6 +23,7 @@ interface Props {
     setHighlightedPreds: React.Dispatch<React.SetStateAction<Annotation[] | null>>;
     activeModal: number | null;
     setActiveModal: React.Dispatch<React.SetStateAction<number | null>>;
+    setMouseCoords: React.Dispatch<React.SetStateAction<{ x: number, y: number } | null>>;
 }
 
 const useLocalContext = (data: any) => {
@@ -297,7 +298,7 @@ const ViewportMap = (props: Props) => {
             // 3. Show a confirmation panel
             // 4. If confirmed, POST the new ground truths and DELETE the predictions.
             // 5. Redraw the respective ground truth and prediction tiles.
-            
+
         }
 
         // Clear the annotation layer
@@ -373,20 +374,42 @@ const ViewportMap = (props: Props) => {
 
             const params = geo.util.pixelCoordinateParams(
                 viewRef.current, img.base_width, img.base_height, img.dz_tilesize, img.dz_tilesize);
-            const interactor = geo.mapInteractor({alwaysTouch: true});
-            const map = geo.map({...params.map, interactor: interactor});
-            // map.interactor(geo.mapInteractor({alwaysTouch: true}))
+            
+            const map = geo.map({ ...params.map, max: 20 });
             params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
             console.log("OSM layer loaded.");
+
             const groundTruthLayer = map.createLayer('feature', { features: ['polygon'] });
             const predictionsLayer = map.createLayer('feature', { features: ['polygon'] });
+
             map.createLayer('osm', { ...params.layer, zIndex: 0 })
+
             const annotationLayer = map.createLayer('annotation',
                 {
                     active: true,
                     zIndex: 2,
-                    // renderer: featureLayer.renderer()
                 });
+
+            const uiLayer = map.createLayer('ui');
+
+            // Fetch image metadata and set scale
+            try {
+                const metadataResp = await fetchImageMetadata(img.id);
+                const mpp = metadataResp.data.mpp; // microns per pixel
+                const micronUnits = [
+                    { unit: 'µm', scale: 1 }, // for single micron
+                    { unit: 'mm', scale: 1000 }, // for millimeters
+                    { unit: 'cm', scale: 10000 }, // for centimeters
+                ];
+                uiLayer.createWidget('scale', {
+                    position: { left: 10, bottom: 10 },
+                    units: micronUnits,
+                    scale: mpp,
+                });
+            } catch (error) {
+                console.error("Failed to fetch image metadata:", error);
+            }
+
             annotationLayer.geoOn(geo.event.mousedown, handleMousedown);
             annotationLayer.geoOn(geo.event.annotation.state, handleNewAnnotation);
             annotationLayer.geoOn(geo.event.annotation.mode, handleAnnotationModeChange);
@@ -396,7 +419,9 @@ const ViewportMap = (props: Props) => {
                 }
             }
 
-            map.geoOn(geo.event.mousemove, function (evt: any) { console.log(`Mouse at x=${evt.geo.x}, y=${evt.geo.y}`); });
+            map.geoOn(geo.event.mousemove, function (evt: any) { 
+                props.setMouseCoords({ x: Math.round(evt.geo.x * 100) / 100, y: Math.round(evt.geo.y * 100) / 100 });
+            });
             map.geoOn(geo.event.zoom, handleZoomPan);
             map.geoOn(geo.event.pan, handleZoomPan);
             geojs_map.current = map;
@@ -481,7 +506,7 @@ const ViewportMap = (props: Props) => {
             const features = predLayer.features().filter((f) => f.featureType === 'polygon');
             const featuresToRedraw = features.filter((f) => featureIdsToUpdate.current.includes(f.props.tile_id));
             const highlightedPolyIds = props.highlightedPreds ? props.highlightedPreds.map(ann => ann.id) : null;
-    
+
             featuresToRedraw.forEach((f) => {
                 redrawTileFeature(f, highlightedPolyIds ? { highlightedPolyIds: highlightedPolyIds } : {});
             });

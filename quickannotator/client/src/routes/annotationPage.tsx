@@ -14,6 +14,7 @@ import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationCla
 import { DEFAULT_CLASS_ID, MODAL_DATA, TOOLBAR_KEYS } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
+import Legend from '../components/legend.tsx';
 import NewClassModal from '../components/newClassModal.tsx';
 import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation, DataItem, IdNameElement } from "../types.ts";
 import AnnotationExportModal from '../components/annotationExportModal.tsx';
@@ -39,6 +40,7 @@ const AnnotationPage = () => {
     const [highlightedPreds, setHighlightedPreds] = useState<Annotation[] | null>(null); // TODO: should just be a list of annotations
     const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
     const [activeModal, setActiveModal] = useState<number | null>(null);
+    const [mouseCoords, setMouseCoords] = useState<{ x: number, y: number }>({x: 0, y: 0});
     const [annotationClasses, setAnnotationClasses] = useState<AnnotationClass[]>([]);
 
     function handleConfirmImport() {
@@ -151,10 +153,12 @@ const AnnotationPage = () => {
                                     borderColor: "rgba(0, 0, 0, 0.8)",
                                     borderRadius: 6,
                                     zIndex: 10,
-                                }}><Toolbar {...{ currentTool, 
+                                }}>
+                                    <Toolbar {...{ currentTool, 
                                                 setCurrentTool, 
                                                 action, 
-                                                setAction }} /></Card.Header>
+                                                setAction }} />
+                                </Card.Header>
                                 <Card.Body style={{ padding: "0px" }}>
                                     <ViewportMap {...{ currentImage, 
                                                     currentAnnotationClass, 
@@ -170,8 +174,10 @@ const AnnotationPage = () => {
                                                     highlightedPreds,
                                                     setHighlightedPreds,
                                                     activeModal,
-                                                    setActiveModal
+                                                    setActiveModal,
+                                                    setMouseCoords
                                                     }} />
+                                                    <Legend mouseCoords={mouseCoords}/>
                                 </Card.Body>
                             </Card>
                         </Col>

@@ -29,6 +29,8 @@ class DeleteImageArgsSchema(GetImageArgsSchema):
     pass
 
 class UploadFileArgsSchema(Schema):
+    file = Upload(required=True)
     project_id = fields.Int(required=True)
-    # file = Upload(required=True)
-    # file = fields.Raw(type="file", required=True)
+
+class ImageMetadataRespSchema(Schema):
+    mpp = fields.Float()

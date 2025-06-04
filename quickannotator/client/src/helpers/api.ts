@@ -83,6 +83,11 @@ export const removeImage = async (image_id: number) => {
     return await remove(`/image/?${query}`);
 }
 
+// Fetch image metadata
+export const fetchImageMetadata = async (image_id: number) => {
+    return await get<{ mpp: number }>(`/image/${image_id}/metadata`);
+};
+
 // Fetch project by ID
 export const fetchProject = async (project_id: number) => {
     const query = new URLSearchParams({ project_id: project_id.toString() });
