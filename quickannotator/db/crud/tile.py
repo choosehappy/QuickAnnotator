@@ -4,6 +4,7 @@ from shapely.geometry import Polygon, shape
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy import case, update
+from quickannotator.db.crud.annotation import create_dynamic_model
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
 from quickannotator.constants import MASK_CLASS_ID, MASK_DILATION, TileStatus
 import quickannotator.constants as constants
@@ -20,7 +21,7 @@ import cv2
 from typing import List
 from abc import ABC
 
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from quickannotator.db.crud.annotation import build_annotation_table_name
 
 
 class TileStore(ABC):   # Only an ABC to prevent instantiation
@@ -98,7 +99,7 @@ class TileStore(ABC):   # Only an ABC to prevent instantiation
         return tiles
     
 
-    def upsert_pred_tiles(self, image_id: int, annotation_class_id: int, tile_ids: List[int], pred_status: TileStatus, process_owns_tile=False) -> List[db_models.Tile]:
+    def upsert_pred_tiles(self, image_id: int, annotation_class_id: int, tile_ids: List[int], pred_status: TileStatus=TileStatus.UNSEEN, process_owns_tile=False) -> List[db_models.Tile]:
         """
         Inserts new prediction tiles or updates existing prediction tiles in the database.
         This function attempts to insert new prediction tiles with the given annotation_class_id, image_id, and tile_ids.
@@ -150,6 +151,26 @@ class TileStore(ABC):   # Only an ABC to prevent instantiation
             update_fields=update_fields
         )
         return tiles
+    
+    @staticmethod
+    def delete_tiles(self, image_id: int = None, annotation_class_id: int = None) -> None:
+        """
+        Deletes tiles from the database.
+
+        Args:
+            image_id (int, optional): The ID of the image. If None, do not filter by image_id.
+            annotation_class_id (int, optional): The ID of the annotation class. If None, do not filter by annotation_class_id.
+        """
+        stmt = db_models.Tile.__table__.delete()
+
+        if image_id is not None:
+            stmt = stmt.where(db_models.Tile.image_id == image_id)
+        if annotation_class_id is not None:
+            stmt = stmt.where(db_models.Tile.annotation_class_id == annotation_class_id)
+
+        db_session.execute(stmt)
+        db_session.commit()
+
 
     @staticmethod
     def get_tiles_by_tile_ids(image_id: int, annotation_class_id: int, tile_ids: list[int], hasgt=False) -> list[db_models.Tile]:

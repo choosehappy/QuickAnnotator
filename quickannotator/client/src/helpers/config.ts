@@ -23,6 +23,7 @@ export enum TILE_STATUS {
     DONEPROCESSING
 }
 
+export const DEFAULT_CLASS_ID = 1;
 export const RENDER_PREDICTIONS_INTERVAL = 8000; // ms  TODO: app setting
 export const RENDER_DELAY = 100; // ms  TODO: app setting
 export const MAP_TRANSLATION_DELAY = 500; // ms TODO: app setting
@@ -30,8 +31,18 @@ export const MAP_TRANSLATION_DELAY = 500; // ms TODO: app setting
 export const MODAL_DATA: { [key: string]: ModalData } = {
     IMPORT_CONF: {
         id: 0,
-        title: 'Import Annotations',
+        title: 'Import annotations',
         description: 'Are you sure you want to import annotations?',
+    },
+    ADD_CLASS: {
+        id: 1,
+        title: 'Add a new annotation class',
+        description: 'Configure the new annotation class',
+    },
+    DELETE_CLASS: {
+        id: 2,
+        title: 'Delete annotation class',
+        description: 'Are you sure you want to delete this annotation class? This action will remove all annotations of this class and will permenantly delete the deep learning model.',
     },
     EXPORT_CONF: {
         id: 1,
@@ -45,7 +56,19 @@ export const POPOVER_DATA = {
 
 }
 
-export const TISSUE_MASK_CLASS_ID = 1;
+// Viewport settings
+export const UI_SETTINGS = {
+    gtOpacity: 0.5,
+    gtStrokeColor: 'white',
+    gtCurrentAnnotationStrokeColor: 'black',
+    gtStrokeWidth: 2,
+    predOpacity: 0.5,
+    highlightedPredColor: 'red',
+    pendingTileFillColor: 'grey',
+    pendingTileFillOpacity: 0.5,
+}
+
+export const MASK_CLASS_ID = 1;
 
 export const SERVER_URL = 'http://localhost:5000'; // TODO: app setting
 export const API_URI = '/api/v1';   // TODO: app setting

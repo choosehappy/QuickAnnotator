@@ -1,34 +1,64 @@
 import Card from 'react-bootstrap/Card';
-import { useEffect, useState } from "react";
-import { ListGroup } from "react-bootstrap";
+import { useEffect } from "react";
+import { Button, ListGroup } from "react-bootstrap";
 import { AnnotationClass } from "../types.ts";
-import { fetchAnnotationClasses, fetchAnnotationClassById } from "../helpers/api.ts";
+import { Plus, Pencil, Trash } from 'react-bootstrap-icons';
+import { MODAL_DATA, MASK_CLASS_ID } from '../helpers/config.ts';
 
 interface Props {
-    currentClass: AnnotationClass | null;
-    setCurrentClass: (currentClass: AnnotationClass) => void;
+    currentAnnotationClass: AnnotationClass | null;
+    setcurrentAnnotationClass: (currentAnnotationClass: AnnotationClass) => void;
+    setActiveModal: (activeModal: number | null) => void;
+    annotationClasses: AnnotationClass[];
+    setAnnotationClasses: (classes: AnnotationClass[]) => void;
 }
 
-
 const ClassesPane = (props: Props) => {
-    const [classes, setClasses] = useState<AnnotationClass[]>([]);
-    useEffect(() => {
-        fetchAnnotationClasses().then((resp) => {
-            setClasses(resp.data);
-        })
-        fetchAnnotationClassById(2).then((resp) => {
-            props.setCurrentClass(resp.data);
-        });
-    }, []);
-
     return (
         <Card>
-            <Card.Header as={'h5'}>Classes</Card.Header>
+            <Card.Header as={'h5'} className='d-flex justify-content-between align-items-center'>
+                Annotation Classes
+                <Button variant="secondary" className='btn btn-primary btn-sm'>
+                    <Plus onClick={() => props.setActiveModal(MODAL_DATA.ADD_CLASS.id)}/>
+                </Button>
+            </Card.Header>
             <Card.Body>
-                <ListGroup>
-                    {classes.map((c) => {
+                <ListGroup 
+                    defaultActiveKey={props.currentAnnotationClass?.id} 
+                    style={{ maxHeight: '300px', overflowY: 'auto' }}
+                >
+                    {props.annotationClasses.map((c) => {
                             return (
-                                <ListGroup.Item key={c.id} onClick={() => {props.setCurrentClass(c)}}>{c.name}</ListGroup.Item>
+                                <ListGroup.Item 
+                                    key={c.id}
+                                    action 
+                                    onClick={() => {props.setcurrentAnnotationClass(c)}}
+                                    active={props.currentAnnotationClass?.id === c.id}
+                                    className="d-flex justify-content-between align-items-center list-group-item-secondary"
+                                >
+                                    <span>{c.name}</span>
+                                    <div>
+                                        {c.id !== MASK_CLASS_ID && c.id === props.currentAnnotationClass?.id && (
+                                            <Button 
+                                                variant="outline-danger" 
+                                                size="sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    props.setActiveModal(MODAL_DATA.DELETE_CLASS.id);
+                                                }}
+                                            >
+                                                <Trash />
+                                            </Button>
+                                        )}
+                                        <Button 
+                                            disabled 
+                                            size="lg" 
+                                            style={{ backgroundColor: c.color, border: 'none' }}
+                                            className="ms-2"
+                                        >
+                                        </Button>
+                                    </div>
+                                </ListGroup.Item>
                             )
                         }
                     )}

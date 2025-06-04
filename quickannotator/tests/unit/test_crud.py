@@ -1,6 +1,6 @@
 import pytest
 from shapely.geometry import Polygon, shape
-from quickannotator.db.crud.annotation import AnnotationStore
+from quickannotator.db.crud.annotation import AnnotationStore, table_exists
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 from quickannotator.tests.conftest import assert_geojson_equal
 from shapely.geometry import mapping
@@ -16,6 +16,47 @@ def annotation_store(db_session, seed, annotations_seed):
     annotation_class_id = 2
     is_gt = True
     return AnnotationStore(image_id, annotation_class_id, is_gt)
+
+
+def test_table_exists_with_existing_table(db_session, annotations_seed):
+    # Arrange
+    image_id = 1
+    annotation_class_id = 2
+    is_gt = True
+    table_name = f"annotation_{image_id}_{annotation_class_id}_gt"
+
+    # Act
+    result = table_exists(table_name)
+
+    # Assert
+    assert result is True
+
+
+def test_table_exists_with_nonexistent_table(db_session, annotations_seed):
+    # Arrange
+    table_name = "nonexistent_table"
+
+    # Act
+    result = table_exists(table_name)
+
+    # Assert
+    assert result is False
+
+
+def test_annotation_store_initialization_with_existing_table(db_session, annotations_seed):
+    # Arrange
+    image_id = 1
+    annotation_class_id = 2
+    is_gt = True
+
+    # Act
+    store = AnnotationStore(image_id, annotation_class_id, is_gt)
+
+    # Assert
+    assert store is not None
+    assert store.image_id == image_id
+    assert store.annotation_class_id == annotation_class_id
+    assert store.is_gt == is_gt
 
 
 def test_insert_annotations(annotation_store):
@@ -126,7 +167,7 @@ def test_create_annotation_table(seed):
     polygons = [Polygon([(0, 0), (1, 0), (1, 1), (0, 1), (0, 0)])]
 
     # Act
-    store = AnnotationStore(1, 2, True, create_table=True)
+    store = AnnotationStore(1, 2, True)
     
     # Assert 
     result = store.insert_annotations(polygons)
@@ -183,6 +224,21 @@ def test_delete_annotation_not_found(annotation_store):
 
     # Assert
     assert result is None
+
+
+def test_drop_table(annotation_store):
+    # Arrange
+    annotation_id = 1
+
+    # Act
+    result = annotation_store.drop_table()
+
+    # Assert
+    assert result is None
+
+    # Verify that the table no longer exists
+    with pytest.raises(Exception):
+        annotation_store.get_annotation_by_id(annotation_id)
 
 
 # UPSERT TILES TESTS

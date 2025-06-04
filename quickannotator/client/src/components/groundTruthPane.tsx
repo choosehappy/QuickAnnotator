@@ -1,14 +1,15 @@
 import Card from 'react-bootstrap/Card';
 import AnnotationList from "./annotationList.tsx";
-import { Annotation, CurrentAnnotation } from "../types.ts"
+import { Annotation, AnnotationClass, CurrentAnnotation } from "../types.ts"
 import { propTypes } from 'react-bootstrap/esm/Image';
 import { MODAL_DATA } from '../helpers/config.ts';
 
 interface Props {
     gts: Annotation[];
     setGts: (gts: Annotation[]) => void;
-    currentAnnotation: CurrentAnnotation;
+    currentAnnotation: CurrentAnnotation | null;
     setCurrentAnnotation: React.Dispatch<React.SetStateAction<CurrentAnnotation | null>>;
+    annotationClasses: AnnotationClass[];
     setActiveModal: React.Dispatch<React.SetStateAction<number | null>>;
 }
 const GroundTruthPane = (props: Props) => {
@@ -30,6 +31,7 @@ const GroundTruthPane = (props: Props) => {
                                 annotations={props.gts} 
                                 currentAnnotation={props.currentAnnotation} 
                                 setCurrentAnnotation={props.setCurrentAnnotation}
+                                annotationClasses={props.annotationClasses}
                                 />
             </Card.Body>
         </Card>

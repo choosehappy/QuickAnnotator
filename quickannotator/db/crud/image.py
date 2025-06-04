@@ -41,3 +41,6 @@ def get_images_by_project_id(project_id: int) -> List[db_models.Image]:
 
 def get_image_by_id(image_id: int) -> db_models.Image:
     return db_session.query(db_models.Image).get(image_id)
+
+def get_images_for_project(project_id: int) -> list[db_models.Image]:
+    return db_session.query(db_models.Image).filter(db_models.Image.project_id == project_id).all()

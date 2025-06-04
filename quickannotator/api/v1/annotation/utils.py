@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 
 from quickannotator.db import get_session
-from quickannotator.db.utils import build_export_filepath
+from quickannotator.db.crud.annotation import build_export_filepath
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.dsa_sdk import DSAClient
 import geojson

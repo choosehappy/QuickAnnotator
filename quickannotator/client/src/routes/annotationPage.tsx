@@ -10,11 +10,12 @@ import ConfirmationModal from '../components/confirmationModal.tsx';
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
-import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass } from "../helpers/api.ts";
-import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation, DataItem, IdNameElement } from "../types.ts";
-import { MODAL_DATA, TOOLBAR_KEYS } from '../helpers/config.ts';
+import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass, fetchAnnotationClasses, fetchAnnotationClassById, createAnnotationClass, deleteAnnotationClass } from "../helpers/api.ts";
+import { DEFAULT_CLASS_ID, MODAL_DATA, TOOLBAR_KEYS } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
+import NewClassModal from '../components/newClassModal.tsx';
+import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation, DataItem, IdNameElement } from "../types.ts";
 import AnnotationExportModal from '../components/annotationExportModal.tsx';
 
 function usePrevious<T>(value: T): T | undefined {
@@ -27,9 +28,9 @@ function usePrevious<T>(value: T): T | undefined {
 
 const AnnotationPage = () => {
     const { projectid, imageid } = useParams();
-    const { currentImage, setCurrentImage, setCurrentProject } = useOutletContext<OutletContextType>();
+    const { currentImage, setCurrentImage, currentProject, setCurrentProject } = useOutletContext<OutletContextType>();
 
-    const [currentClass, setCurrentClass] = useState<AnnotationClass | null>(null);
+    const [currentAnnotationClass, setCurrentAnnotationClass] = useState<AnnotationClass | null>(null);
     const [gts, setGts] = useState<Annotation[]>([]);
     const [preds, setPreds] = useState<Annotation[]>([]);
     const [currentTool, setCurrentTool] = useState<string | null>('0');
@@ -38,6 +39,7 @@ const AnnotationPage = () => {
     const [highlightedPreds, setHighlightedPreds] = useState<Annotation[] | null>(null); // TODO: should just be a list of annotations
     const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
     const [activeModal, setActiveModal] = useState<number | null>(null);
+    const [annotationClasses, setAnnotationClasses] = useState<AnnotationClass[]>([]);
 
     function handleConfirmImport() {
         // Set activeModal to null
@@ -45,7 +47,7 @@ const AnnotationPage = () => {
 
         // POST new annotations as ground truth
         // if (!highlightedPreds) return;
-        postAnnotations(currentImage.id, currentClass?.id, highlightedPreds?.map(ann => ann.parsedPolygon)).then((resp) => {
+        postAnnotations(currentImage.id, currentAnnotationClass?.id, highlightedPreds?.map(ann => ann.parsedPolygon)).then((resp) => {
             setHighlightedPreds(null);
             setCurrentTool(TOOLBAR_KEYS.POINTER);
         });
@@ -57,6 +59,32 @@ const AnnotationPage = () => {
         setHighlightedPreds(null);
         setCurrentTool(TOOLBAR_KEYS.POINTER);
     }
+
+    async function handleDeleteClass() {
+        const deleteResp = await deleteAnnotationClass(currentAnnotationClass?.id)
+        if (deleteResp.status !== 204) {
+            console.error("Error deleting annotation class:", deleteResp);
+            return;
+        }
+        const getResp = await fetchAnnotationClasses();
+        if (getResp.status !== 200) {
+            console.error("Error fetching annotation classes:", getResp);
+            return;
+        }
+        setAnnotationClasses(getResp.data);
+        const newCurrentAnnotation = getResp.data.find((c) => c.id === DEFAULT_CLASS_ID);
+        if (!newCurrentAnnotation) {
+            console.error("Error: Default annotation class not found");
+            return;
+        }
+        setCurrentAnnotationClass(newCurrentAnnotation);  // Assumed to be the tissue mask class
+        setActiveModal(null);
+    }
+
+    function handleCancelDeleteClass() {
+        setActiveModal(null);
+    }
+
 
     function handleCancelExport() {
         setActiveModal(null);
@@ -72,28 +100,43 @@ const AnnotationPage = () => {
                 setCurrentImage(resp.data);
             });
         }
+
+        fetchAnnotationClasses().then((resp) => {
+            setAnnotationClasses(resp.data);
+            setCurrentAnnotationClass(resp.data[DEFAULT_CLASS_ID - 1]);
+        });
+        
     }, [])
 
     useEffect(() => {
-        startProcessingAnnotationClass(currentClass?.id).then((resp) => {
+        if (!currentAnnotationClass) return;
+        startProcessingAnnotationClass(currentAnnotationClass?.id).then((resp) => {
             if (resp.status === 200) {
                 console.log("Processing started");
             }
         });
     }
-    , [currentClass]);
+    , [currentAnnotationClass]);
+
+    useEffect(() => {
+        fetchAnnotationClasses().then((resp) => {
+            setAnnotationClasses(resp.data);
+        });
+    }, []);
 
     if (currentImage) {
         return (
             <>
                 <Container fluid className="pb-3 bg-dark d-flex flex-column flex-grow-1">
-                    <ConfirmationModal show={activeModal === MODAL_DATA.IMPORT_CONF.id} title={MODAL_DATA.IMPORT_CONF.title} description={MODAL_DATA.IMPORT_CONF.description} onConfirm={handleConfirmImport} onCancel={handleCancelImport}/>
-                    {currentClass && (
+                    <ConfirmationModal activeModal={activeModal} config={MODAL_DATA.IMPORT_CONF} onConfirm={handleConfirmImport} onCancel={handleCancelImport}/>
+                    <NewClassModal activeModal={activeModal} setActiveModal={setActiveModal} config={MODAL_DATA.ADD_CLASS} currentProject={currentProject} annotationClasses={annotationClasses} setAnnotationClasses={setAnnotationClasses}/>
+                    <ConfirmationModal activeModal={activeModal} config={MODAL_DATA.DELETE_CLASS} onConfirm={handleDeleteClass} onCancel={handleCancelDeleteClass}/>
+                    {currentAnnotationClass && (
                         <AnnotationExportModal 
                             show={activeModal === MODAL_DATA.EXPORT_CONF.id} 
                             setActiveModal={setActiveModal} 
                             images={[currentImage].map((item: IdNameElement) => new DataItem(item))} 
-                            annotationClasses={[currentClass].map((item: IdNameElement) => new DataItem(item))} // TODO: the annotation classes PR should raise the classes state up to the annotationPage
+                            annotationClasses={annotationClasses.map((item: IdNameElement) => new DataItem(item))} // TODO: the annotation classes PR should raise the classes state up to the annotationPage
                         />
                     )}
                     <Row className="d-flex flex-grow-1">
@@ -114,7 +157,7 @@ const AnnotationPage = () => {
                                                 setAction }} /></Card.Header>
                                 <Card.Body style={{ padding: "0px" }}>
                                     <ViewportMap {...{ currentImage, 
-                                                    currentClass, 
+                                                    currentAnnotationClass, 
                                                     gts, 
                                                     setGts, 
                                                     preds, 
@@ -135,13 +178,13 @@ const AnnotationPage = () => {
                         <Col xs={3}>
                             <Stack gap={3}>
                                 <ClassesPane
-                                    {...{ currentClass, setCurrentClass }}
+                                    {...{ currentAnnotationClass, setcurrentAnnotationClass: setCurrentAnnotationClass, setActiveModal, annotationClasses, setAnnotationClasses }}
                                 />
                                 <GroundTruthPane
-                                    {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, setActiveModal }}
+                                    {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, annotationClasses, setActiveModal }}
                                 />
                                 <PredictionsPane
-                                    {...{ preds, setPreds, currentAnnotation }}
+                                    {...{ preds, setPreds, currentAnnotation, annotationClasses }}
                                 />
                             </Stack>
                         </Col>

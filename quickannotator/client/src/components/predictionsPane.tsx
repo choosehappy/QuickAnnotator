@@ -1,11 +1,11 @@
 import Card from 'react-bootstrap/Card';
 import AnnotationList from "./annotationList.tsx";
-import { Annotation, CurrentAnnotation } from "../types.ts";
+import { Annotation, AnnotationClass } from "../types.ts";
 
 interface Props {
     preds: Annotation[];
     setPreds: (gts: Annotation[]) => void;
-    currentAnnotation: React.MutableRefObject<CurrentAnnotation | null>;
+    annotationClasses: AnnotationClass[];
 }
 const PredictionsPane = (props: Props) => {
     const id = 'id'
@@ -15,7 +15,7 @@ const PredictionsPane = (props: Props) => {
             <Card.Body id={id}>
             <AnnotationList containerId={id} 
                                 annotations={props.preds} 
-                                currentAnnotation={props.currentAnnotation} 
+                                annotationClasses={props.annotationClasses}
                                 />
             </Card.Body>
         </Card>

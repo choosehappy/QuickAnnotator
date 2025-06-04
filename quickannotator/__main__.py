@@ -2,14 +2,11 @@ import os
 from quickannotator.api import init_api
 import shutil
 from flask import Flask
-from flask_smorest import Blueprint
 import argparse
 from waitress import serve
 from quickannotator.config import config
 from quickannotator.config import get_database_uri, get_database_path, get_ray_dashboard_host, get_ray_dashboard_port, get_api_version
-from geoalchemy2 import load_spatialite
 import ray
-from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
 from quickannotator.db import init_db, db_session
 from quickannotator.db.logging import init_logger
 

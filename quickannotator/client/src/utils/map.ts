@@ -1,6 +1,7 @@
 import geo from "geojs"
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
-import { Annotation } from "../types";
+import { Annotation, AnnotationClass } from "../types";
+import { UI_SETTINGS } from "../helpers/config";
 
 export const computeTilesToRender = (oldTileIds: number[], newTileIds: number[]) => {
     const a = new Set(oldTileIds)
@@ -29,8 +30,9 @@ export const redrawTileFeature = (feature: any, options = {}, data?: any[]) => {
     feature.draw(options);
 }
 
-export const createGTTileFeature = (featureProps: any, annotations: Annotation[], layer: any, currentAnnotationId: number | null = null, annotationClassId: number = 1) => {
+export const createGTTileFeature = (featureProps: any, annotations: Annotation[], layer: any, annotationClass: AnnotationClass, currentAnnotationId: number | null = null,) => {
     const feature = layer.createFeature('polygon');
+    const color = annotationClass.color;
     feature.props = featureProps;
     featureProps.type = 'annotation';
 
@@ -39,10 +41,10 @@ export const createGTTileFeature = (featureProps: any, annotations: Annotation[]
         .polygon((a: Annotation) => a.parsedPolygon.coordinates[0])
         .data(annotations)
         .style('fill', true)
-        .style('fillColor', 'lime')
-        .style('fillOpacity', 0.5)
-        .style('strokeColor', 'black')
-        .style('strokeWidth', 2)
+        .style('fillColor', color)
+        .style('fillOpacity', UI_SETTINGS.gtOpacity)
+        .style('strokeColor', UI_SETTINGS.gtCurrentAnnotationStrokeColor)
+        .style('strokeWidth', UI_SETTINGS.gtStrokeWidth)
         .style('stroke', true)
         .style('uniformPolygon', true)
 
@@ -64,8 +66,9 @@ export const createGTTileFeature = (featureProps: any, annotations: Annotation[]
 }
 
 
-export const createPredTileFeature = (featureProps: any, annotations: Annotation[], layer: any, highlightedPolyIds: number[] | null = null, annotationClassId: number = 1) => {
+export const createPredTileFeature = (featureProps: any, annotations: Annotation[], layer: any, annotationClass: AnnotationClass, highlightedPolyIds: number[] | null = null) => {
     const feature = layer.createFeature('polygon');
+    const color = annotationClass.color;
     featureProps.type = 'annotation';
     feature.props = featureProps;
     feature
@@ -73,9 +76,9 @@ export const createPredTileFeature = (featureProps: any, annotations: Annotation
         .polygon((a: Annotation) => a.parsedPolygon.coordinates[0])
         .data(annotations)
         .style('fill', true)
-        .style('fillColor', 'lime')
-        .style('fillOpacity', 0.5)
-        .style('strokeColor', 'red')
+        .style('fillColor', color)
+        .style('fillOpacity', UI_SETTINGS.predOpacity)
+        .style('strokeColor', UI_SETTINGS.highlightedPredColor)
         .style('uniformPolygon', true)
 
     const originalDraw = feature.draw;
@@ -105,8 +108,8 @@ export const createPendingTileFeature = (featureProps: any, polygons: Polygon[],
         .polygon((p: Polygon) => p.coordinates[0])
         .data(polygons)
         .style('fill', true)
-        .style('fillColor', 'grey')
-        .style('fillOpacity', 0.5)
+        .style('fillColor', UI_SETTINGS.pendingTileFillColor)
+        .style('fillOpacity', UI_SETTINGS.pendingTileFillOpacity)
         .style('uniformPolygon', true)
     console.log('Drew pending polygon.')
     feature.draw();

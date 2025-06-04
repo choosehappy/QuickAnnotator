@@ -16,7 +16,7 @@ export interface AnnotationClass extends IdNameElement {
     color: string;
     work_mag: number;
     work_tilesize: number;
-    date: Date;
+    datetime: Date;
 }
 
 export interface Image extends IdNameElement{
@@ -100,6 +100,26 @@ export interface PutAnnArgs {
     is_gt: boolean;
 }
 
+export interface PostAnnClassArgs {
+    name: string;
+    color: string;
+    work_mag: number;
+    project_id: number;
+}
+
+export interface Image {
+    id: number;
+    project_id: number;
+    name: string;
+    path: string;
+    base_height: number;
+    base_width: number;
+    dz_tilesize: number;
+    embeddingCoord: string;
+    group_id: number;
+    split: number;
+    date: Date;
+}
 
 export interface Project {
     id: number | null;
