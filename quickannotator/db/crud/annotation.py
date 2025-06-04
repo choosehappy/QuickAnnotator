@@ -308,6 +308,16 @@ class AnnotationStore:
     def delete_all_annotations(self):
         db_session.query(self.model).delete()
 
+    def drop_table(self):
+        """
+        Drops the annotation table.
+        Returns:
+            bool: True if the table was successfully dropped, False otherwise.
+        """
+        try:
+            self.model.__table__.drop(db_session.bind, checkfirst=True)
+        except Exception as e:
+            raise e
 
     # MISC
     def get_annotation_table_name(self) -> str:
@@ -324,7 +334,6 @@ class AnnotationStore:
         Base.metadata.create_all(bind=db_session.bind, tables=[table])
 
         return create_dynamic_model(table_name)
-
 
     @staticmethod
     def scale_polygon(polygon: BaseGeometry, scaling_factor: float) -> BaseGeometry:   # Added for safety - I've forgotten the origin param several times.

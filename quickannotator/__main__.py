@@ -41,7 +41,13 @@ def main():
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
     app.config['RAY_CLUSTER_ADDRESS'] = args.cluster_address
-
+    # ------------------------ APP SET CORS ------------------------
+    @app.after_request
+    def apply_cors(response):
+        response.headers["Access-Control-Allow-Origin"] = "*"  # Allow all origins
+        response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        return response
     # ------------------------ DB SETUP ------------------------
     if args.recreate_db:
         db_path = get_database_path()

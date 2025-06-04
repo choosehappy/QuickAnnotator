@@ -5,7 +5,7 @@ from quickannotator.db.fsmanager import fsmanager
 
 import large_image
 
-
+from typing import List
 import os
 
 
@@ -33,7 +33,11 @@ def add_image_by_path(project_id, relative_path):
                     )
 
     db_session.add(image)
+    db_session.commit()
+    return image
 
+def get_images_by_project_id(project_id: int) -> List[db_models.Image]:
+    return db_session.query(db_models.Image).filter(db_models.Image.project_id==project_id).all()
 
 def get_image_by_id(image_id: int) -> db_models.Image:
     return db_session.query(db_models.Image).get(image_id)

@@ -46,3 +46,8 @@ FLASK_DATETIME_FORMAT = 'iso'
 STREAMING_CHUNK_SIZE = 8192 # in bytes  # TODO: app setting
 
 POST_FILE_CHUNK_SIZE = 1024 * 1024 * 16 # 16MB  # TODO: app setting
+IMPORT_ANNOTATION_BATCH_SIZE= 1000
+
+class AnnotationFileFormats(enum.Enum):
+    JSON = 'json'
+    GEOJSON = 'geojson'

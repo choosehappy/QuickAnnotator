@@ -74,12 +74,39 @@ export const fetchImage = async (image_id: number) => {
     const query = new URLSearchParams({ image_id: image_id.toString() });
     return await get<Image>(`/image/?${query}`);
 }
+// Fetch image by ID
+export const fetchImagesByProjectId = async (project_id: number) => {
+    return await get<Image[]>(`/image/${project_id}/search`);
+}
+export const removeImage = async (image_id: number) => {
+    const query = new URLSearchParams({image_id: image_id.toString() });
+    return await remove(`/image/?${query}`);
+}
 
 // Fetch project by ID
 export const fetchProject = async (project_id: number) => {
     const query = new URLSearchParams({ project_id: project_id.toString() });
     return await get<Project>(`/project/?${query}`);
 }
+// Fetch all projects 
+export const fetchAllProjects = async () => {
+    return await get<Project[]>(`/project/all`);
+}
+// create a new project
+export const createProject = async (project: Project) => {
+    return await post<Project, Project>(`/project/`, project);
+}
+
+// update a existing project
+export const updateProject = async (project: Project) => {
+    return await put<Project, Project>(`/project/`, project);
+}
+
+export const removeProject = async (project_id: number) => {
+    const query = new URLSearchParams({ project_id: project_id.toString()});
+    return await remove(`/project/?${query}`);
+}
+
 
 // Fetch annotations
 export const fetchAllAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean) => {
@@ -290,3 +317,8 @@ export const exportAnnotationsToDSA = async (
 
     return response.data;
 };
+export const getAnnotationPageURL = (project_id: number, image_id: number) => `/project/${project_id}/annotate/${image_id}`
+
+export const getImageThumbnailURL = (image_id: number) =>`/api/v1/image/${image_id}/1/file`
+
+export const UploadImageURL = () =>`/api/v1/image/upload`
