@@ -24,7 +24,8 @@ class ProgressTracker:
 
     def increment(self):
         with self.lock:  # Ensure thread safety by locking during increment
-            self.progress += 1
+            if self.progress < self.total:
+                self.progress += 1
 
     def get_progress(self) -> float:
         with self.lock:  # Lock when accessing progress
