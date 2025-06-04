@@ -23,16 +23,21 @@ export enum TILE_STATUS {
     DONEPROCESSING
 }
 
-export const RENDER_PREDICTIONS_INTERVAL = 8000; // ms
-export const RENDER_DELAY = 100; // ms
-export const MAP_TRANSLATION_DELAY = 500; // ms
+export const RENDER_PREDICTIONS_INTERVAL = 8000; // ms  TODO: app setting
+export const RENDER_DELAY = 100; // ms  TODO: app setting
+export const MAP_TRANSLATION_DELAY = 500; // ms TODO: app setting
 
 export const MODAL_DATA: { [key: string]: ModalData } = {
     IMPORT_CONF: {
         id: 0,
         title: 'Import Annotations',
         description: 'Are you sure you want to import annotations?',
-    }
+    },
+    EXPORT_CONF: {
+        id: 1,
+        title: 'Export Annotations',
+        description: 'How would you like to export the annotations from this image?',
+    },
 }
 
 
@@ -40,6 +45,10 @@ export const POPOVER_DATA = {
 
 }
 
+export const TISSUE_MASK_CLASS_ID = 1;
+
+export const SERVER_URL = 'http://localhost:5000'; // TODO: app setting
+export const API_URI = '/api/v1';   // TODO: app setting
 export enum PROJECT_MODAL_STATUS {
     // 0 - create, 1 - update, 2 - remove
     CREATE = 0,

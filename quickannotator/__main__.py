@@ -36,6 +36,7 @@ def main():
     args = parser.parse_args()
     os.environ['SPATIALITE_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu/mod_spatialite.so'  # TODO: set with a function
 
+
     # ------------------------ APP SETUP ------------------------
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
@@ -66,9 +67,10 @@ def main():
                 db_session.rollback()
                 raise
         db_session.remove()
-        
+
     # ------------------------ LOGGING SETUP --------------------
     logger = init_logger('qa')
+    logger.info("Initialized logger.")
 
     # ------------------------ RAY SETUP ------------------------
     logger.info("Starting Ray...")

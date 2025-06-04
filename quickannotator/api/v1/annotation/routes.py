@@ -1,15 +1,28 @@
+from itertools import product
 from quickannotator.constants import PolygonOperations
 from quickannotator.db.crud.annotation import AnnotationStore
+from quickannotator.db.crud.image import get_image_by_id
 from quickannotator.db.crud.tile import TileStoreFactory
+from quickannotator.db.utils import build_export_filepath
+from quickannotator.db.fsmanager import fsmanager
+from .utils import ProgressTracker, AnnotationExporter, compute_actor_name
 import quickannotator.db.models as db_models
 from . import models as server_models
+from quickannotator import constants
+from quickannotator.db.crud.annotation import build_annotation_table_name
 
 from flask.views import MethodView
+from flask import Response
 from shapely.geometry import shape, mapping
 import json
 import geojson
 from typing import List
 from flask_smorest import Blueprint
+from datetime import datetime
+import os
+import numpy as np
+import time
+import ray
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
 
@@ -96,16 +109,6 @@ class AnnotationsWithinPolygon(MethodView):
         anns = store.get_annotations_within_poly(shape(args['polygon']))
         return anns, 200
 
-# TODO: This endpoint will be needed when we build in custom scripting.
-# @bp.route('/<int:annotation_class_id>/dryrun')
-# class AnnotationDryRun(MethodView):
-#     @bp.arguments(PostDryRunArgsSchema, location='json')
-#     def post(self, args, annotation_class_id):
-#         """     perform a dry run for the given annotation
-
-#         """
-
-#         return 200
 
 @bp.route('/operation')
 class AnnotationOperation(MethodView):
@@ -130,3 +133,81 @@ class AnnotationOperation(MethodView):
             resp['area'] = union.area
 
         return resp, 200
+    
+
+@bp.route('/export/server')
+class ExportAnnotationsToServer(MethodView):
+    @bp.arguments(server_models.ExportToServerSchema, location='query')
+    @bp.response(200, server_models.ExportServerRespSchema)
+    def post(self, args):
+        """ Export annotations for multiple images and annotation classes to the server """
+
+        image_ids = args['image_ids']
+        annotation_class_ids = args['annotation_class_ids']
+        is_gt = True
+        project_id = get_image_by_id(image_ids[0]).project_id     # NOTE: This is only used for naming the actor, so it's not critical.
+
+        # TODO: add support for multiple formats
+        export_formats = args['export_formats']
+
+        timestamp = datetime.now()
+
+        filepaths = [
+            build_export_filepath(image_id=image_id,
+                                  annotation_class_id=annotation_class_id,
+                                  is_gt=is_gt,
+                                  extension=constants.ExportFormatExtensions.GEOJSON,
+                                  relative=True,
+                                  timestamp=timestamp)
+            for image_id, annotation_class_id in list(product(image_ids, annotation_class_ids))
+        ]
+
+        actor_name = compute_actor_name(project_id, constants.NamedRayActorType.ANNOTATION_EXPORTER)
+        exporter = AnnotationExporter.options(name=actor_name).remote(image_ids, annotation_class_ids)
+        exporter.export_to_server_fs.remote(export_formats, timestamp)
+
+        return {"actor_name": actor_name, "filepaths": filepaths}, 202
+    
+
+@bp.route('/export/dsa')
+class ExportAnnotationsToDSA(MethodView):
+    @bp.arguments(server_models.ExportToDSASchema, location='json')
+    def post(self, args):
+        """ Export annotations for multiple images and annotation classes to the DSA """
+
+        image_ids = args['image_ids']
+        annotation_class_ids = args['annotation_class_ids']
+        api_uri = args['api_uri']
+        api_key = args['api_key']
+        folder_id = args['folder_id']
+        project_id = get_image_by_id(image_ids[0]).project_id     # NOTE: This is only used for naming the actor, so it's not critical.
+
+        actor_name = compute_actor_name(project_id, constants.NamedRayActorType.ANNOTATION_EXPORTER)
+        exporter = AnnotationExporter.options(name=actor_name).remote(image_ids, annotation_class_ids)
+        exporter.export_to_dsa.remote(api_uri, api_key, folder_id)
+
+        # Return the progress actor handle so the client can poll for updates
+        return {"actor_name": actor_name}, 202
+    
+
+@bp.route('/export/download/<path:tarpath>')
+class DownloadAnnotations(MethodView):
+    def get(self, tarpath):
+        """ Download existing annotations by passing in image_id, annotation_class_id, and tarname """
+
+        fullpath = fsmanager.nas_write.relative_to_global(tarpath)
+
+        if not os.path.exists(fullpath):
+            return {"message": "Tar file not found"}, 404
+
+        headers = {
+            "Content-Disposition": f"attachment; filename={os.path.basename(tarpath)}",
+            "Content-Type": "application/octet-stream",
+        }
+
+        def generate():
+            with open(fullpath, 'rb') as f:
+                while chunk := f.read(constants.STREAMING_CHUNK_SIZE):
+                    yield chunk
+
+        return Response(generate(), headers=headers, direct_passthrough=True)

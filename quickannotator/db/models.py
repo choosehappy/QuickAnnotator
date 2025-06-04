@@ -193,7 +193,7 @@ class GeometryField(fields.Field):
 
     def _deserialize(self, value, attr, data, **kwargs) -> geojson.geometry.Geometry:
         try:
-            geom = geojson.loads(value)
+            geom = geojson.loads(value) # NOTE: potentially optimize using orjson.loads
             return geom
         except Exception as e:
             raise ValueError(f"Invalid geometry format: {e}")
