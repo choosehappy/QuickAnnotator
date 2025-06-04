@@ -25,3 +25,5 @@ def init_logger(logger_name) -> logging.Logger:
     logger.addHandler(handler)
 
     return logger
+
+qa_logger = init_logger("quickannotator")

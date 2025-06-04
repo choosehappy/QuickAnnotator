@@ -2,6 +2,7 @@
 type ApiResponse<T> = Promise<T>;
 import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, TileIds, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileIdsByPolygonArgs, PostAnnClassArgs } from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
+import { API_URI } from "./config.ts";
 
 interface FetchOptions extends RequestInit {
     headers?: HeadersInit;
@@ -73,12 +74,39 @@ export const fetchImage = async (image_id: number) => {
     const query = new URLSearchParams({ image_id: image_id.toString() });
     return await get<Image>(`/image/?${query}`);
 }
+// Fetch image by ID
+export const fetchImagesByProjectId = async (project_id: number) => {
+    return await get<Image[]>(`/image/${project_id}/search`);
+}
+export const removeImage = async (image_id: number) => {
+    const query = new URLSearchParams({image_id: image_id.toString() });
+    return await remove(`/image/?${query}`);
+}
 
 // Fetch project by ID
 export const fetchProject = async (project_id: number) => {
     const query = new URLSearchParams({ project_id: project_id.toString() });
     return await get<Project>(`/project/?${query}`);
 }
+// Fetch all projects 
+export const fetchAllProjects = async () => {
+    return await get<Project[]>(`/project/all`);
+}
+// create a new project
+export const createProject = async (project: Project) => {
+    return await post<Project, Project>(`/project/`, project);
+}
+
+// update a existing project
+export const updateProject = async (project: Project) => {
+    return await put<Project, Project>(`/project/`, project);
+}
+
+export const removeProject = async (project_id: number) => {
+    const query = new URLSearchParams({ project_id: project_id.toString()});
+    return await remove(`/project/?${query}`);
+}
+
 
 // Fetch annotations
 export const fetchAllAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean) => {
@@ -235,3 +263,72 @@ export const fetchMagnifications = async () => {
 export const fetchTilesizes = async () => {
     return await get<{ tilesizes: number[] }>('/class/tilesizes');
 }
+export const exportAnnotationsToServer = async (
+    image_ids: number[],
+    annotation_class_ids: number[],
+    export_formats: string[]
+) => {
+    const query = new URLSearchParams({
+        image_ids: image_ids.join(','),
+        annotation_class_ids: annotation_class_ids.join(','),
+        export_formats: export_formats.join(','),
+    });
+
+    const response = await post<null, { actor_name: string; filepaths: string[] }>(
+        `/annotation/export/server?${query}`,
+        null
+    );
+
+    if (response.status !== 202) {
+        throw new Error(`Failed to export annotations to server`);
+    }
+
+    const manifestContent = response.data.filepaths
+        .map(filepath => `${window.location.origin}${API_URI}/annotation/export/download/${filepath}`)
+        .join('\n');
+
+    const blob = new Blob([manifestContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'manifest.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    return response.data;
+};
+
+export const exportAnnotationsToDSA = async (
+    image_ids: number[],
+    annotation_class_ids: number[],
+    api_uri: string,
+    api_key: string,
+    folder_id: string
+) => {
+    const requestBody = {
+        image_ids: image_ids,
+        annotation_class_ids: annotation_class_ids,
+        api_uri: api_uri,
+        api_key: api_key,
+        folder_id: folder_id,
+    };
+
+    const response = await post<typeof requestBody, { actor_name: string }>(
+        `/annotation/export/dsa`,
+        requestBody
+    );
+
+    if (response.status !== 202) {
+        throw new Error(`Failed to export annotations to DSA`);
+    }
+
+    return response.data;
+};
+export const getAnnotationPageURL = (project_id: number, image_id: number) => `/project/${project_id}/annotate/${image_id}`
+
+export const getImageThumbnailURL = (image_id: number) =>`/api/v1/image/${image_id}/1/file`
+
+export const UploadImageURL = () =>`/api/v1/image/upload`

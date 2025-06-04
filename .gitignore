@@ -14,3 +14,5 @@ _version.py
 build/
 *.egg-info/
 .coverage*
+*cache/
+mounts/

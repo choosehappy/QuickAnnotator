@@ -13,7 +13,8 @@ class ImageRespSchema(SQLAlchemyAutoSchema):
 
 class GetImageArgsSchema(Schema):
     image_id = fields.Int(required=True)
-
+class UploadFileSchema(Schema):
+    name = fields.Str(required=True)
 class SearchImageArgsSchema(Schema):
     pass
 
@@ -28,4 +29,6 @@ class DeleteImageArgsSchema(GetImageArgsSchema):
     pass
 
 class UploadFileArgsSchema(Schema):
-    file = Upload(required=True)
+    project_id = fields.Int(required=True)
+    # file = Upload(required=True)
+    # file = fields.Raw(type="file", required=True)

@@ -1,21 +1,29 @@
 import quickannotator.db.models as db_models
 from quickannotator.db import db_session
+from quickannotator.db.fsmanager import fsmanager
 
 
 import large_image
 
-
+from typing import List
 import os
 
 
-def add_image_by_path(project_id, full_path):
-    path = full_path.split("quickannotator/")[1]
-    slide = large_image.getTileSource(full_path)
-    name = os.path.basename(full_path)
+def add_image_by_path(project_id, relative_path):
+    """
+    Add an image to the database using its path.
+    Args:
+        project_id (int): The ID of the project to which the image belongs.
+        path (str): The file path of the image. Assumed to be within mounts_path.
+    
+    """
+    fullpath = fsmanager.nas_read.relative_to_global(relative_path)
+    slide = large_image.getTileSource(fullpath)
+    name = os.path.basename(fullpath)
 
     image = db_models.Image(project_id=project_id,
                     name=name,
-                    path=path,
+                    path=relative_path,
                     base_height=slide.sizeY,
                     base_width=slide.sizeX,
                     dz_tilesize=slide.tileWidth,
@@ -25,7 +33,11 @@ def add_image_by_path(project_id, full_path):
                     )
 
     db_session.add(image)
+    db_session.commit()
+    return image
 
+def get_images_by_project_id(project_id: int) -> List[db_models.Image]:
+    return db_session.query(db_models.Image).filter(db_models.Image.project_id==project_id).all()
 
 def get_image_by_id(image_id: int) -> db_models.Image:
     return db_session.query(db_models.Image).get(image_id)

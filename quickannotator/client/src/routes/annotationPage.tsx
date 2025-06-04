@@ -11,11 +11,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
 import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass, fetchAnnotationClasses, fetchAnnotationClassById, createAnnotationClass, deleteAnnotationClass } from "../helpers/api.ts";
-import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation } from "../types.ts";
 import { DEFAULT_CLASS_ID, MODAL_DATA, TOOLBAR_KEYS } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
 import NewClassModal from '../components/newClassModal.tsx';
+import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation, DataItem, IdNameElement } from "../types.ts";
+import AnnotationExportModal from '../components/annotationExportModal.tsx';
 
 function usePrevious<T>(value: T): T | undefined {
     const ref = useRef<T>();
@@ -85,6 +86,10 @@ const AnnotationPage = () => {
     }
 
 
+    function handleCancelExport() {
+        setActiveModal(null);
+    }
+
     useEffect(() => {
         if (projectid && imageid) {
             fetchProject(parseInt(projectid)).then((resp) => {
@@ -126,6 +131,14 @@ const AnnotationPage = () => {
                     <ConfirmationModal activeModal={activeModal} config={MODAL_DATA.IMPORT_CONF} onConfirm={handleConfirmImport} onCancel={handleCancelImport}/>
                     <NewClassModal activeModal={activeModal} setActiveModal={setActiveModal} config={MODAL_DATA.ADD_CLASS} currentProject={currentProject} annotationClasses={annotationClasses} setAnnotationClasses={setAnnotationClasses}/>
                     <ConfirmationModal activeModal={activeModal} config={MODAL_DATA.DELETE_CLASS} onConfirm={handleDeleteClass} onCancel={handleCancelDeleteClass}/>
+                    {currentAnnotationClass && (
+                        <AnnotationExportModal 
+                            show={activeModal === MODAL_DATA.EXPORT_CONF.id} 
+                            setActiveModal={setActiveModal} 
+                            images={[currentImage].map((item: IdNameElement) => new DataItem(item))} 
+                            annotationClasses={annotationClasses.map((item: IdNameElement) => new DataItem(item))} // TODO: the annotation classes PR should raise the classes state up to the annotationPage
+                        />
+                    )}
                     <Row className="d-flex flex-grow-1">
                         <Col className="d-flex flex-grow-1">
                             <Card className="flex-grow-1">
@@ -168,7 +181,7 @@ const AnnotationPage = () => {
                                     {...{ currentAnnotationClass, setcurrentAnnotationClass: setCurrentAnnotationClass, setActiveModal, annotationClasses, setAnnotationClasses }}
                                 />
                                 <GroundTruthPane
-                                    {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, annotationClasses }}
+                                    {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, annotationClasses, setActiveModal }}
                                 />
                                 <PredictionsPane
                                     {...{ preds, setPreds, currentAnnotation, annotationClasses }}

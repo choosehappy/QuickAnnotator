@@ -24,7 +24,7 @@ def serve_quickannotator(app):
 def serve_quickannotator_dev(app):
     app.run(debug=True, host='0.0.0.0', port=config.getint('flask', 'port', fallback=5000), threaded=True)
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--port', type=int, default=config.getint('flask', 'port', fallback=5000))
     parser.add_argument('-r', '--recreate_db',  action='store_true', default=False,
@@ -33,11 +33,18 @@ if __name__ == '__main__':
     args = parser.parse_args()
     os.environ['SPATIALITE_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu/mod_spatialite.so'  # TODO: set with a function
 
+
     # ------------------------ APP SETUP ------------------------
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
     app.config['RAY_CLUSTER_ADDRESS'] = args.cluster_address
-
+    # ------------------------ APP SET CORS ------------------------
+    @app.after_request
+    def apply_cors(response):
+        response.headers["Access-Control-Allow-Origin"] = "*"  # Allow all origins
+        response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        return response
     # ------------------------ DB SETUP ------------------------
     if args.recreate_db:
         db_path = get_database_path()
@@ -57,9 +64,10 @@ if __name__ == '__main__':
                 db_session.rollback()
                 raise
         db_session.remove()
-        
+
     # ------------------------ LOGGING SETUP --------------------
     logger = init_logger('qa')
+    logger.info("Initialized logger.")
 
     # ------------------------ RAY SETUP ------------------------
     logger.info("Starting Ray...")
@@ -72,3 +80,7 @@ if __name__ == '__main__':
 
     # serve_quickannotator(app)
     serve_quickannotator_dev(app)
+
+
+if __name__ == '__main__':
+    main()

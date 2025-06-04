@@ -5,6 +5,8 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from contextlib import contextmanager
 from quickannotator.config import get_database_uri
 import geoalchemy2
+from osgeo import ogr
+import enum
 
 engine = create_engine(get_database_uri())
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
@@ -16,8 +18,12 @@ geoalchemy2.admin.dialects.sqlite.register_sqlite_mapping(
 Base = declarative_base()
 Base.query = db_session.query_property()
 
+class Dialects(enum.Enum):
+    SQLITE = "sqlite"
+    POSTGRESQL = "postgresql"
+
 # Initialize Spatialite extension only if the database is SQLite
-if engine.dialect.name == "sqlite":
+if engine.dialect.name == Dialects.SQLITE.value:
     @event.listens_for(engine, "connect")
     def connect(dbapi_connection, connection_record):
         dbapi_connection.enable_load_extension(True)
@@ -47,3 +53,23 @@ def get_session():
     finally:
         db_session.remove()  # Cleanup session automatically
         #print("Session closed")
+
+@contextmanager
+def get_ogr_datasource():
+    dialect = db_session.bind.dialect.name
+    if dialect == Dialects.SQLITE.value:
+        ogr_conn_str = f"SQLite:{engine.url.database}"
+    elif dialect == Dialects.POSTGRESQL.value:
+        ogr_conn_str = f"PG:{engine.url}"
+    else:
+        raise ValueError(f"Unsupported database dialect: {dialect}")
+    
+
+    datasource = ogr.Open(ogr_conn_str, update=1)
+    if datasource is None:
+        raise RuntimeError(f"Failed to open OGR datasource: {ogr_conn_str}")
+    try:
+        yield datasource
+    finally:
+        datasource = None
+        # OGR handles closing automatically, but we can explicitly set to None

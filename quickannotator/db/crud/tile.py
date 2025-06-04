@@ -9,7 +9,7 @@ from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_fa
 from quickannotator.constants import MASK_CLASS_ID, MASK_DILATION, TileStatus
 import quickannotator.constants as constants
 from datetime import datetime, timedelta
-from quickannotator.db import db_session
+from quickannotator.db import Dialects, db_session
 from quickannotator.db.crud.annotation import get_annotation_query
 from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
 from quickannotator.db.crud.image import get_image_by_id
@@ -250,7 +250,7 @@ class TileStore(ABC):   # Only an ABC to prevent instantiation
 
         # Get the mask geojson polygons
         model = create_dynamic_model(build_annotation_table_name(image_id, MASK_CLASS_ID, is_gt=True))
-        mask_geojson: geojson.Polygon = [geojson.loads(ann.polygon) for ann in get_annotation_query(model, mask_work_to_base_scale_factor).all()]    # Scales mask to base mag
+        mask_geojson: geojson.Polygon = [geojson.loads(ann.polygon) for ann in get_annotation_query(model, mask_work_to_base_scale_factor).all()]    # Scales mask to base mag NOTE: potentially optimize using orjson.loads
         tilestore = TileStoreFactory.get_tilestore()
 
         tile_ids, mask, processed_polygons = tilestore.get_tile_ids_intersecting_polygons(image_id, annotation_class_id, mask_geojson, mask_dilation)
@@ -295,9 +295,9 @@ class TileStoreFactory():
     def get_tilestore() -> TileStore:
         dialect_name = db_session.bind.dialect.name
 
-        if dialect_name == 'postgresql':
+        if dialect_name == Dialects.POSTGRESQL.value:
             return PostgresTileStore()
-        elif dialect_name == 'sqlite':
+        elif dialect_name == Dialects.SQLITE.value:
             return SQLiteTileStore()
         else:
             raise ValueError(f"Unsupported dialect: {dialect_name}")

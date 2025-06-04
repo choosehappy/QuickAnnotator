@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { SERVER_URL } from './src/helpers/config' // Import SERVER_URL
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -7,7 +8,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:5000/', // Your Flask backend
+        target: SERVER_URL, // Use SERVER_URL from config.ts
         changeOrigin: true,
       }
     }
