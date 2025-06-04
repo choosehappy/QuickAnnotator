@@ -5,6 +5,7 @@ import os
 import shutil
 from quickannotator.db import db_session
 import quickannotator.db.models as db_models
+from quickannotator.db.fsmanager import fsmanager
 from . import models as server_models
 from flask_smorest import Blueprint
 from datetime import datetime
@@ -80,9 +81,7 @@ class Project(MethodView):
         db_session.commit()
 
         # remove the project folders
-        # TODO: fs_manager
-        projects_path = 'mounts/nas_write/projects'
-        full_project_path = os.path.join(current_app.root_path, projects_path, f'proj_{project_id}')
+        full_project_path = fsmanager.nas_write.get_project_path(project_id, relative=False)
         if os.path.exists(full_project_path):
             try:
                 shutil.rmtree(full_project_path)

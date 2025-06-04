@@ -106,6 +106,20 @@ class NASWrite(FileStore):
         """
         super().__init__("nas_write")
 
+    def get_project_path(self, project_id: int, relative: bool = False):
+        """
+        Get the directory path for a project.
+
+        Args:
+            project_id (int): The project ID.
+            relative (bool): Whether to return a relative path.
+
+        Returns:
+            str: The directory path for the project.
+        """
+        relative_path = os.path.join("projects", f"proj_{project_id}")
+        return relative_path if relative else self.relative_to_global(relative_path)
+
     def get_project_image_path(self, project_id: int, image_id: int, relative: bool = False):
         """
         Get the directory path for project images.
