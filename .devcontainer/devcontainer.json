@@ -16,7 +16,7 @@
 	// Add -v tag to mount a data directory
 	"mounts": [
 		"source=${localWorkspaceFolder},target=/opt/QuickAnnotator,type=bind,consistency=cached",
-		"source=qa_data,target=/opt/QuickAnnotator/quickannotator/data,type=volume",
+		"source=qa_data,target=/opt/QuickAnnotator/quickannotator/mounts/nas_read,type=volume",
 		"source=qadb_data,target=/opt/QuickAnnotator/quickannotator/instance,type=volume"
 	],
 

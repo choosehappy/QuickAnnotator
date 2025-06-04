@@ -1,16 +1,13 @@
-from quickannotator.db import Base, engine
+from sqlalchemy.orm import Query
+from quickannotator.db import db_session, engine
 from sqlalchemy import Table
 
 
-def create_dynamic_model(table_name, base=Base):
-    class DynamicAnnotation(base):
-        __tablename__ = table_name
-        __table__ = Table(table_name, base.metadata, autoload_with=engine)
+def get_query_as_sql(query: Query) -> str:
+    """
+    Returns the SQL query as a string.
 
-    return DynamicAnnotation
+    dialect allows us to avoid code splitting depending on the dialect. If not used, compile() will not use sqlite dialect functions including ScaleCoords
+    """
+    return query.statement.compile(compile_kwargs={"literal_binds": True}, dialect=db_session.bind.dialect).string
 
-
-def build_annotation_table_name(image_id: int, annotation_class_id: int, is_gt: bool):
-    gtpred = 'gt' if is_gt else 'pred'
-    table_name = f"annotation_{image_id}_{annotation_class_id}_{gtpred}"
-    return table_name

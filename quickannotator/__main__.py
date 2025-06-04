@@ -2,14 +2,11 @@ import os
 from quickannotator.api import init_api
 import shutil
 from flask import Flask
-from flask_smorest import Blueprint
 import argparse
 from waitress import serve
 from quickannotator.config import config
 from quickannotator.config import get_database_uri, get_database_path, get_ray_dashboard_host, get_ray_dashboard_port, get_api_version
-from geoalchemy2 import load_spatialite
 import ray
-from quickannotator.db.models import Annotation, AnnotationClass, Image, Notification, Project, Setting, Tile
 from quickannotator.db import init_db, db_session
 from quickannotator.db.logging import init_logger
 
@@ -36,11 +33,18 @@ def main():
     args = parser.parse_args()
     os.environ['SPATIALITE_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu/mod_spatialite.so'  # TODO: set with a function
 
+
     # ------------------------ APP SETUP ------------------------
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri()
     app.config['RAY_CLUSTER_ADDRESS'] = args.cluster_address
-
+    # ------------------------ APP SET CORS ------------------------
+    @app.after_request
+    def apply_cors(response):
+        response.headers["Access-Control-Allow-Origin"] = "*"  # Allow all origins
+        response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        return response
     # ------------------------ DB SETUP ------------------------
     if args.recreate_db:
         db_path = get_database_path()
@@ -60,9 +64,10 @@ def main():
                 db_session.rollback()
                 raise
         db_session.remove()
-        
+
     # ------------------------ LOGGING SETUP --------------------
     logger = init_logger('qa')
+    logger.info("Initialized logger.")
 
     # ------------------------ RAY SETUP ------------------------
     logger.info("Starting Ray...")

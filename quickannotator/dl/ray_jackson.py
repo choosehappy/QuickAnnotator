@@ -144,7 +144,7 @@ def start_processing(annotation_class_id: int):
     actor_queue = get_processing_actors(sort_by_date=True)
 
     # 2. Sort actors by running_since_datetimes
-    while len(actor_queue) == constants.MAX_ACTORS_PROCESSING:
+    while len(actor_queue) > constants.MAX_ACTORS_PROCESSING:
         # 3. Pop the oldest actor
         oldest_actor = actor_queue.pop(0)['actor']
         oldest_actor.setProcRunningSince.remote(reset=True)

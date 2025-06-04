@@ -6,6 +6,7 @@ import geojson
 from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
 from quickannotator.db.crud.image import get_image_by_id
 from quickannotator.constants import BASE_PATH
+from quickannotator.db.fsmanager import fsmanager
 
 
 class TileSpace:
@@ -194,8 +195,8 @@ def base_to_work_scaling_factor(image_id: int, annotation_class_id: int) -> floa
     Returns:
         float: The scale factor to apply to the annotations.
     """
-    path = get_image_by_id(image_id).path
-    full_path = os.path.join(BASE_PATH, path)   # NOTE: Consider adding base_mag to the image table.
+    relative_path = get_image_by_id(image_id).path
+    full_path = fsmanager.nas_read.relative_to_global(relative_path)
     ts = large_image.getTileSource(full_path)
     base_mag = float(ts.getMetadata()['magnification'])
     work_mag = float(get_annotation_class_by_id(annotation_class_id).work_mag)

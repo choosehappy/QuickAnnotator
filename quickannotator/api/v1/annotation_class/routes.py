@@ -1,9 +1,16 @@
+import logging
+from quickannotator import constants
+from quickannotator.db.colors import ColorPalette
+from quickannotator.db.crud.annotation import AnnotationStore
+from quickannotator.db.crud.image import get_images_for_project
 from . import models as server_models
 from flask import abort
 import quickannotator.db.models as db_models
 from quickannotator.db import db_session
-from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
+from quickannotator.db.crud.annotation_class import delete_annotation_class, get_annotation_class_by_id, insert_annotation_class, put_annotation_class
 from quickannotator.dl.ray_jackson import start_processing
+from quickannotator.db.crud.tile import TileStoreFactory, TileStore
+from flask import Response
 
 from flask.views import MethodView
 from flask_smorest import Blueprint
@@ -22,37 +29,69 @@ class AnnotationClass(MethodView):
         if result is not None:
             return result, 200
         else:
-            abort(404, message="AnnotationClass not found")
+            abort(404, "AnnotationClass not found")
 
 
     @bp.arguments(server_models.PostAnnClassArgsSchema, location='query')
-    @bp.response(200, description="AnnotationClass created")
+    @bp.response(201, server_models.AnnClassRespSchema, description="AnnotationClass created")
     def post(self, args):
         """     create a new AnnotationClass   """
-
-        work_tilesize = 2048
 
         annotation_class = db_models.AnnotationClass(project_id=args['project_id'],
                                           name=args['name'],
                                           color=args['color'],
                                           work_mag=args['work_mag'],
-                                          work_tilesize=work_tilesize
+                                          work_tilesize=args['tile_size']
                                           )
         db_session.add(annotation_class)
-        return {'annotation_class_id':annotation_class.id}, 200
+        db_session.commit()  # Ensure the object is synced with the database
+        return annotation_class, 201
 
 
     @bp.arguments(server_models.PutAnnClassArgsSchema, location='query')
-    @bp.response(201, description="AnnotationClass updated")
+    @bp.response(201, server_models.AnnClassRespSchema, description="AnnotationClass updated")
     def put(self, args):
         """     update an existing AnnotationClass      """
-        return 201
+        annotation_class = put_annotation_class(args['annotation_class_id'],
+                             name=args['name'],
+                             color=args['color'])
+        return annotation_class, 201
 
     @bp.arguments(server_models.GetAnnClassArgsSchema, location='query')
-    @bp.response(204, description="AnnotationClass deleted")
+    @bp.response(204, server_models.AnnClassRespSchema, description="AnnotationClass deleted")
     def delete(self, args):
-        """     delete an ObjectClass      """
-        return db_session.query(db_models.AnnotationClass).filter(db_models.AnnotationClass.id == args['annotation_class_id']).delete(), 204
+        """     delete an AnnotationClass      """
+
+        # Check that the annotation class id is not the mask class id
+        if args['annotation_class_id'] == constants.MASK_CLASS_ID:
+            abort(400, "Cannot delete the mask annotation class")
+
+        # Drop all respective annotation tables
+        annotation_class = get_annotation_class_by_id(args['annotation_class_id'])
+        if annotation_class is None:
+            abort(404, "AnnotationClass not found")
+        project_id = annotation_class.project_id
+        images = get_images_for_project(project_id)
+        for image in images:
+            try: 
+                gt_store = AnnotationStore(image.id, args['annotation_class_id'], is_gt=True)
+            except Exception as e:
+                continue
+            gt_store.drop_table()
+
+            try: 
+                pred_store = AnnotationStore(image.id, args['annotation_class_id'], is_gt=False)
+            except Exception as e:
+                continue
+            pred_store.drop_table()
+
+        # Clean up tiles
+        tile_store: TileStore = TileStoreFactory.get_tilestore()
+        tile_store.delete_tiles(args['annotation_class_id'])
+
+        # Delete the annotation class
+        annotation_class = delete_annotation_class(args['annotation_class_id'])
+        return annotation_class, 204
 
 ####################################################################################################
 
@@ -79,8 +118,36 @@ class DLActor(MethodView):
         actor = start_processing(annotation_class_id)
 
         if actor is None:
-            abort(404, message="Failed to create DL Actor")
+            abort(404, description="Failed to create DL Actor")
         else:
             return {}, 200
 
 ####################################################################################################
+
+@bp.route('/color/<int:project_id>')
+class NewColor(MethodView):
+    @bp.response(200, description="New color generated")
+    def get(self, project_id):
+        """     generate a new color for the current project     """
+        try:
+            color_palette = ColorPalette(project_id)
+            new_color = color_palette.get_unused_color()
+            return {'color': new_color}, 200
+        except ValueError as e:
+            abort(400, str(e))
+        except KeyError as e:
+            abort(400, str(e))
+
+@bp.route('/magnifications')
+class Magnifications(MethodView):
+    @bp.response(200, description="Available magnifications")
+    def get(self):
+        """     get the available magnifications     """
+        return {'magnifications': constants.MAGNIFICATION_OPTIONS}, 200
+    
+@bp.route('/tilesizes')
+class Tilesizes(MethodView):
+    @bp.response(200, description="Available tilesizes")
+    def get(self):
+        """     get the available tilesizes     """
+        return {'tilesizes': constants.TILESIZE_OPTIONS}, 200

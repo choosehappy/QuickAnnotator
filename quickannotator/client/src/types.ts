@@ -1,13 +1,33 @@
 import {Point, Polygon, Feature} from "geojson"
 import { TILE_STATUS } from "./helpers/config";
 
-export interface AnnotationClass {
+export interface IdNameElement {
     id: number;
-    project_id: number;
     name: string;
+}
+
+export interface Project extends IdNameElement{
+    description: string;
+    date: Date;
+}
+
+export interface AnnotationClass extends IdNameElement {
+    project_id: number;
     color: string;
     work_mag: number;
     work_tilesize: number;
+    datetime: Date;
+}
+
+export interface Image extends IdNameElement{
+    project_id: number;
+    path: string;
+    base_height: number;
+    base_width: number;
+    dz_tilesize: number;
+    embeddingCoord: string;
+    group_id: number;
+    split: number;
     date: Date;
 }
 
@@ -80,6 +100,13 @@ export interface PutAnnArgs {
     is_gt: boolean;
 }
 
+export interface PostAnnClassArgs {
+    name: string;
+    color: string;
+    work_mag: number;
+    project_id: number;
+}
+
 export interface Image {
     id: number;
     project_id: number;
@@ -95,10 +122,11 @@ export interface Image {
 }
 
 export interface Project {
-    id: number;
+    id: number | null;
     name: string;
+    is_dataset_large: boolean;
     description: string;
-    date: Date;
+    datetime: Date;
 }
 
 export interface TileIds {
@@ -122,6 +150,11 @@ export type OutletContextType = {
     setCurrentProject: (project: Project | null) => void;
     currentImage: Image;
     setCurrentImage: (image: Image | null) => void;
+}
+
+export enum ExportFormat {
+    GEOJSON = "geojson",
+    TSV = "tsv"
 }
 
 export class CurrentAnnotation {
@@ -160,9 +193,29 @@ export class CurrentAnnotation {
         }
     }
 }
-
+export interface ProjectModalData {
+    id: number;
+    title: string;
+    text: string;
+    btnText: string;
+}
 export interface ModalData {
     id: number;
     title: string;
     description: string;
+}
+export class DataItem {
+    id: number;
+    name: string;
+    selected: boolean;
+
+    constructor(elem: IdNameElement) {
+        this.id = elem.id;
+        this.name = elem.name;
+        this.selected = true;
+    }
+
+    toggleSelected() {
+        this.selected = !this.selected;
+    }
 }

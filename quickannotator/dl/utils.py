@@ -5,6 +5,7 @@ import os, io
 from PIL import Image as PILImage
 import numpy as np
 from quickannotator.db import get_session
+from quickannotator.db.fsmanager import fsmanager
 
 from quickannotator.db.models import Image, AnnotationClass
 from quickannotator.api.v1.utils.coordinate_space import TileSpace
@@ -37,8 +38,8 @@ def load_tile(tile): #TODO: i suspect this sort of function exists elsewhere wit
         db_session.expunge_all()
 
     image_path = image.path
-    
-    li = large_image.getTileSource(os.path.join("/opt/QuickAnnotator/quickannotator", image_path)) #TODO: JANKY
+    fullpath = fsmanager.nas_read.relative_to_global(image_path)
+    li = large_image.getTileSource(fullpath)
 
 
     #---- two options here

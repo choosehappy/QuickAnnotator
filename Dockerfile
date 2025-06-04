@@ -32,6 +32,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
          vim \
          graphviz \
          libgraphviz-dev \
+         libgdal-dev
 
 # Install node and npm
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -

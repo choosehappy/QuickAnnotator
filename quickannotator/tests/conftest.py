@@ -14,6 +14,7 @@ from quickannotator.constants import TileStatus
 from shapely.geometry import Polygon
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
 import quickannotator.constants as constants
+from quickannotator.db.fsmanager import fsmanager
 
 
 @pytest.fixture(scope='module')
@@ -48,6 +49,7 @@ def test_client():
                 raise
         db_session.remove()
 
+
 @pytest.fixture(scope="function")
 def db_session():
 
@@ -64,30 +66,27 @@ def seed(db_session):   # here db_session is the fixture
     # Add a project
     add_project(name="Test Project", description="A test project", is_dataset_large=False)
     
-    # Add an image
-    # This image has a base magnification of 40x. The dimensions are 150784x71936 pixels.
+    # Add images using fsmanager
     add_image_by_path(
-                    project_id=1,
-                    full_path="quickannotator/data/test_ndpi/13_266069_040_003 L02 PAS.ndpi"    # TODO: add test data
-                    )
-    
-    # Add an annotation class
+        project_id=1,
+        relative_path="test_ndpi/13_266069_040_003 L02 PAS.ndpi"
+    )
+
+        # Add annotation classes
     insert_annotation_class(
-                        project_id=None,
-                        name="Tissue Mask",
-                        color="black",
-                        work_mag=1.25,
-                        work_tilesize=2048,
-                        )
-    
-    # Add a second annotation class
+        project_id=None,
+        name="Tissue Mask",
+        color="black",
+        work_mag=1.25,
+        work_tilesize=2048,
+    )
     insert_annotation_class(
-                        project_id=1,
-                        name="Fake Class",
-                        color="red",
-                        work_mag=10,
-                        work_tilesize=2048, # At base (40x) magnification, this is 2048 * 40 / 10 = 8192 pixels
-                        )
+        project_id=1,
+        name="Fake Class",
+        color="red",
+        work_mag=10,
+        work_tilesize=2048,  # At base (40x) magnification, this is 2048 * 40 / 10 = 8192 pixels
+    )
 
     # Add a tile
     tilestore: TileStore = TileStoreFactory.get_tilestore()
@@ -105,12 +104,15 @@ def tissue_mask_seed(db_session, seed):
     annotation_class_id = 1
 
     # Create the mask annotation table
-    mask_store = AnnotationStore(image_id, annotation_class_id, in_work_mag=False, is_gt=True, create_table=True)
+    mask_store = AnnotationStore(image_id, annotation_class_id, in_work_mag=False, is_gt=True)
 
     # Insert a mask annotation which envelopes all annotations
     minx, miny, maxx, maxy = 0, 0, 10000, 10000
     mask_poly = Polygon([(minx, miny), (maxx, miny), (maxx, maxy), (minx, maxy), (minx, miny)])
-    mask_store.insert_annotations([mask_poly])
+    anns = mask_store.insert_annotations([mask_poly])
+
+    tilestore = TileStoreFactory.get_tilestore()
+    tilestore.upsert_gt_tiles(image_id, annotation_class_id, list({ann.tile_id for ann in anns}))
 
     db_session.commit()
 
@@ -139,16 +141,21 @@ def annotations_seed(db_session, tissue_mask_seed, polygons):
     annotation_class_id = 2
 
     # Create the annotation table
-    annotation_store = AnnotationStore(image_id, annotation_class_id, is_gt=True, in_work_mag=False, create_table=True)
+    annotation_store = AnnotationStore(image_id, annotation_class_id, is_gt=True, in_work_mag=False)
 
     # Create the prediction table
-    prediction_store = AnnotationStore(image_id, annotation_class_id, is_gt=False, in_work_mag=False, create_table=True)
+    prediction_store = AnnotationStore(image_id, annotation_class_id, is_gt=False, in_work_mag=False)
 
     # Insert the annotations
-    annotation_store.insert_annotations(polygons)
+    gt_anns = annotation_store.insert_annotations(polygons)
+    tilestore = TileStoreFactory.get_tilestore()
+    tilestore.upsert_gt_tiles(image_id, annotation_class_id, list({ann.tile_id for ann in gt_anns}))
 
     # Also insert as predictions
-    prediction_store.insert_annotations(polygons)
+    pred_anns = prediction_store.insert_annotations(polygons)
+    tilestore.upsert_pred_tiles(image_id, annotation_class_id, list({ann.tile_id for ann in pred_anns}))
+
+
 
     db_session.commit()
 

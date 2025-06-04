@@ -1,19 +1,25 @@
 from sqlalchemy.orm import Query
+from sqlalchemy import func, Table, MetaData
+import sqlalchemy
+from quickannotator import constants
+from quickannotator.db.crud.image import get_image_by_id
+from quickannotator.db.fsmanager import fsmanager
 import quickannotator.db.models as db_models
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
-from quickannotator.db import Base, db_session
+from quickannotator.db import Base, db_session, engine, get_ogr_datasource
 from quickannotator.db.crud.misc import compute_custom_metrics
-from quickannotator.db.utils import build_annotation_table_name, create_dynamic_model
+from quickannotator.db.utils import get_query_as_sql
 
-
-import sqlalchemy
 from shapely.affinity import scale
 from shapely.geometry.base import BaseGeometry
-from sqlalchemy import func
-
-
 from datetime import datetime
 from typing import List
+import geojson
+import json
+import os
+import gzip
+from osgeo import ogr
+import tempfile
 
 
 def get_annotation_query(model, scale_factor: float=1.0) -> Query:
@@ -49,8 +55,32 @@ def get_annotation_query(model, scale_factor: float=1.0) -> Query:
     return query
 
 
+def anns_to_feature_collection(annotations: List[db_models.Annotation]) -> geojson.FeatureCollection:
+    """
+    Converts a list of annotations to a GeoJSON FeatureCollection.
+
+    Args:
+        annotations (List[models.Annotation]): A list of annotation objects.
+
+    Returns:
+        geojson.FeatureCollection: A GeoJSON FeatureCollection containing the annotations.
+    """
+    features = [
+        geojson.Feature(
+            id=annotation.id,
+            geometry=geojson.loads(annotation.polygon), # NOTE: potentially optimize using orjson.loads
+            properties={
+                'objectType': 'annotation'
+            }
+        )
+        for annotation in annotations
+    ]
+    
+    return geojson.FeatureCollection(features)
+
+
 class AnnotationStore:
-    def __init__(self, image_id: int, annotation_class_id: int, is_gt: bool, in_work_mag=True, create_table=False):
+    def __init__(self, image_id: int, annotation_class_id: int, is_gt: bool, in_work_mag=True):
         """
         Initializes the annotation helper with the given parameters.
 
@@ -60,7 +90,6 @@ class AnnotationStore:
             is_gt (bool): A flag indicating whether the annotation is ground truth.
             in_work_mag (bool, optional): If True, all input and output polygons are in working magnification. Defaults to True. 
                 If False, all input and output polygons are in base magnification.
-            create_table_if_non_existent (bool, optional): If True, creates the annotation table if it does not exist. Defaults to False.
 
         Attributes:
             image_id (int): The ID of the image.
@@ -75,11 +104,14 @@ class AnnotationStore:
         self.is_gt = is_gt
         self.scaling_factor = 1.0 if in_work_mag else base_to_work_scaling_factor(image_id, annotation_class_id)
 
-        if create_table:
-            model = self.create_annotation_table(image_id, annotation_class_id, is_gt)
-            self.model = model
+        table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt)
+        if table_exists(table_name):
+            self.model = create_dynamic_model(table_name)
         else:
-            self.model = create_dynamic_model(build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt))
+            self.model = self.create_annotation_table(image_id, annotation_class_id, is_gt)
+
+
+        self.query = get_annotation_query(self.model, 1/self.scaling_factor)
 
     # CREATE
     # TODO: consider adding optional parameter to allow tileids to be passed in.
@@ -119,25 +151,95 @@ class AnnotationStore:
 
         return result
 
-
     # READ
     def get_annotation_by_id(self, annotation_id: int) -> db_models.Annotation:
-        result = get_annotation_query(self.model, 1/self.scaling_factor).filter_by(id=annotation_id).first()
+        result = self.query.filter_by(id=annotation_id).first()
         return result
+
 
     def get_annotations_by_ids(self, annotation_ids: List[int]) -> List[db_models.Annotation]:
-        result = get_annotation_query(self.model, 1/self.scaling_factor).filter(self.model.id.in_(annotation_ids)).all()
+        result = self.query.filter(self.model.id.in_(annotation_ids)).all()
         return result
 
+
     def get_annotations_for_tiles(self, tile_ids: List[int]) -> List[db_models.Annotation]:
-        result = get_annotation_query(self.model, 1/self.scaling_factor).filter(self.model.tile_id.in_(tile_ids)).all()
+        result = self.query.filter(self.model.tile_id.in_(tile_ids)).all()
         return result
+    
+
+    def get_all_annotations(self) -> List[db_models.Annotation]:
+        result = self.query.all()
+        return result
+
+
 
     def get_annotations_within_poly(self, polygon: BaseGeometry) -> List[db_models.Annotation]:
         scaled_polygon = self.scale_polygon(polygon, self.scaling_factor)
         # NOTE: Sqlite may not use the spatial index here.
-        result = get_annotation_query(self.model, 1/self.scaling_factor).filter(func.ST_Intersects(self.model.polygon, func.ST_GeomFromText(scaled_polygon.wkt, 0))).all()
+        result = self.query.filter(func.ST_Intersects(self.model.polygon, func.ST_GeomFromText(scaled_polygon.wkt, 0))).all()
         return result
+    
+
+    def export_to_geojson_file(self, filepath: str = None, compress: bool = False) -> str:
+        """
+        Streams annotations to a GeoJSON file to handle large datasets efficiently.
+        Optionally compresses the output file as gzip.
+
+        Args:
+            filepath (str, optional): Output path. Temporary file is used if None.
+            compress (bool, optional): Whether to gzip the output. Note that Digital Slide Archive does not accept gzip geojson files.
+
+        Returns:
+            str: Path to the output GeoJSON(.gz) file.
+        """
+        suffix = ".geojson.gz" if compress else ".geojson"
+        if filepath is None:
+            tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+            filepath = tmpfile.name
+            tmpfile.close()
+        else:
+            os.makedirs(os.path.dirname(filepath), exist_ok=True)
+            
+        with get_ogr_datasource() as src_ds:
+            layer: ogr.Layer = src_ds.ExecuteSQL(get_query_as_sql(self.query))
+            field_name = "polygon"
+            open_func = gzip.open if compress else open
+            mode = 'wt'  # text mode with UTF-8 encoding
+            with open_func(filepath, mode, encoding='utf-8') as f:
+                f.write('{"type": "FeatureCollection", "features": [\n')
+                first = True
+
+                for feature in layer:
+                    # geom = feature.GetGeomFieldRef(field_name)    # NOTE: Only useful if we want to use ExportToJson() instead of GetField()
+                    geojson_feature = {
+                        "type": "Feature",
+                        "geometry": json.loads(feature.GetField(field_name)),    # NOTE: Could alternatively use geom.ExportToJson(), but this would require a modified query without AS_GeoJSON(). NOTE: potentially optimize using orjson.loads
+                        "properties": feature.items()
+                    }
+
+                    if not first:
+                        f.write(',\n')
+                    else:
+                        first = False
+
+                    json.dump(geojson_feature, f)
+
+                f.write('\n]}')
+
+            print(f"GeoJSON written to: {filepath}")
+            return filepath
+
+    def get_all_annotations_as_feature_collection(self) -> bytes:
+        """
+        Returns all annotations as a byte string.
+
+        Returns:
+            bytes: The byte string representation of the annotations.
+        """
+        annotations = self.get_all_annotations()
+        feature_collection = anns_to_feature_collection(annotations)
+        return feature_collection
+
 
     # UPDATE
     def update_annotation(self, annotation_id: int, polygon: BaseGeometry) -> db_models.Annotation:
@@ -160,7 +262,6 @@ class AnnotationStore:
 
         return None  # Handle case where annotation_id is not found
 
-
     # DELETE
     def delete_annotation(self, annotation_id: int) -> int:
         """
@@ -176,6 +277,7 @@ class AnnotationStore:
         db_session.commit()
         return result
 
+
     def delete_annotations(self, annotation_ids: List[int]) -> List[int]:
         """
         Deletes multiple annotations by their IDs.
@@ -189,6 +291,7 @@ class AnnotationStore:
         result = db_session.execute(stmt).scalars().all()
         db_session.commit()
         return result
+
 
     def delete_annotations_by_tile(self, tile_id: int) -> List[int]:
         """
@@ -204,9 +307,40 @@ class AnnotationStore:
         db_session.commit()
         return result
 
+
     def delete_all_annotations(self):
         db_session.query(self.model).delete()
 
+    def drop_table(self):
+        """
+        Drops the annotation table.
+        Returns:
+            bool: True if the table was successfully dropped, False otherwise.
+        """
+        try:
+            self.model.__table__.drop(db_session.bind, checkfirst=True)
+        except Exception as e:
+            raise e
+
+    # MISC
+    def get_annotation_table_name(self) -> str:
+        """
+        Returns the name of the annotation table.
+        """
+        return build_annotation_table_name(self.image_id, self.annotation_class_id, is_gt=self.is_gt)
+    
+
+    def drop_table(self):
+        """
+        Drops the annotation table.
+        Returns:
+            bool: True if the table was successfully dropped, False otherwise.
+        """
+        try:
+            self.model.__table__.drop(db_session.bind, checkfirst=True)
+        except Exception as e:
+            raise e
+        
 
     @staticmethod
     def create_annotation_table(image_id: int, annotation_class_id: int, is_gt: bool):
@@ -216,8 +350,45 @@ class AnnotationStore:
 
         return create_dynamic_model(table_name)
 
-
-
     @staticmethod
     def scale_polygon(polygon: BaseGeometry, scaling_factor: float) -> BaseGeometry:   # Added for safety - I've forgotten the origin param several times.
         return scale(polygon, xfact=scaling_factor, yfact=scaling_factor, origin=(0, 0))
+    
+
+def build_annotation_table_name(image_id: int, annotation_class_id: int, is_gt: bool):
+    gtpred = 'gt' if is_gt else 'pred'
+    table_name = f"annotation_{image_id}_{annotation_class_id}_{gtpred}"
+    return table_name
+
+
+def create_dynamic_model(table_name, base=Base):
+    class DynamicAnnotation(base):
+        __tablename__ = table_name
+        __table__ = Table(table_name, base.metadata, autoload_with=engine)
+
+    return DynamicAnnotation
+
+def table_exists(table_name: str) -> bool:
+    """
+    Check if a table exists in the database.
+    Args:
+        table_name (str): The name of the table to check.
+    Returns:
+        bool: True if the table exists, False otherwise.
+    """
+    metadata = MetaData()
+    metadata.reflect(bind=engine)
+    return table_name in metadata.tables
+
+
+def build_export_filepath(image_id: int, annotation_class_id: int, is_gt: bool, extension: constants.ExportFormatExtensions, relative: bool, timestamp: datetime = None) -> str:
+    timestamp = datetime.now() if timestamp is None else timestamp
+
+    project_id = get_image_by_id(image_id).project_id
+    save_path = fsmanager.nas_write.get_project_image_path(project_id, image_id, relative)
+
+    table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
+    filename = f"{table_name}_{timestamp.strftime('%Y%m%d_%H%M%S')}.{extension.value}.gz"
+
+    filepath = os.path.join(save_path, filename)
+    return filepath

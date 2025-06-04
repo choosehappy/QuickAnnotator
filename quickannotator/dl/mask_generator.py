@@ -5,7 +5,7 @@ import cv2
 from sqlalchemy import Table
 from sqlalchemy.orm import sessionmaker
 from .database import db
-from quickannotator.db.utils import build_annotation_table_name
+from quickannotator.db.crud.annotation import build_annotation_table_name
 ##TODO: there seems to be no reference to this. commenting out for now - if not used, delete this
 # import shapely.wkb
 # import numpy as np
