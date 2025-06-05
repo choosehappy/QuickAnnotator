@@ -63,6 +63,6 @@ def insert_tissue_mask_class():
             project_id=None, 
             name=constants.MASK_CLASS_NAME, 
             color=constants.ANNOTATION_CLASS_COLOR_PALETTES[constants.COLOR_PALETTE_NAME][constants.MASK_CLASS_COLOR_IDX], 
-            work_mag=constants.MASK_CLASS_WORK_TILESIZE, 
-            work_tilesize=constants.MASK_CLASS_WORK_MAG
+            work_mag=constants.MASK_CLASS_WORK_MAG, 
+            work_tilesize=constants.MASK_CLASS_WORK_TILESIZE
         )
