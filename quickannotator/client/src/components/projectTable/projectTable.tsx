@@ -133,12 +133,14 @@ export default class ProjectTable extends React.PureComponent {
     render() {
         return !this.state.gridOptions ? '' : (
             <>
-                <SlickgridReact ref={this.gridRef} gridId={this.props.containerId + '-grid'}
-                    columnDefinitions={this.state.columnDefinitions}
-                    gridOptions={this.state.gridOptions}
-                    dataset={this.state.dataset}
-                    onReactGridCreated={$event => this.reactGridReady($event.detail)}
-                />
+                <div style={{ borderRadius: '8px', overflow: 'hidden' }}>
+                    <SlickgridReact ref={this.gridRef} gridId={this.props.containerId + '-grid'}
+                        columnDefinitions={this.state.columnDefinitions}
+                        gridOptions={this.state.gridOptions}
+                        dataset={this.state.dataset}
+                        onReactGridCreated={$event => this.reactGridReady($event.detail)}
+                    />
+                </div>
             </>
         );
     }

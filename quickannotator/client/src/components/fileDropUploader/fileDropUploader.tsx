@@ -156,7 +156,7 @@ const FileDropUploader = (props: any) => {
 
         <Dropzone accept={UPLOAD_ACCEPTED_FILES} onDrop={handleDrop} multiple>
             {({ getRootProps, getInputProps }) => (
-                <section style={{ width: '50%' }} {...getRootProps({ className: 'document-uploader upload-info upload-box' })}>
+                <section style={{ width: '30%' }} {...getRootProps({ className: 'document-uploader upload-info upload-box' })}>
                     <div className="upload-box">
 
                         <CloudArrowUp />

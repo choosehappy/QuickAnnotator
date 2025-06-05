@@ -93,13 +93,11 @@ export default class ImageTable extends React.PureComponent {
 
         const gridOptions: GridOption = {
             enableAutoResize: true,
-            autoHeight: true,
             rowHeight: 64,
-            resizeSensitivity: true,
             forceFitColumns: true,
             autoResize: {
                 container: `#${this.props.containerId}`,
-                // maxHeight: 200,
+                maxHeight: undefined,
                 // minWidth: 10
             },
 
@@ -154,12 +152,14 @@ export default class ImageTable extends React.PureComponent {
                         </Button>
                     </Modal.Footer>
                 </Modal>
-                <SlickgridReact ref={this.gridRef} gridId={this.props.containerId + '-grid'}
-                    columnDefinitions={this.state.columnDefinitions}
-                    gridOptions={this.state.gridOptions}
-                    dataset={this.state.dataset}
-                    onReactGridCreated={$event => this.reactGridReady($event.detail)}
-                />
+                <div style={{ borderRadius: '8px', overflow: 'hidden' }}>
+                    <SlickgridReact ref={this.gridRef} gridId={this.props.containerId + '-grid'}
+                        columnDefinitions={this.state.columnDefinitions}
+                        gridOptions={this.state.gridOptions}
+                        dataset={this.state.dataset}
+                        onReactGridCreated={$event => this.reactGridReady($event.detail)}
+                    />
+                </div>
             </>
         );
     }

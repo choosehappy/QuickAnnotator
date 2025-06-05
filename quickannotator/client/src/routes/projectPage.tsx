@@ -96,12 +96,13 @@ const ProjectPage = () => {
                 <Row className="d-flex flex-grow-1">
                     <Col className={"d-flex flex-grow-1"} xs={(!embeddingShow && !settingShow) ? "12" : "6"}>
                         <Card className="flex-grow-1">
-                            <Card.Body id='img_table'>
+                            <Card.Header className='d-flex justify-content-center'>
+                                <FileDropUploader project_id={projectid} reloadHandler={reloadImages} />
+                            </Card.Header>
+                            <Card.Body id='img_table' className="p-0">
                                 <ImageTable containerId='img_table' project={currentProject} images={images} changed={(!embeddingShow && !settingShow)} deleteHandler={deleteImageHandle} />
                             </Card.Body>
-                            <Card.Footer className='d-flex justify-content-center'>
-                                <FileDropUploader project_id={projectid} reloadHandler={reloadImages} />
-                            </Card.Footer>
+
                         </Card>
                     </Col>
 
