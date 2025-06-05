@@ -68,7 +68,7 @@ export default class ImageTable extends React.PureComponent {
     defineGrid() {
         const thumbnailFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
 
-            return `<a target="_blank" href="..${getAnnotationPageURL(this.props.project.id,value)}"><img src='..${getImageThumbnailURL(value)}' height='64'></img></a>`
+            return `<a href="..${getAnnotationPageURL(this.props.project.id,value)}"><img src='..${getImageThumbnailURL(value)}' height='64'></img></a>`
         }
         const actionFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
             console.log(dataContext)

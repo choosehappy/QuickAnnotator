@@ -13,13 +13,14 @@ import ExportAnnotationsModal from '../components/exportAnnotationsModal/exportA
 
 const ProjectPage = () => {
     const { projectid } = useParams();
-    const { currentProject, setCurrentProject } = useOutletContext<OutletContextType>();
+    const { currentProject, setCurrentProject, currentImage, setCurrentImage } = useOutletContext<OutletContextType>();
     const [images, setImages] = useState<Image[]>([])
     const [settingShow, setSettingShow] = useState<boolean>(false)
     const [embeddingShow, setEmbeddingShow] = useState<boolean>(false)
     const [exportAnnotationsShow, setExportAnnotationsShow] = useState<boolean>(false)
 
     useEffect(() => {
+        setCurrentImage(null);
         if (projectid) {
             fetchProject(parseInt(projectid)).then((resp) => {
                 if (resp.status === 200) {
