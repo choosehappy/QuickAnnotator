@@ -2,10 +2,11 @@ import ujson
 from tqdm import tqdm
 from quickannotator.db import db_session
 from shapely.geometry import shape
+from quickannotator.db.crud.image import get_image_by_id
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 from quickannotator.constants import IMPORT_ANNOTATION_BATCH_SIZE
 from quickannotator.db.crud.annotation import AnnotationStore
-from quickannotator.db.crud.annotation_class import get_all_annotation_class
+from quickannotator.db.crud.annotation_class import get_all_annotation_classes_for_project
 def import_geojson_annotation_file(image_id: int, annotation_class_id: int, isgt: bool, filepath: str):
     '''
     This is expected to be a geojson feature collection file, with each polygon being a feature.
@@ -39,11 +40,11 @@ def import_geojson_annotation_file(image_id: int, annotation_class_id: int, isgt
         tile_store.upsert_gt_tiles(image_id=image_id, annotation_class_id=annotation_class_id, tile_ids=tile_ids)
         db_session.commit()
 
-def delete_annotation_tables_by_image_id(image_id: int):
+def drop_annotation_tables_by_image_id(image_id: int):
     # get all annotation class ids
-    all_class = get_all_annotation_class()
-    all_annotation_tables = []
-    for anno_class in all_class:
+    image = get_image_by_id(image_id)
+    annotation_classes = get_all_annotation_classes_for_project(image.project_id)
+    for anno_class in annotation_classes:
         try: 
             gt_store = AnnotationStore(image_id.id, anno_class.id, is_gt=True)
         except Exception as e:

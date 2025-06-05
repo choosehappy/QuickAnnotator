@@ -11,7 +11,7 @@ from flask_smorest import Blueprint
 from datetime import datetime
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.image import get_images_by_project_id
-from quickannotator.api.v1.image.utils import delete_annotation_tables_by_image_id
+from quickannotator.api.v1.image.utils import drop_annotation_tables_by_image_id
 import sqlalchemy
 bp = Blueprint('project', __name__, description='Project operations')
 
@@ -71,7 +71,7 @@ class Project(MethodView):
         images = get_images_by_project_id(project_id)
         # delete all annotation tables
         for img in images:
-            delete_annotation_tables_by_image_id(image_id=img.id)
+            drop_annotation_tables_by_image_id(image_id=img.id)
         
         # delete images
         db_session.query(db_models.Image).filter(db_models.Image.project_id == project_id).delete()

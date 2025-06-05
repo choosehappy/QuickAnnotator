@@ -8,8 +8,8 @@ def get_annotation_class_by_id(annotation_class_id: int) -> db_models.Annotation
     return db_session.query(db_models.AnnotationClass).get(annotation_class_id)
 
 
-def get_all_annotation_class() ->List[db_models.AnnotationClass]:
-    return db_session.query(db_models.AnnotationClass).all()
+def get_all_annotation_classes_for_project(project_id: int) -> List[db_models.AnnotationClass]:
+    return db_session.query(db_models.AnnotationClass).filter(db_models.AnnotationClass.project_id == project_id).all()
     
 def build_actor_name(annotation_class_id):
     return f"dl_actor_class_{annotation_class_id}"

@@ -80,7 +80,7 @@ def anns_to_feature_collection(annotations: List[db_models.Annotation]) -> geojs
 
 
 class AnnotationStore:
-    def __init__(self, image_id: int, annotation_class_id: int, is_gt: bool, in_work_mag=True):
+    def __init__(self, image_id: int, annotation_class_id: int, is_gt: bool, in_work_mag=True, require_table_exists=False):
         """
         Initializes the annotation helper with the given parameters.
 
@@ -107,6 +107,8 @@ class AnnotationStore:
         table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt)
         model = create_dynamic_model(table_name)
         if model is None:
+            if require_table_exists:
+                raise ValueError(f"Annotation table '{table_name}' does not exist. Please create it first.")
             self.model = self.create_annotation_table(image_id, annotation_class_id, is_gt)
         else:
             self.model = model
