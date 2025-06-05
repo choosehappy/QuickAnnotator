@@ -35,13 +35,15 @@ MASK_DILATION = 1
 BASE_PATH = '/opt/QuickAnnotator'
 MOUNTS_PATH = os.path.join(BASE_PATH, 'quickannotator/mounts')
 
-MASK_CLASS_ID = 1
 
 TILE_PRED_EXPIRE = 1 # minutes
 
 MAX_ACTORS_PROCESSING = 1   # TODO: app setting
 
 FLASK_DATETIME_FORMAT = 'iso'
+
+
+COLOR_PALETTE_NAME = 'default'  # TODO: project setting
 
 ANNOTATION_CLASS_COLOR_PALETTES = {
     # https://informatics-isi-edu.github.io/atlas-d2k-docs/docs/color-palette-for-image-annotation/
@@ -56,6 +58,12 @@ ANNOTATION_CLASS_COLOR_PALETTES = {
     ]
 }
 
+MASK_CLASS_ID = 1
+MASK_CLASS_NAME = "Tissue Mask"
+MASK_CLASS_COLOR_IDX = 0
+MASK_CLASS_WORK_MAG = 1.25
+MASK_CLASS_WORK_TILESIZE = 2048
+
 # TODO: move to project settings
 MAGNIFICATION_OPTIONS = [1.25, 2.5, 5.0, 10.0, 20.0, 40.0]  
 
@@ -68,3 +76,8 @@ IMPORT_ANNOTATION_BATCH_SIZE= 1000
 class AnnotationFileFormats(enum.Enum):
     JSON = 'json'
     GEOJSON = 'geojson'
+
+
+class Dialects(enum.Enum):
+    SQLITE = "sqlite"
+    POSTGRESQL = "postgresql"

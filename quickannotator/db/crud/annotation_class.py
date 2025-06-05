@@ -2,6 +2,7 @@ import quickannotator.db.models as db_models
 from quickannotator.db import db_session
 import sqlalchemy
 from typing import List
+import quickannotator.constants as constants
 
 def get_annotation_class_by_id(annotation_class_id: int) -> db_models.AnnotationClass:
     return db_session.query(db_models.AnnotationClass).get(annotation_class_id)
@@ -54,3 +55,14 @@ def search_annotation_class_by_project_id(project_id: int):
         (db_models.AnnotationClass.project_id == project_id) | 
         (db_models.AnnotationClass.project_id == None)
     ).all()
+
+
+def insert_tissue_mask_class():
+    if not get_annotation_class_by_id(constants.MASK_CLASS_ID):
+        insert_annotation_class(
+            project_id=None, 
+            name=constants.MASK_CLASS_NAME, 
+            color=constants.ANNOTATION_CLASS_COLOR_PALETTES[constants.COLOR_PALETTE_NAME][constants.MASK_CLASS_COLOR_IDX], 
+            work_mag=constants.MASK_CLASS_WORK_TILESIZE, 
+            work_tilesize=constants.MASK_CLASS_WORK_MAG
+        )
