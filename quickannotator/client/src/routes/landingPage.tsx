@@ -121,6 +121,7 @@ const LandingPage = () => {
                 </Row>
                 <Row className="d-flex flex-grow-1">
                     <Col className="d-flex flex-grow-1"><Card className="flex-grow-1">
+                        <Card.Header><Card.Title>Project List</Card.Title></Card.Header>
                         <Card.Body id="project_table" className='p-0'>
                             <ProjectTable containerId='project_table' projects={projects} deleteHandle={showDeleteModalHandle} editHandle={showConfigModalHandle} />
                         </Card.Body>
