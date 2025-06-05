@@ -164,8 +164,9 @@ export const removeAnnotation = async (image_id: number, annotation_class_id: nu
 }
 
 // Fetch annotation classes
-export const fetchAnnotationClasses = async () => {
-    return await get<AnnotationClass[]>('/class/search');
+export const searchAnnotationClasses = async (project_id?: number) => {
+    const query = project_id ? new URLSearchParams({ project_id: project_id.toString() }) : new URLSearchParams();
+    return await get<AnnotationClass[]>(`/class/search?${query}`);
 }
 
 // Fetch annotation class by ID
