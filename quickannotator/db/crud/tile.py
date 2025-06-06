@@ -3,7 +3,7 @@ from shapely.affinity import scale
 from shapely.geometry import Polygon, shape
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-from sqlalchemy import case, update
+from sqlalchemy import case, update, select
 from quickannotator.db.crud.annotation import create_dynamic_model
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
 from quickannotator.constants import MASK_CLASS_ID, MASK_DILATION, TileStatus
@@ -19,7 +19,7 @@ import geojson
 import cv2
 
 from typing import List
-from abc import ABC
+from abc import ABC, abstractmethod
 
 from quickannotator.db.crud.annotation import build_annotation_table_name
 
@@ -274,22 +274,96 @@ class TileStore(ABC):   # Only an ABC to prevent instantiation
         )
         db_session.execute(stmt)
         db_session.commit()
+
+    @staticmethod
+    @abstractmethod
+    def get_pending_inference_tiles(annotation_class_id: int, batch_size_infer: int, dialect: Dialects) -> list[db_models.Tile]:
+        subquery = (
+            select(db_models.Tile.id)
+            .where(db_models.Tile.annotation_class_id == annotation_class_id,
+                db_models.Tile.pred_status == TileStatus.STARTPROCESSING)
+            .order_by(db_models.Tile.pred_datetime.desc()) # Order by pred_datetime to get the most recent tiles first
+            .limit(batch_size_infer)
+        )
+
+        if dialect == Dialects.POSTGRESQL:
+            subquery = subquery.with_for_update(skip_locked=True)
+
+        tiles = db_session.execute(
+            update(db_models.Tile)
+            .where(db_models.Tile.id.in_(subquery))
+            .where(db_models.Tile.pred_status == TileStatus.STARTPROCESSING)  # Ensures another worker hasn't claimed it
+            .values(pred_status=TileStatus.PROCESSING,pred_datetime=datetime.now())
+            .returning(db_models.Tile)
+        ).scalars().all()
+        
+        db_session.expunge_all()
+
+
+        return tiles if tiles else None
     
+    @staticmethod
+    @abstractmethod
+    def get_workers_tiles(annotation_class_id: int, boost_count: int, dialect: Dialects) -> db_models.Tile:
+        subquery = (
+            select(db_models.Tile.id)
+            .where(db_models.Tile.annotation_class_id == annotation_class_id,
+                db_models.Tile.gt_datetime.isnot(None))
+            .order_by(db_models.Tile.gt_counter.asc(), db_models.Tile.gt_datetime.asc())  # Prioritize under-used, then newest
+            .limit(1)
+        )
+
+        if dialect == Dialects.POSTGRESQL:
+            subquery = subquery.with_for_update(skip_locked=True)
+            
+
+        tile = db_session.execute(
+            update(db_models.Tile)
+            .where(db_models.Tile.id == subquery.scalar_subquery())
+            .values(gt_counter=(
+                    # Only increment selection_count if it's less than max_selections
+                    case(
+                        (db_models.Tile.gt_counter < boost_count, db_models.Tile.gt_counter + 1),
+                        else_=db_models.Tile.gt_counter
+                    )
+                ),
+                gt_datetime=datetime.now())
+            .returning(db_models.Tile)
+        ).scalar()
+        db_session.expunge(tile)
+    
+        #print(f"tile retval {tile}")
+        return tile if tile else None
 
 
 class PostgresTileStore(TileStore):
     def __init__(self):
         super().__init__(insert_method=pg_insert)
 
+    @staticmethod
+    def get_pending_inference_tiles(annotation_class_id, batch_size_infer):
+        return super().get_pending_inference_tiles(annotation_class_id, batch_size_infer, Dialects.POSTGRESQL)
+
+    @staticmethod
+    def get_workers_tiles(annotation_class_id, boost_count):
+        return super().get_workers_tiles(annotation_class_id, boost_count, Dialects.POSTGRESQL)
         
 class SQLiteTileStore(TileStore):
     def __init__(self):
         super().__init__(insert_method=sqlite_insert)
 
+    @staticmethod
+    def get_pending_inference_tiles(annotation_class_id, batch_size_infer):
+        return super().get_pending_inference_tiles(annotation_class_id, batch_size_infer, Dialects.SQLITE)
+    
+    @staticmethod
+    def get_workers_tiles(annotation_class_id, boost_count):
+        return super().get_workers_tiles(annotation_class_id, boost_count, Dialects.SQLITE)
+
 
 class TileStoreFactory():
     @staticmethod
-    def get_tilestore() -> TileStore:
+    def get_tilestore() -> PostgresTileStore | SQLiteTileStore:
         dialect_name = db_session.bind.dialect.name
 
         if dialect_name == Dialects.POSTGRESQL.value:

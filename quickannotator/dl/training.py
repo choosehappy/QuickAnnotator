@@ -8,7 +8,8 @@ import ray
 
 from torchsummary import summary
 import datetime
-from quickannotator.dl.inference import run_inference, getPendingInferenceTiles
+from quickannotator.dl.inference import run_inference
+from quickannotator.db.crud.tile import TileStoreFactory
 from quickannotator.db.crud.annotation_class import build_actor_name
 from .dataset import TileDataset
 import io
@@ -134,7 +135,8 @@ def train_pred_loop(config):
     myactor = ray.get_actor(actor_name)
     #print ("post actor get")
     while ray.get(myactor.getProcRunningSince.remote()):    # procRunningSince will be None if the DL processing is to be stopped.
-        while tiles := getPendingInferenceTiles(annotation_class_id,batch_size_infer): 
+        tilestore = TileStoreFactory.get_tilestore()
+        while tiles := tilestore.get_pending_inference_tiles(annotation_class_id, batch_size_infer):
             #print (f"running inference on {len(tiles)}")
             run_inference(device, model, tiles)
             

@@ -13,17 +13,17 @@ import ray.train.torch
 import ray.train
 from torch.nn import CrossEntropyLoss, MSELoss
 from torch.optim import Adam
-from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
+from quickannotator.db.crud.annotation_class import get_annotation_class_by_id, build_actor_name
+from quickannotator.db.crud.tile import TileStoreFactory
 import quickannotator.constants as constants
 from quickannotator.db import get_session
-from quickannotator.db.crud.annotation_class import build_actor_name
 from quickannotator.db.models import Tile
 import sqlalchemy
 from quickannotator.dl.training import train_pred_loop
 from datetime import datetime
 
 
-@ray.remote
+@ray.remote(max_concurrency=2)
 class DLActor:
     def __init__(self, annotation_class_id: int, tile_size: int, magnification: float):
         print(f"{annotation_class_id=}")
@@ -70,7 +70,7 @@ class DLActor:
         self.hexid = trainer.fit().hex() ##widly -- this doesn't save the result in the actor
         return self.hexid
     
-    def infer(self,image_id,tileids): #only bulk should be performed, there is no difference between doing 1 versus 100 tiles, so this reduces code complexity
+    def infer(self, image_id: int, tileids: list[int]): #only bulk should be performed, there is no difference between doing 1 versus 100 tiles, so this reduces code complexity
                                       #NOTE: there is another option here - that we accept ids from the tile table directly instead of having to accept both image_id and tile_id
         if not self.allow_pred:
             print("not doing inference --- actor was started with prediction disabled")
@@ -79,12 +79,12 @@ class DLActor:
         # i would do that in a seperate function as "infer" doesn't logically mean "delete", so the expected behavior might be weird if it delets stuff unprompted
         # perhaps that could be clarified with a e.g., named function paramter - or perhaps a seperate function is really needed
         with get_session() as db_session:
-            stmt = sqlalchemy.update(Tile).where(Tile.tile_id.in_(tileids), Tile.image_id == image_id,
-                                                Tile.annotation_class_id == self.annotation_class_id)\
-                                                    .values(pred_status=constants.TileStatus.STARTPROCESSING,pred_datetime=datetime.now()) ## should add date time
-
-            # Execute the update
-            db_session.execute(stmt)
+            tilestore = TileStoreFactory.get_tilestore()
+            tilestore.upsert_pred_tiles(image_id=image_id,
+                                        annotation_class_id=self.annotation_class_id,
+                                        tile_ids=tileids,
+                                        pred_status=constants.TileStatus.PROCESSING,
+                                        process_owns_tile=True)
 
         #need a similar statement to get the DL starting
         return True
@@ -156,7 +156,7 @@ def start_processing(annotation_class_id: int):
     
 
     # 4. Start the new actor
-    current_actor = DLActor.options(name=actor_name, get_if_exists=True, max_concurrency=2).remote(annotation_class_id,
+    current_actor = DLActor.options(name=actor_name, get_if_exists=True).remote(annotation_class_id,
                                     annotation_class.work_tilesize,
                                     annotation_class.work_mag)
 
