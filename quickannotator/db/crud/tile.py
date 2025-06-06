@@ -330,11 +330,12 @@ class TileStore(ABC):   # Only an ABC to prevent instantiation
                 gt_datetime=datetime.now())
             .returning(db_models.Tile)
         ).scalar()
-        db_session.expunge(tile)
-    
-        #print(f"tile retval {tile}")
-        return tile if tile else None
 
+        if tile:
+            db_session.expunge(tile)
+            return tile
+        else:
+            return
 
 class PostgresTileStore(TileStore):
     def __init__(self):
@@ -342,11 +343,11 @@ class PostgresTileStore(TileStore):
 
     @staticmethod
     def get_pending_inference_tiles(annotation_class_id, batch_size_infer):
-        return super().get_pending_inference_tiles(annotation_class_id, batch_size_infer, Dialects.POSTGRESQL)
+        return TileStore.get_pending_inference_tiles(annotation_class_id, batch_size_infer, Dialects.POSTGRESQL)
 
     @staticmethod
     def get_workers_tiles(annotation_class_id, boost_count):
-        return super().get_workers_tiles(annotation_class_id, boost_count, Dialects.POSTGRESQL)
+        return TileStore.get_workers_tiles(annotation_class_id, boost_count, Dialects.POSTGRESQL)
         
 class SQLiteTileStore(TileStore):
     def __init__(self):
@@ -354,11 +355,11 @@ class SQLiteTileStore(TileStore):
 
     @staticmethod
     def get_pending_inference_tiles(annotation_class_id, batch_size_infer):
-        return super().get_pending_inference_tiles(annotation_class_id, batch_size_infer, Dialects.SQLITE)
+        return TileStore.get_pending_inference_tiles(annotation_class_id, batch_size_infer, Dialects.SQLITE)
     
     @staticmethod
     def get_workers_tiles(annotation_class_id, boost_count):
-        return super().get_workers_tiles(annotation_class_id, boost_count, Dialects.SQLITE)
+        return TileStore.get_workers_tiles(annotation_class_id, boost_count, Dialects.SQLITE)
 
 
 class TileStoreFactory():

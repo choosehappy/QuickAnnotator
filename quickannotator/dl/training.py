@@ -17,6 +17,9 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import cv2
 from safetensors.torch import save_file
+from quickannotator.db.fsmanager import fsmanager
+import quickannotator.constants as constants
+import os
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -85,6 +88,12 @@ def train_pred_loop(config):
     edge_weight=1_000
     num_workers=0 #TODO:set to num of CPUs? or...# of CPUs/ divided by # of classes or something...challenge - one started can't change. maybe set to min(batch_size train, ??) 
     
+    # Set device
+    if torch.cuda.is_available():
+        localrank=ray.train.get_context().get_local_rank()
+        device=torch.device('cuda',localrank)
+    else:
+        device= "cpu"
 
     dataset=TileDataset(annotation_class_id,
                         edge_weight=edge_weight, transforms=get_transforms(tile_size), 
@@ -95,6 +104,17 @@ def train_pred_loop(config):
     #model = smp.Unet(encoder_name="timm-mobilenetv3_small_100", encoder_weights="imagenet", in_channels=3, classes=1) #TODO: this should all be a setting
     model = smp.Unet(encoder_name="efficientnet-b0", encoder_weights="imagenet", 
                  decoder_channels=(64, 64, 64, 32, 16), in_channels=3, classes=1, encoder_freeze=True )
+    
+    # Load the model weights
+
+    checkpoint_path = get_checkpoint_filepath(annotation_class_id)
+    if os.path.exists(checkpoint_path):
+        print(f"Loading model from {checkpoint_path}")
+        model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+    else:
+        print(f"No checkpoint found at {checkpoint_path}, starting from scratch.")
+
+
     criterion = nn.BCEWithLogitsLoss(reduction='none', ).cuda()
     optimizer = optim.NAdam(model.parameters(), lr=0.001, weight_decay=1e-2) #TODO: this should be a setting
     
@@ -111,11 +131,7 @@ def train_pred_loop(config):
             print(f"{name} is frozen")
     #-----
 
-    if torch.cuda.is_available():
-        localrank=ray.train.get_context().get_local_rank()
-        device=torch.device('cuda',localrank)
-    else:
-        device= "cpu"
+
     
     #model = model.half() #TODO: test with .half()
     model=ray.train.torch.prepare_model(model,device)
@@ -124,11 +140,7 @@ def train_pred_loop(config):
 
     running_loss = []
     
-    writer = SummaryWriter(log_dir=f"/tmp/{annotation_class_id}/{datetime.datetime.now().strftime('%b%d_%H-%M-%S')}")
-
-    
-
-
+    writer = SummaryWriter(log_dir=get_log_filepath(annotation_class_id))
     last_save = 0
     niter_total = 0 
     #print ("pre actor get")
@@ -193,8 +205,26 @@ def train_pred_loop(config):
                                  #but as well give the user in the front end a dropdown which enables them to select which model checkpoint they want to use? we had somethng similar in QAv1
                                  #that said, this is likely a more advanced features and not very "apple like" since it would require explaining to the user when/why/how they should use the different models
                                  #maybe suggest avoiduing for now --- lets just save the last one
-                save_file(model.state_dict(), f"/tmp/model.safetensors") #TODO: needs to go somewhere reasonable maybe /projid/models/classid/ ? or something
+
+                save_file(model.state_dict(), get_checkpoint_filepath(annotation_class_id))
                 last_save = 0
 
             
     #print ("Exiting training!")
+
+
+def get_checkpoint_filepath(annotation_class_id: int):
+    """
+    Returns the path to the model checkpoint for the given annotation class ID.
+    """
+    savepath = fsmanager.nas_write.get_class_checkpoint_path(annotation_class_id)
+    return os.path.join(savepath, constants.CHECKPOINT_FILENAME)
+
+
+def get_log_filepath(annotation_class_id: int):
+    """
+    Returns the path to the log file for the given annotation class ID.
+    """
+    savepath = fsmanager.nas_write.get_logs_path(annotation_class_id)
+    filename = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
+    return os.path.join(savepath, filename + ".log")

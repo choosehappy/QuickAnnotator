@@ -38,9 +38,10 @@ class DLActor:
 
     def start_dlproc(self,allow_pred=True):
         #--------- this is a bit of a disaster - need to basically make sure we're not launching multple
-        #TODO: check if hexid is alive and valid -- can't start two trainings!
-        # if is_training(self.hexid):
-        #     return False
+        if self.getProcRunningSince() is not None:
+            print("already running, not starting again")
+            return
+        
         #need to check if is already training, if yes, no opt
         print("starting up", build_actor_name(annotation_class_id=self.annotation_class_id))
         #---------------------------

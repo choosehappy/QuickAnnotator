@@ -81,3 +81,5 @@ class AnnotationFileFormats(enum.Enum):
 class Dialects(enum.Enum):
     SQLITE = "sqlite"
     POSTGRESQL = "postgresql"
+
+CHECKPOINT_FILENAME = "model.safetensors"
