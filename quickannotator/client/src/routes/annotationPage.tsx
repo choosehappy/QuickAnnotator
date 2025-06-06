@@ -105,7 +105,7 @@ const AnnotationPage = () => {
 
         searchAnnotationClasses(Number(projectid)).then((resp) => {
             setAnnotationClasses(resp.data);
-            setCurrentAnnotationClass(resp.data[DEFAULT_CLASS_ID - 1]);
+            setCurrentAnnotationClass(resp.data.find((c) => c.id === DEFAULT_CLASS_ID) || null); // Set the current annotation class to the default one
         });
         
     }, [])
