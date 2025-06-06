@@ -225,7 +225,7 @@ const ViewportMap = (props: Props) => {
                 const annotation = new Annotation(resp.data[0], currentAnnotationClass.id);
                 const tile_id = annotation.tile_id;
                 const layer = geojs_map.current.layers()[LAYER_KEYS.GT];
-                if (!tile_id) {
+                if (tile_id === null) {
                     console.log("Tile ID not found.")
                     return;
                 }
