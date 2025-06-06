@@ -98,19 +98,19 @@ const ProjectPage = () => {
                         <Card className="flex-grow-1">
                             <Card.Header className='d-flex justify-content-between'>
                                 <ListGroup variant="flush" className="w-100">
-                                    <ListGroup.Item className="p-0 border-0 mb-3">
+                                    <ListGroup.Item className="p-0 border-0 mb-3 bg-transparent">
                                         <Card.Title className='m-0 align-self-start'>Name</Card.Title>
                                         <Card.Text className='m-0 align-self-start'>
                                             {currentProject?.name}
                                         </Card.Text>
                                     </ListGroup.Item>
-                                    <ListGroup.Item className="p-0 border-0 mb-3">
+                                    <ListGroup.Item className="p-0 border-0 mb-3 bg-transparent">
                                         <Card.Title className='m-0 align-self-start'>Description</Card.Title>
                                         <Card.Text className='m-0 align-self-start'>
                                             {currentProject?.description}
                                         </Card.Text>
                                     </ListGroup.Item>
-                                    <ListGroup.Item className="p-0 border-0">
+                                    <ListGroup.Item className="p-0 border-0 bg-transparent">
                                         <Card.Title>Images</Card.Title>
                                     </ListGroup.Item>
                                 </ListGroup>
