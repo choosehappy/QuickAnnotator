@@ -39,7 +39,7 @@ const ClassesPane = (props: Props) => {
                                     <span>{c.name}</span>
                                     <div>
                                         {c.id !== MASK_CLASS_ID && c.id === props.currentAnnotationClass?.id && (
-                                            <Button 
+                                            <Button // NOTE: there may be an issue with having a button inside a ListGroup.Item that is also clickable, but it works for now.
                                                 variant="outline-danger" 
                                                 size="sm"
                                                 onClick={(e) => {

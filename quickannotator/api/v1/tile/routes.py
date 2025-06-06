@@ -1,7 +1,7 @@
 from flask.views import MethodView
 from quickannotator.db import db_session
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
-from quickannotator.constants import TileStatus
+from quickannotator.constants import TileStatus, MASK_CLASS_ID
 import quickannotator.db.models as db_models
 from . import models as server_models
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
@@ -83,7 +83,7 @@ class TileIdSearchByBbox(MethodView):
         tilestore = TileStoreFactory.get_tilestore()
         tile_ids_in_bbox = tilespace.get_tile_ids_within_bbox((args['x1'], args['y1'], args['x2'], args['y2']))
 
-        if annotation_class_id != TileStatus.TISSUE_MASK:
+        if annotation_class_id != MASK_CLASS_ID:
             tile_ids_in_mask, _, _ = tilestore.get_tile_ids_intersecting_mask(image_id, annotation_class_id, mask_dilation=1)
             tile_ids_in_bbox_and_mask = set(tile_ids_in_bbox) & set(tile_ids_in_mask)
         else:
@@ -106,7 +106,7 @@ class TileIdSearchByPolygon(MethodView):
         tilestore = TileStoreFactory.get_tilestore()
         tiles_in_polygon, _, _ = tilestore.get_tile_ids_intersecting_polygons(image_id, annotation_class_id, [args['polygon']], mask_dilation=1)
 
-        if annotation_class_id != TileStatus.TISSUE_MASK:
+        if annotation_class_id != MASK_CLASS_ID:
             tile_ids_in_mask, _, _ = tilestore.get_tile_ids_intersecting_mask(image_id, annotation_class_id, mask_dilation=1)
             tile_ids_in_poly_and_mask = set(tiles_in_polygon) & set(tile_ids_in_mask)
         else:
