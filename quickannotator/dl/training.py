@@ -218,6 +218,8 @@ def get_checkpoint_filepath(annotation_class_id: int):
     Returns the path to the model checkpoint for the given annotation class ID.
     """
     savepath = fsmanager.nas_write.get_class_checkpoint_path(annotation_class_id)
+    if not os.path.exists(savepath):
+        os.makedirs(savepath, exist_ok=True)
     return os.path.join(savepath, constants.CHECKPOINT_FILENAME)
 
 
@@ -226,5 +228,7 @@ def get_log_filepath(annotation_class_id: int):
     Returns the path to the log file for the given annotation class ID.
     """
     savepath = fsmanager.nas_write.get_logs_path(annotation_class_id)
+    if not os.path.exists(savepath):
+        os.makedirs(savepath, exist_ok=True)
     filename = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
     return os.path.join(savepath, filename + ".log")
