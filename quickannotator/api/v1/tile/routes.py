@@ -82,14 +82,18 @@ class TileIdSearchByBbox(MethodView):
         tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
         tilestore = TileStoreFactory.get_tilestore()
         tile_ids_in_bbox = tilespace.get_tile_ids_within_bbox((args['x1'], args['y1'], args['x2'], args['y2']))
-        tile_ids_in_mask, _, _ = tilestore.get_tile_ids_intersecting_mask(image_id, annotation_class_id, mask_dilation=1)
-        tile_ids_in_bbox_and_mask = set(tile_ids_in_bbox) & set(tile_ids_in_mask)
+
+        if annotation_class_id != TileStatus.TISSUE_MASK:
+            tile_ids_in_mask, _, _ = tilestore.get_tile_ids_intersecting_mask(image_id, annotation_class_id, mask_dilation=1)
+            tile_ids_in_bbox_and_mask = set(tile_ids_in_bbox) & set(tile_ids_in_mask)
+        else:
+            tile_ids_in_bbox_and_mask = tile_ids_in_bbox
 
         # Filter by tiles which have ground truths saved. This limits the number of tiles we have to consider for rendering.
         if args['hasgt']:
-            tilestore = TileStoreFactory.get_tilestore()
             tiles = tilestore.get_tiles_by_tile_ids(image_id, annotation_class_id, tile_ids_in_bbox_and_mask, hasgt=True)
             tile_ids_in_bbox_and_mask = [tile.tile_id for tile in tiles]
+
         return {"tile_ids": tile_ids_in_bbox_and_mask}, 200
     
 @bp.route('/<int:image_id>/<int:annotation_class_id>/search/polygon')
@@ -101,8 +105,12 @@ class TileIdSearchByPolygon(MethodView):
         """
         tilestore = TileStoreFactory.get_tilestore()
         tiles_in_polygon, _, _ = tilestore.get_tile_ids_intersecting_polygons(image_id, annotation_class_id, [args['polygon']], mask_dilation=1)
-        tile_ids_in_mask, _, _ = tilestore.get_tile_ids_intersecting_mask(image_id, annotation_class_id, mask_dilation=1)
-        tile_ids_in_poly_and_mask = set(tiles_in_polygon) & set(tile_ids_in_mask)
+
+        if annotation_class_id != TileStatus.TISSUE_MASK:
+            tile_ids_in_mask, _, _ = tilestore.get_tile_ids_intersecting_mask(image_id, annotation_class_id, mask_dilation=1)
+            tile_ids_in_poly_and_mask = set(tiles_in_polygon) & set(tile_ids_in_mask)
+        else:
+            tile_ids_in_poly_and_mask = tiles_in_polygon
 
         if args['hasgt']:
             tiles = tilestore.get_tiles_by_tile_ids(image_id, annotation_class_id, tile_ids_in_poly_and_mask, hasgt=True)
