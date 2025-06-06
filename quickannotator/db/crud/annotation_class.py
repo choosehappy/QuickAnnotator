@@ -56,12 +56,6 @@ def delete_annotation_class(annotation_class_id: int) -> db_models.AnnotationCla
 def search_annotation_class_by_name(name: str):
     return db_session.query(db_models.AnnotationClass).filter(db_models.AnnotationClass.name == name).all()
 
-def search_annotation_class_by_project_id(project_id: int):
-    return db_session.query(db_models.AnnotationClass).filter(
-        (db_models.AnnotationClass.project_id == project_id) | 
-        (db_models.AnnotationClass.project_id == None)
-    ).all()
-
 
 def insert_tissue_mask_class():
     if not get_annotation_class_by_id(constants.MASK_CLASS_ID):

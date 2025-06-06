@@ -1,4 +1,4 @@
-from quickannotator.db.crud.annotation_class import search_annotation_class_by_project_id
+from quickannotator.db.crud.annotation_class import get_all_annotation_classes_for_project, get_annotation_class_by_id
 import quickannotator.constants as constants
 
 class ColorPalette():
@@ -12,8 +12,9 @@ class ColorPalette():
         self.project_id = project_id
 
     def get_unused_color(self):
-        annotation_classes = search_annotation_class_by_project_id(self.project_id)
-        used_colors = {ac.color for ac in annotation_classes}
+        result = [get_annotation_class_by_id(constants.MASK_CLASS_ID)]  # Always include the mask class
+        result.extend(get_all_annotation_classes_for_project(self.project_id))
+        used_colors = {ac.color for ac in result}
         for color in self.color_list:
             if color not in used_colors:
                 return color

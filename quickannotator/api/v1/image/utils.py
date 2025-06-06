@@ -47,8 +47,9 @@ def drop_annotation_tables_by_image_id(image_id: int):
     for anno_class in annotation_classes:
         for is_gt in [True, False]:
             try:
-                store = AnnotationStore(image_id.id, anno_class.id, is_gt=is_gt)
-                store.drop_table()
+                store = AnnotationStore(image_id.id, anno_class.id, is_gt=is_gt, require_table_exists=True)
             except Exception as e:
                 continue
+
+            store.drop_table()
 

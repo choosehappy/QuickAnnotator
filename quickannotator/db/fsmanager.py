@@ -190,7 +190,7 @@ class NASWrite(FileStore):
         Returns:
             str: The directory path for logs.
         """ 
-        relative_path = os.path.join(self.get_class_checkpoint_path(annotation_class_id, relative=True), "logs")
+        relative_path = os.path.join(self.get_annotation_class_path(annotation_class_id, relative=True), "logs")
         return relative_path if relative else self.relative_to_global(relative_path)
 
     def get_temp_image_path(self, relative: bool = False):
