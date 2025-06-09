@@ -1,3 +1,4 @@
+from itertools import product
 from sqlalchemy.orm import Query
 from sqlalchemy import func, Table, MetaData
 import sqlalchemy
@@ -358,6 +359,33 @@ class AnnotationStore:
         return scale(polygon, xfact=scaling_factor, yfact=scaling_factor, origin=(0, 0))
     
 
+    @staticmethod
+    def bulk_drop_tables(image_ids: List[int], annotation_class_ids: List[int]):
+        """
+        Drops multiple annotation tables based on image IDs and annotation class IDs.
+        Args:
+            image_ids (List[int]): A list of image IDs.
+            annotation_class_ids (List[int]): A list of annotation class IDs.
+            is_gt (bool): A flag indicating whether the annotations are ground truth.
+        """
+        id_pairs = [(int(image_id), int(annotation_class_id)) for image_id, annotation_class_id in product(image_ids, annotation_class_ids)]
+
+        for image_id, annotation_class_id in id_pairs:
+            try:
+                gt_store = AnnotationStore(image_id, annotation_class_id, is_gt=True)
+                gt_store.drop_table()
+            except Exception as e:
+                continue
+
+            try:
+                pred_store = AnnotationStore(image_id, annotation_class_id, is_gt=False)
+                pred_store.drop_table()
+            except Exception as e:
+                continue
+        
+        db_session.commit()
+    
+
 def build_annotation_table_name(image_id: int, annotation_class_id: int, is_gt: bool):
     gtpred = 'gt' if is_gt else 'pred'
     table_name = f"annotation_{image_id}_{annotation_class_id}_{gtpred}"
@@ -399,3 +427,4 @@ def build_export_filepath(image_id: int, annotation_class_id: int, is_gt: bool, 
 
     filepath = os.path.join(save_path, filename)
     return filepath
+

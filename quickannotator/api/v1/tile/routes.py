@@ -29,7 +29,7 @@ class Tile(MethodView):
             annotation_class_id=annotation_class_id,
             tile_id=args['tile_id']
         ).delete()
-        return 204
+        return {}, 204
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>/predict')
 class PredictTile(MethodView):

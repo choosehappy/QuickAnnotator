@@ -18,7 +18,7 @@ from . import models as server_models
 from flask_smorest import Blueprint
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.image import add_image_by_path
-from quickannotator.api.v1.image.utils import import_geojson_annotation_file, drop_annotation_tables_by_image_id
+from quickannotator.api.v1.image.utils import delete_image_and_related_data, import_geojson_annotation_file
 
 bp = Blueprint('image', __name__, description='Image operations')
 
@@ -53,22 +53,8 @@ class Image(MethodView):
     @bp.response(204, description="Image  deleted")
     def delete(self, args):
         """     delete an Image   """
-        image_id = args['image_id']
-        image = db_session.query(db_models.Image).filter(db_models.Image.id==image_id).first()
-        project_id = image.project_id
-        # delete image's annotation tables
-        drop_annotation_tables_by_image_id(image_id)
-        # delete image from DB
-        db_session.query(db_models.Image).filter(db_models.Image.id == image_id).delete()
-        db_session.commit()
-
-        image_path = fsmanager.nas_write.get_project_image_path(project_id, image_id, relative=False)
-        if os.path.exists(image_path):
-            try:
-                shutil.rmtree(image_path)
-            except OSError as e:
-                print(f"Error deleting folder '{image_path}': {e}")
-        return 204
+        delete_image_and_related_data(args['image_id'])
+        return {}, 204
 
 #################################################################################
 @bp.route('/<int:project_id>/search', endpoint="image_search")
@@ -189,7 +175,7 @@ class ImageFile(MethodView):
         elif file_type == ImageType.THUMBNAIL:
             # TODO implement thumbnail file deletion
             pass
-        return 204
+        return {}, 204
 
 #################################################################################
 

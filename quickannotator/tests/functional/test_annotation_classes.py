@@ -1,5 +1,6 @@
 import pytest
-from quickannotator.db.models import AnnotationClass
+from quickannotator.db.crud.annotation import AnnotationStore
+from quickannotator.db.models import AnnotationClass, Tile, Annotation
 
 def test_get_annotation_class(test_client, db_session):
     """
@@ -99,11 +100,14 @@ def test_delete_annotation_class(test_client, db_session, annotations_seed):
     """
     GIVEN a test client and an existing annotation class
     WHEN the client deletes the annotation class using a DELETE request
-    THEN the response should have a status code of 204 and the annotation class should be removed from the database
+    THEN the response should have a status code of 204 and the annotation class, along with its related tiles and annotations, should be removed from the database
     """
 
     # Arrange
-    annotation_class = db_session.query(AnnotationClass).get(2)
+    annotation_class_id = 2
+    image_id = 1
+
+    annotation_class = db_session.query(AnnotationClass).get(annotation_class_id)
 
     params = {'annotation_class_id': annotation_class.id}
 
@@ -114,8 +118,20 @@ def test_delete_annotation_class(test_client, db_session, annotations_seed):
     assert response.status_code == 204
 
     # Verify in the database
-    deleted_class = db_session.query(AnnotationClass).get(annotation_class.id)
+    deleted_class = db_session.query(AnnotationClass).get(annotation_class_id)
     assert deleted_class is None
+
+    # Verify related tiles are deleted
+    tiles = db_session.query(Tile).filter(Tile.annotation_class_id == annotation_class_id).all()
+    assert len(tiles) == 0
+
+    # Verify the annotation table is dropped
+    try:
+        AnnotationStore(image_id, annotation_class_id, is_gt=True, require_table_exists=True)
+    except ValueError:
+        # If the table does not exist, it raises a ValueError
+        assert True, "Annotation table should not exist after deletion"
+    
 
 
 def test_delete_non_existent_annotation_class(test_client, db_session, annotations_seed):

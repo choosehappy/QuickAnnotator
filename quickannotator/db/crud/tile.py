@@ -153,20 +153,23 @@ class TileStore(ABC):   # Only an ABC to prevent instantiation
         return tiles
     
     @staticmethod
-    def delete_tiles(self, image_id: int = None, annotation_class_id: int = None) -> None:
+    def delete_tiles(image_ids: int | list[int] = None, annotation_class_ids: int | list[int] = None) -> None:
         """
         Deletes tiles from the database.
 
         Args:
-            image_id (int, optional): The ID of the image. If None, do not filter by image_id.
-            annotation_class_id (int, optional): The ID of the annotation class. If None, do not filter by annotation_class_id.
+            image_id (int or list[int], optional): The ID(s) of the image(s). If None, do not filter by image_id.
+            annotation_class_id (int or list[int], optional): The ID(s) of the annotation class(es). If None, do not filter by annotation_class_id.
         """
         stmt = db_models.Tile.__table__.delete()
 
-        if image_id is not None:
-            stmt = stmt.where(db_models.Tile.image_id == image_id)
-        if annotation_class_id is not None:
-            stmt = stmt.where(db_models.Tile.annotation_class_id == annotation_class_id)
+        if image_ids is not None:
+            image_ids = image_ids if isinstance(image_ids, list) else [image_ids]
+            stmt = stmt.where(db_models.Tile.image_id.in_(image_ids))
+
+        if annotation_class_ids is not None:
+            annotation_class_ids = annotation_class_ids if isinstance(annotation_class_ids, list) else [annotation_class_ids]
+            stmt = stmt.where(db_models.Tile.annotation_class_id.in_(annotation_class_ids))
 
         db_session.execute(stmt)
         db_session.commit()
