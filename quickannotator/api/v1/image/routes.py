@@ -51,8 +51,14 @@ class Image(MethodView):
 
     @bp.arguments(server_models.DeleteImageArgsSchema, location='query')
     @bp.response(204, description="Image  deleted")
+    @bp.response(404, description="Image not found")
     def delete(self, args):
         """     delete an Image   """
+
+        image = get_image_by_id(args['image_id'])
+        if not image:
+            abort(404, message="Image not found")
+
         delete_image_and_related_data(args['image_id'])
         return {}, 204
 
@@ -205,7 +211,7 @@ class ImageMetadata(MethodView):
         """     returns metadata of an Image   """
         result = get_image_by_id(image_id)
         if result is not None:
-            full_path = os.path.join(current_app.root_path, result.path)
+            full_path = fsmanager.nas_read.relative_to_global(result.path)
             try:
                 img = large_image.open(full_path)
                 metadata = img.getMetadata()
