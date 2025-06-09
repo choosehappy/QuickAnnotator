@@ -3,7 +3,7 @@ import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse } from "../types.ts"
 import { searchTileIds, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileIdsWithinPolygon, fetchTileBoundingBox, fetchImageMetadata } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
-import { TOOLBAR_KEYS, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY } from "../helpers/config.ts";
+import { TOOLBAR_KEYS, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID } from "../helpers/config.ts";
 
 import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered } from '../utils/map.ts';
 
@@ -88,7 +88,7 @@ const ViewportMap = (props: Props) => {
         x1: number, y1: number, x2: number, y2: number,
         activeCallRef: React.MutableRefObject<number>
     ) => {
-        if (!props.currentImage || !props.currentAnnotationClass) return;
+        if (!props.currentImage || !props.currentAnnotationClass || props.currentAnnotationClass.id === MASK_CLASS_ID) return;
 
         const currentCallToken = ++activeCallRef.current;
         const resp = await searchTileIds(props.currentImage.id, props.currentAnnotationClass.id, x1, y1, x2, y2, false);
@@ -332,6 +332,7 @@ const ViewportMap = (props: Props) => {
             renderGTAnnotations(x1, y1, x2, y2, activeRenderGroundTruthsCall).then(() => {
                 console.log("Ground truths rendered.");
             });
+
             renderPredAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall).then(() => {
                 console.log("Predictions rendered.");
             });
