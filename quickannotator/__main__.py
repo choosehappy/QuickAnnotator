@@ -9,7 +9,9 @@ from quickannotator.config import get_database_uri, get_database_path, get_ray_d
 import ray
 from quickannotator.db import init_db, db_session
 from quickannotator.db.crud.annotation_class import insert_tissue_mask_class
-from quickannotator.db.logging import init_logger
+import quickannotator.constants as constants
+from quickannotator.db.logging import LoggingManager
+import logging
 
 def serve_quickannotator(app):
     # NOTE: Will need to account for reverse proxy scenarios: https://docs.pylonsproject.org/projects/waitress/en/stable/reverse-proxy.html
@@ -68,7 +70,8 @@ def main():
         db_session.remove()
 
     # ------------------------ LOGGING SETUP --------------------
-    logger = init_logger('qa')
+    LoggingManager.initialize_all_loggers()
+    logger = logging.getLogger(constants.LoggerNames.FLASK.value)
     logger.info("Initialized logger.")
 
     # ------------------------ RAY SETUP ------------------------

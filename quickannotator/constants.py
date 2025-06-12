@@ -83,3 +83,8 @@ class Dialects(enum.Enum):
     POSTGRESQL = "postgresql"
 
 CHECKPOINT_FILENAME = "model.safetensors"
+
+class LoggerNames(enum.Enum):
+    FLASK = "flask"
+    RAY = "qa_ray"     # NOTE: "ray" conflicts with the ray logger, resulting in ray._private logs getting saved to the db logs table.
+    DB = "db"
