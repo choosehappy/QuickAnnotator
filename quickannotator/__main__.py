@@ -70,8 +70,7 @@ def main():
         db_session.remove()
 
     # ------------------------ LOGGING SETUP --------------------
-    LoggingManager.initialize_all_loggers()
-    logger = logging.getLogger(constants.LoggerNames.FLASK.value)
+    logger = LoggingManager.init_logger(constants.LoggerNames.FLASK.value)
     logger.info("Initialized logger.")
 
     # ------------------------ RAY SETUP ------------------------

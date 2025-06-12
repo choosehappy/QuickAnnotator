@@ -14,6 +14,7 @@ import geojson
 from quickannotator import constants
 from quickannotator.db.crud.image import get_image_by_id
 from itertools import product
+from quickannotator.db.logging import LoggingManager
 
 
 class ProgressTracker:
@@ -36,6 +37,7 @@ class ProgressTracker:
 class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
     def __init__(self, image_ids, annotation_class_ids):
         self.id_pairs = [(int(image_id), int(annotation_class_id)) for image_id, annotation_class_id in product(image_ids, annotation_class_ids)]
+        self.logger = LoggingManager.init_logger(constants.LoggerNames.RAY.value)
         super().__init__(len(self.id_pairs))  # Initialize ProgressTracker
         
 
@@ -43,18 +45,22 @@ class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
         client = DSAClient(api_uri, api_key)
         user = client.get_user_by_token()
         if user is None:
+            self.logger.error("Failed to get user ID from token")
             raise Exception("Failed to get user ID from token")
         
         user_id = user['_id']
+        self.logger.info(f"Starting export to DSA for user ID: {user_id}")
 
         for image_id, annotation_class_id in self.id_pairs:
             with get_session() as db_session:
                 image_name = get_image_by_id(image_id).name
                 dsa_item = client.get_item_by_name(folder_id, image_name)
                 if dsa_item is None:
+                    self.logger.error(f"Item with name {image_name} not found in folder {folder_id}")
                     raise Exception(f"Item with name {image_name} not found in folder {folder_id}")
                 
                 dsa_item_id = dsa_item['_id']
+                self.logger.info(f"Exporting annotations for image: {image_name}, annotation class ID: {annotation_class_id}")
                 store = AnnotationStore(image_id, annotation_class_id, True, False)
                 geojson_file_path = store.export_to_geojson_file()  # Use export_to_geojson_file to get the file path
                 upload_id = client.post_file(
@@ -70,10 +76,12 @@ class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
                     while chunk := f.read(constants.POST_FILE_CHUNK_SIZE):  # Read file incrementally
                         chunk_resp = client.post_file_chunk(chunk, upload_id, offset=offset)
                         if chunk_resp.status_code != 200:
+                            self.logger.error(f"Failed to upload chunk: {chunk_resp.status_code} {chunk_resp.text}")
                             raise Exception(f"Failed to upload chunk: {chunk_resp.status_code} {chunk_resp.text}")
                         offset += len(chunk)
 
             self.increment()  # Use inherited increment method
+            self.logger.info(f"Progress: {self.get_progress()}%")
 
     def export_to_server_fs(self, formats: list[constants.AnnsFormatEnum], timestamp: datetime = None):
         """
@@ -83,7 +91,7 @@ class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
             timestamp (datetime, optional): Timestamp for naming the export files. Defaults to None.
             extensions (list, optional): List of file extensions to export. Defaults to ['.tar'].
         """
-
+        self.logger.info("Starting export to server filesystem")
         for image_id, annotation_class_id in self.id_pairs:
             with get_session() as db_session:
                 for format in formats:
@@ -96,9 +104,11 @@ class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker
                             relative=False,
                             timestamp=timestamp
                         )
+                        self.logger.info(f"Exporting to GEOJSON: {filepath}")
                         store = AnnotationStore(image_id, annotation_class_id, True, False)
                         store.export_to_geojson_file(filepath, compress=True)
             self.increment()  # Use inherited increment method
+            self.logger.info(f"Progress: {self.get_progress()}%")
 
 
 def compute_actor_name(project_id: int, type: constants.NamedRayActorType) -> str:

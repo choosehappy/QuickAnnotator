@@ -29,14 +29,6 @@ class LoggingManager:
         logger.addHandler(handler)
         return logger
 
-    @staticmethod
-    def initialize_all_loggers():
-        for logger_name in constants.LoggerNames:
-            LoggingManager.init_logger(logger_name.value)
-
-
-# Initialize the logging manager
-logging_manager = LoggingManager()
 
 # Example usage
-# flask_logger = logging.getLogger(constants.LoggerNames.FLASK)
+# flask_logger = logging.getLogger(constants.LoggerNames.FLASK.value)
