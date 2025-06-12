@@ -43,10 +43,15 @@ const ViewportMap = (props: Props) => {
     let zoomPanTimeout: any = null;
 
     const renderGTAnnotations = async (
-        x1: number, y1: number, x2: number, y2: number,
         activeCallRef: React.MutableRefObject<number>
     ) => {
-        if (!props.currentImage || !props.currentAnnotationClass) return;
+        if (!props.currentImage || !props.currentAnnotationClass || !geojs_map.current) return;
+
+        const bounds = geojs_map.current.bounds();
+        const x1 = bounds.left;
+        const y1 = Math.abs(bounds.top);
+        const x2 = bounds.right;
+        const y2 = Math.abs(bounds.bottom);
 
         const currentCallToken = ++activeCallRef.current;
         const resp = await searchTileIds(props.currentImage.id, props.currentAnnotationClass.id, x1, y1, x2, y2, true);
@@ -85,10 +90,16 @@ const ViewportMap = (props: Props) => {
     };
 
     const renderPredAnnotations = async (
-        x1: number, y1: number, x2: number, y2: number,
         activeCallRef: React.MutableRefObject<number>
     ) => {
-        if (!props.currentImage || !props.currentAnnotationClass || props.currentAnnotationClass.id === MASK_CLASS_ID) return;
+        // Predicted annotations are irrelevant if the current class is the mask class
+        if (!props.currentImage || !props.currentAnnotationClass || props.currentAnnotationClass.id === MASK_CLASS_ID || !geojs_map.current) return;
+
+        const bounds = geojs_map.current.bounds();
+        const x1 = bounds.left;
+        const y1 = Math.abs(bounds.top);
+        const x2 = bounds.right;
+        const y2 = Math.abs(bounds.bottom);
 
         const currentCallToken = ++activeCallRef.current;
         const resp = await searchTileIds(props.currentImage.id, props.currentAnnotationClass.id, x1, y1, x2, y2, false);
@@ -323,17 +334,11 @@ const ViewportMap = (props: Props) => {
         // Set a new timeout to detect when zooming has stopped
         zoomPanTimeout = setTimeout(() => {
             console.log('Zooming or Panning stopped.');
-            const bounds = geojs_map.current.bounds();
-            console.log(bounds);
-            const x1 = bounds.left;
-            const y1 = Math.abs(bounds.top);
-            const x2 = bounds.right;
-            const y2 = Math.abs(bounds.bottom);
-            renderGTAnnotations(x1, y1, x2, y2, activeRenderGroundTruthsCall).then(() => {
+            renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
                 console.log("Ground truths rendered.");
             });
 
-            renderPredAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall).then(() => {
+            renderPredAnnotations(activeRenderPredictionsCall).then(() => {
                 console.log("Predictions rendered.");
             });
         }, RENDER_DELAY); // Adjust this timeout duration as needed
@@ -351,15 +356,16 @@ const ViewportMap = (props: Props) => {
 
     // UseEffect hook for rendering predictions periodically
     useEffect(() => {
+        const currentAnnotationClassId = props.currentAnnotationClass?.id;
+        if (!currentAnnotationClassId) return;
+        renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
+            console.log("Ground truths rendered on initial load.");
+        })
+
         const interval = setInterval(() => {
             // console.log("Interval triggered.");
             if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
-                const bounds = geojs_map.current.bounds();
-                const x1 = bounds.left;
-                const y1 = Math.abs(bounds.top);
-                const x2 = bounds.right;
-                const y2 = Math.abs(bounds.bottom);
-                renderPredAnnotations(x1, y1, x2, y2, activeRenderPredictionsCall).then(() => {
+                renderPredAnnotations(activeRenderPredictionsCall).then(() => {
                     console.log("Predictions rendered.");
                 });
             }
@@ -502,30 +508,26 @@ const ViewportMap = (props: Props) => {
 
     // When the highlighted predictions change, redraw the features
     useEffect(() => {
-        if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
-            const predLayer = geojs_map.current.layers()[LAYER_KEYS.PRED];
-            const features = predLayer.features().filter((f) => f.featureType === 'polygon');
-            const featuresToRedraw = features.filter((f) => featureIdsToUpdate.current.includes(f.props.tile_id));
-            const highlightedPolyIds = props.highlightedPreds ? props.highlightedPreds.map(ann => ann.id) : null;
+        if (!geojs_map.current || !props.currentImage || !props.currentAnnotationClass) return;
 
-            featuresToRedraw.forEach((f) => {
-                redrawTileFeature(f, highlightedPolyIds ? { highlightedPolyIds: highlightedPolyIds } : {});
+        const predLayer = geojs_map.current.layers()[LAYER_KEYS.PRED];
+        if (!predLayer) return;
+        const features = predLayer.features().filter((f) => f.featureType === 'polygon');
+        const featuresToRedraw = features.filter((f) => featureIdsToUpdate.current.includes(f.props.tile_id));
+        const highlightedPolyIds = props.highlightedPreds ? props.highlightedPreds.map(ann => ann.id) : null;
+
+        featuresToRedraw.forEach((f) => {
+            redrawTileFeature(f, highlightedPolyIds ? { highlightedPolyIds: highlightedPolyIds } : {});
+        });
+
+        if (!highlightedPolyIds) {
+            renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
+                console.log("Predictions rendered.");
+                featureIdsToUpdate.current = [];
             });
-
-            const bounds = geojs_map.current.bounds();
-            const x1 = bounds.left;
-            const y1 = Math.abs(bounds.top);
-            const x2 = bounds.right;
-            const y2 = Math.abs(bounds.bottom);
-            if (!highlightedPolyIds) {
-                renderGTAnnotations(x1, y1, x2, y2, activeRenderGroundTruthsCall).then(() => {
-                    console.log("Predictions rendered.");
-                    featureIdsToUpdate.current = [];
-                });
-            }
         }
 
-    }, [props.highlightedPreds])
+    }, [props.highlightedPreds]);
 
     return (
         <div ref={viewRef} style={

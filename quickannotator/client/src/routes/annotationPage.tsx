@@ -11,13 +11,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
 import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass, searchAnnotationClasses, fetchAnnotationClassById, createAnnotationClass, deleteAnnotationClass } from "../helpers/api.ts";
-import { DEFAULT_CLASS_ID, MODAL_DATA, TOOLBAR_KEYS } from '../helpers/config.ts';
+import { DEFAULT_CLASS_ID, MODAL_DATA, TOOLBAR_KEYS, MASK_CLASS_ID } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
 import Legend from '../components/legend.tsx';
 import NewClassModal from '../components/newClassModal.tsx';
 import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation, DataItem, IdNameElement } from "../types.ts";
 import AnnotationExportModal from '../components/annotationExportModal.tsx';
+import { propTypes } from 'react-bootstrap/esm/Image';
 
 function usePrevious<T>(value: T): T | undefined {
     const ref = useRef<T>();
@@ -111,7 +112,9 @@ const AnnotationPage = () => {
     }, [])
 
     useEffect(() => {
-        if (!currentAnnotationClass) return;
+        const currentAnnotationClassId = currentAnnotationClass?.id;
+        // Check if the current annotation class is valid
+        if (!currentAnnotationClassId || currentAnnotationClassId === MASK_CLASS_ID) return;
         startProcessingAnnotationClass(currentAnnotationClass?.id).then((resp) => {
             if (resp.status === 200) {
                 console.log("Processing started");
