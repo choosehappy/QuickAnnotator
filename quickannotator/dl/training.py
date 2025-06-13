@@ -1,3 +1,4 @@
+import logging
 import segmentation_models_pytorch as smp
 import torch
 from torch.utils.data import DataLoader
@@ -20,6 +21,7 @@ from safetensors.torch import save_file
 from quickannotator.db.fsmanager import fsmanager
 import quickannotator.constants as constants
 import os
+from quickannotator.db.logging import LoggingManager
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -73,13 +75,13 @@ def train_pred_loop(config):
     # #model=ray.train.torch.prepare_model(model,cuda_dev)
     # model=ray.train.torch.prepare_model(model,move_to_device=False)
     #---------
-
+    logger = LoggingManager.init_logger(constants.LoggerNames.RAY.value)
     #TODO: likely need to accept here the checkpoint location
     annotation_class_id = config["annotation_class_id"] # --- this should result in a catastrophic failure if not provided
     tile_size = config["tile_size"] #probably this as well
     magnification = config["magnification"] #probably this as well
     actor_name = build_actor_name(annotation_class_id)
-    print (f"Actor name: {actor_name}")
+    logger.info(f"Actor name: {actor_name}")
 
     #TODO: all these from project settings
     boost_count = 5
@@ -88,6 +90,7 @@ def train_pred_loop(config):
     edge_weight=1_000
     num_workers=0 #TODO:set to num of CPUs? or...# of CPUs/ divided by # of classes or something...challenge - one started can't change. maybe set to min(batch_size train, ??) 
     
+
     # Set device
     if torch.cuda.is_available():
         localrank=ray.train.get_context().get_local_rank()
@@ -106,13 +109,12 @@ def train_pred_loop(config):
                  decoder_channels=(64, 64, 64, 32, 16), in_channels=3, classes=1, encoder_freeze=True )
     
     # Load the model weights
-
     checkpoint_path = get_checkpoint_filepath(annotation_class_id)
     if os.path.exists(checkpoint_path):
-        print(f"Loading model from {checkpoint_path}")
+        logger.info(f"Loading model from {checkpoint_path}")
         model.load_state_dict(torch.load(checkpoint_path, map_location=device))
     else:
-        print(f"No checkpoint found at {checkpoint_path}, starting from scratch.")
+        logger.info(f"No checkpoint found at {checkpoint_path}, starting from scratch.")
 
 
     criterion = nn.BCEWithLogitsLoss(reduction='none', ).cuda()
@@ -197,10 +199,10 @@ def train_pred_loop(config):
             
             last_save+=1
             if last_save>50:
-                print (f"niter_total [{niter_total}], Loss: {sum(running_loss)/len(running_loss)}")
+                logger.info(f"niter_total [{niter_total}], Loss: {sum(running_loss)/len(running_loss)}")
                 running_loss=[]
 
-                print ("saving!") #TODO: do we want to *always* override the last saved model , or do we want to instead only save if some type of loss threshold is met?
+                logger.info("Saving model checkpoint!")  # Use logger instead of print
                                  #another potentially more interesting option is to do both, save on a regular basis (since if we things crash we can revert back othe nearest checkpoint\
                                  #but as well give the user in the front end a dropdown which enables them to select which model checkpoint they want to use? we had somethng similar in QAv1
                                  #that said, this is likely a more advanced features and not very "apple like" since it would require explaining to the user when/why/how they should use the different models
@@ -210,7 +212,7 @@ def train_pred_loop(config):
                 last_save = 0
 
             
-    #print ("Exiting training!")
+    logger.info("Exiting training!")
 
 
 def get_checkpoint_filepath(annotation_class_id: int):

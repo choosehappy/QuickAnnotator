@@ -14,10 +14,13 @@ from quickannotator.db import get_session
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 
 from quickannotator.constants import TileStatus
+import quickannotator.constants as constants
 from quickannotator.dl.utils import decompress_from_image_bytestream, get_memcached_client, load_tile
 
 from datetime import datetime
+import logging
 
+logger = logging.getLogger(constants.LoggerNames.RAY.value)
 
 def preprocess_image(io_image, device):
     io_image = io_image / 255.0
@@ -63,7 +66,7 @@ def run_inference(device, model, tiles):
 
     io_images = [preprocess_image(io_image, device) for io_image in io_images]
     io_images = torch.cat(io_images, dim=0)
-    print(f"io_images going on GPU: \t {io_images.shape}")
+    logger.info(f"io_images going on GPU: \t {io_images.shape}")
     
     model.eval()
     with torch.no_grad():
@@ -81,14 +84,13 @@ def run_inference(device, model, tiles):
             translated_polygons = [
                 shapely.affinity.translate(polygon, xoff=tiles[j].x, yoff=tiles[j].y) for polygon in polygons
             ]
-            print(f'saving annotations for tile {tiles[j].id}. Setting pred_status to DONEPROCESSING')
+            logger.info(f'Saving annotations for tile {tiles[j].id}.')
             with get_session() as db_session:
                 store = AnnotationStore(tiles[j].image_id, tiles[j].annotation_class_id, is_gt=False, in_work_mag=True)
                 store.delete_annotations_by_tile(tiles[j].tile_id)
                 store.insert_annotations(translated_polygons, tiles[j].tile_id)
                 
-    
-    print("updating tile status")
+    logger.info("Setting pred_status to DONEPROCESSING")
     tilestore: TileStore = TileStoreFactory.get_tilestore()
     result = tilestore.upsert_pred_tiles(image_id=tiles[0].image_id, 
                       annotation_class_id=tiles[0].annotation_class_id, 
