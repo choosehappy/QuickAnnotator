@@ -29,7 +29,11 @@
 
 	"runArgs": [
 		"--gpus", "all",
-		"--shm-size=8G"
+		"--shm-size=8G",
+		"-p", "5000:5000",
+		"-p", "5173:5173",
+		"-p", "8265:8265",
+		"-p", "6006:6006"
 	],
 
 	"postCreateCommand": "ln -sf /opt/QuickAnnotator/quickannotator/client/package.json /opt/package.json && ln -sf /opt/QuickAnnotator/quickannotator/client/package-lock.json /opt/package-lock.json && uv pip install -e ."
