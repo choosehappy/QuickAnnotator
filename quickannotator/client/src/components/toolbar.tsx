@@ -22,25 +22,32 @@ const Toolbar = React.memo((props: Props) => {
     };
 
     const buttons = [
-        { icon: <Fullscreen/>},
-        { icon: <ArrowCounterclockwise/>},
-        { icon: <ArrowClockwise/>},
-    ]
+        { icon: <Fullscreen/>, disabled: true },
+        { icon: <ArrowCounterclockwise/>, disabled: true },
+        { icon: <ArrowClockwise/>, disabled: true },
+    ];
 
     const radios = [
-        { icon: <Cursor/>},
-        { icon: <Download/>},
-        { icon: <Brush/>},
-        { icon: <Magic/>},
-        { icon: <Eraser/>},
-        { icon: <Heptagon/>},
+        { icon: <Cursor/>, disabled: false },
+        { icon: <Download/>, disabled: false },
+        { icon: <Brush/>, disabled: true },
+        { icon: <Magic/>, disabled: true },
+        { icon: <Eraser/>, disabled: true },
+        { icon: <Heptagon/>, disabled: false },
     ];
 
     return (
         <ButtonToolbar aria-label="Toolbar with button groups">
             <ButtonGroup className={"me-2"}>
                 {buttons.map((button, idx) => (
-                    <Button key={idx} variant="secondary" onClick={() => props.setCurrentTool(null)}>{button.icon}</Button>
+                    <Button
+                        key={idx}
+                        variant="secondary"
+                        onClick={() => props.setCurrentTool(null)}
+                        disabled={button.disabled}
+                    >
+                        {button.icon}
+                    </Button>
                 ))}
             </ButtonGroup>
             <ButtonGroup className={"me-2"}>
@@ -54,6 +61,7 @@ const Toolbar = React.memo((props: Props) => {
                         value={idx}
                         checked={props.currentTool === idx.toString()}
                         onChange={(e) => props.setCurrentTool(e.currentTarget.value)}
+                        disabled={radio.disabled}
                     >
                         {radio.icon}
                     </ToggleButton>
