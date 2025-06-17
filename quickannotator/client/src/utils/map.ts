@@ -22,6 +22,10 @@ export const getTileFeatureById = (layer: geo.layer, featureId: number, type='an
 }
 
 export const redrawTileFeature = (feature: any, options = {}, data?: any[]) => {
+    if (!feature) {
+        console.warn('Cannot redraw feature, it is undefined.');
+        return;
+    }
     if (data) {
         feature.data(data);
     }

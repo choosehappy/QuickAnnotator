@@ -45,7 +45,20 @@ const ViewportMap = (props: Props) => {
     const renderGTAnnotations = async (
         activeCallRef: React.MutableRefObject<number>
     ) => {
-        if (!props.currentImage || !props.currentAnnotationClass || !geojs_map.current) return;
+
+        // Safeguards against invalid application state.
+        if (!props.currentImage) {
+            console.error("Error: currentImage is not defined.");
+            return;
+        }
+        if (!props.currentAnnotationClass) {
+            console.error("Error: currentAnnotationClass is not defined.");
+            return;
+        }
+        if (!geojs_map.current) {
+            console.error("Error: geojs_map is not initialized.");
+            return;
+        }
 
         const bounds = geojs_map.current.bounds();
         const x1 = bounds.left;
@@ -354,10 +367,105 @@ const ViewportMap = (props: Props) => {
         })
     }
 
-    // UseEffect hook for rendering predictions periodically
+    const initializeMap = async () => {
+        const img = props.currentImage;
+
+        if (!img) { console.error("No image provided for map initialization."); return; }
+        if (!viewRef.current) { console.error("View reference is not set."); return; }
+
+        const params = geo.util.pixelCoordinateParams(
+            viewRef.current, img.base_width, img.base_height, img.dz_tilesize, img.dz_tilesize);
+        
+        const map = geo.map({ ...params.map, max: 20 });
+        params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
+        console.log("OSM layer loaded.");
+
+        const groundTruthLayer = map.createLayer('feature', { features: ['polygon'] });
+        const predictionsLayer = map.createLayer('feature', { features: ['polygon'] });
+
+        map.createLayer('osm', { ...params.layer, zIndex: 0 })
+
+        const annotationLayer = map.createLayer('annotation',
+            {
+                active: true,
+                zIndex: 2,
+            });
+
+        const uiLayer = map.createLayer('ui');
+
+        // Fetch image metadata and set scale
+        try {
+            const metadataResp = await fetchImageMetadata(img.id);
+            const mpp = metadataResp.data.mpp; // microns per pixel
+            const micronUnits = [
+                { unit: 'µm', scale: 1 }, // for single micron
+                { unit: 'mm', scale: 1000 }, // for millimeters
+                { unit: 'cm', scale: 10000 }, // for centimeters
+            ];
+            uiLayer.createWidget('scale', {
+                position: { left: 10, bottom: 10 },
+                units: micronUnits,
+                scale: mpp,
+            });
+        } catch (error) {
+            console.error("Failed to fetch image metadata:", error);
+        }
+
+        annotationLayer.geoOn(geo.event.mousedown, handleMousedown);
+        annotationLayer.geoOn(geo.event.annotation.state, handleNewAnnotation);
+        annotationLayer.geoOn(geo.event.annotation.mode, handleAnnotationModeChange);
+        window.onkeydown = (evt) => {
+            if (evt.key === 'Backspace' || evt.key === 'Delete') {
+                handleDeleteAnnotation(evt);
+            }
+        }
+
+        map.geoOn(geo.event.mousemove, function (evt: any) { 
+            props.setMouseCoords({ x: Math.round(evt.geo.x * 100) / 100, y: Math.round(evt.geo.y * 100) / 100 });
+        });
+        map.geoOn(geo.event.zoom, handleZoomPan);
+        map.geoOn(geo.event.pan, handleZoomPan);
+        geojs_map.current = map;
+        return null;
+    }
+
+    // Initialize the map when the component mounts
     useEffect(() => {
+        if (!viewRef.current) {
+            console.error("View reference is not set.");
+            return;
+        }
+        if (!props.currentImage) {
+            console.error("Error: currentImage is not defined.");
+            return;
+        }
+        if (!props.currentAnnotationClass) {
+            console.error("Error: currentAnnotationClass is not defined.");
+            return;
+        }
+        initializeMap().then(() => {
+            console.log("Map initialized.");
+        });
+    }, []);
+
+    // When the currentAnnotationClass changes
+    useEffect(() => {
+        if (!props.currentImage || !props.currentAnnotationClass) {
+            console.error("Error: currentImage or currentAnnotationClass is not defined.");
+            return;
+        }
+
+        activeRenderGroundTruthsCall.current = 0;
+        geojs_map.current?.exit();
+        initializeMap().then(() => console.log(`Map initialized for ${geojs_map.current}`));
+
         const currentAnnotationClassId = props.currentAnnotationClass?.id;
         if (!currentAnnotationClassId) return;
+
+        // Clear all existing annotations.
+        props.setGts([]);
+        props.setPreds([]);
+
         renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
             console.log("Ground truths rendered on initial load.");
         })
@@ -374,75 +482,6 @@ const ViewportMap = (props: Props) => {
         return () => clearInterval(interval); // Cleanup on unmount
     }, [props.currentAnnotationClass]);
 
-    // UseEffect hook to initialize the map
-    useEffect(() => {
-        const initializeMap = async () => {
-            const img = props.currentImage;
-
-            const params = geo.util.pixelCoordinateParams(
-                viewRef.current, img.base_width, img.base_height, img.dz_tilesize, img.dz_tilesize);
-            
-            const map = geo.map({ ...params.map, max: 20 });
-            params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
-            console.log("OSM layer loaded.");
-
-            const groundTruthLayer = map.createLayer('feature', { features: ['polygon'] });
-            const predictionsLayer = map.createLayer('feature', { features: ['polygon'] });
-
-            map.createLayer('osm', { ...params.layer, zIndex: 0 })
-
-            const annotationLayer = map.createLayer('annotation',
-                {
-                    active: true,
-                    zIndex: 2,
-                });
-
-            const uiLayer = map.createLayer('ui');
-
-            // Fetch image metadata and set scale
-            try {
-                const metadataResp = await fetchImageMetadata(img.id);
-                const mpp = metadataResp.data.mpp; // microns per pixel
-                const micronUnits = [
-                    { unit: 'µm', scale: 1 }, // for single micron
-                    { unit: 'mm', scale: 1000 }, // for millimeters
-                    { unit: 'cm', scale: 10000 }, // for centimeters
-                ];
-                uiLayer.createWidget('scale', {
-                    position: { left: 10, bottom: 10 },
-                    units: micronUnits,
-                    scale: mpp,
-                });
-            } catch (error) {
-                console.error("Failed to fetch image metadata:", error);
-            }
-
-            annotationLayer.geoOn(geo.event.mousedown, handleMousedown);
-            annotationLayer.geoOn(geo.event.annotation.state, handleNewAnnotation);
-            annotationLayer.geoOn(geo.event.annotation.mode, handleAnnotationModeChange);
-            window.onkeydown = (evt) => {
-                if (evt.key === 'Backspace' || evt.key === 'Delete') {
-                    handleDeleteAnnotation(evt);
-                }
-            }
-
-            map.geoOn(geo.event.mousemove, function (evt: any) { 
-                props.setMouseCoords({ x: Math.round(evt.geo.x * 100) / 100, y: Math.round(evt.geo.y * 100) / 100 });
-            });
-            map.geoOn(geo.event.zoom, handleZoomPan);
-            map.geoOn(geo.event.pan, handleZoomPan);
-            geojs_map.current = map;
-            return null;
-        }
-
-        if (props.currentImage && props.currentAnnotationClass) {
-            // Need code to clear the map
-            activeRenderGroundTruthsCall.current = 0;
-            geojs_map.current?.exit();
-            initializeMap().then(() => console.log(`Map initialized for ${geojs_map.current}`));
-        }
-
-    }, [props.currentImage, props.currentAnnotationClass]);
 
     // UseEffect for when the toolbar value changes
     useEffect(() => {
