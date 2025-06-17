@@ -274,11 +274,10 @@ export const exportAnnotationsToServer = async (
     annotation_class_ids: number[],
     export_formats: string[]
 ) => {
-    const query = new URLSearchParams({
-        image_ids: image_ids.join(','),
-        annotation_class_ids: annotation_class_ids.join(','),
-        export_formats: export_formats.join(','),
-    });
+    const query = new URLSearchParams();
+    image_ids.forEach(id => query.append('image_ids', id.toString()));
+    annotation_class_ids.forEach(id => query.append('annotation_class_ids', id.toString()));
+    export_formats.forEach(format => query.append('export_formats', format));
 
     const response = await post<null, { actor_name: string; filepaths: string[] }>(
         `/annotation/export/server?${query}`,
