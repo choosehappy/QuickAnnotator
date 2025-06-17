@@ -21,6 +21,15 @@ export const getTileFeatureById = (layer: geo.layer, featureId: number, type='an
     });
 }
 
+export const tileIdIsValid = (tileId: number | null | undefined) => {
+    if (tileId === null || tileId === undefined) {
+        console.warn('Tile ID is invalid:', tileId);
+        return false;
+    }
+
+    return true;
+}
+
 export const redrawTileFeature = (feature: any, options = {}, data?: any[]) => {
     if (!feature) {
         console.warn('Cannot redraw feature, it is undefined.');
