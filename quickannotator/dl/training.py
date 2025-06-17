@@ -17,7 +17,7 @@ import io
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import cv2
-from safetensors.torch import save_file
+from safetensors.torch import save_file, load_file
 from quickannotator.db.fsmanager import fsmanager
 import quickannotator.constants as constants
 import os
@@ -112,7 +112,12 @@ def train_pred_loop(config):
     checkpoint_path = get_checkpoint_filepath(annotation_class_id)
     if os.path.exists(checkpoint_path):
         logger.info(f"Loading model from {checkpoint_path}")
-        model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+        try:
+            checkpoint = load_file(checkpoint_path)  # Use safetensors to load the checkpoint
+            model.load_state_dict(checkpoint, strict=False)  # Use strict=False if keys mismatch
+        except Exception as e:
+            logger.error(f"Failed to load checkpoint: {e}")
+            raise
     else:
         logger.info(f"No checkpoint found at {checkpoint_path}, starting from scratch.")
 
