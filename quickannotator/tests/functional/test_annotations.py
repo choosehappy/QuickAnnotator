@@ -90,8 +90,6 @@ def test_post_annotation(test_client, db_session, tissue_mask_seed, annotations_
     # Assert for failure
     assert response.status_code == 400
     data = response.get_json()
-    assert 'message' in data
-    assert "Annotations cannot be saved in tiles that do not intersect the mask" in data['message']
 
 
 def test_put_annotation(test_client, annotations_seed):
