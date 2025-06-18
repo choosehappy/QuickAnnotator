@@ -42,7 +42,7 @@ class Annotation(MethodView):
 
     @bp.arguments(server_models.PostAnnsArgsSchema, location='json')
     @bp.response(200, server_models.AnnRespSchema(many=True))
-    @bp.response(400, server_models.ErrorResponseSchema)  # Add the 400 response type
+    @bp.alt_response(400, description="Bad Request: Annotations cannot be saved in tiles that do not intersect the mask.")
     def post(self, args, image_id, annotation_class_id):
         """Post new annotations to the db."""
         is_gt = True
@@ -54,15 +54,16 @@ class Annotation(MethodView):
 
         # Check if the annotations are in tiles that intersect the tissue mask
         tilestore = TileStoreFactory.get_tilestore()
+        tile_ids_intersecting_mask, _, _ = tilestore.get_tile_ids_intersecting_mask(image_id, annotation_class_id)
+        polygon_tile_ids = {ann.tile_id for ann in anns}
         if annotation_class_id != constants.MASK_CLASS_ID:
-            tile_ids_intersecting_mask, _, _ = tilestore.get_tile_ids_intersecting_mask(image_id, annotation_class_id)
-            polygon_tile_ids = {ann.tile_id for ann in anns}
             non_intersecting_tile_ids = polygon_tile_ids - set(tile_ids_intersecting_mask)
             if non_intersecting_tile_ids:  # If there are any tile IDs that do not intersect the mask
                 error_message = f"Annotations cannot be saved in tiles that do not intersect the mask: {non_intersecting_tile_ids}"
+                [store.delete_annotations_by_tile(tile_id) for tile_id in non_intersecting_tile_ids]    # db_session.rollback() does not prevent the annotations from being saved, so we delete them manually. TODO: proactively check polygons before saving them.
                 logger.error(error_message)
-                db_session.rollback()   # NOTE: may want to check for invalid polygons proactively instead of retrospectively.
-                return {"message": error_message}, 400
+                db_session.rollback()   # NOTE: This currently does not prevent the annotations from being saved.
+                return {}, 400
 
         tilestore.upsert_gt_tiles(image_id, annotation_class_id, polygon_tile_ids)
 

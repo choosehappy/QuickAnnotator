@@ -90,6 +90,6 @@ class ExportToDSASchema(GetAnnsByImageAndAnnotationClassIds):
     api_key = fields.Str(required=True)
     folder_id = fields.Str(required=True)
 
-class ErrorResponseSchema(Schema):
+class ErrorRespSchema(Schema):
     """Schema for error responses."""
     message = fields.Str(required=True)

@@ -264,7 +264,7 @@ const ViewportMap = (props: Props) => {
                 }
                 props.setGts((prev: Annotation[]) => prev.concat(annotation));
             } else if (resp.status === 400) {
-                alert("Failed to create annotation. Please check the input and try again.");
+                alert("The annotation could not be saved as it is outside the tissue mask. Please try again.");
             }
         });
     }
