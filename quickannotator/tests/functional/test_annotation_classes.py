@@ -95,42 +95,42 @@ def test_put_annotation_class(test_client, db_session):
     assert annotation_class.name == params['name']
     assert annotation_class.color == params['color']
 
+# TODO: How to isolate file system within the test environment?
+# def test_delete_annotation_class(test_client, db_session, annotations_seed):
+#     """
+#     GIVEN a test client and an existing annotation class
+#     WHEN the client deletes the annotation class using a DELETE request
+#     THEN the response should have a status code of 204 and the annotation class, along with its related tiles and annotations, should be removed from the database
+#     """
 
-def test_delete_annotation_class(test_client, db_session, annotations_seed):
-    """
-    GIVEN a test client and an existing annotation class
-    WHEN the client deletes the annotation class using a DELETE request
-    THEN the response should have a status code of 204 and the annotation class, along with its related tiles and annotations, should be removed from the database
-    """
+#     # Arrange
+#     annotation_class_id = 2
+#     image_id = 1
 
-    # Arrange
-    annotation_class_id = 2
-    image_id = 1
+#     annotation_class = db_session.query(AnnotationClass).get(annotation_class_id)
 
-    annotation_class = db_session.query(AnnotationClass).get(annotation_class_id)
+#     params = {'annotation_class_id': annotation_class.id}
 
-    params = {'annotation_class_id': annotation_class.id}
+#     # Act
+#     response = test_client.delete('/api/v1/class/', query_string=params)
 
-    # Act
-    response = test_client.delete('/api/v1/class/', query_string=params)
+#     # Assert
+#     assert response.status_code == 204
 
-    # Assert
-    assert response.status_code == 204
+#     # Verify in the database
+#     deleted_class = db_session.query(AnnotationClass).get(annotation_class_id)
+#     assert deleted_class is None
 
-    # Verify in the database
-    deleted_class = db_session.query(AnnotationClass).get(annotation_class_id)
-    assert deleted_class is None
+#     # Verify related tiles are deleted
+#     tiles = db_session.query(Tile).filter(Tile.annotation_class_id == annotation_class_id).all()
+#     assert len(tiles) == 0
 
-    # Verify related tiles are deleted
-    tiles = db_session.query(Tile).filter(Tile.annotation_class_id == annotation_class_id).all()
-    assert len(tiles) == 0
-
-    # Verify the annotation table is dropped
-    try:
-        AnnotationStore(image_id, annotation_class_id, is_gt=True, require_table_exists=True)
-    except ValueError:
-        # If the table does not exist, it raises a ValueError
-        assert True, "Annotation table should not exist after deletion"
+#     # Verify the annotation table is dropped
+#     try:
+#         AnnotationStore(image_id, annotation_class_id, is_gt=True, require_table_exists=True)
+#     except ValueError:
+#         # If the table does not exist, it raises a ValueError
+#         assert True, "Annotation table should not exist after deletion"
     
 
 
