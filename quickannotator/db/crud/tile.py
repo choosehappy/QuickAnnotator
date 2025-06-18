@@ -10,7 +10,7 @@ from quickannotator.constants import MASK_CLASS_ID, MASK_DILATION, TileStatus
 import quickannotator.constants as constants
 from datetime import datetime, timedelta
 from quickannotator.db import Dialects, db_session
-from quickannotator.db.crud.annotation import get_annotation_query
+from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
 from quickannotator.db.crud.image import get_image_by_id
 import quickannotator.db.models as db_models
@@ -245,12 +245,9 @@ class TileStore(ABC):   # Only an ABC to prevent instantiation
     
     @staticmethod
     def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask_dilation: int) -> tuple[list, np.ndarray, list]:
-        # This function operates in the base magnification space
-        mask_work_to_base_scale_factor = 1 / base_to_work_scaling_factor(image_id=image_id, annotation_class_id=MASK_CLASS_ID)
-
         # Get the mask geojson polygons
-        model = create_dynamic_model(build_annotation_table_name(image_id, MASK_CLASS_ID, is_gt=True))
-        mask_geojson: geojson.Polygon = [geojson.loads(ann.polygon) for ann in get_annotation_query(model, mask_work_to_base_scale_factor).all()]    # Scales mask to base mag NOTE: potentially optimize using orjson.loads
+        tissue_mask_store = AnnotationStore(image_id, MASK_CLASS_ID, True, False)
+        mask_geojson: geojson.Polygon = [geojson.loads(ann.polygon) for ann in tissue_mask_store.get_all_annotations()]    # Scales mask to base mag NOTE: potentially optimize using orjson.loads
         tilestore = TileStoreFactory.get_tilestore()
 
         tile_ids, mask, processed_polygons = tilestore.get_tile_ids_intersecting_polygons(image_id, annotation_class_id, mask_geojson, mask_dilation)

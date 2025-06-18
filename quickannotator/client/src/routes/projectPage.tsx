@@ -13,13 +13,14 @@ import ExportAnnotationsModal from '../components/exportAnnotationsModal/exportA
 
 const ProjectPage = () => {
     const { projectid } = useParams();
-    const { currentProject, setCurrentProject } = useOutletContext<OutletContextType>();
+    const { currentProject, setCurrentProject, currentImage, setCurrentImage } = useOutletContext<OutletContextType>();
     const [images, setImages] = useState<Image[]>([])
     const [settingShow, setSettingShow] = useState<boolean>(false)
     const [embeddingShow, setEmbeddingShow] = useState<boolean>(false)
     const [exportAnnotationsShow, setExportAnnotationsShow] = useState<boolean>(false)
 
     useEffect(() => {
+        setCurrentImage(null);
         if (projectid) {
             fetchProject(parseInt(projectid)).then((resp) => {
                 if (resp.status === 200) {
@@ -95,12 +96,30 @@ const ProjectPage = () => {
                 <Row className="d-flex flex-grow-1">
                     <Col className={"d-flex flex-grow-1"} xs={(!embeddingShow && !settingShow) ? "12" : "6"}>
                         <Card className="flex-grow-1">
-                            <Card.Body id='img_table'>
+                            <Card.Header className='d-flex justify-content-between'>
+                                <ListGroup variant="flush" className="w-100">
+                                    <ListGroup.Item className="p-0 border-0 mb-3">
+                                        <Card.Title className='m-0 align-self-start'>Name</Card.Title>
+                                        <Card.Text className='m-0 align-self-start'>
+                                            {currentProject?.name}
+                                        </Card.Text>
+                                    </ListGroup.Item>
+                                    <ListGroup.Item className="p-0 border-0 mb-3">
+                                        <Card.Title className='m-0 align-self-start'>Description</Card.Title>
+                                        <Card.Text className='m-0 align-self-start'>
+                                            {currentProject?.description}
+                                        </Card.Text>
+                                    </ListGroup.Item>
+                                    <ListGroup.Item className="p-0 border-0">
+                                        <Card.Title>Images</Card.Title>
+                                    </ListGroup.Item>
+                                </ListGroup>
+                                <FileDropUploader project_id={projectid} reloadHandler={reloadImages} />
+                            </Card.Header>
+                            <Card.Body id='img_table' className="p-0">
                                 <ImageTable containerId='img_table' project={currentProject} images={images} changed={(!embeddingShow && !settingShow)} deleteHandler={deleteImageHandle} />
                             </Card.Body>
-                            <Card.Footer className='d-flex justify-content-center'>
-                                <FileDropUploader project_id={projectid} reloadHandler={reloadImages} />
-                            </Card.Footer>
+
                         </Card>
                     </Col>
 

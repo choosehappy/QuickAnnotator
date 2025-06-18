@@ -10,7 +10,7 @@ import ConfirmationModal from '../components/confirmationModal.tsx';
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
-import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass, fetchAnnotationClasses, fetchAnnotationClassById, createAnnotationClass, deleteAnnotationClass } from "../helpers/api.ts";
+import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass, searchAnnotationClasses, fetchAnnotationClassById, createAnnotationClass, deleteAnnotationClass } from "../helpers/api.ts";
 import { DEFAULT_CLASS_ID, MODAL_DATA, TOOLBAR_KEYS } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
@@ -68,7 +68,7 @@ const AnnotationPage = () => {
             console.error("Error deleting annotation class:", deleteResp);
             return;
         }
-        const getResp = await fetchAnnotationClasses();
+        const getResp = await searchAnnotationClasses(currentProject.id);
         if (getResp.status !== 200) {
             console.error("Error fetching annotation classes:", getResp);
             return;
@@ -103,7 +103,7 @@ const AnnotationPage = () => {
             });
         }
 
-        fetchAnnotationClasses().then((resp) => {
+        searchAnnotationClasses(Number(projectid)).then((resp) => {
             setAnnotationClasses(resp.data);
             setCurrentAnnotationClass(resp.data[DEFAULT_CLASS_ID - 1]);
         });
@@ -120,11 +120,6 @@ const AnnotationPage = () => {
     }
     , [currentAnnotationClass]);
 
-    useEffect(() => {
-        fetchAnnotationClasses().then((resp) => {
-            setAnnotationClasses(resp.data);
-        });
-    }, []);
 
     if (currentImage) {
         return (

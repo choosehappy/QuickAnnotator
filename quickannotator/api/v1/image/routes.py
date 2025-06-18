@@ -18,7 +18,7 @@ from . import models as server_models
 from flask_smorest import Blueprint
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.image import add_image_by_path
-from quickannotator.api.v1.image.utils import import_geojson_annotation_file, delete_annotation_tables_by_image_id
+from quickannotator.api.v1.image.utils import import_geojson_annotation_file, drop_annotation_tables_by_image_id
 
 bp = Blueprint('image', __name__, description='Image operations')
 
@@ -57,7 +57,7 @@ class Image(MethodView):
         image = db_session.query(db_models.Image).filter(db_models.Image.id==image_id).first()
         project_id = image.project_id
         # delete image's annotation tables
-        delete_annotation_tables_by_image_id(image_id)
+        drop_annotation_tables_by_image_id(image_id)
         # delete image from DB
         db_session.query(db_models.Image).filter(db_models.Image.id == image_id).delete()
         db_session.commit()

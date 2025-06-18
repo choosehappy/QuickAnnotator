@@ -1,5 +1,7 @@
 
 import {useState, useEffect } from "react";
+import {Link, useOutletContext} from 'react-router-dom';
+import { OutletContextType } from "../types.ts";
 import { Plus, PencilSquare, Trash } from 'react-bootstrap-icons';
 import { Alert, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button } from "react-bootstrap";
 import ProjectTable from '../components/projectTable/projectTable.tsx';
@@ -11,7 +13,7 @@ import {PROJECT_MODAL_STATUS} from '../helpers/config.ts'
 const LandingPage = () => {
     // 0 - create, 1 - update, 2 - remove 
     const [modalStatus, setModalStatus] = useState<PROJECT_MODAL_STATUS.CREATE | PROJECT_MODAL_STATUS.REMOVE | PROJECT_MODAL_STATUS.UPDATE | undefined>(undefined)
-
+    const { setCurrentImage, setCurrentProject } = useOutletContext<OutletContextType>();
     const [projects, setProjects] = useState<Project[]>([])
     const [showAlert, setShowAlert] = useState<boolean>(false)
     const [deletedId, setDeletedId] = useState<number | undefined>(undefined)
@@ -27,6 +29,11 @@ const LandingPage = () => {
 
         });
     }, [])
+
+    useEffect(() => {
+        setCurrentProject(null)
+        setCurrentImage(null);
+    }, []);
 
     const reloadProjects = () => {
         fetchAllProjects().then((resp) => {
@@ -114,7 +121,8 @@ const LandingPage = () => {
                 </Row>
                 <Row className="d-flex flex-grow-1">
                     <Col className="d-flex flex-grow-1"><Card className="flex-grow-1">
-                        <Card.Body>
+                        <Card.Header><Card.Title>Project List</Card.Title></Card.Header>
+                        <Card.Body id="project_table" className='p-0'>
                             <ProjectTable containerId='project_table' projects={projects} deleteHandle={showDeleteModalHandle} editHandle={showConfigModalHandle} />
                         </Card.Body>
                     </Card></Col>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { AnnotationClass, ModalData, Project } from '../types';
-import { createAnnotationClass, fetchAnnotationClasses, fetchMagnifications, fetchNewColor, fetchTilesizes } from '../helpers/api';
+import { createAnnotationClass, searchAnnotationClasses, fetchMagnifications, fetchNewColor, fetchTilesizes } from '../helpers/api';
 import { useForm, SubmitHandler, FormProvider } from "react-hook-form";
 
 interface IFormInput {
@@ -27,6 +27,7 @@ const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) 
     const methods = useForm<IFormInput>(); // Initialize useForm with type
 
     useEffect(() => {
+        if (!props.currentProject.id) return;
         // Fetch suggested magnification options from the server
         fetchMagnifications().then((resp) => {
             if (resp.status !== 200) {
@@ -71,7 +72,7 @@ const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) 
                 return;
             }
 
-            const fetchResp = await fetchAnnotationClasses();
+            const fetchResp = await searchAnnotationClasses(props.currentProject.id);
             if (fetchResp.status !== 200) {
                 console.error("Error fetching annotation classes:", fetchResp);
                 alert("Failed to fetch updated annotation classes. Please refresh the page.");

@@ -6,6 +6,7 @@ import Nav from 'react-bootstrap/Nav';
 import NavItem from 'react-bootstrap/NavItem';
 import Container from "react-bootstrap/Container";
 import ProgressBar from "react-bootstrap/ProgressBar"
+import { CaretRightFill } from 'react-bootstrap-icons';
 
 interface NavbarProps {
     currentProject: Project | null;
@@ -19,7 +20,7 @@ const Item = ({ children }) => {
     return (
         <>
             <NavItem style={{alignItems: "center", display: "flex"}}>
-                <i className="bi bi-caret-right-fill text-white"></i>
+                <CaretRightFill className="text-white" />
             </NavItem>
             {children}
         </>

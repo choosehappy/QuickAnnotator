@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { Column, GridOption, SlickgridReactInstance, SlickgridReact } from "slickgrid-react";
-import { Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, ListGroup } from "react-bootstrap";
+import { Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, ListGroup, Nav } from "react-bootstrap";
 
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
 import { Project } from "../../types.ts";
+import { Link } from 'react-router-dom';
 
 interface Props {
     projects: Project[];
@@ -79,7 +80,7 @@ export default class ProjectTable extends React.PureComponent {
         }
         const nameFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
 
-            return `<a target="_blank" href="./project/${dataContext.id}">${value}</a>`
+            return `<a href="/project/${dataContext.id}">${value}</a>`
         }
 
         const columns: Column[] = [
@@ -132,12 +133,14 @@ export default class ProjectTable extends React.PureComponent {
     render() {
         return !this.state.gridOptions ? '' : (
             <>
-                <SlickgridReact ref={this.gridRef} gridId={this.props.containerId + '-grid'}
-                    columnDefinitions={this.state.columnDefinitions}
-                    gridOptions={this.state.gridOptions}
-                    dataset={this.state.dataset}
-                    onReactGridCreated={$event => this.reactGridReady($event.detail)}
-                />
+                <div style={{ borderRadius: '8px', overflow: 'hidden' }}>
+                    <SlickgridReact ref={this.gridRef} gridId={this.props.containerId + '-grid'}
+                        columnDefinitions={this.state.columnDefinitions}
+                        gridOptions={this.state.gridOptions}
+                        dataset={this.state.dataset}
+                        onReactGridCreated={$event => this.reactGridReady($event.detail)}
+                    />
+                </div>
             </>
         );
     }

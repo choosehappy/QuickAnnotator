@@ -7,7 +7,7 @@ from . import models as server_models
 from flask import abort
 import quickannotator.db.models as db_models
 from quickannotator.db import db_session
-from quickannotator.db.crud.annotation_class import delete_annotation_class, get_annotation_class_by_id, insert_annotation_class, put_annotation_class
+from quickannotator.db.crud.annotation_class import delete_annotation_class, get_all_annotation_classes, get_all_annotation_classes_for_project, get_annotation_class_by_id, get_annotation_class_by_name, insert_annotation_class, put_annotation_class
 from quickannotator.dl.ray_jackson import start_processing
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 from flask import Response
@@ -102,11 +102,13 @@ class SearchAnnotationClass(MethodView):
     def get(self, args):
         """     search for an AnnotationClass by name or project_id     """
         if 'name' in args:
-            result = db_session.query(db_models.AnnotationClass).filter(db_models.AnnotationClass.name == args['name']).all()
+            result = [get_annotation_class_by_name(args['name'])]
         elif 'project_id' in args:
-            result = db_session.query(db_models.AnnotationClass).filter(db_models.AnnotationClass.project_id == args['project_id']).all()
+            result = [get_annotation_class_by_id(constants.MASK_CLASS_ID)]  # Always include the mask class
+            result.extend(get_all_annotation_classes_for_project(args['project_id']))
         else:
-            result = db_session.query(db_models.AnnotationClass).all()
+            result = get_all_annotation_classes()
+
         return result, 200
 
 ####################################################################################################

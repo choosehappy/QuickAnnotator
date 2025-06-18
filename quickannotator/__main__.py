@@ -8,6 +8,7 @@ from quickannotator.config import config
 from quickannotator.config import get_database_uri, get_database_path, get_ray_dashboard_host, get_ray_dashboard_port, get_api_version
 import ray
 from quickannotator.db import init_db, db_session
+from quickannotator.db.crud.annotation_class import insert_tissue_mask_class
 from quickannotator.db.logging import init_logger
 
 def serve_quickannotator(app):
@@ -52,6 +53,7 @@ def main():
             shutil.rmtree(db_path)
 
     init_db()
+    insert_tissue_mask_class() # Consider adding a seed_database method if the database setup gets complicated.
 
     @app.teardown_appcontext
     def shutdown_session(exception=None):
