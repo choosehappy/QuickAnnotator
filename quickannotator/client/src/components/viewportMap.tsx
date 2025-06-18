@@ -263,6 +263,8 @@ const ViewportMap = (props: Props) => {
                     feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
                 }
                 props.setGts((prev: Annotation[]) => prev.concat(annotation));
+            } else if (resp.status === 400) {
+                alert("Failed to create annotation. Please check the input and try again.");
             }
         });
     }

@@ -247,7 +247,7 @@ class TileStore(ABC):   # Only an ABC to prevent instantiation
         return tile_ids, mask, processed_polygons
     
     @staticmethod
-    def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask_dilation: int) -> tuple[list, np.ndarray, list]:
+    def get_tile_ids_intersecting_mask(image_id: int, annotation_class_id: int, mask_dilation: int=constants.MASK_DILATION) -> tuple[list, np.ndarray, list]:
         # Get the mask geojson polygons
         tissue_mask_store = AnnotationStore(image_id, MASK_CLASS_ID, True, False)
         mask_geojson: geojson.Polygon = [geojson.loads(ann.polygon) for ann in tissue_mask_store.get_all_annotations()]    # Scales mask to base mag NOTE: potentially optimize using orjson.loads

@@ -18,8 +18,13 @@ from typing import List
 from flask_smorest import Blueprint
 from datetime import datetime
 import os
+import logging
+from quickannotator.db import db_session
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
+
+# Set up logging
+logger = logging.getLogger(constants.LoggerNames.FLASK.value)
 
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>')
@@ -37,19 +42,29 @@ class Annotation(MethodView):
 
     @bp.arguments(server_models.PostAnnsArgsSchema, location='json')
     @bp.response(200, server_models.AnnRespSchema(many=True))
+    @bp.response(400, server_models.ErrorResponseSchema)  # Add the 400 response type
     def post(self, args, image_id, annotation_class_id):
-        """     post new annotations to the db. 
-        
-        This method is primarily used for ground truth annotations. Predictions should only by saved by the model.
-        """
+        """Post new annotations to the db."""
         is_gt = True
         in_work_mag = False
 
         polygons: List[geojson.Polygon] = args['polygons']
         store = AnnotationStore(image_id, annotation_class_id, is_gt=is_gt, in_work_mag=in_work_mag)
         anns = store.insert_annotations([shape(poly) for poly in polygons])
+
+        # Check if the annotations are in tiles that intersect the tissue mask
         tilestore = TileStoreFactory.get_tilestore()
-        tilestore.upsert_gt_tiles(image_id, annotation_class_id, {ann.tile_id for ann in anns})
+        if annotation_class_id != constants.MASK_CLASS_ID:
+            tile_ids_intersecting_mask, _, _ = tilestore.get_tile_ids_intersecting_mask(image_id, annotation_class_id)
+            polygon_tile_ids = {ann.tile_id for ann in anns}
+            non_intersecting_tile_ids = polygon_tile_ids - set(tile_ids_intersecting_mask)
+            if non_intersecting_tile_ids:  # If there are any tile IDs that do not intersect the mask
+                error_message = f"Annotations cannot be saved in tiles that do not intersect the mask: {non_intersecting_tile_ids}"
+                logger.error(error_message)
+                db_session.rollback()   # NOTE: may want to check for invalid polygons proactively instead of retrospectively.
+                return {"message": error_message}, 400
+
+        tilestore.upsert_gt_tiles(image_id, annotation_class_id, polygon_tile_ids)
 
         return anns, 200
 
