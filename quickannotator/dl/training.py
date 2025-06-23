@@ -76,6 +76,7 @@ def train_pred_loop(config):
     # model=ray.train.torch.prepare_model(model,move_to_device=False)
     #---------
     logger = LoggingManager.init_logger(constants.LoggerNames.RAY.value)
+    logger.info("Initialized train_pred_loop")
     #TODO: likely need to accept here the checkpoint location
     annotation_class_id = config["annotation_class_id"] # --- this should result in a catastrophic failure if not provided
     tile_size = config["tile_size"] #probably this as well
@@ -135,7 +136,7 @@ def train_pred_loop(config):
         
     for name, param in model.named_parameters():
         if not param.requires_grad:
-            print(f"{name} is frozen")
+            logger.info(f"{name} is frozen")
     #-----
 
 
@@ -156,10 +157,13 @@ def train_pred_loop(config):
     while ray.get(myactor.getProcRunningSince.remote()):    # procRunningSince will be None if the DL processing is to be stopped.
         tilestore = TileStoreFactory.get_tilestore()
         while tiles := tilestore.get_pending_inference_tiles(annotation_class_id, batch_size_infer):
+            logger.info(f"Running inference on {len(tiles)} tiles for annotation class {annotation_class_id}")
+            tileids = [tile.tile_id for tile in tiles]
+            logger.info(f"Tiles to process: {tileids}")
             #print (f"running inference on {len(tiles)}")
             run_inference(device, model, tiles)
             
-        #print ("pretrain loop")
+        logger.info(f"No more UNSEEN tiles for annotation class {annotation_class_id}. Entering training loop.")
         if ray.get(myactor.getEnableTraining.remote()):
             #print ("in train loop")
             niter_total += 1
@@ -207,13 +211,14 @@ def train_pred_loop(config):
                 logger.info(f"niter_total [{niter_total}], Loss: {sum(running_loss)/len(running_loss)}")
                 running_loss=[]
 
-                logger.info("Saving model checkpoint!")  # Use logger instead of print
+                logger.info("Saving model checkpoint")  # Use logger instead of print
                                  #another potentially more interesting option is to do both, save on a regular basis (since if we things crash we can revert back othe nearest checkpoint\
                                  #but as well give the user in the front end a dropdown which enables them to select which model checkpoint they want to use? we had somethng similar in QAv1
                                  #that said, this is likely a more advanced features and not very "apple like" since it would require explaining to the user when/why/how they should use the different models
                                  #maybe suggest avoiduing for now --- lets just save the last one
-
-                save_file(model.state_dict(), get_checkpoint_filepath(annotation_class_id))
+                checkpoint_path = get_checkpoint_filepath(annotation_class_id)
+                save_file(model.state_dict(), checkpoint_path)
+                logger.info(f"Model checkpoint saved to {checkpoint_path}")
                 last_save = 0
 
             

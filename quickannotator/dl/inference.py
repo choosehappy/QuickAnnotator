@@ -89,6 +89,8 @@ def run_inference(device, model, tiles):
                 store = AnnotationStore(tiles[j].image_id, tiles[j].annotation_class_id, is_gt=False, in_work_mag=True)
                 store.delete_annotations_by_tile(tiles[j].tile_id)
                 store.insert_annotations(translated_polygons, tiles[j].tile_id)
+
+            logger.info(f'Number of annotations saved: {len(translated_polygons)}.')
                 
     logger.info("Setting pred_status to DONEPROCESSING")
     tilestore: TileStore = TileStoreFactory.get_tilestore()

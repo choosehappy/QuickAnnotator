@@ -32,14 +32,21 @@ const ClassesPane = (props: Props) => {
                                 <ListGroup.Item 
                                     key={c.id}
                                     action 
-                                    onClick={() => {props.setcurrentAnnotationClass(c)}}
+                                    onClick={() => {
+                                        if (props.currentAnnotationClass?.id === MASK_CLASS_ID) {
+                                            if (!window.confirm('Reminder: Have you added tissue mask polygons? If not, please do so before annotating other classes. Press OK to continue or Cancel to abort.')) {
+                                                return;
+                                            }
+                                        }
+                                        props.setcurrentAnnotationClass(c);
+                                    }}
                                     active={props.currentAnnotationClass?.id === c.id}
                                     className="d-flex justify-content-between align-items-center list-group-item-secondary"
                                 >
                                     <span>{c.name}</span>
                                     <div>
                                         {c.id !== MASK_CLASS_ID && c.id === props.currentAnnotationClass?.id && (
-                                            <Button // NOTE: there may be an issue with having a button inside a ListGroup.Item that is also clickable, but it works for now.
+                                            <Button 
                                                 variant="outline-danger" 
                                                 size="sm"
                                                 onClick={(e) => {
