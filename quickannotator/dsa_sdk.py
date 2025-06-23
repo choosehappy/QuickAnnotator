@@ -43,10 +43,13 @@ class DSAClient:
         url = f"{self.base_url}/api/v1/api_key/token"
         params = {"key": api_key, "duration": duration}
         headers = {'accept': 'application/json'}
-
         response = requests.post(url, headers=headers, params=params)
         if response.status_code == 200:
-            return self.token
+            try:
+                token = response.json()['authToken']['token']
+                return token
+            except (KeyError, ValueError) as e:
+                raise Exception(f"Malformed response: {response.text}")
         else:
             raise Exception(f"Failed to retrieve token: {response.status_code} {response.text}")
 
