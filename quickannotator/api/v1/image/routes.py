@@ -2,7 +2,6 @@ from flask_smorest import abort
 from flask.views import MethodView
 from flask import current_app, request, send_from_directory, send_file
 from sqlalchemy import func
-from werkzeug.utils import secure_filename
 from quickannotator.constants import ImageType, AnnotationFileFormats
 from quickannotator.db import db_session
 from quickannotator.db.fsmanager import fsmanager
@@ -96,7 +95,10 @@ class FileUpload(MethodView):
         file = request.files['file']
         project_id = args["project_id"]
         if file and project_id:
-            filename = secure_filename(file.filename)
+            # filename = secure_filename(file.filename)
+            filename = file.filename
+
+            # TODO: add filename validation and reject if it is not valid
 
             # get file extension
             file_basename, file_ext = os.path.splitext(filename)
