@@ -8,6 +8,7 @@ from .utils import AnnotationExporter, compute_actor_name
 import quickannotator.db.models as db_models
 from . import models as server_models
 from quickannotator import constants
+from quickannotator.dl.utils import CacheableMask, MaskCacheManager
 
 from flask.views import MethodView
 from flask import Response
@@ -64,6 +65,11 @@ class Annotation(MethodView):
                 logger.error(error_message)
                 db_session.rollback()   # NOTE: This currently does not prevent the annotations from being saved.
                 return {}, 400
+        
+        # Invalidate the mask cache for the tiles where annotations were saved
+        mask_cache_manager = MaskCacheManager()
+        for tile_id in polygon_tile_ids:
+            mask_cache_manager.invalidate(CacheableMask.get_key(image_id, annotation_class_id, tile_id))
 
         tilestore.upsert_gt_tiles(image_id, annotation_class_id, polygon_tile_ids)
 
@@ -78,14 +84,25 @@ class Annotation(MethodView):
 
         store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=in_work_mag)
         ann = store.update_annotation(args['annotation_id'], shape(args['polygon']))
+        # Invalidate the mask cache for the annotation
+        mask_cache_manager = MaskCacheManager()
+        if ann.tile_id is not None:  # Only invalidate if the tile_id is set
+            mask_cache_manager.invalidate(CacheableMask.get_key(image_id, annotation_class_id, ann.tile_id))
 
         return ann, 201
+    
+
     @bp.arguments(server_models.DeleteAnnArgsSchema, location='query')
     def delete(self, args, image_id, annotation_class_id):
         """     delete an annotation
         """
         store = AnnotationStore(image_id, annotation_class_id, args['is_gt'])
+        annotation = store.get_annotation_by_id(args['annotation_id'])
         result = store.delete_annotation(args['annotation_id'])
+
+        # Invalidate the mask cache for the annotation
+        mask_cache_manager = MaskCacheManager()
+        mask_cache_manager.invalidate(CacheableMask.get_key(image_id, annotation_class_id, annotation.tile_id))
 
         if result:
             return {}, 204

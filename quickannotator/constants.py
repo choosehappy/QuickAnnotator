@@ -88,3 +88,19 @@ class LoggerNames(enum.Enum):
     FLASK = "flask"
     RAY = "qa_ray"     # NOTE: "ray" conflicts with the ray logger, resulting in ray._private logs getting saved to the db logs table.
     DB = "db"
+
+
+# Memcached settings
+MEMCACHED_HOST = 'localhost'
+MEMCACHED_PORT = 11211
+MAX_POOL_SIZE = 4
+
+
+class ImageFormat(enum.Enum):
+    PNG = "PNG"
+    JPG = "JPEG"
+
+
+class AnnotationReturnMode(enum.IntEnum):
+    GEOJSON = 0
+    WKT = 1

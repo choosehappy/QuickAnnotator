@@ -163,7 +163,7 @@ def train_pred_loop(config):
             #print (f"running inference on {len(tiles)}")
             run_inference(device, model, tiles)
             
-        logger.info(f"No more UNSEEN tiles for annotation class {annotation_class_id}. Entering training loop.")
+        logger.info(f"No more STARTPROCESSING tiles for annotation class {annotation_class_id}. Entering training loop.")
         if ray.get(myactor.getEnableTraining.remote()):
             #print ("in train loop")
             niter_total += 1

@@ -15,7 +15,7 @@ from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 
 from quickannotator.constants import TileStatus
 import quickannotator.constants as constants
-from quickannotator.dl.utils import decompress_from_image_bytestream, get_memcached_client, load_tile
+from quickannotator.dl.utils import CacheableImage, load_tile, ImageCacheManager
 
 from datetime import datetime
 import logging
@@ -44,22 +44,19 @@ def postprocess_output(outputs, min_area = 100, dilate_kernel = 2): ## These sho
 
 
 def run_inference(device, model, tiles):
-    client = get_memcached_client()
+    img_cache_manager = ImageCacheManager()
 
     io_images = []
     
     for tile in tiles:
-        img_cache_key = f"img_{tile.image_id}_{tile.id}" 
-        try: #if memcache isn't working, no problem, just keep going
-            img_cache_val = client.get(img_cache_key) or {}
-        except:
-            img_cache_val = {}
+        img_cache_val = img_cache_manager.get_cached(CacheableImage.get_key(tile.image_id, tile.tile_id))
         
         if img_cache_val:
-            io_image = decompress_from_image_bytestream(img_cache_val[0])
+            io_image = img_cache_val.get_image()
 
         else:
             io_image,tile.x,tile.y = load_tile(tile)
+            # NOTE: Should we also cache the image here? - Jackson
 
         cv2.imwrite("/opt/QuickAnnotator/quickannotator/data/output/img.png",io_image) #TODO: remove- - for debug
         io_images.append(io_image)
