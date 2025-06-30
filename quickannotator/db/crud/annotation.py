@@ -53,7 +53,7 @@ def get_annotation_query(model, scale_factor: float=1.0, mode=constants.Annotati
             model.custom_metrics,
             model.datetime
         )
-    elif mode == constants.AnnotationReturnMode.WKT:
+    elif mode == constants.AnnotationReturnMode.WKB:
         query = db_session.query(
             model.id,
             model.tile_id,

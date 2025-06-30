@@ -103,4 +103,4 @@ class ImageFormat(enum.Enum):
 
 class AnnotationReturnMode(enum.IntEnum):
     GEOJSON = 0
-    WKT = 1
+    WKB = 1

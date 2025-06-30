@@ -59,8 +59,9 @@ class TileDataset(IterableDataset):
                 mask_image, weight = mask_cache_val.get_mask(), mask_cache_val.get_weight()
             else:
                 with get_session() as db_session: #TODO: Move down?
-                    store = AnnotationStore(image_id, self.classid, is_gt=True, in_work_mag=True, mode=constants.AnnotationReturnMode.)
+                    store = AnnotationStore(image_id, self.classid, is_gt=True, in_work_mag=True, mode=constants.AnnotationReturnMode.WKB)
                     annotations = store.get_annotations_for_tiles(tile_id)
+                    breakpoint()
                     db_session.expunge_all()
 
                     if len(annotations) == 0: # would be strange given how things are set up?
@@ -68,7 +69,7 @@ class TileDataset(IterableDataset):
             #----
                 mask_image = np.zeros((self.tile_size, self.tile_size), dtype=np.uint8) #TODO: maybe should be moved to a project wide available utility function? not sure
                 for annotation in annotations:
-                    annotation_polygon = shapely.wkb.loads(annotation.polygon.data)
+                    annotation_polygon = shapely.wkb.loads(bytes(annotation.polygon.data))
                     translated_polygon = shapely.affinity.translate(annotation_polygon, xoff=-x, yoff=-y) # need to scale this down from base mag to target mag
                     cv2.fillPoly(mask_image, [np.array(translated_polygon.exterior.coords, dtype=np.int32)], 1)
                 
