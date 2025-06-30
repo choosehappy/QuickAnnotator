@@ -13,6 +13,9 @@ from typing import Type, TypeVar, Generic, Optional
 from quickannotator.db.models import Image, AnnotationClass
 from quickannotator.api.v1.utils.coordinate_space import TileSpace
 import quickannotator.constants as constants
+import logging
+
+logger = logging.getLogger(constants.LoggerNames.RAY.value)
 
 def compress_to_image_bytestream(matrix: np.ndarray, format: ImageFormat, **kwargs):
     """
@@ -219,11 +222,15 @@ class CacheManager(ABC, Generic[T]):
         Returns:
             PooledClient: A memcached client configured with the application's constants.
         """
-        client = PooledClient((constants.MEMCACHED_HOST, constants.MEMCACHED_PORT), 
-                              serde=serde.pickle_serde, 
-                              max_pool_size=constants.MAX_POOL_SIZE)
-        return client
-        
+        try:
+            client = PooledClient((constants.MEMCACHED_HOST, constants.MEMCACHED_PORT), 
+                                  serde=serde.pickle_serde, 
+                                  max_pool_size=constants.MAX_POOL_SIZE)
+            logger.info("Memcached client successfully created.")
+            return client
+        except Exception as e:
+            logger.error(f"Failed to create Memcached client: {e}")
+            return None
 
     def cache(self, key: str, data: T, expire: int = 3600):
         """
@@ -234,9 +241,14 @@ class CacheManager(ABC, Generic[T]):
             data (T): The data to cache.
             expire (int, optional): Time-to-live for the cached data in seconds. Defaults to 3600 seconds (1 hour).
         """
-        if not isinstance(data, self.cached_object_class):
-            raise TypeError(f"Data must be an instance of {self.cached_object_class.__name__}")
-        self.client.set(key, data, expire)
+        try:
+            if not isinstance(data, self.cached_object_class):
+                raise TypeError(f"Data must be an instance of {self.cached_object_class.__name__}")
+            self.client.set(key, data, expire)
+            logger.info(f"Data cached successfully with key: {key}")
+        except Exception as e:
+            logger.error(f"Failed to cache data with key {key}: {e}. Continuing without cache.")
+            raise
 
     def get_cached(self, key: str) -> Optional[T]:
         """
@@ -248,10 +260,15 @@ class CacheManager(ABC, Generic[T]):
         Returns:
             Optional[T]: The cached data, or None if the key does not exist in the cache.
         """
-        cached_data = self.client.get(key)
-        if cached_data is not None and not isinstance(cached_data, self.cached_object_class):
-            raise TypeError(f"Cached data is not an instance of {self.cached_object_class.__name__}")
-        return cached_data
+        try:
+            cached_data = self.client.get(key)
+            if cached_data is not None and not isinstance(cached_data, self.cached_object_class):
+                raise TypeError(f"Cached data is not an instance of {self.cached_object_class.__name__}")
+            logger.info(f"Cache hit for key: {key}")
+            return cached_data
+        except Exception as e:
+            logger.warning(f"Cache retrieval failed for key {key}: {e}. Proceeding without cache.")
+            return None
 
     def invalidate(self, key: str):
         """
@@ -260,7 +277,12 @@ class CacheManager(ABC, Generic[T]):
         Args:
             key (str): The cache key.
         """
-        self.client.delete(key)
+        try:
+            self.client.delete(key)
+            logger.info(f"Cache invalidated for key: {key}")
+        except Exception as e:
+            logger.error(f"Failed to invalidate cache for key {key}: {e}. Continuing without invalidation.")
+            return
 
 
 class ImageCacheManager(CacheManager[CacheableImage]):

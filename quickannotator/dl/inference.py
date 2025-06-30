@@ -53,6 +53,7 @@ def run_inference(device, model, tiles):
         
         if img_cache_val:
             io_image = img_cache_val.get_image()
+            tile.x, tile.y = img_cache_val.get_coordinates()
 
         else:
             io_image,tile.x,tile.y = load_tile(tile)

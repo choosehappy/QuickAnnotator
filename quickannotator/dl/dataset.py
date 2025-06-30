@@ -51,18 +51,13 @@ class TileDataset(IterableDataset):
             else:
 
                 io_image,x,y = load_tile(tile)
-
                 
-                try: #if memcache isn't working, no problem, just keep going
-                    self.image_cache_manager.cache(img_cache_key, CacheableImage(io_image, (x, y)))
-                except:
-                    pass
+                self.image_cache_manager.cache(img_cache_key, CacheableImage(io_image, (x, y)))
             
 
             if mask_cache_val:
                 mask_image, weight = mask_cache_val.get_mask(), mask_cache_val.get_weight()
             else:
-                breakpoint()
                 with get_session() as db_session: #TODO: Move down?
                     store = AnnotationStore(image_id, self.classid, is_gt=True, in_work_mag=True, mode=constants.AnnotationReturnMode.WKT)
                     annotations = store.get_annotations_for_tiles(tile_id)
@@ -85,11 +80,7 @@ class TileDataset(IterableDataset):
                 else:
                     weight = np.ones(mask_image.shape, dtype=mask_image.dtype)
                 
-                try: #if memcache isn't working, no problem, just keep going
-                    # client.set(mask_cache_key, [compress_to_image_bytestream(i,format="PNG") for i in (mask_image, weight)])
-                    self.mask_cache_manager.cache(mask_cache_key, CacheableMask(mask_image, weight))
-                except:
-                    pass
+                self.mask_cache_manager.cache(mask_cache_key, CacheableMask(mask_image, weight))
 
             img_new = io_image
             mask_new = mask_image
