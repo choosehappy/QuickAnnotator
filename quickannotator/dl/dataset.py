@@ -61,7 +61,6 @@ class TileDataset(IterableDataset):
                 with get_session() as db_session: #TODO: Move down?
                     store = AnnotationStore(image_id, self.classid, is_gt=True, in_work_mag=True, mode=constants.AnnotationReturnMode.WKB)
                     annotations = store.get_annotations_for_tiles(tile_id)
-                    breakpoint()
                     db_session.expunge_all()
 
                     if len(annotations) == 0: # would be strange given how things are set up?
