@@ -248,7 +248,6 @@ class CacheManager(ABC, Generic[T]):
             logger.info(f"Data cached successfully with key: {key}")
         except Exception as e:
             logger.error(f"Failed to cache data with key {key}: {e}. Continuing without cache.")
-            raise
 
     def get_cached(self, key: str) -> Optional[T]:
         """
