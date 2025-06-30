@@ -23,8 +23,28 @@ docker volume create qa_data    # Will store example WSIs
 ```
 
 ### Database
-By default, QuickAnnotator uses a SQLite database. If you would like to use a postgis database, change the `database_uri` in the `quickannotator/config.py` file. The default SQLite database is stored in the `qadb_data` volume.
+By default, QuickAnnotator uses a SQLite database. If you would like to use a postgis database, follow these steps:
 
+1. Create a docker network
+    ```bash
+    docker network create quickannotator-net
+    ```
+
+2. Run the container
+    ```bash
+    docker run -d \
+        --name postgis \
+        --network quickannotator-net \
+        -e POSTGRES_USER=admin \
+        -e POSTGRES_PASSWORD=admin \
+        -e POSTGRES_DB=gisdb \
+        -p 5432:5432 \
+        -v postgis_data:/var/lib/postgresql/data \
+        postgis/postgis
+    ```
+3. Change the `database_uri` in the `quickannotator/config.ini` file
+
+4. Running quickannotator will automatically seed the database.
 
 ### Container
 1. Clone the QuickAnnotator repository and checkout the v2.0 branch:

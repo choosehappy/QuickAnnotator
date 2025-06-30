@@ -59,7 +59,7 @@ class TileDataset(IterableDataset):
                 mask_image, weight = mask_cache_val.get_mask(), mask_cache_val.get_weight()
             else:
                 with get_session() as db_session: #TODO: Move down?
-                    store = AnnotationStore(image_id, self.classid, is_gt=True, in_work_mag=True, mode=constants.AnnotationReturnMode.WKT)
+                    store = AnnotationStore(image_id, self.classid, is_gt=True, in_work_mag=True, mode=constants.AnnotationReturnMode.)
                     annotations = store.get_annotations_for_tiles(tile_id)
                     db_session.expunge_all()
 

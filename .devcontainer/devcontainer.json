@@ -30,6 +30,7 @@
 	"runArgs": [
 		"--gpus", "all",
 		"--shm-size=8G",
+		"--network", "quickannotator-net",
 		"-p", "5000:5000",
 		"-p", "5173:5173",
 		"-p", "8265:8265",
