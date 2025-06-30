@@ -120,6 +120,7 @@ Logs are stored within the QuickAnnotator database and may be visualized using G
     --name=grafana \ 
     -p 3000:3000 \ 
     -v qadb_data:/var/lib/grafana/sqlite \ 
+    --network quickannotator-net \
     grafana/grafana 
     ```
 
