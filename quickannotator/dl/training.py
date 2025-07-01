@@ -220,8 +220,7 @@ def train_pred_loop(config):
                 save_file(model.state_dict(), checkpoint_path)
                 logger.info(f"Model checkpoint saved to {checkpoint_path}")
                 last_save = 0
-
-            
+                
     logger.info("Exiting training!")
 
 
