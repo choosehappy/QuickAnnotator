@@ -19,6 +19,7 @@ from quickannotator.dl.utils import CacheableImage, load_tile, ImageCacheManager
 
 from datetime import datetime
 import logging
+import os
 
 logger = logging.getLogger(constants.LoggerNames.RAY.value)
 
@@ -35,11 +36,15 @@ def postprocess_output(outputs, min_area = 100, dilate_kernel = 2): ## These sho
 
 
     # Plot the output using matplotlib
+    path = "/opt/QuickAnnotator/quickannotator/mounts/raw_output"
+    if not os.path.exists(path):
+        os.makedirs(path)
+
     plt.figure(figsize=(10, 10))
     plt.imshow(outputs, cmap='viridis')  # Use 'viridis' colormap
     plt.colorbar(label='Output Intensity')  # Add a colorbar with a label
     plt.title('Model Output')
-    plt.savefig("/opt/QuickAnnotator/quickannotator/mounts/nas_write/raw_output/output_plot.png")  # Save the plot as PNG
+    plt.savefig(os.path.join(path, "output.png"))  # Save the plot as PNG
     plt.close()
     positive_mask = outputs> constants.INFERENCE_THRESHOLD #TODO: maybe UI or system threshold? probably a good idea
     

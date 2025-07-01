@@ -96,16 +96,18 @@ class TileDataset(IterableDataset):
             base_path = "/opt/QuickAnnotator/quickannotator/mounts/nas_write"
             os.makedirs(base_path, exist_ok=True)
 
-            image_path = os.path.join(base_path, f"image_{image_id}_class_{self.classid}_tile_{tile_id}.png")
-            mask_path = os.path.join(base_path, f"mask_{image_id}_class_{self.classid}_tile_{tile_id}.png")
-            weight_path = os.path.join(base_path, f"weight_{image_id}_class_{self.classid}_tile_{tile_id}.png")
+
 
             # Log image dimensions
             logger.info(f"Image dimensions: {img_new.shape}, Mask dimensions: {mask_new.shape}, Weight dimensions: {weight_new.shape}")
 
             # Save the image, mask, and weight to files
-            cv2.imwrite(image_path, io_image)
-            cv2.imwrite(mask_path, mask_image * 255)  # Scale mask to 0-255 for saving
-            cv2.imwrite(weight_path, weight * 255)  # Scale weight to 0-255 for saving
+
+            # image_path = os.path.join(base_path, f"image_{image_id}_class_{self.classid}_tile_{tile_id}.png")
+            # mask_path = os.path.join(base_path, f"mask_{image_id}_class_{self.classid}_tile_{tile_id}.png")
+            # weight_path = os.path.join(base_path, f"weight_{image_id}_class_{self.classid}_tile_{tile_id}.png")
+            # cv2.imwrite(image_path, io_image)
+            # cv2.imwrite(mask_path, mask_image * 255)  # Scale mask to 0-255 for saving
+            # cv2.imwrite(weight_path, weight * 255)  # Scale weight to 0-255 for saving
 
             yield img_new, mask_new[None,::], weight_new
