@@ -137,7 +137,7 @@ class CacheableImage(CacheableObject):
         return self.coordinates
     
     @staticmethod
-    def get_key(image_id: int, tile_id: int) -> str:
+    def get_key(image_id: int, annotation_class_id: int, tile_id: int) -> str:
         """
         Returns a unique key for the cacheable image based on image and tile identifiers.
 
@@ -148,7 +148,7 @@ class CacheableImage(CacheableObject):
         Returns:
             str: The unique key for the cacheable image.
         """
-        return f"image:{image_id}:{tile_id}"
+        return f"image:{image_id}:{annotation_class_id}:{tile_id}"
 
 
 class CacheableMask(CacheableObject):

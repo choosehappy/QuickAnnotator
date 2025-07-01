@@ -123,7 +123,7 @@ def train_pred_loop(config):
         logger.info(f"No checkpoint found at {checkpoint_path}, starting from scratch.")
 
 
-    criterion = nn.BCEWithLogitsLoss(reduction='none', ).cuda()
+    criterion = nn.BCEWithLogitsLoss(reduction='none', ).cuda() # TODO: make this a setting and provide other loss function options (DICE loss?)
     optimizer = optim.NAdam(model.parameters(), lr=0.001, weight_decay=1e-2) #TODO: this should be a setting
     
     scaler = torch.amp.GradScaler("cuda")

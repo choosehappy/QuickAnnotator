@@ -26,7 +26,7 @@ bp = Blueprint('annotation', __name__, description='Annotation operations')
 
 # Set up logging
 logger = logging.getLogger(constants.LoggerNames.FLASK.value)
-
+mask_cache_manager = MaskCacheManager()
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>')
 class Annotation(MethodView):
@@ -67,7 +67,7 @@ class Annotation(MethodView):
                 return {}, 400
         
         # Invalidate the mask cache for the tiles where annotations were saved
-        mask_cache_manager = MaskCacheManager()
+
         for tile_id in polygon_tile_ids:
             mask_cache_manager.invalidate(CacheableMask.get_key(image_id, annotation_class_id, tile_id))
 
@@ -85,8 +85,7 @@ class Annotation(MethodView):
         store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=in_work_mag)
         ann = store.update_annotation(args['annotation_id'], shape(args['polygon']))
         # Invalidate the mask cache for the annotation
-        mask_cache_manager = MaskCacheManager()
-        if ann.tile_id is not None:  # Only invalidate if the tile_id is set
+        if ann is not None:  # Only invalidate if the tile_id is set
             mask_cache_manager.invalidate(CacheableMask.get_key(image_id, annotation_class_id, ann.tile_id))
 
         return ann, 201
@@ -101,7 +100,6 @@ class Annotation(MethodView):
         result = store.delete_annotation(args['annotation_id'])
 
         # Invalidate the mask cache for the annotation
-        mask_cache_manager = MaskCacheManager()
         mask_cache_manager.invalidate(CacheableMask.get_key(image_id, annotation_class_id, annotation.tile_id))
 
         if result:

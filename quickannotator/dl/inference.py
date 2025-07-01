@@ -5,7 +5,7 @@ import numpy as np
 import shapely.wkb
 import shapely.geometry
 import shapely.affinity
-
+import matplotlib.pyplot as plt
 from sqlalchemy import func, select, update
 
 from quickannotator.db.crud.annotation import AnnotationStore
@@ -32,7 +32,16 @@ def preprocess_image(io_image, device):
 
 def postprocess_output(outputs, min_area = 100, dilate_kernel = 2): ## These should be defined as class level settings from the user
     outputs = outputs.squeeze().detach().cpu().numpy()
-    positive_mask = outputs> .5 #TODO: maybe UI or system threshold? probably a good idea
+
+
+    # Plot the output using matplotlib
+    plt.figure(figsize=(10, 10))
+    plt.imshow(outputs, cmap='viridis')  # Use 'viridis' colormap
+    plt.colorbar(label='Output Intensity')  # Add a colorbar with a label
+    plt.title('Model Output')
+    plt.savefig("/opt/QuickAnnotator/quickannotator/mounts/nas_write/raw_output/output_plot.png")  # Save the plot as PNG
+    plt.close()
+    positive_mask = outputs> constants.INFERENCE_THRESHOLD #TODO: maybe UI or system threshold? probably a good idea
     
     kernel = np.ones((dilate_kernel, dilate_kernel), np.uint8)
     positive_mask = cv2.dilate(positive_mask.astype(np.uint8), kernel, iterations=2)>0
@@ -49,7 +58,7 @@ def run_inference(device, model, tiles):
     io_images = []
     
     for tile in tiles:
-        img_cache_val = img_cache_manager.get_cached(CacheableImage.get_key(tile.image_id, tile.tile_id))
+        img_cache_val = img_cache_manager.get_cached(CacheableImage.get_key(tile.image_id, tile.annotation_class_id, tile.tile_id))
         
         if img_cache_val:
             io_image = img_cache_val.get_image()
@@ -71,6 +80,7 @@ def run_inference(device, model, tiles):
         outputs = model(io_images)  #output at target magnification level!
         outputs = torch.sigmoid(outputs) #BCEWithLogitsLoss needs a sigmoid at the end
         outputs = outputs[:, :, 32:-32, 32:-32]
+        # breakpoint()
 
         for j, output in enumerate(outputs):
             #---
@@ -82,7 +92,7 @@ def run_inference(device, model, tiles):
             translated_polygons = [
                 shapely.affinity.translate(polygon, xoff=tiles[j].x, yoff=tiles[j].y) for polygon in polygons
             ]
-            logger.info(f'Saving annotations for tile {tiles[j].id}.')
+            logger.info(f'Saving annotations for tile {tiles[j].tile_id}.')
             with get_session() as db_session:
                 store = AnnotationStore(tiles[j].image_id, tiles[j].annotation_class_id, is_gt=False, in_work_mag=True)
                 store.delete_annotations_by_tile(tiles[j].tile_id)

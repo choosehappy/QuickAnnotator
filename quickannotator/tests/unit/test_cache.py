@@ -21,7 +21,7 @@ def test_image_cache_manager():
     image = CacheableImage(matrix, coordinates)
 
     # Generate a cache key
-    key = CacheableImage.get_key(image_id=1, tile_id=1)
+    key = CacheableImage.get_key(image_id=1, annotation_class_id=1, tile_id=1)
 
     # Cache the image
     manager.cache(key, image)
