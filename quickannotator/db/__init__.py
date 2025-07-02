@@ -60,7 +60,8 @@ def get_ogr_datasource():
     if dialect == Dialects.SQLITE.value:
         ogr_conn_str = f"SQLite:{engine.url.database}"
     elif dialect == Dialects.POSTGRESQL.value:
-        ogr_conn_str = f"PG:{engine.url}"
+        url = engine.url
+        ogr_conn_str = f"PG: host={url.host or 'localhost'} port={url.port or 5432} dbname='{url.database}' user='{url.username}' password='{url.password}'"
     else:
         raise ValueError(f"Unsupported database dialect: {dialect}")
     
