@@ -112,6 +112,7 @@ const AnnotationPage = () => {
 
     useEffect(() => {
         if (!currentAnnotationClass) return;
+        setCurrentTool(TOOLBAR_KEYS.POINTER);
         startProcessingAnnotationClass(currentAnnotationClass?.id).then((resp) => {
             if (resp.status === 200) {
                 console.log("Processing started");
