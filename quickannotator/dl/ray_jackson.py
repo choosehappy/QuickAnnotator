@@ -142,29 +142,32 @@ class DLActor:
 
 
 def start_processing(annotation_class_id: int):
-    # 1. Get all named actors
-    logger.info("Starting processing for annotation class ID: %s", annotation_class_id)
+    # 1. Get named actor 
+    actor_name = build_actor_name(annotation_class_id=annotation_class_id)
+    annotation_class = get_annotation_class_by_id(annotation_class_id)
+    current_actor = DLActor.options(name=actor_name, get_if_exists=True).remote(annotation_class_id,
+                                                                               annotation_class.work_tilesize,
+                                                                               annotation_class.work_mag)
+    logger.info("Got ray actor for annotation class ID: %s", annotation_class_id)
+
     actor_queue = get_processing_actors(sort_by_date=True)
     logger.info(f"Current processing actors: {len(actor_queue)}")
 
-    # 2. Sort actors by running_since_datetimes
     while len(actor_queue) >= constants.MAX_ACTORS_PROCESSING:
         # 3. Pop the oldest actor
         oldest_actor = actor_queue.pop(0)['actor']
-        logger.info(f"Flagging actor to cease train/pred loop: {oldest_actor}")
-        oldest_actor.setProcRunningSince.remote(reset=True)
 
-    actor_name = build_actor_name(annotation_class_id=annotation_class_id)
-    annotation_class = get_annotation_class_by_id(annotation_class_id)
+        # 4. If the oldest actor is not the current one, flag it to cease processing
+        if oldest_actor != current_actor:   # Can do a direct comparison since ray returns the exact same actor object.
+            logger.info(f"Stopping actor {oldest_actor} to make room for new processing.")
+            oldest_actor.setProcRunningSince.remote(reset=True)
+
+
 
     # 3. Set all tiles with pred_status=TileStatus.PROCESSING to TileStatus.UNSEEN
 
 
     # 4. Start the new actor or get the existing one
-    current_actor = DLActor.options(name=actor_name, get_if_exists=True).remote(annotation_class_id,
-                                                                               annotation_class.work_tilesize,
-                                                                               annotation_class.work_mag)
-
     current_actor.start_dlproc.remote()
     logger.info(f"Instructed actor {actor_name} to start processing.")
     return current_actor
