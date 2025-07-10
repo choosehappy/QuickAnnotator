@@ -70,34 +70,6 @@ class DLActor:
         self.logger.info(f"DLActor started with hexid: {self.hexid}")
         return self.hexid
 
-    # TODO: Remove.
-    # def infer(self, image_id: int, tileids: list[int]):
-    #     if not self.allow_pred:
-    #         self.logger.warning("Not doing inference --- actor was started with prediction disabled")
-    #         return False
-
-    #     with get_session() as db_session:
-    #         tilestore = TileStoreFactory.get_tilestore()
-    #         tilestore.upsert_pred_tiles(
-    #             image_id=image_id,
-    #             annotation_class_id=self.annotation_class_id,
-    #             tile_ids=tileids,
-    #             pred_status=constants.TileStatus.PROCESSING,
-    #             process_owns_tile=True
-    #         )
-
-    #     return True
-
-    # TODO: Remove.
-    # def getTileStatus(self, image_id, tile_ids):  # probably belongs elsewhere but need this for debug
-    #     with get_session() as db_session:
-    #         stmt = db_session.query(Tile).filter(Tile.tile_id.in_(tile_ids), Tile.image_id == image_id,
-    #                                              Tile.annotation_class_id == self.annotation_class_id)
-
-    #         result = stmt.all()
-
-    #     return result
-
     def getClassId(self):
         return self.annotation_class_id
 
