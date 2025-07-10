@@ -107,7 +107,7 @@ export const createPredTileFeature = (featureProps: any, annotations: Annotation
         }
         originalDraw.call(feature);
     }
-    console.log('Drew predicted polygons.')
+    // console.log('Drew predicted polygons.')
     feature.draw({ highlightedPolyIds: highlightedPolyIds });
     return feature;
 }
