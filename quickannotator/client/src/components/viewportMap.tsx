@@ -253,13 +253,13 @@ const ViewportMap = (props: Props) => {
                     console.log("Tile ID not found.")
                     return;
                 }
-                const feature = getTileFeatureById(layer, tile_id);
+                let feature = getTileFeatureById(layer, tile_id);
                 if (feature) {
                     const data = feature.data();
                     const updatedData = data.concat(annotation);
                     redrawTileFeature(feature, {}, updatedData);
                 } else {
-                    const feature = createGTTileFeature({}, [annotation], layer, currentAnnotationClass);
+                    feature = createGTTileFeature({tile_id: tile_id}, [annotation], layer, currentAnnotationClass);
                     feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
                 }
                 props.setGts((prev: Annotation[]) => prev.concat(annotation));
