@@ -1,3 +1,4 @@
+from itertools import product
 from sqlalchemy.orm import Query
 from sqlalchemy import func, Table, MetaData
 import sqlalchemy
@@ -22,7 +23,7 @@ from osgeo import ogr
 import tempfile
 
 
-def get_annotation_query(model, scale_factor: float=1.0) -> Query:
+def get_annotation_query(model, scale_factor: float=1.0, mode=constants.AnnotationReturnMode.GEOJSON) -> Query:
     '''
     Constructs a SQLAlchemy query to retrieve and scale annotation data from the database.
     Args:
@@ -42,15 +43,26 @@ def get_annotation_query(model, scale_factor: float=1.0) -> Query:
     if scale_factor <= 0:
         raise ValueError("scale_factor must be greater than 0.")
 
-    query = db_session.query(
-        model.id,
-        model.tile_id,
-        func.ST_AsGeoJSON(func.ST_Scale(model.centroid, scale_factor, scale_factor)).label('centroid'),
-        func.ST_AsGeoJSON(func.ST_Scale(model.polygon, scale_factor, scale_factor)).label('polygon'),
-        model.area,
-        model.custom_metrics,
-        model.datetime
-    )
+    if mode == constants.AnnotationReturnMode.GEOJSON:
+        query = db_session.query(
+            model.id,
+            model.tile_id,
+            func.ST_AsGeoJSON(func.ST_Scale(model.centroid, scale_factor, scale_factor)).label('centroid'),
+            func.ST_AsGeoJSON(func.ST_Scale(model.polygon, scale_factor, scale_factor)).label('polygon'),
+            model.area,
+            model.custom_metrics,
+            model.datetime
+        )
+    elif mode == constants.AnnotationReturnMode.WKB:
+        query = db_session.query(
+            model.id,
+            model.tile_id,
+            func.ST_Scale(model.centroid, scale_factor, scale_factor).label('centroid'),
+            func.ST_Scale(model.polygon, scale_factor, scale_factor).label('polygon'),
+            model.area,
+            model.custom_metrics,
+            model.datetime
+        )
 
     return query
 
@@ -80,7 +92,7 @@ def anns_to_feature_collection(annotations: List[db_models.Annotation]) -> geojs
 
 
 class AnnotationStore:
-    def __init__(self, image_id: int, annotation_class_id: int, is_gt: bool, in_work_mag=True, require_table_exists=False):
+    def __init__(self, image_id: int, annotation_class_id: int, is_gt: bool, in_work_mag=True, require_table_exists=False, mode=constants.AnnotationReturnMode.GEOJSON):
         """
         Initializes the annotation helper with the given parameters.
 
@@ -114,7 +126,7 @@ class AnnotationStore:
             self.model = model
 
 
-        self.query = get_annotation_query(self.model, 1/self.scaling_factor)
+        self.query = get_annotation_query(self.model, 1/self.scaling_factor, mode)
 
     # CREATE
     # TODO: consider adding optional parameter to allow tileids to be passed in.
@@ -165,7 +177,9 @@ class AnnotationStore:
         return result
 
 
-    def get_annotations_for_tiles(self, tile_ids: List[int]) -> List[db_models.Annotation]:
+    def get_annotations_for_tiles(self, tile_ids: List[int] | int) -> List[db_models.Annotation]:
+        if not isinstance(tile_ids, list):
+            tile_ids = [tile_ids]
         result = self.query.filter(self.model.tile_id.in_(tile_ids)).all()
         return result
     
@@ -358,6 +372,33 @@ class AnnotationStore:
         return scale(polygon, xfact=scaling_factor, yfact=scaling_factor, origin=(0, 0))
     
 
+    @staticmethod
+    def bulk_drop_tables(image_ids: List[int], annotation_class_ids: List[int]):
+        """
+        Drops multiple annotation tables based on image IDs and annotation class IDs.
+        Args:
+            image_ids (List[int]): A list of image IDs.
+            annotation_class_ids (List[int]): A list of annotation class IDs.
+            is_gt (bool): A flag indicating whether the annotations are ground truth.
+        """
+        id_pairs = [(int(image_id), int(annotation_class_id)) for image_id, annotation_class_id in product(image_ids, annotation_class_ids)]
+
+        for image_id, annotation_class_id in id_pairs:
+            try:
+                gt_store = AnnotationStore(image_id, annotation_class_id, is_gt=True)
+                gt_store.drop_table()
+            except Exception as e:
+                continue
+
+            try:
+                pred_store = AnnotationStore(image_id, annotation_class_id, is_gt=False)
+                pred_store.drop_table()
+            except Exception as e:
+                continue
+        
+        db_session.commit()
+    
+
 def build_annotation_table_name(image_id: int, annotation_class_id: int, is_gt: bool):
     gtpred = 'gt' if is_gt else 'pred'
     table_name = f"annotation_{image_id}_{annotation_class_id}_{gtpred}"
@@ -399,3 +440,4 @@ def build_export_filepath(image_id: int, annotation_class_id: int, is_gt: bool, 
 
     filepath = os.path.join(save_path, filename)
     return filepath
+

@@ -44,3 +44,15 @@ def get_image_by_id(image_id: int) -> db_models.Image:
 
 def get_images_for_project(project_id: int) -> list[db_models.Image]:
     return db_session.query(db_models.Image).filter(db_models.Image.project_id == project_id).all()
+
+def delete_images(image_ids: List[int] | int):
+    """
+    Delete images by their IDs.
+    Args:
+        image_ids (List[int] | int): A list of image IDs or a single image ID to delete.
+    """
+    if isinstance(image_ids, int):
+        image_ids = [image_ids]
+    
+    db_session.query(db_models.Image).filter(db_models.Image.id.in_(image_ids)).delete(synchronize_session=False)
+    db_session.commit()

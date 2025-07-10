@@ -147,7 +147,22 @@ class NASWrite(FileStore):
         Returns:
             str: The directory path for the project masks.
         """
-        relative_path = os.path.join("projects", f"proj_{project_id}", "images", f"img_{image_id}", "masks")
+        relative_path = os.path.join(self.get_project_image_path(project_id, image_id, relative=True), "masks")
+        return relative_path if relative else self.relative_to_global(relative_path)
+    
+
+    def get_annotation_class_path(self, annotation_class_id: int, relative: bool = False):
+        """
+        Get the directory path for an annotation class.
+
+        Args:
+            annotation_class_id (int): The annotation class ID.
+            relative (bool): Whether to return a relative path.
+
+        Returns:
+            str: The directory path for the annotation class.
+        """
+        relative_path = os.path.join("classes", f"class_{annotation_class_id}")
         return relative_path if relative else self.relative_to_global(relative_path)
 
     def get_class_checkpoint_path(self, annotation_class_id: int, relative: bool = False):
@@ -161,7 +176,21 @@ class NASWrite(FileStore):
         Returns:
             str: The directory path for the class checkpoints.
         """
-        relative_path = os.path.join("classes", f"class_{annotation_class_id}", "checkpoints")
+        relative_path = os.path.join(self.get_annotation_class_path(annotation_class_id, relative=True), "checkpoints")
+        return relative_path if relative else self.relative_to_global(relative_path)
+    
+    def get_logs_path(self, annotation_class_id: int, relative: bool = False):
+        """
+        Get the directory path for logs.
+
+        Args:
+            annotation_class_id (int): The annotation class ID.
+            relative (bool): Whether to return a relative path.
+
+        Returns:
+            str: The directory path for logs.
+        """ 
+        relative_path = os.path.join(self.get_annotation_class_path(annotation_class_id, relative=True), "logs")
         return relative_path if relative else self.relative_to_global(relative_path)
 
     def get_temp_image_path(self, relative: bool = False):
@@ -175,6 +204,19 @@ class NASWrite(FileStore):
             str: The directory path for temporary images.
         """
         relative_path = "temp"  # Removed os.path.join
+        return relative_path if relative else self.relative_to_global(relative_path)
+    
+    def get_debug_path(self, relative: bool = False):
+        """
+        Get the directory path for debug files.
+
+        Args:
+            relative (bool): Whether to return a relative path.
+
+        Returns:
+            str: The directory path for debug files.
+        """
+        relative_path = "debug"
         return relative_path if relative else self.relative_to_global(relative_path)
 
 
@@ -218,6 +260,6 @@ class FileSystemManager:
         self.nas_write = NASWrite()
         self.nas_high_speed = NASHighSpeed()
 
-
+    
 
 fsmanager = FileSystemManager()

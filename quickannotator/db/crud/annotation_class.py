@@ -44,23 +44,20 @@ def put_annotation_class(annotation_class_id, name: str=None, color: str=None):
     db_session.commit()
     return annotation_class
 
-def delete_annotation_class(annotation_class_id: int) -> db_models.AnnotationClass:
-    annotation_class: db_models.AnnotationClass = db_session.query(db_models.AnnotationClass).get(annotation_class_id)
-    if annotation_class is None:
-        return None
-
-    db_session.delete(annotation_class)
+def delete_annotation_classes(annotation_class_ids: List[int] | int):
+    """
+    Delete annotation classes by their IDs.
+    Args:
+        annotation_class_ids (List[int] | int): A list of annotation class IDs or a single annotation class ID to delete.
+    """
+    if isinstance(annotation_class_ids, int):
+        annotation_class_ids = [annotation_class_ids]
+    
+    db_session.query(db_models.AnnotationClass).filter(db_models.AnnotationClass.id.in_(annotation_class_ids)).delete(synchronize_session=False)
     db_session.commit()
-    return annotation_class
 
 def search_annotation_class_by_name(name: str):
     return db_session.query(db_models.AnnotationClass).filter(db_models.AnnotationClass.name == name).all()
-
-def search_annotation_class_by_project_id(project_id: int):
-    return db_session.query(db_models.AnnotationClass).filter(
-        (db_models.AnnotationClass.project_id == project_id) | 
-        (db_models.AnnotationClass.project_id == None)
-    ).all()
 
 
 def insert_tissue_mask_class():

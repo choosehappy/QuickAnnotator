@@ -1,18 +1,12 @@
 from flask_smorest import abort
 from flask.views import MethodView
-from flask import current_app
-import os
-import shutil
+from quickannotator.api.v1.project.utils import delete_project_and_related_data
 from quickannotator.db import db_session
+from quickannotator.db.crud.project import get_project_by_id
 import quickannotator.db.models as db_models
-from quickannotator.db.fsmanager import fsmanager
 from . import models as server_models
 from flask_smorest import Blueprint
 from datetime import datetime
-from quickannotator.db.crud.annotation import AnnotationStore
-from quickannotator.db.crud.image import get_images_by_project_id
-from quickannotator.api.v1.image.utils import drop_annotation_tables_by_image_id
-import sqlalchemy
 bp = Blueprint('project', __name__, description='Project operations')
 
 @bp.route('/')
@@ -60,40 +54,25 @@ class Project(MethodView):
             db_session.commit()
         
         return project
+    
+    
     @bp.arguments(server_models.DeleteProjectArgsSchema, location='query')
     @bp.response(204, description="Project deleted")
+    @bp.response(404, description="Project not found")
     def delete(self, args):
         """     delete a Project
         """
         project_id = args['project_id']
-    
-        # get all image ids by project id
-        images = get_images_by_project_id(project_id)
-        # delete all annotation tables
-        for img in images:
-            drop_annotation_tables_by_image_id(image_id=img.id)
-        
-        # delete images
-        db_session.query(db_models.Image).filter(db_models.Image.project_id == project_id).delete()
-        # delete project
-        db_session.query(db_models.Project).filter(db_models.Project.id == project_id).delete()
 
-        db_session.commit()
+        # Check that the project exists
+        project = get_project_by_id(project_id)
 
-        # remove the project folders
-        full_project_path = fsmanager.nas_write.get_project_path(project_id, relative=False)
-        if os.path.exists(full_project_path):
-            try:
-                shutil.rmtree(full_project_path)
-            except OSError as e:
-                print(f"Error deleting folder '{full_project_path}': {e}")
-                
-        
-        # return response
-        if project_id:
-            return {'project_id': project_id}, 204
-        else:
-            return {"message": "Project not found"}, 404
+        if project is None:
+            abort(404, "Project not found")
+            
+        delete_project_and_related_data(project_id)
+
+        return {}, 204
 
 @bp.route('/all')
 class SearchProject(MethodView):

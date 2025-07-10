@@ -1,16 +1,13 @@
 import logging
 from quickannotator import constants
+from quickannotator.api.v1.annotation_class.utils import delete_annotation_class_and_related_data
 from quickannotator.db.colors import ColorPalette
-from quickannotator.db.crud.annotation import AnnotationStore
-from quickannotator.db.crud.image import get_images_for_project
 from . import models as server_models
 from flask import abort
 import quickannotator.db.models as db_models
 from quickannotator.db import db_session
-from quickannotator.db.crud.annotation_class import delete_annotation_class, get_all_annotation_classes, get_all_annotation_classes_for_project, get_annotation_class_by_id, get_annotation_class_by_name, insert_annotation_class, put_annotation_class
+from quickannotator.db.crud.annotation_class import get_all_annotation_classes, get_all_annotation_classes_for_project, get_annotation_class_by_id, get_annotation_class_by_name, insert_annotation_class, put_annotation_class
 from quickannotator.dl.ray_jackson import start_processing
-from quickannotator.db.crud.tile import TileStoreFactory, TileStore
-from flask import Response
 
 from flask.views import MethodView
 from flask_smorest import Blueprint
@@ -66,32 +63,13 @@ class AnnotationClass(MethodView):
         if args['annotation_class_id'] == constants.MASK_CLASS_ID:
             abort(400, "Cannot delete the mask annotation class")
 
-        # Drop all respective annotation tables
+        # Check that the annotation class exists
         annotation_class = get_annotation_class_by_id(args['annotation_class_id'])
         if annotation_class is None:
             abort(404, "AnnotationClass not found")
-        project_id = annotation_class.project_id
-        images = get_images_for_project(project_id)
-        for image in images:
-            try: 
-                gt_store = AnnotationStore(image.id, args['annotation_class_id'], is_gt=True)
-            except Exception as e:
-                continue
-            gt_store.drop_table()
-
-            try: 
-                pred_store = AnnotationStore(image.id, args['annotation_class_id'], is_gt=False)
-            except Exception as e:
-                continue
-            pred_store.drop_table()
-
-        # Clean up tiles
-        tile_store: TileStore = TileStoreFactory.get_tilestore()
-        tile_store.delete_tiles(args['annotation_class_id'])
-
-        # Delete the annotation class
-        annotation_class = delete_annotation_class(args['annotation_class_id'])
-        return annotation_class, 204
+        
+        delete_annotation_class_and_related_data(args['annotation_class_id'])
+        return {}, 204
 
 ####################################################################################################
 

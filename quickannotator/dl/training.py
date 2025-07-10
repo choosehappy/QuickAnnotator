@@ -1,3 +1,4 @@
+import logging
 import segmentation_models_pytorch as smp
 import torch
 from torch.utils.data import DataLoader
@@ -8,14 +9,19 @@ import ray
 
 from torchsummary import summary
 import datetime
-from quickannotator.dl.inference import run_inference, getPendingInferenceTiles
+from quickannotator.dl.inference import run_inference
+from quickannotator.db.crud.tile import TileStoreFactory
 from quickannotator.db.crud.annotation_class import build_actor_name
 from .dataset import TileDataset
 import io
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import cv2
-from safetensors.torch import save_file
+from safetensors.torch import save_file, load_file
+from quickannotator.db.fsmanager import fsmanager
+import quickannotator.constants as constants
+import os
+from quickannotator.db.logging import LoggingManager
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -69,13 +75,14 @@ def train_pred_loop(config):
     # #model=ray.train.torch.prepare_model(model,cuda_dev)
     # model=ray.train.torch.prepare_model(model,move_to_device=False)
     #---------
-
+    logger = LoggingManager.init_logger(constants.LoggerNames.RAY.value)
+    logger.info("Initialized train_pred_loop")
     #TODO: likely need to accept here the checkpoint location
     annotation_class_id = config["annotation_class_id"] # --- this should result in a catastrophic failure if not provided
     tile_size = config["tile_size"] #probably this as well
     magnification = config["magnification"] #probably this as well
     actor_name = build_actor_name(annotation_class_id)
-    print (f"Actor name: {actor_name}")
+    logger.info(f"Actor name: {actor_name}")
 
     #TODO: all these from project settings
     boost_count = 5
@@ -84,6 +91,13 @@ def train_pred_loop(config):
     edge_weight=1_000
     num_workers=0 #TODO:set to num of CPUs? or...# of CPUs/ divided by # of classes or something...challenge - one started can't change. maybe set to min(batch_size train, ??) 
     
+
+    # Set device
+    if torch.cuda.is_available():
+        localrank=ray.train.get_context().get_local_rank()
+        device=torch.device('cuda',localrank)
+    else:
+        device= "cpu"
 
     dataset=TileDataset(annotation_class_id,
                         edge_weight=edge_weight, transforms=get_transforms(tile_size), 
@@ -94,7 +108,22 @@ def train_pred_loop(config):
     #model = smp.Unet(encoder_name="timm-mobilenetv3_small_100", encoder_weights="imagenet", in_channels=3, classes=1) #TODO: this should all be a setting
     model = smp.Unet(encoder_name="efficientnet-b0", encoder_weights="imagenet", 
                  decoder_channels=(64, 64, 64, 32, 16), in_channels=3, classes=1, encoder_freeze=True )
-    criterion = nn.BCEWithLogitsLoss(reduction='none', ).cuda()
+    
+    # Load the model weights
+    checkpoint_path = get_checkpoint_filepath(annotation_class_id)
+    if os.path.exists(checkpoint_path):
+        logger.info(f"Loading model from {checkpoint_path}")
+        try:
+            checkpoint = load_file(checkpoint_path)  # Use safetensors to load the checkpoint
+            model.load_state_dict(checkpoint, strict=False)  # Use strict=False if keys mismatch
+        except Exception as e:
+            logger.error(f"Failed to load checkpoint: {e}")
+            raise
+    else:
+        logger.info(f"No checkpoint found at {checkpoint_path}, starting from scratch.")
+
+
+    criterion = nn.BCEWithLogitsLoss(reduction='none', ).cuda() # TODO: make this a setting and provide other loss function options (DICE loss?)
     optimizer = optim.NAdam(model.parameters(), lr=0.001, weight_decay=1e-2) #TODO: this should be a setting
     
     scaler = torch.amp.GradScaler("cuda")
@@ -107,14 +136,10 @@ def train_pred_loop(config):
         
     for name, param in model.named_parameters():
         if not param.requires_grad:
-            print(f"{name} is frozen")
+            logger.info(f"{name} is frozen")
     #-----
 
-    if torch.cuda.is_available():
-        localrank=ray.train.get_context().get_local_rank()
-        device=torch.device('cuda',localrank)
-    else:
-        device= "cpu"
+
     
     #model = model.half() #TODO: test with .half()
     model=ray.train.torch.prepare_model(model,device)
@@ -123,22 +148,22 @@ def train_pred_loop(config):
 
     running_loss = []
     
-    writer = SummaryWriter(log_dir=f"/tmp/{annotation_class_id}/{datetime.datetime.now().strftime('%b%d_%H-%M-%S')}")
-
-    
-
-
+    writer = SummaryWriter(log_dir=get_log_filepath(annotation_class_id))
     last_save = 0
     niter_total = 0 
     #print ("pre actor get")
     myactor = ray.get_actor(actor_name)
     #print ("post actor get")
     while ray.get(myactor.getProcRunningSince.remote()):    # procRunningSince will be None if the DL processing is to be stopped.
-        while tiles := getPendingInferenceTiles(annotation_class_id,batch_size_infer): 
+        tilestore = TileStoreFactory.get_tilestore()
+        while tiles := tilestore.get_pending_inference_tiles(annotation_class_id, batch_size_infer):
+            logger.info(f"Running inference on {len(tiles)} tiles for annotation class {annotation_class_id}")
+            tileids = [tile.tile_id for tile in tiles]
+            logger.info(f"Tiles to process: {tileids}")
             #print (f"running inference on {len(tiles)}")
             run_inference(device, model, tiles)
             
-        #print ("pretrain loop")
+        logger.info(f"No more STARTPROCESSING tiles for annotation class {annotation_class_id}. Entering training loop.")
         if ray.get(myactor.getEnableTraining.remote()):
             #print ("in train loop")
             niter_total += 1
@@ -183,16 +208,38 @@ def train_pred_loop(config):
             
             last_save+=1
             if last_save>50:
-                print (f"niter_total [{niter_total}], Loss: {sum(running_loss)/len(running_loss)}")
+                logger.info(f"niter_total [{niter_total}], Loss: {sum(running_loss)/len(running_loss)}")
                 running_loss=[]
 
-                print ("saving!") #TODO: do we want to *always* override the last saved model , or do we want to instead only save if some type of loss threshold is met?
+                logger.info("Saving model checkpoint")  # Use logger instead of print
                                  #another potentially more interesting option is to do both, save on a regular basis (since if we things crash we can revert back othe nearest checkpoint\
                                  #but as well give the user in the front end a dropdown which enables them to select which model checkpoint they want to use? we had somethng similar in QAv1
                                  #that said, this is likely a more advanced features and not very "apple like" since it would require explaining to the user when/why/how they should use the different models
                                  #maybe suggest avoiduing for now --- lets just save the last one
-                save_file(model.state_dict(), f"/tmp/model.safetensors") #TODO: needs to go somewhere reasonable maybe /projid/models/classid/ ? or something
+                checkpoint_path = get_checkpoint_filepath(annotation_class_id)
+                save_file(model.state_dict(), checkpoint_path)
+                logger.info(f"Model checkpoint saved to {checkpoint_path}")
                 last_save = 0
+                
+    logger.info("Exiting training!")
 
-            
-    #print ("Exiting training!")
+
+def get_checkpoint_filepath(annotation_class_id: int):
+    """
+    Returns the path to the model checkpoint for the given annotation class ID.
+    """
+    savepath = fsmanager.nas_write.get_class_checkpoint_path(annotation_class_id)
+    if not os.path.exists(savepath):
+        os.makedirs(savepath, exist_ok=True)
+    return os.path.join(savepath, constants.CHECKPOINT_FILENAME)
+
+
+def get_log_filepath(annotation_class_id: int):
+    """
+    Returns the path to the log file for the given annotation class ID.
+    """
+    savepath = fsmanager.nas_write.get_logs_path(annotation_class_id)
+    if not os.path.exists(savepath):
+        os.makedirs(savepath, exist_ok=True)
+    filename = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
+    return os.path.join(savepath, filename + ".log")

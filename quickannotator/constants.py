@@ -1,6 +1,7 @@
 import enum
 import os
 
+DEBUG = False  # TODO: app setting
 
 class TileStatus(enum.IntEnum):
     UNSEEN = 0
@@ -65,6 +66,7 @@ MASK_CLASS_WORK_MAG = 1.25
 MASK_CLASS_WORK_TILESIZE = 2048
 
 # TODO: move to project settings
+INFERENCE_THRESHOLD = 0.5  # TODO: app setting
 MAGNIFICATION_OPTIONS = [1.25, 2.5, 5.0, 10.0, 20.0, 40.0]  
 
 TILESIZE_OPTIONS = [256, 512, 1024, 2048] # in pixels
@@ -81,3 +83,26 @@ class AnnotationFileFormats(enum.Enum):
 class Dialects(enum.Enum):
     SQLITE = "sqlite"
     POSTGRESQL = "postgresql"
+
+CHECKPOINT_FILENAME = "model.safetensors"
+
+class LoggerNames(enum.Enum):
+    FLASK = "flask"
+    RAY = "qa_ray"     # NOTE: "ray" conflicts with the ray logger, resulting in ray._private logs getting saved to the db logs table.
+    DB = "db"
+
+
+# Memcached settings
+MEMCACHED_HOST = 'localhost'
+MEMCACHED_PORT = 11211
+MAX_POOL_SIZE = 4
+
+
+class ImageFormat(enum.Enum):
+    PNG = "PNG"
+    JPG = "JPEG"
+
+
+class AnnotationReturnMode(enum.IntEnum):
+    GEOJSON = 0
+    WKB = 1

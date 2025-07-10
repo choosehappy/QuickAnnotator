@@ -541,3 +541,27 @@ def test_reset_all_PROCESSING_tiles_with_other_states(insert_processing_tile, in
     assert unseen_tile.pred_status == TileStatus.UNSEEN
     assert startprocessing_tile.pred_status == TileStatus.STARTPROCESSING
     assert doneprocessing_tile.pred_status == TileStatus.DONEPROCESSING
+
+
+def test_delete_tiles(db_session, insert_unseen_tile, insert_startprocessing_tile):
+    # Arrange
+    tilestore: TileStore = TileStoreFactory.get_tilestore()
+    unseen_tile = insert_unseen_tile
+    unseen_tile_id = unseen_tile.id
+
+    startprocessing_tile = insert_startprocessing_tile
+    startprocessing_tile_id = startprocessing_tile.id
+
+
+
+    assert unseen_tile_id is not None
+    assert startprocessing_tile_id is not None
+
+    # Act
+    tilestore.delete_tiles(image_ids=unseen_tile.image_id, 
+                           annotation_class_ids=unseen_tile.annotation_class_id)
+
+    # Assert
+    # Verify that the tiles no longer exist
+    assert db_session.query(models.Tile).filter_by(id=unseen_tile_id).first() is None
+    assert db_session.query(models.Tile).filter_by(id=startprocessing_tile_id).first() is None

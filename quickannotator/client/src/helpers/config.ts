@@ -68,7 +68,7 @@ export const UI_SETTINGS = {
     pendingTileFillOpacity: 0.5,
 }
 
-export const MASK_CLASS_ID = 1;
+export const MASK_CLASS_ID = 1; // TODO: app setting
 
 export const SERVER_URL = 'http://localhost:5000'; // TODO: app setting
 export const API_URI = '/api/v1';   // TODO: app setting

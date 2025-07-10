@@ -24,7 +24,7 @@
     {
       "datasource": {
         "type": "frser-sqlite-datasource",
-        "uid": "dehurj2k9e9dse"
+        "uid": "eep93hz32dywwf"
       },
       "fieldConfig": {
         "defaults": {},
@@ -48,16 +48,16 @@
         "sortOrder": "Descending",
         "wrapLogMessage": false
       },
-      "pluginVersion": "11.6.0",
+      "pluginVersion": "12.0.1",
       "targets": [
         {
           "datasource": {
             "type": "frser-sqlite-datasource",
             "uid": "dehurj2k9e9dse"
           },
-          "queryText": "SELECT\n  message,\n  name,\n  timestamp,\n  level\nFROM\n  log\nORDER BY\n  timestamp\n",
+          "queryText": "SELECT\n  message,\n  name,\n  timestamp,\n  level\nFROM\n  log\nORDER BY\n  timestamp DESC\nLIMIT 1000;\n\n",
           "queryType": "table",
-          "rawQueryText": "SELECT\n  message,\n  name,\n  timestamp,\n  level\nFROM\n  log\nORDER BY\n  timestamp\n",
+          "rawQueryText": "SELECT\n  message,\n  name,\n  timestamp,\n  level\nFROM\n  log\nORDER BY\n  timestamp DESC\nLIMIT 1000;\n\n",
           "refId": "A",
           "timeColumns": [
             "timestamp"
@@ -82,5 +82,5 @@
   "timezone": "browser",
   "title": "QuickAnnotator",
   "uid": "cehusapdam800c",
-  "version": 3
+  "version": 2
 }

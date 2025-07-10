@@ -1,5 +1,6 @@
 import geojson
 from conftest import assert_geojson_equal
+from quickannotator.db.crud.annotation import AnnotationStore
 import quickannotator.db.models as db_models
 
 def test_annotations_within_polygon(test_client, annotations_seed):
@@ -38,26 +39,26 @@ def test_annotations_within_polygon(test_client, annotations_seed):
     # TODO: check equality between the returned annotations and the expected annotations
 
 
-def test_post_annotation(test_client, annotations_seed, db_session):
+def test_post_annotation(test_client, db_session, tissue_mask_seed, annotations_seed):
     """
     GIVEN a test client and a new annotation
     WHEN the client posts the annotation using a POST request
-    THEN the response should have a status code of 200 and the returned data should match the posted annotation
-    AND the corresponding tile should be updated in the database
+    THEN the response should have a status code of 200 if the annotation intersects the mask
+    OR a status code of 400 if the annotation does not intersect the mask
     """
 
     # Arrange
-    annotation_class_id = 2
+    annotation_class_id = 2  # Fake Class
     image_id = 1
     geojson_polygon = geojson.Polygon([[(0, 0), (10, 0), (10, 10), (0, 10), (0, 0)]])
     params = {
         'polygons': [geojson.dumps(geojson_polygon)]
     }
 
-    # Act
+    # Case 1: Annotation intersects the mask
     response = test_client.post(f'/api/v1/annotation/{image_id}/{annotation_class_id}', json=params)
 
-    # Assert
+    # Assert for success
     assert response.status_code == 200
     data = response.get_json()
     assert isinstance(data, list)
@@ -77,6 +78,19 @@ def test_post_annotation(test_client, annotations_seed, db_session):
     tile = db_session.query(db_models.Tile).filter_by(image_id=image_id, annotation_class_id=annotation_class_id, tile_id=tile_id).first()
     assert tile is not None
     assert tile.gt_counter == 0
+
+    # Case 2: Annotation does not intersect the mask
+    # Remove the tissue mask to simulate no intersection
+    mask_store = AnnotationStore(image_id, 1, is_gt=True, in_work_mag=False)
+    mask_store.delete_all_annotations()
+    db_session.commit()
+
+    response = test_client.post(f'/api/v1/annotation/{image_id}/{annotation_class_id}', json=params)
+
+    # Assert for failure
+    assert response.status_code == 400
+    data = response.get_json()
+
 
 def test_put_annotation(test_client, annotations_seed):
     """

@@ -8,6 +8,7 @@ from .utils import AnnotationExporter, compute_actor_name
 import quickannotator.db.models as db_models
 from . import models as server_models
 from quickannotator import constants
+from quickannotator.dl.utils import CacheableMask, MaskCacheManager
 
 from flask.views import MethodView
 from flask import Response
@@ -18,9 +19,14 @@ from typing import List
 from flask_smorest import Blueprint
 from datetime import datetime
 import os
+import logging
+from quickannotator.db import db_session
 
 bp = Blueprint('annotation', __name__, description='Annotation operations')
 
+# Set up logging
+logger = logging.getLogger(constants.LoggerNames.FLASK.value)
+mask_cache_manager = MaskCacheManager()
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>')
 class Annotation(MethodView):
@@ -37,19 +43,35 @@ class Annotation(MethodView):
 
     @bp.arguments(server_models.PostAnnsArgsSchema, location='json')
     @bp.response(200, server_models.AnnRespSchema(many=True))
+    @bp.alt_response(400, description="Bad Request: Annotations cannot be saved in tiles that do not intersect the mask.")
     def post(self, args, image_id, annotation_class_id):
-        """     post new annotations to the db. 
-        
-        This method is primarily used for ground truth annotations. Predictions should only by saved by the model.
-        """
+        """Post new annotations to the db."""
         is_gt = True
         in_work_mag = False
 
         polygons: List[geojson.Polygon] = args['polygons']
         store = AnnotationStore(image_id, annotation_class_id, is_gt=is_gt, in_work_mag=in_work_mag)
         anns = store.insert_annotations([shape(poly) for poly in polygons])
+
+        # Check if the annotations are in tiles that intersect the tissue mask
         tilestore = TileStoreFactory.get_tilestore()
-        tilestore.upsert_gt_tiles(image_id, annotation_class_id, {ann.tile_id for ann in anns})
+        tile_ids_intersecting_mask, _, _ = tilestore.get_tile_ids_intersecting_mask(image_id, annotation_class_id)
+        polygon_tile_ids = {ann.tile_id for ann in anns}
+        if annotation_class_id != constants.MASK_CLASS_ID:
+            non_intersecting_tile_ids = polygon_tile_ids - set(tile_ids_intersecting_mask)
+            if non_intersecting_tile_ids:  # If there are any tile IDs that do not intersect the mask
+                error_message = f"Annotations cannot be saved in tiles that do not intersect the mask: {non_intersecting_tile_ids}"
+                [store.delete_annotations_by_tile(tile_id) for tile_id in non_intersecting_tile_ids]    # db_session.rollback() does not prevent the annotations from being saved, so we delete them manually. TODO: proactively check polygons before saving them.
+                logger.error(error_message)
+                db_session.rollback()   # NOTE: This currently does not prevent the annotations from being saved.
+                return {}, 400
+        
+        # Invalidate the mask cache for the tiles where annotations were saved
+
+        for tile_id in polygon_tile_ids:
+            mask_cache_manager.invalidate(CacheableMask.get_key(image_id, annotation_class_id, tile_id))
+
+        tilestore.upsert_gt_tiles(image_id, annotation_class_id, polygon_tile_ids)
 
         return anns, 200
 
@@ -62,14 +84,23 @@ class Annotation(MethodView):
 
         store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=in_work_mag)
         ann = store.update_annotation(args['annotation_id'], shape(args['polygon']))
+        # Invalidate the mask cache for the annotation
+        if ann is not None:  # Only invalidate if the tile_id is set
+            mask_cache_manager.invalidate(CacheableMask.get_key(image_id, annotation_class_id, ann.tile_id))
 
         return ann, 201
+    
+
     @bp.arguments(server_models.DeleteAnnArgsSchema, location='query')
     def delete(self, args, image_id, annotation_class_id):
         """     delete an annotation
         """
         store = AnnotationStore(image_id, annotation_class_id, args['is_gt'])
+        annotation = store.get_annotation_by_id(args['annotation_id'])
         result = store.delete_annotation(args['annotation_id'])
+
+        # Invalidate the mask cache for the annotation
+        mask_cache_manager.invalidate(CacheableMask.get_key(image_id, annotation_class_id, annotation.tile_id))
 
         if result:
             return {}, 204

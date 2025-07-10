@@ -2,7 +2,6 @@ from flask_smorest import abort
 from flask.views import MethodView
 from flask import current_app, request, send_from_directory, send_file
 from sqlalchemy import func
-from werkzeug.utils import secure_filename
 from quickannotator.constants import ImageType, AnnotationFileFormats
 from quickannotator.db import db_session
 from quickannotator.db.fsmanager import fsmanager
@@ -18,7 +17,7 @@ from . import models as server_models
 from flask_smorest import Blueprint
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.image import add_image_by_path
-from quickannotator.api.v1.image.utils import import_geojson_annotation_file, drop_annotation_tables_by_image_id
+from quickannotator.api.v1.image.utils import delete_image_and_related_data, import_geojson_annotation_file
 
 bp = Blueprint('image', __name__, description='Image operations')
 
@@ -51,24 +50,16 @@ class Image(MethodView):
 
     @bp.arguments(server_models.DeleteImageArgsSchema, location='query')
     @bp.response(204, description="Image  deleted")
+    @bp.response(404, description="Image not found")
     def delete(self, args):
         """     delete an Image   """
-        image_id = args['image_id']
-        image = db_session.query(db_models.Image).filter(db_models.Image.id==image_id).first()
-        project_id = image.project_id
-        # delete image's annotation tables
-        drop_annotation_tables_by_image_id(image_id)
-        # delete image from DB
-        db_session.query(db_models.Image).filter(db_models.Image.id == image_id).delete()
-        db_session.commit()
 
-        image_path = fsmanager.nas_write.get_project_image_path(project_id, image_id, relative=False)
-        if os.path.exists(image_path):
-            try:
-                shutil.rmtree(image_path)
-            except OSError as e:
-                print(f"Error deleting folder '{image_path}': {e}")
-        return 204
+        image = get_image_by_id(args['image_id'])
+        if not image:
+            abort(404, message="Image not found")
+
+        delete_image_and_related_data(args['image_id'])
+        return {}, 204
 
 #################################################################################
 @bp.route('/<int:project_id>/search', endpoint="image_search")
@@ -104,7 +95,10 @@ class FileUpload(MethodView):
         file = request.files['file']
         project_id = args["project_id"]
         if file and project_id:
-            filename = secure_filename(file.filename)
+            # filename = secure_filename(file.filename)
+            filename = file.filename
+
+            # TODO: add filename validation and reject if it is not valid
 
             # get file extension
             file_basename, file_ext = os.path.splitext(filename)
@@ -189,7 +183,7 @@ class ImageFile(MethodView):
         elif file_type == ImageType.THUMBNAIL:
             # TODO implement thumbnail file deletion
             pass
-        return 204
+        return {}, 204
 
 #################################################################################
 
@@ -219,7 +213,7 @@ class ImageMetadata(MethodView):
         """     returns metadata of an Image   """
         result = get_image_by_id(image_id)
         if result is not None:
-            full_path = os.path.join(current_app.root_path, result.path)
+            full_path = fsmanager.nas_read.relative_to_global(result.path)
             try:
                 img = large_image.open(full_path)
                 metadata = img.getMetadata()

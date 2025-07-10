@@ -58,7 +58,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  message,\n  name,\n  timestamp,\n  level\nFROM\n  log\nORDER BY\n  timestamp",
+          "rawSql": "SELECT\n  message,\n  name,\n  timestamp,\n  level\nFROM\n  log\nORDER BY\n  timestamp DESC\nLIMIT 1000;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -84,7 +84,6 @@
     }
   ],
   "preload": false,
-  "refresh": "5s",
   "schemaVersion": 41,
   "tags": [],
   "templating": {
@@ -98,5 +97,5 @@
   "timezone": "browser",
   "title": "QuickAnnotator_postgis",
   "uid": "cei85mdka4v0ge",
-  "version": 2
+  "version": 3
 }
