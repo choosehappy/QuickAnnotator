@@ -70,34 +70,6 @@ class DLActor:
         self.logger.info(f"DLActor started with hexid: {self.hexid}")
         return self.hexid
 
-    # TODO: Remove.
-    # def infer(self, image_id: int, tileids: list[int]):
-    #     if not self.allow_pred:
-    #         self.logger.warning("Not doing inference --- actor was started with prediction disabled")
-    #         return False
-
-    #     with get_session() as db_session:
-    #         tilestore = TileStoreFactory.get_tilestore()
-    #         tilestore.upsert_pred_tiles(
-    #             image_id=image_id,
-    #             annotation_class_id=self.annotation_class_id,
-    #             tile_ids=tileids,
-    #             pred_status=constants.TileStatus.PROCESSING,
-    #             process_owns_tile=True
-    #         )
-
-    #     return True
-
-    # TODO: Remove.
-    # def getTileStatus(self, image_id, tile_ids):  # probably belongs elsewhere but need this for debug
-    #     with get_session() as db_session:
-    #         stmt = db_session.query(Tile).filter(Tile.tile_id.in_(tile_ids), Tile.image_id == image_id,
-    #                                              Tile.annotation_class_id == self.annotation_class_id)
-
-    #         result = stmt.all()
-
-    #     return result
-
     def getClassId(self):
         return self.annotation_class_id
 
@@ -142,29 +114,27 @@ class DLActor:
 
 
 def start_processing(annotation_class_id: int):
-    # 1. Get all named actors
-    logger.info("Starting processing for annotation class ID: %s", annotation_class_id)
-    actor_queue = get_processing_actors(sort_by_date=True)
-    logger.info(f"Current processing actors: {len(actor_queue)}")
-
-    # 2. Sort actors by running_since_datetimes
-    while len(actor_queue) >= constants.MAX_ACTORS_PROCESSING:
-        # 3. Pop the oldest actor
-        oldest_actor = actor_queue.pop(0)['actor']
-        logger.info(f"Flagging actor to cease train/pred loop: {oldest_actor}")
-        oldest_actor.setProcRunningSince.remote(reset=True)
-
+    # Step 1: Build the actor name and retrieve the corresponding DLActor instance
     actor_name = build_actor_name(annotation_class_id=annotation_class_id)
     annotation_class = get_annotation_class_by_id(annotation_class_id)
-
-    # 3. Set all tiles with pred_status=TileStatus.PROCESSING to TileStatus.UNSEEN
-
-
-    # 4. Start the new actor or get the existing one
     current_actor = DLActor.options(name=actor_name, get_if_exists=True).remote(annotation_class_id,
                                                                                annotation_class.work_tilesize,
                                                                                annotation_class.work_mag)
+    logger.info("Got ray actor for annotation class ID: %s", annotation_class_id)
 
+    # Step 2: Retrieve the list of currently processing actors
+    actor_queue = get_processing_actors(sort_by_date=True)
+    logger.info(f"Current processing actors: {len(actor_queue)}")
+
+    # Step 3: Ensure the number of active actors does not exceed the maximum allowed
+    while len(actor_queue) >= constants.MAX_ACTORS_PROCESSING:
+        oldest_actor = actor_queue.pop(0)['actor']
+
+        if oldest_actor != current_actor:   # Can do a direct comparison since ray returns the exact same actor object.
+            logger.info(f"Stopping actor {oldest_actor} to make room for new processing.")
+            oldest_actor.setProcRunningSince.remote(reset=True)
+
+    # Step 4: Start the processing task on the current actor
     current_actor.start_dlproc.remote()
     logger.info(f"Instructed actor {actor_name} to start processing.")
     return current_actor
