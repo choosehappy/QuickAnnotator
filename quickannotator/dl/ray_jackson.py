@@ -114,7 +114,7 @@ class DLActor:
 
 
 def start_processing(annotation_class_id: int):
-    # 1. Get named actor 
+    # Step 1: Build the actor name and retrieve the corresponding DLActor instance
     actor_name = build_actor_name(annotation_class_id=annotation_class_id)
     annotation_class = get_annotation_class_by_id(annotation_class_id)
     current_actor = DLActor.options(name=actor_name, get_if_exists=True).remote(annotation_class_id,
@@ -122,24 +122,19 @@ def start_processing(annotation_class_id: int):
                                                                                annotation_class.work_mag)
     logger.info("Got ray actor for annotation class ID: %s", annotation_class_id)
 
+    # Step 2: Retrieve the list of currently processing actors
     actor_queue = get_processing_actors(sort_by_date=True)
     logger.info(f"Current processing actors: {len(actor_queue)}")
 
+    # Step 3: Ensure the number of active actors does not exceed the maximum allowed
     while len(actor_queue) >= constants.MAX_ACTORS_PROCESSING:
-        # 3. Pop the oldest actor
         oldest_actor = actor_queue.pop(0)['actor']
 
-        # 4. If the oldest actor is not the current one, flag it to cease processing
         if oldest_actor != current_actor:   # Can do a direct comparison since ray returns the exact same actor object.
             logger.info(f"Stopping actor {oldest_actor} to make room for new processing.")
             oldest_actor.setProcRunningSince.remote(reset=True)
 
-
-
-    # 3. Set all tiles with pred_status=TileStatus.PROCESSING to TileStatus.UNSEEN
-
-
-    # 4. Start the new actor or get the existing one
+    # Step 4: Start the processing task on the current actor
     current_actor.start_dlproc.remote()
     logger.info(f"Instructed actor {actor_name} to start processing.")
     return current_actor
