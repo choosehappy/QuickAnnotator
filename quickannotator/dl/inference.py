@@ -16,6 +16,7 @@ from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 from quickannotator.constants import TileStatus
 import quickannotator.constants as constants
 from quickannotator.dl.utils import CacheableImage, load_tile, ImageCacheManager
+from quickannotator.db.fsmanager import fsmanager
 
 from datetime import datetime
 import logging
@@ -35,18 +36,23 @@ def postprocess_output(outputs, min_area = 100, dilate_kernel = 2): ## These sho
     outputs = outputs.squeeze().detach().cpu().numpy()
 
 
-    # Plot the output using matplotlib
-    path = "/opt/QuickAnnotator/quickannotator/mounts/raw_output"
-    if not os.path.exists(path):
-        os.makedirs(path)
+    if constants.DEBUG:
+        # Plot the output using matplotlib
+        path = fsmanager.nas_write.get_debug_path()
+        if not os.path.exists(path):
+            os.makedirs(path)
 
-    plt.figure(figsize=(10, 10))
-    plt.imshow(outputs, cmap='viridis')  # Use 'viridis' colormap
-    plt.colorbar(label='Output Intensity')  # Add a colorbar with a label
-    plt.title('Model Output')
-    plt.savefig(os.path.join(path, "output.png"))  # Save the plot as PNG
-    plt.close()
-    positive_mask = outputs> constants.INFERENCE_THRESHOLD #TODO: maybe UI or system threshold? probably a good idea
+        output_path = os.path.join(path, "output_plot.png")
+
+        plt.figure(figsize=(10, 10))
+        plt.imshow(outputs, cmap='viridis')  # Use 'viridis' colormap
+        plt.colorbar(label='Output Intensity')  # Add a colorbar with a label
+        plt.title('Model Output')
+        plt.savefig(output_path)  # Save the plot as PNG
+        plt.close()
+        logger.debug(f"Saved output plot to {output_path}")  # Log the save location
+        
+    positive_mask = outputs> constants.INFERENCE_THRESHOLD
     
     kernel = np.ones((dilate_kernel, dilate_kernel), np.uint8)
     positive_mask = cv2.dilate(positive_mask.astype(np.uint8), kernel, iterations=2)>0
@@ -73,7 +79,14 @@ def run_inference(device, model, tiles):
             io_image,tile.x,tile.y = load_tile(tile)
             # NOTE: Should we also cache the image here? - Jackson
 
-        cv2.imwrite("/opt/QuickAnnotator/quickannotator/data/output/img.png",io_image) #TODO: remove- - for debug
+        if constants.DEBUG:
+            path = fsmanager.nas_write.get_debug_path()
+            if not os.path.exists(path):
+                os.makedirs(path)
+            io_image_path = os.path.join(path, f"tile_{tile.tile_id}_image.png")
+            cv2.imwrite(io_image_path, io_image)  # Save the image for debugging
+            logger.debug(f"Saved tile image to {io_image_path}")  # Log the save location
+
         io_images.append(io_image)
 
     io_images = [preprocess_image(io_image, device) for io_image in io_images]

@@ -205,6 +205,19 @@ class NASWrite(FileStore):
         """
         relative_path = "temp"  # Removed os.path.join
         return relative_path if relative else self.relative_to_global(relative_path)
+    
+    def get_debug_path(self, relative: bool = False):
+        """
+        Get the directory path for debug files.
+
+        Args:
+            relative (bool): Whether to return a relative path.
+
+        Returns:
+            str: The directory path for debug files.
+        """
+        relative_path = "debug"
+        return relative_path if relative else self.relative_to_global(relative_path)
 
 
 class NASHighSpeed(FileStore):

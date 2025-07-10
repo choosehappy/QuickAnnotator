@@ -27,7 +27,7 @@ const NewClassModal: React.FC<NewClassModalProps> = (props: NewClassModalProps) 
     const methods = useForm<IFormInput>(); // Initialize useForm with type
 
     useEffect(() => {
-        if (!props.currentProject.id) return;
+        if (!props.currentProject) return;
         // Fetch suggested magnification options from the server
         fetchMagnifications().then((resp) => {
             if (resp.status !== 200) {

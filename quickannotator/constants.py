@@ -1,6 +1,7 @@
 import enum
 import os
 
+DEBUG = False  # TODO: app setting
 
 class TileStatus(enum.IntEnum):
     UNSEEN = 0
