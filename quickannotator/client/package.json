@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "cd /opt/QuickAnnotator/quickannotator/client && vite --host 0.0.0.0",
+    "dev": "cd /opt/QuickAnnotator/quickannotator/client && vite --force --host 0.0.0.0",
     "build": "cd /opt/QuickAnnotator/quickannotator/client && tsc -b && vite build",
     "lint": "cd /opt/QuickAnnotator/quickannotator/client && eslint .",
     "preview": "cd /opt/QuickAnnotator/quickannotator/client && vite preview"
