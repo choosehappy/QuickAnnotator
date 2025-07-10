@@ -115,6 +115,8 @@ const AnnotationPage = () => {
         const currentAnnotationClassId = currentAnnotationClass?.id;
         // Check if the current annotation class is valid
         if (!currentAnnotationClassId || currentAnnotationClassId === MASK_CLASS_ID) return;
+        setCurrentTool(TOOLBAR_KEYS.POINTER);
+        
         startProcessingAnnotationClass(currentAnnotationClass?.id).then((resp) => {
             if (resp.status === 200) {
                 console.log("Processing started");
