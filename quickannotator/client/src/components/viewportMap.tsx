@@ -286,6 +286,10 @@ const ViewportMap = (props: Props) => {
 
         // Get the polygon from the annotation layer.
         const polygon2: Polygon = { type: "Polygon", coordinates: [polygonList] }
+                // Clear the annotation layer
+        annotationLayer.mode(null);
+        annotationLayer.removeAllAnnotations();
+        console.log("Annotation layer cleared.")
 
         if (currentTool === TOOLBAR_KEYS.POLYGON) {
             const currentState = currentAnn?.currentState;
@@ -304,18 +308,21 @@ const ViewportMap = (props: Props) => {
             if (resp.status === 200) {
                 const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentAnnotationClass.id));
 
-                // Get the ids for the features to redraw
-                const tilesResp = await searchTileIdsWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon2, false);
-                if (tilesResp.status === 200) {
-                    const tileIds = tilesResp.data.tile_ids;
-                    featureIdsToUpdate.current = tileIds;
-                    props.setHighlightedPreds(anns);
-                    props.setActiveModal(MODAL_DATA.IMPORT_CONF.id);
+                if (anns.length === 0) {
+                    alert("No annotations selected within the lasso. Please try again.");
                 } else {
-                    console.log("No tiles found within the polygon.");
+                    // Get the ids for the features to redraw
+                    const tilesResp = await searchTileIdsWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon2, false);
+                    if (tilesResp.status === 200) {
+                        const tileIds = tilesResp.data.tile_ids;
+                        featureIdsToUpdate.current = tileIds;
+                        props.setHighlightedPreds(anns);
+                        props.setActiveModal(MODAL_DATA.IMPORT_CONF.id);
+                    } else {
+                        console.log("No tiles found within the polygon.");
+                    }
                 }
-            } else {
-                console.log("No annotations found within the polygon.");
+                
             }
 
 
@@ -327,10 +334,7 @@ const ViewportMap = (props: Props) => {
 
         }
 
-        // Clear the annotation layer
-        annotationLayer.mode(null);
-        annotationLayer.removeAllAnnotations();
-        console.log("Annotation layer cleared.")
+
     }
 
     const handleAnnotationModeChange = (evt) => {
