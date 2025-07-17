@@ -410,10 +410,6 @@ const ViewportMap = (props: Props) => {
         }, RENDER_DELAY); // Adjust this timeout duration as needed
     };
 
-    // const handleControlDown = () => {
-    //     const
-    // }
-
     const translateMap = (x: number, y: number) => {
         geojs_map.current.transition({
             center: { x: x, y: y },
