@@ -467,12 +467,6 @@ const ViewportMap = (props: Props) => {
         annotationLayer.geoOn(geo.event.mousedown, handleMousedown);
         annotationLayer.geoOn(geo.event.annotation.state, handleNewAnnotation);
         annotationLayer.geoOn(geo.event.annotation.mode, handleAnnotationModeChange);
-        // window.onkeydown = (evt) => {
-        //     if (evt.key === 'Backspace' || evt.key === 'Delete') {
-        //         handleDeleteAnnotation(evt);
-        //     }
-        // }
-
         map.geoOn(geo.event.mousemove, function (evt: any) {
             props.setMouseCoords({ x: Math.round(evt.geo.x * 100) / 100, y: Math.round(evt.geo.y * 100) / 100 });
         });
