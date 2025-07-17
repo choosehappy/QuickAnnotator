@@ -246,7 +246,7 @@ const ViewportMap = (props: Props) => {
         handleControlKey(false);
     }
 
-        
+
 
 
     const updateAnnotation = (currentState: Annotation, newPolygon: Polygon) => {
@@ -282,7 +282,7 @@ const ViewportMap = (props: Props) => {
                     const updatedData = data.concat(annotation);
                     redrawTileFeature(feature, {}, updatedData);
                 } else {
-                    feature = createGTTileFeature({tile_id: tile_id}, [annotation], layer, currentAnnotationClass);
+                    feature = createGTTileFeature({ tile_id: tile_id }, [annotation], layer, currentAnnotationClass);
                     feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
                 }
                 props.setGts((prev: Annotation[]) => prev.concat(annotation));
@@ -430,6 +430,12 @@ const ViewportMap = (props: Props) => {
             viewRef.current, img.base_width, img.base_height, img.dz_tilesize, img.dz_tilesize);
 
         const map = geo.map({ ...params.map, max: 20 });
+
+        const interactor = map.interactor();
+        // We don't need rotation functionality.
+        interactor.removeAction(geo.geo_action.rotate, 'button rotate');
+        interactor.removeAction(geo.geo_action.rotate, 'wheel rotate');
+
         params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
         console.log("OSM layer loaded.");
 
@@ -572,8 +578,8 @@ const ViewportMap = (props: Props) => {
             redrawTileFeature(feature, { currentAnnotationId: currentState?.id });
 
             if (!polygonClicked.current) {  // The polygon was selected from the ground truth list.
-            const centroid = currentState.parsedCentroid;
-            translateMap(centroid.coordinates[0], centroid.coordinates[1]);
+                const centroid = currentState.parsedCentroid;
+                translateMap(centroid.coordinates[0], centroid.coordinates[1]);
             }
         }
 
