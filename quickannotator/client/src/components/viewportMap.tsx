@@ -337,6 +337,11 @@ const ViewportMap = (props: Props) => {
             return;
         }
 
+        // Clear the annotation layer
+        annotationLayer.mode(null);
+        annotationLayer.removeAllAnnotations();
+        console.log("Annotation layer cleared.")
+
 
         if (currentTool === TOOLBAR_KEYS.POLYGON) {
             const currentState = currentAnn?.currentState;
@@ -377,11 +382,6 @@ const ViewportMap = (props: Props) => {
             // 5. Redraw the respective ground truth and prediction tiles.
 
         }
-
-        // Clear the annotation layer
-        annotationLayer.mode(null);
-        annotationLayer.removeAllAnnotations();
-        console.log("Annotation layer cleared.")
     }
 
     const handleAnnotationModeChange = (evt) => {
