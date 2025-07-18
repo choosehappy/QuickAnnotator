@@ -33,6 +33,11 @@ export enum TILE_STATUS {
     DONEPROCESSING
 }
 
+export enum POLYGON_OPERATIONS {
+    UNION = 0,
+    DIFFERENCE,
+}
+
 export const DEFAULT_CLASS_ID = 1;
 export const RENDER_PREDICTIONS_INTERVAL = 8000; // ms  TODO: app setting
 export const RENDER_DELAY = 100; // ms  TODO: app setting

@@ -4,7 +4,7 @@ from quickannotator.db.crud.annotation import AnnotationStore, build_export_file
 from quickannotator.db.crud.image import get_image_by_id
 from quickannotator.db.crud.tile import TileStoreFactory
 from quickannotator.db.fsmanager import fsmanager
-from .utils import AnnotationExporter, compute_actor_name
+from .utils import AnnotationExporter, compute_actor_name, GeometryOperation
 import quickannotator.db.models as db_models
 from . import models as server_models
 from quickannotator import constants
@@ -150,13 +150,18 @@ class AnnotationOperation(MethodView):
         operation = args['operation']
 
         if operation == PolygonOperations.UNION:
-            union = poly1.union(poly2)
+            result = GeometryOperation.union(poly1, poly2)
+        elif operation == PolygonOperations.DIFFERENCE:
+            result = GeometryOperation.difference(poly1, poly2)
         
-            resp = {field: args[field] for field in server_models.AnnRespSchema().fields.keys() if field in args} # Basically a copy of args without "polygon2" or "operation"
-            # unfortunately we have to lose the dictionary format because we are mimicking the geojson string outputted by the db.
-            resp['polygon'] = json.dumps(mapping(union))
-            resp['centroid'] = json.dumps(mapping(union.centroid))   
-            resp['area'] = union.area
+        if result is None:
+            return {"message": "Invalid operation or polygons"}, 400
+        
+        resp = {field: args[field] for field in server_models.AnnRespSchema().fields.keys() if field in args} # Basically a copy of args without "polygon2" or "operation"
+        # unfortunately we have to lose the dictionary format because we are mimicking the geojson string outputted by the db.
+        resp['polygon'] = json.dumps(mapping(result))
+        resp['centroid'] = json.dumps(mapping(result.centroid))   
+        resp['area'] = result.area
 
         return resp, 200
     

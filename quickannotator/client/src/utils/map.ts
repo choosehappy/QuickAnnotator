@@ -51,7 +51,10 @@ export const createGTTileFeature = (featureProps: any, annotations: Annotation[]
 
     feature
         .position((d: Position) => ({ x: d[0], y: d[1] }))
-        .polygon((a: Annotation) => a.parsedPolygon.coordinates[0])
+        .polygon((a: Annotation) => ({
+            outer: a.parsedPolygon.coordinates[0],
+            inner: a.parsedPolygon.coordinates.slice(1)
+        }))
         .data(annotations)
         .style('fill', true)
         .style('fillColor', color)
@@ -86,7 +89,10 @@ export const createPredTileFeature = (featureProps: any, annotations: Annotation
     feature.props = featureProps;
     feature
         .position((d: Position) => ({ x: d[0], y: d[1] }))
-        .polygon((a: Annotation) => a.parsedPolygon.coordinates[0])
+        .polygon((a: Annotation) => ({
+            outer: a.parsedPolygon.coordinates[0],
+            inner: a.parsedPolygon.coordinates.slice(1)
+        }))
         .data(annotations)
         .style('fill', true)
         .style('fillColor', color)

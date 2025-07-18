@@ -4,11 +4,11 @@ import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs
 import { searchTileIds, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileIdsWithinPolygon, fetchTileBoundingBox, fetchImageMetadata } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 
-import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID, COOKIE_NAMES } from "../helpers/config.ts";
+import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID, COOKIE_NAMES, POLYGON_OPERATIONS } from "../helpers/config.ts";
 
 import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered, tileIdIsValid } from '../utils/map.ts';
 import { useCookies } from 'react-cookie';
-import { useHotkeys } from 'react-hotkeys-hook';
+import { useHotkeys, isHotkeyPressed } from 'react-hotkeys-hook';
 
 
 interface Props {
@@ -255,7 +255,7 @@ const ViewportMap = (props: Props) => {
         }
         const feature = getTileFeatureById(layer, tileId);
         const data = feature.data();
-        operateOnAnnotation(currentState, newPolygon, 0).then((resp) => {
+        operateOnAnnotation(currentState, newPolygon, POLYGON_OPERATIONS.DIFFERENCE).then((resp) => {
             const newState = new Annotation(resp.data, currentState.annotation_class_id);
             const updatedData: Annotation[] = data.map((d: Annotation) => d.id === currentState.id ? newState : d);
             const updatedGroundTruths = props.gts.map((gt: Annotation) => gt.id === currentState.id ? newState : gt);

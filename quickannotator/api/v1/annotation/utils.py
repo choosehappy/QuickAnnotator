@@ -16,6 +16,9 @@ from quickannotator.db.crud.image import get_image_by_id
 from itertools import product
 from quickannotator.db.logging import LoggingManager
 
+from shapely.geometry.base import BaseGeometry
+from shapely.geometry import Polygon, MultiPolygon
+
 
 class ProgressTracker:
     def __init__(self, total: int):
@@ -124,3 +127,63 @@ def compute_actor_name(project_id: int, type: constants.NamedRayActorType) -> st
     """
     timestamp = time.strftime('%Y%m%d%H%M%S')
     return f"{project_id}_{type.value}_{timestamp}"
+
+
+class GeometryOperation:
+    """
+    A class to perform geometric operations on polygons.
+    """
+
+    @staticmethod
+    def union(poly1: Polygon, poly2: Polygon) -> BaseGeometry:
+        """
+        Perform a union operation on two polygons.
+
+        Args:
+            poly1 (Polygon): The first polygon.
+            poly2 (Polygon): The second polygon.
+
+        Returns:
+            BaseGeometry: The resulting geometry after the union operation.
+
+        Raises:
+            ValueError: If either of the input polygons is not valid.
+        """
+        if not poly1.is_valid:
+            raise ValueError("First polygon is not valid")
+        if not poly2.is_valid:
+            raise ValueError("Second polygon is not valid")
+        result = poly1.union(poly2)
+
+        return result
+
+    @staticmethod
+    def difference(poly1: Polygon, poly2: Polygon) -> Polygon:
+        """
+        Perform a difference operation between two polygons.
+
+        Args:
+            poly1 (Polygon): The first polygon.
+            poly2 (Polygon): The second polygon to subtract from the first.
+
+        Returns:
+            Polygon: The resulting polygon after the difference operation, or None if the result is empty.
+
+        Raises:
+            ValueError: If either of the input polygons is not valid or if the resulting polygon is invalid.
+        """
+        if not poly1.is_valid:
+            raise ValueError("First polygon is not valid")
+        if not poly2.is_valid:
+            raise ValueError("Second polygon is not valid")
+        result = poly1.difference(poly2)
+
+        if result.is_empty:
+            return None
+        if not result.is_valid:
+            raise ValueError("Resulting polygon is not valid after difference operation")
+        if result.geom_type == 'MultiPolygon':
+            # If the result is a MultiPolygon, return the largest polygon by area
+            result = max(result.geoms, key=lambda geom: geom.area)
+
+        return result
