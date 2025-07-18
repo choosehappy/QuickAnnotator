@@ -33,7 +33,7 @@ const AnnotationPage = () => {
     const { projectid, imageid } = useParams();
     const { currentImage, setCurrentImage, currentProject, setCurrentProject } = useOutletContext<OutletContextType>();
 
-    const [currentAnnotationClass, setCurrentAnnotationClass] = useState<AnnotationClass | null>(null);
+    const [currentAnnotationClass, setCurrentAnnotationClass] = useState<AnnotationClass | null>();
     const [gts, setGts] = useState<Annotation[]>([]);
     const [preds, setPreds] = useState<Annotation[]>([]);
     const [currentTool, setCurrentTool] = useState<string | null>('0');
@@ -74,12 +74,12 @@ const AnnotationPage = () => {
             return;
         }
         setAnnotationClasses(getResp.data);
-        const newCurrentAnnotation = getResp.data.find((c) => c.id === DEFAULT_CLASS_ID);
-        if (!newCurrentAnnotation) {
+        const newCurrentAnnotationClass = getResp.data.find((c) => c.id === DEFAULT_CLASS_ID);
+        if (!newCurrentAnnotationClass) {
             console.error("Error: Default annotation class not found");
             return;
         }
-        setCurrentAnnotationClass(newCurrentAnnotation);  // Assumed to be the tissue mask class
+        setCurrentAnnotationClass(newCurrentAnnotationClass);  // Assumed to be the tissue mask class
         setActiveModal(null);
     }
 
