@@ -233,6 +233,14 @@ const ViewportMap = (props: Props) => {
                 annotationLayer.mode(isKeyDown ? 'polygon' : 'point');
             }
         }
+
+        if (props.currentTool === TOOLBAR_KEYS.POLYGON && isKeyDown) {
+            console.log("Ctrl key is pressed. The polygon tool is in subtraction mode.")
+        }
+
+        if (props.currentTool === TOOLBAR_KEYS.BRUSH && isKeyDown) {
+            console.log("Ctrl key is pressed. The brush tool is in selection mode.")
+        }
     }
 
     function handleControlDown() {
@@ -255,7 +263,8 @@ const ViewportMap = (props: Props) => {
         }
         const feature = getTileFeatureById(layer, tileId);
         const data = feature.data();
-        operateOnAnnotation(currentState, newPolygon, POLYGON_OPERATIONS.DIFFERENCE).then((resp) => {
+        const operation = isHotkeyPressed('ctrl') ? POLYGON_OPERATIONS.DIFFERENCE : POLYGON_OPERATIONS.UNION;
+        operateOnAnnotation(currentState, newPolygon, operation).then((resp) => {
             const newState = new Annotation(resp.data, currentState.annotation_class_id);
             const updatedData: Annotation[] = data.map((d: Annotation) => d.id === currentState.id ? newState : d);
             const updatedGroundTruths = props.gts.map((gt: Annotation) => gt.id === currentState.id ? newState : gt);
