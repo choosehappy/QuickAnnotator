@@ -35,7 +35,6 @@ const ViewportMap = (props: Props) => {
     const activeRenderPredictionsCall = useRef<number>(0);
     const featureIdsToUpdate = useRef<number[]>([]);
     const [cookies, setCookies] = useCookies([COOKIE_NAMES.SKIP_CONFIRM_IMPORT]);
-    const cookieRef = useRef(cookies[COOKIE_NAMES.SKIP_CONFIRM_IMPORT] || false);
     let zoomPanTimeout: any = null;
 
     const renderGTAnnotations = async (
@@ -314,7 +313,7 @@ const ViewportMap = (props: Props) => {
                     if (tilesResp.status === 200) {
                         const tileIds = tilesResp.data.tile_ids;
                         featureIdsToUpdate.current = tileIds;
-                        if (cookieRef.current[COOKIE_NAMES.SKIP_CONFIRM_IMPORT]) {
+                        if (cookies[COOKIE_NAMES.SKIP_CONFIRM_IMPORT]) {
                             postAnnotations(currentImage.id, currentAnnotationClass?.id, anns.map(ann => ann.parsedPolygon)).then(() => {
                                 setHighlightedPreds(null);
                             });
