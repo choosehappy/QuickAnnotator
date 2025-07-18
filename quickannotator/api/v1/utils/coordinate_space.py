@@ -61,7 +61,7 @@ class TileSpace:
         y2 = max(0, min(bbox[3], self.h))
 
         # Verify that the bounding box is within the image dimensions
-        if not (x1 < x2 and y1 < y2):
+        if not (x1 <= x2 and y1 <= y2):
             raise ValueError(f"Bounding box coordinates must be monotonically increasing: {bbox}")
 
         # Calculate the number of tiles per row

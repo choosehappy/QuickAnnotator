@@ -11,7 +11,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
 import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass, searchAnnotationClasses, fetchAnnotationClassById, createAnnotationClass, deleteAnnotationClass } from "../helpers/api.ts";
-import { DEFAULT_CLASS_ID, MODAL_DATA, TOOLBAR_KEYS, MASK_CLASS_ID } from '../helpers/config.ts';
+import { DEFAULT_CLASS_ID, MODAL_DATA, TOOLBAR_KEYS, MASK_CLASS_ID, COOKIE_NAMES } from '../helpers/config.ts';
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
 import Legend from '../components/legend.tsx';
@@ -19,6 +19,7 @@ import NewClassModal from '../components/newClassModal.tsx';
 import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation, DataItem, IdNameElement } from "../types.ts";
 import AnnotationExportModal from '../components/annotationExportModal.tsx';
 import { propTypes } from 'react-bootstrap/esm/Image';
+import { CookiesProvider } from 'react-cookie';
 
 function usePrevious<T>(value: T): T | undefined {
     const ref = useRef<T>();
@@ -32,7 +33,7 @@ const AnnotationPage = () => {
     const { projectid, imageid } = useParams();
     const { currentImage, setCurrentImage, currentProject, setCurrentProject } = useOutletContext<OutletContextType>();
 
-    const [currentAnnotationClass, setCurrentAnnotationClass] = useState<AnnotationClass | null>(null);
+    const [currentAnnotationClass, setCurrentAnnotationClass] = useState<AnnotationClass | null>();
     const [gts, setGts] = useState<Annotation[]>([]);
     const [preds, setPreds] = useState<Annotation[]>([]);
     const [currentTool, setCurrentTool] = useState<string | null>('0');
@@ -52,7 +53,6 @@ const AnnotationPage = () => {
         // if (!highlightedPreds) return;
         postAnnotations(currentImage.id, currentAnnotationClass?.id, highlightedPreds?.map(ann => ann.parsedPolygon)).then((resp) => {
             setHighlightedPreds(null);
-            setCurrentTool(TOOLBAR_KEYS.POINTER);
         });
 
     }
@@ -60,7 +60,6 @@ const AnnotationPage = () => {
     function handleCancelImport() {
         setActiveModal(null);
         setHighlightedPreds(null);
-        setCurrentTool(TOOLBAR_KEYS.POINTER);
     }
 
     async function handleDeleteClass() {
@@ -75,12 +74,12 @@ const AnnotationPage = () => {
             return;
         }
         setAnnotationClasses(getResp.data);
-        const newCurrentAnnotation = getResp.data.find((c) => c.id === DEFAULT_CLASS_ID);
-        if (!newCurrentAnnotation) {
+        const newCurrentAnnotationClass = getResp.data.find((c) => c.id === DEFAULT_CLASS_ID);
+        if (!newCurrentAnnotationClass) {
             console.error("Error: Default annotation class not found");
             return;
         }
-        setCurrentAnnotationClass(newCurrentAnnotation);  // Assumed to be the tissue mask class
+        setCurrentAnnotationClass(newCurrentAnnotationClass);  // Assumed to be the tissue mask class
         setActiveModal(null);
     }
 
@@ -130,9 +129,9 @@ const AnnotationPage = () => {
         return (
             <>
                 <Container fluid className="pb-3 bg-dark d-flex flex-column flex-grow-1">
-                    <ConfirmationModal activeModal={activeModal} config={MODAL_DATA.IMPORT_CONF} onConfirm={handleConfirmImport} onCancel={handleCancelImport}/>
+                    <ConfirmationModal activeModal={activeModal} config={MODAL_DATA.IMPORT_CONF} onConfirm={handleConfirmImport} onCancel={handleCancelImport} checkboxCookieName={COOKIE_NAMES.SKIP_CONFIRM_IMPORT}/>
                     <NewClassModal activeModal={activeModal} setActiveModal={setActiveModal} config={MODAL_DATA.ADD_CLASS} currentProject={currentProject} annotationClasses={annotationClasses} setAnnotationClasses={setAnnotationClasses}/>
-                    <ConfirmationModal activeModal={activeModal} config={MODAL_DATA.DELETE_CLASS} onConfirm={handleDeleteClass} onCancel={handleCancelDeleteClass}/>
+                    <ConfirmationModal activeModal={activeModal} config={MODAL_DATA.DELETE_CLASS} onConfirm={handleDeleteClass} onCancel={handleCancelDeleteClass} checkboxCookieName={COOKIE_NAMES.SKIP_CONFIRM_DELETE_CLASS}/>
                     {currentAnnotationClass && (
                         <AnnotationExportModal 
                             show={activeModal === MODAL_DATA.EXPORT_CONF.id} 
@@ -177,7 +176,7 @@ const AnnotationPage = () => {
                                                     setActiveModal,
                                                     setMouseCoords
                                                     }} />
-                                                    <Legend mouseCoords={mouseCoords}/>
+                                    <Legend mouseCoords={mouseCoords}/>
                                 </Card.Body>
                             </Card>
                         </Col>

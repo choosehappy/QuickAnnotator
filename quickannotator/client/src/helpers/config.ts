@@ -128,3 +128,9 @@ export const WSI_EXTS = ['svs', 'tif','dcm','vms', 'vmu', 'ndpi',
 
 // JSON file extension
 export const JSON_EXTS = ['json','geojosn']
+
+// Cookie names
+export enum COOKIE_NAMES {
+    SKIP_CONFIRM_IMPORT = 'skipConfirmImport',
+    SKIP_CONFIRM_DELETE_CLASS = 'skipConfirmDeleteClass',
+}
