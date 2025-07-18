@@ -3,9 +3,11 @@ import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse } from "../types.ts"
 import { searchTileIds, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileIdsWithinPolygon, fetchTileBoundingBox, fetchImageMetadata } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
-import { TOOLBAR_KEYS, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID } from "../helpers/config.ts";
+import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID } from "../helpers/config.ts";
 
 import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered, tileIdIsValid } from '../utils/map.ts';
+import { useHotkeys } from 'react-hotkeys-hook';
+
 
 interface Props {
     currentImage: Image | null;
@@ -201,13 +203,13 @@ const ViewportMap = (props: Props) => {
 
     function handleDeleteAnnotation(evt) {
         console.log("Delete annotation detected.")
-        const currentAnn: CurrentAnnotation = ctx.current.currentAnnotation;
+        const currentAnn: CurrentAnnotation = props.currentAnnotation;
         if (!currentAnn) return;    // Delete operation only allowed if an annotation is selected.
 
         const currentState: Annotation | undefined = currentAnn.currentState;
         const tile_id = currentState?.tile_id;
-        const currentImage: Image = ctx.current.currentImage;
-        const currentAnnotationClass: AnnotationClass = ctx.current.currentAnnotationClass;
+        const currentImage: Image = props.currentImage;
+        const currentAnnotationClass: AnnotationClass = props.currentAnnotationClass;
         const annotationId = currentState?.id;
         const layer = geojs_map.current.layers()[LAYER_KEYS.GT];
 
@@ -217,7 +219,7 @@ const ViewportMap = (props: Props) => {
                 const data = feature.data();
                 const deletedData = data.filter((d: Annotation) => d.id !== annotationId);
 
-                const updatedGroundTruths = ctx.current.gts.filter((gt: Annotation) => gt.id !== annotationId);
+                const updatedGroundTruths = props.gts.filter((gt: Annotation) => gt.id !== annotationId);
                 props.setGts(updatedGroundTruths);
                 redrawTileFeature(feature, {}, deletedData);
                 props.setCurrentAnnotation(null);
@@ -225,6 +227,27 @@ const ViewportMap = (props: Props) => {
             })
         }
     }
+
+    function handleControlKey(isKeyDown: boolean) {
+        console.log(`Control key ${isKeyDown ? 'down' : 'up'} detected.`);
+        if (props.currentTool === TOOLBAR_KEYS.IMPORT) {
+            const annotationLayer = geojs_map.current?.layers()[LAYER_KEYS.ANN];
+            if (annotationLayer) {
+                annotationLayer.mode(isKeyDown ? 'polygon' : 'point');
+            }
+        }
+    }
+
+    function handleControlDown() {
+        handleControlKey(true);
+    }
+
+    function handleControlUp() {
+        handleControlKey(false);
+    }
+
+
+
 
     const updateAnnotation = (currentState: Annotation, newPolygon: Polygon) => {
         const layer = geojs_map.current.layers()[LAYER_KEYS.GT];
@@ -259,7 +282,7 @@ const ViewportMap = (props: Props) => {
                     const updatedData = data.concat(annotation);
                     redrawTileFeature(feature, {}, updatedData);
                 } else {
-                    feature = createGTTileFeature({tile_id: tile_id}, [annotation], layer, currentAnnotationClass);
+                    feature = createGTTileFeature({ tile_id: tile_id }, [annotation], layer, currentAnnotationClass);
                     feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
                 }
                 props.setGts((prev: Annotation[]) => prev.concat(annotation));
@@ -269,23 +292,56 @@ const ViewportMap = (props: Props) => {
         });
     }
 
+    const getPolygonFromAnnotationLayer = (): Polygon | null => {
+        const annotationLayer = geojs_map.current.layers()[LAYER_KEYS.ANN];
+        const annotations = annotationLayer.annotations();
+        if (annotations && annotations.length > 0) {
+            const geometry = annotations[0].geojson().geometry
+            if (geometry.type === "Polygon") {
+                return geometry as Polygon;
+            }
+            if (geometry.type === "Point") {
+                const coords = geometry.coordinates;
+                const polygon: Polygon = {
+                    type: "Polygon",
+                    coordinates: [[
+                        [coords[0], coords[1] + 0.0001],
+                        [coords[0] - 0.0001, coords[1] - 0.0001],
+                        [coords[0] + 0.0001, coords[1] - 0.0001],
+                        [coords[0], coords[1] + 0.0001] // Closing the triangle
+                    ]],
+                };
+                return polygon;
+            }
+        }
+        return null;
+    }
+
     const handleNewAnnotation = async (evt) => {
         console.log("New annotation detected.")
         const annotationLayer = geojs_map.current.layers()[LAYER_KEYS.ANN];
-        const polygonList = annotationLayer.toPolygonList()[0][0].map((p: number[]) => [p[0], -p[1]]);
 
-        const currentImage: Image = ctx.current.currentImage;
+        const currentImage: Image = ctx.current.currentImage;   // TODO: use useCallback or custom hook instead of ctx.
         const currentAnnotationClass: AnnotationClass = ctx.current.currentAnnotationClass;
         const currentAnn: CurrentAnnotation = ctx.current.currentAnnotation;
         const currentTool: string = ctx.current.currentTool;
 
-        if (!(polygonList.length > 0 && currentImage && currentAnnotationClass)) {
-            console.log("Polygon list is empty.")
+        if (!(currentImage && currentAnnotationClass)) {
             return;
         }
 
         // Get the polygon from the annotation layer.
-        const polygon2: Polygon = { type: "Polygon", coordinates: [polygonList] }
+        const polygon = getPolygonFromAnnotationLayer();
+        if (!polygon) {
+            console.error("No polygon found in the annotation layer.");
+            return;
+        }
+
+        // Clear the annotation layer
+        annotationLayer.mode(null);
+        annotationLayer.removeAllAnnotations();
+        console.log("Annotation layer cleared.")
+
 
         if (currentTool === TOOLBAR_KEYS.POLYGON) {
             const currentState = currentAnn?.currentState;
@@ -293,19 +349,19 @@ const ViewportMap = (props: Props) => {
             // If currentAnnotation exists, update the currentAnnotation
             if (currentState) {
                 console.log("Current annotation exists. Updating...")
-                updateAnnotation(currentState, polygon2);
+                updateAnnotation(currentState, polygon);
 
             } else {    // If currentAnnotation does not exist, create a new annotation in the database.
                 console.log("Current annotation does not exist. Creating...")
-                addAnnotation(polygon2);
+                addAnnotation(polygon);
             }
         } else if (currentTool === TOOLBAR_KEYS.IMPORT) {
-            const resp = await getAnnotationsWithinPolygon(currentImage.id, currentAnnotationClass.id, false, polygon2);
+            const resp = await getAnnotationsWithinPolygon(currentImage.id, currentAnnotationClass.id, false, polygon);
             if (resp.status === 200) {
                 const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentAnnotationClass.id));
 
                 // Get the ids for the features to redraw
-                const tilesResp = await searchTileIdsWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon2, false);
+                const tilesResp = await searchTileIdsWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon, false);
                 if (tilesResp.status === 200) {
                     const tileIds = tilesResp.data.tile_ids;
                     featureIdsToUpdate.current = tileIds;
@@ -326,11 +382,6 @@ const ViewportMap = (props: Props) => {
             // 5. Redraw the respective ground truth and prediction tiles.
 
         }
-
-        // Clear the annotation layer
-        annotationLayer.mode(null);
-        annotationLayer.removeAllAnnotations();
-        console.log("Annotation layer cleared.")
     }
 
     const handleAnnotationModeChange = (evt) => {
@@ -379,6 +430,12 @@ const ViewportMap = (props: Props) => {
             viewRef.current, img.base_width, img.base_height, img.dz_tilesize, img.dz_tilesize);
 
         const map = geo.map({ ...params.map, max: 20 });
+
+        const interactor = map.interactor();
+        // We don't need rotation functionality.
+        interactor.removeAction(geo.geo_action.rotate, 'button rotate');
+        interactor.removeAction(geo.geo_action.rotate, 'wheel rotate');
+
         params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
         console.log("OSM layer loaded.");
 
@@ -416,12 +473,6 @@ const ViewportMap = (props: Props) => {
         annotationLayer.geoOn(geo.event.mousedown, handleMousedown);
         annotationLayer.geoOn(geo.event.annotation.state, handleNewAnnotation);
         annotationLayer.geoOn(geo.event.annotation.mode, handleAnnotationModeChange);
-        window.onkeydown = (evt) => {
-            if (evt.key === 'Backspace' || evt.key === 'Delete') {
-                handleDeleteAnnotation(evt);
-            }
-        }
-
         map.geoOn(geo.event.mousemove, function (evt: any) {
             props.setMouseCoords({ x: Math.round(evt.geo.x * 100) / 100, y: Math.round(evt.geo.y * 100) / 100 });
         });
@@ -502,7 +553,7 @@ const ViewportMap = (props: Props) => {
                 layer.mode('polygon');
                 break;
             case TOOLBAR_KEYS.IMPORT:    // import tool
-                layer.mode('polygon');
+                layer.mode('point');
                 break;
             default:
 
@@ -527,8 +578,8 @@ const ViewportMap = (props: Props) => {
             redrawTileFeature(feature, { currentAnnotationId: currentState?.id });
 
             if (!polygonClicked.current) {  // The polygon was selected from the ground truth list.
-            const centroid = currentState.parsedCentroid;
-            translateMap(centroid.coordinates[0], centroid.coordinates[1]);
+                const centroid = currentState.parsedCentroid;
+                translateMap(centroid.coordinates[0], centroid.coordinates[1]);
             }
         }
 
@@ -569,6 +620,10 @@ const ViewportMap = (props: Props) => {
         }
 
     }, [props.highlightedPreds]);
+
+    useHotkeys('backspace, delete', handleDeleteAnnotation, [props.currentAnnotation, props.currentImage, props.currentAnnotationClass, props.gts]);
+    useHotkeys('ctrl', handleControlDown, { keydown: true, keyup: false }, [props.currentTool]);
+    useHotkeys('ctrl', handleControlUp, { keydown: false, keyup: true }, [props.currentTool]);
 
     return (
         <div ref={viewRef} style={
