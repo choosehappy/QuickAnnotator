@@ -248,7 +248,12 @@ const ViewportMap = (props: Props) => {
 
     const updateAnnotation = (currentState: Annotation, newPolygon: Polygon) => {
         const layer = geojs_map.current.layers()[LAYER_KEYS.GT];
-        const feature = getTileFeatureById(layer, currentState.tile_id);
+        const tileId = currentState.tile_id;
+        if (!tileIdIsValid(tileId)) {
+            console.log("Tile ID not found.")
+            return;
+        }
+        const feature = getTileFeatureById(layer, tileId);
         const data = feature.data();
         operateOnAnnotation(currentState, newPolygon, 0).then((resp) => {
             const newState = new Annotation(resp.data, currentState.annotation_class_id);
@@ -324,8 +329,8 @@ const ViewportMap = (props: Props) => {
         const annotationLayer = geojs_map.current.layers()[LAYER_KEYS.ANN];
         const { currentImage, currentAnnotationClass, currentAnnotation, currentTool, setHighlightedPreds, setActiveModal } = props;
 
-        if (!(polygonList.length > 0 && currentImage && currentAnnotationClass)) {
-            console.log("Polygon list is empty.");
+        if (!currentImage || !currentAnnotationClass || !currentTool) {
+            console.error("Error: currentImage, currentAnnotationClass or currentTool is not defined.");
             return;
         }
 
@@ -360,35 +365,38 @@ const ViewportMap = (props: Props) => {
                 const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentAnnotationClass.id));
                 if (anns.length === 0) {
                     alert("No annotations selected within the lasso. Please try again.");
+                }
                 // Get the ids for the features to redraw
+                // const tilesResp = await searchTileIdsWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon, false);
+                // if (tilesResp.status === 200) {
+                //     const tileIds = tilesResp.data.tile_ids;
+                //     featureIdsToUpdate.current = tileIds;
+                //     props.setHighlightedPreds(anns);
+                //     props.setActiveModal(MODAL_DATA.IMPORT_CONF.id);
+                // } else {
+                    // Get the ids for the features to redraw
+                setHighlightedPreds(anns);
                 const tilesResp = await searchTileIdsWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon, false);
                 if (tilesResp.status === 200) {
                     const tileIds = tilesResp.data.tile_ids;
                     featureIdsToUpdate.current = tileIds;
-                    props.setHighlightedPreds(anns);
-                    props.setActiveModal(MODAL_DATA.IMPORT_CONF.id);
-                } else {
-                    // Get the ids for the features to redraw
-                    setHighlightedPreds(anns);
-                    const tilesResp = await searchTileIdsWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon2, false);
-                    if (tilesResp.status === 200) {
-                        const tileIds = tilesResp.data.tile_ids;
-                        featureIdsToUpdate.current = tileIds;
-                        if (cookies[COOKIE_NAMES.SKIP_CONFIRM_IMPORT]) {
-                            postAnnotations(currentImage.id, currentAnnotationClass?.id, anns.map(ann => ann.parsedPolygon)).then(() => {
-                                setHighlightedPreds(null);
-                            });
-                        } else {
-                            // Open the import confirmation modal
-                            setActiveModal(MODAL_DATA.IMPORT_CONF.id);
-                        }
+                    if (cookies[COOKIE_NAMES.SKIP_CONFIRM_IMPORT]) {
+                        postAnnotations(currentImage.id, currentAnnotationClass?.id, anns.map(ann => ann.parsedPolygon)).then(() => {
+                            setHighlightedPreds(null);
+                        });
                     } else {
-                        console.log("No tiles found within the polygon.");
+                        // Open the import confirmation modal
+                        setActiveModal(MODAL_DATA.IMPORT_CONF.id);
                     }
+                } else {
+                    console.log("No tiles found within the polygon.");
                 }
+                annotationLayer.mode('point');
+                // }
             }
         }
     }
+
 
     const handleAnnotationModeChange = (evt) => {
         console.log(`Mode changed from ${evt.oldMode} to ${evt.mode}`);
@@ -658,5 +666,6 @@ const ViewportMap = (props: Props) => {
         </div>
     )
 }
+
 
 export default ViewportMap;
