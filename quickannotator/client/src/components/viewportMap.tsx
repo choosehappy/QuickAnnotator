@@ -3,9 +3,10 @@ import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse } from "../types.ts"
 import { searchTileIds, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileIdsWithinPolygon, fetchTileBoundingBox, fetchImageMetadata } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
-import { TOOLBAR_KEYS, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID } from "../helpers/config.ts";
+import { TOOLBAR_KEYS, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID, COOKIE_NAMES } from "../helpers/config.ts";
 
 import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered, tileIdIsValid } from '../utils/map.ts';
+import { useCookies } from 'react-cookie';
 
 interface Props {
     currentImage: Image | null;
@@ -39,6 +40,8 @@ const ViewportMap = (props: Props) => {
     const activeRenderGroundTruthsCall = useRef<number>(0);
     const activeRenderPredictionsCall = useRef<number>(0);
     const featureIdsToUpdate = useRef<number[]>([]);
+    const [cookies, setCookies] = useCookies([COOKIE_NAMES.SKIP_CONFIRM_IMPORT]);
+    const cookieRef = useRef(cookies[COOKIE_NAMES.SKIP_CONFIRM_IMPORT] || false);
     const ctx = useLocalContext({ ...props });
     let zoomPanTimeout: any = null;
 
@@ -307,34 +310,33 @@ const ViewportMap = (props: Props) => {
             const resp = await getAnnotationsWithinPolygon(currentImage.id, currentAnnotationClass.id, false, polygon2);
             if (resp.status === 200) {
                 const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentAnnotationClass.id));
+                
 
                 if (anns.length === 0) {
                     alert("No annotations selected within the lasso. Please try again.");
                 } else {
                     // Get the ids for the features to redraw
+                    props.setHighlightedPreds(anns);
                     const tilesResp = await searchTileIdsWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon2, false);
                     if (tilesResp.status === 200) {
                         const tileIds = tilesResp.data.tile_ids;
                         featureIdsToUpdate.current = tileIds;
-                        props.setHighlightedPreds(anns);
-                        props.setActiveModal(MODAL_DATA.IMPORT_CONF.id);
+                        if (cookieRef.current[COOKIE_NAMES.SKIP_CONFIRM_IMPORT]) {
+                            postAnnotations(currentImage.id, currentAnnotationClass?.id, anns.map(ann => ann.parsedPolygon)).then((resp) => {
+                                props.setHighlightedPreds(null);
+                            });
+                        } else {
+                            // Open the import confirmation modal
+                            
+                            props.setActiveModal(MODAL_DATA.IMPORT_CONF.id);
+                        }
                     } else {
                         console.log("No tiles found within the polygon.");
                     }
                 }
                 
             }
-
-
-
-            // 2. Highlight these polygons
-            // 3. Show a confirmation panel
-            // 4. If confirmed, POST the new ground truths and DELETE the predictions.
-            // 5. Redraw the respective ground truth and prediction tiles.
-
         }
-
-
     }
 
     const handleAnnotationModeChange = (evt) => {
