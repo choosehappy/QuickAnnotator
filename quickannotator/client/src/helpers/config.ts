@@ -110,6 +110,7 @@ export const UPLOAD_ACCEPTED_FILES = {
     'application/x-svs': ['.svs', '.ndpi'],
     'application/dicom': ['.dcm'],
     'application/json': ['.json', '.geojson'],
+    'application/tsv': ['.tsv']
 }
 
 // WSI file extension
@@ -118,3 +119,6 @@ export const WSI_EXTS = ['svs', 'tif','dcm','vms', 'vmu', 'ndpi',
 
 // JSON file extension
 export const JSON_EXTS = ['json','geojosn']
+
+// TSV bunch extension
+export const BUNCH_EXTS = ['tsv']

@@ -10,7 +10,7 @@ import FileProgressPanel from './fileProgressPanel/fileProgressPanel.tsx'
 import './fileDropUploader.css'
 import { Prev } from "react-bootstrap/esm/PageItem";
 
-import {UPLOAD_ACCEPTED_FILES, WSI_EXTS, JSON_EXTS} from '../../helpers/config.ts'
+import {UPLOAD_ACCEPTED_FILES, WSI_EXTS, JSON_EXTS, BUNCH_EXTS} from '../../helpers/config.ts'
 interface Props {
 
 }
@@ -67,6 +67,7 @@ const FileDropUploader = (props: any) => {
     const fileNameVerify = () => {
         const WSIFiles = filterByExtensions(files, WSI_EXTS)
         const annotFiles = filterByExtensions(files, JSON_EXTS)
+        const bunchFiles = filterByExtensions(files, BUNCH_EXTS)
         return 
     }
 
@@ -168,6 +169,9 @@ const FileDropUploader = (props: any) => {
                             </p>
                             <p>
                                 Supported Annotation files:.json, .geojson
+                            </p>
+                            <p>
+                                Supported Bunch Slides and Annotations import:.tsv
                             </p>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
