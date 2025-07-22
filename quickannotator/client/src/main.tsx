@@ -11,6 +11,7 @@ import Root from './routes/root.tsx'
 import AnnotationPage from './routes/annotationPage.tsx'
 import ProjectPage from './routes/projectPage.tsx'
 import LandingPage from './routes/landingPage.tsx'
+import { CookiesProvider } from 'react-cookie'
 
 const router = createBrowserRouter([
     {path: "/", element: <Root />, children: [
@@ -23,6 +24,8 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-      <RouterProvider router={router} />
+    <CookiesProvider>
+        <RouterProvider router={router} />
+    </CookiesProvider>
   </StrictMode>,
 )

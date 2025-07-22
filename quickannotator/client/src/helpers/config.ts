@@ -1,12 +1,22 @@
 import { ModalData, ProjectModalData } from "../types";
 
 export enum TOOLBAR_KEYS {
-    POINTER = '0',
+    POINTER = '0',  // TODO: should use int enum here.
     IMPORT = '1',
     BRUSH = '2',
     WAND = '3',
     ERASER = '4',
     POLYGON = '5',
+}
+
+export enum INTERACTION_MODE {
+    POINTER = 0,
+    POINT_IMPORT,
+    LASSO_IMPORT,
+    BRUSH,
+    WAND,
+    ERASER,
+    POLYGON,
 }
 
 export enum LAYER_KEYS {
@@ -122,3 +132,9 @@ export const JSON_EXTS = ['json','geojosn']
 
 // TSV bunch extension
 export const BUNCH_EXTS = ['tsv']
+
+// Cookie names
+export enum COOKIE_NAMES {
+    SKIP_CONFIRM_IMPORT = 'skipConfirmImport',
+    SKIP_CONFIRM_DELETE_CLASS = 'skipConfirmDeleteClass',
+}
