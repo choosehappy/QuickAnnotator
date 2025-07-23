@@ -276,6 +276,10 @@ const ViewportMap = (props: Props) => {
     // }
 
     function setBrushMode(setOn: boolean = true) {
+        if (!geojs_map.current) {
+            console.error("GeoJS map is not initialized.");
+            return;
+        }
         const layers = geojs_map.current.layers();
         const brushLayer = layers[LAYER_KEYS.BRUSH];
         const annotationLayer = layers[LAYER_KEYS.ANN];
@@ -356,7 +360,7 @@ const ViewportMap = (props: Props) => {
     }
 
 
-    const updateAnnotation = (currentState: Annotation, newPolygon: Polygon) => {
+    const updateAnnotation = (currentState: Annotation, newPolygon: Polygon, operation: POLYGON_OPERATIONS) => {
         const layer = geojs_map.current.layers()[LAYER_KEYS.GT];
         const tileId = currentState.tile_id;
         if (!tileIdIsValid(tileId)) {
@@ -365,7 +369,6 @@ const ViewportMap = (props: Props) => {
         }
         const feature = getTileFeatureById(layer, tileId);
         const data = feature.data();
-        const operation = isHotkeyPressed('ctrl') ? POLYGON_OPERATIONS.DIFFERENCE : POLYGON_OPERATIONS.UNION;
         operateOnAnnotation(currentState, newPolygon, operation).then((resp) => {
             const newState = new Annotation(resp.data, currentState.annotation_class_id);
             const updatedData: Annotation[] = data.map((d: Annotation) => d.id === currentState.id ? newState : d);
@@ -460,15 +463,18 @@ const ViewportMap = (props: Props) => {
 
         if (currentTool === TOOLBAR_KEYS.POLYGON || currentTool === TOOLBAR_KEYS.BRUSH) {
             const currentState = currentAnnotation?.currentState;
+            const hotKeyPressed = isHotkeyPressed('ctrl');
 
             // If currentAnnotation exists, update the currentAnnotation
             if (currentState) {
                 console.log("Current annotation exists. Updating...")
-                updateAnnotation(currentState, polygon);
+                updateAnnotation(currentState, polygon, hotKeyPressed ? POLYGON_OPERATIONS.DIFFERENCE : POLYGON_OPERATIONS.UNION);
 
             } else {    // If currentAnnotation does not exist, create a new annotation in the database.
                 console.log("Current annotation does not exist. Creating...")
-                addAnnotation(polygon);
+                if (!hotKeyPressed) {
+                    addAnnotation(polygon);
+                }
             }
         } else if (currentTool === TOOLBAR_KEYS.IMPORT) {
             const resp = await getAnnotationsWithinPolygon(currentImage.id, currentAnnotationClass.id, false, polygon);
