@@ -39,8 +39,8 @@ const ViewportMap = (props: Props) => {
     const featureIdsToUpdate = useRef<number[]>([]);
     const [cookies, setCookies] = useCookies([COOKIE_NAMES.SKIP_CONFIRM_IMPORT]);
     const lastBrushState = useRef<{ stateId: number, bbox: [Position, Position] } | null>(null);
+    const size = 1000;
 
-    const size = 1000
     let zoomPanTimeout: any = null;
 
     const renderGTAnnotations = async (
@@ -275,7 +275,7 @@ const ViewportMap = (props: Props) => {
     //     }
     // }
 
-    function setBrushMode(setOn: boolean = true) {
+    function setBrushActive(active: boolean = true) {
         if (!geojs_map.current) {
             console.error("GeoJS map is not initialized.");
             return;
@@ -289,11 +289,16 @@ const ViewportMap = (props: Props) => {
           brushLayer.removeAllAnnotations();
         }
 
-        if (setOn) {
+        if (active) {
             annotationLayer.mode(null);
 
-            const shape = 'circle'; // Explicitly setting the brush shape to 'rectangle'
-            const annot = geo.registries.annotations[shape].func({layer: annotationLayer});
+            const shape = 'ellipse'; // Explicitly setting the brush shape to 'rectangle'
+            const annot = geo.registries.annotations[shape].func({
+                layer: annotationLayer,
+                style: {
+                    scaleWithZoom: geo.markerFeature.scaleMode.none,
+                }
+            });
             brushLayer.addAnnotation(annot);
             annot._coordinates([{x: 0, y: 0}, {x: size, y: 0}, {x: size, y: size}, {y: size, x: 0}]);
             brushLayer.mode(brushLayer.modes.cursor, annot);
@@ -705,7 +710,7 @@ const ViewportMap = (props: Props) => {
         const layer = geojs_map.current?.layers()[LAYER_KEYS.ANN];
 
         // Clean up the brush layer
-        setBrushMode(false) 
+        setBrushActive(false) 
 
         switch (props.currentTool) {
             case null:
@@ -723,7 +728,7 @@ const ViewportMap = (props: Props) => {
                 layer.mode('point');
                 break;
             case TOOLBAR_KEYS.BRUSH:     // brush tool
-                setBrushMode(true);
+                setBrushActive(true);
                 break;
             default:
 
