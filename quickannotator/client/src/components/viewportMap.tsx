@@ -38,6 +38,9 @@ const ViewportMap = (props: Props) => {
     const activeRenderPredictionsCall = useRef<number>(0);
     const featureIdsToUpdate = useRef<number[]>([]);
     const [cookies, setCookies] = useCookies([COOKIE_NAMES.SKIP_CONFIRM_IMPORT]);
+    const lastBrushState = useRef<{ stateId: number, bbox: [Position, Position] } | null>(null);
+
+    const size = 1000
     let zoomPanTimeout: any = null;
 
     const renderGTAnnotations = async (
@@ -194,6 +197,103 @@ const ViewportMap = (props: Props) => {
         }
     }
 
+    const handleBrushAction = (evt) => {
+        let source;
+        const layers = geojs_map.current.layers();
+        const brushLayer = layers[LAYER_KEYS.BRUSH];
+        const annotationLayer = layers[LAYER_KEYS.ANN];
+        const lastState = lastBrushState.current;
+        const brushPixelTolerance = 0.05; // Determines the side length of the brush polygon.
+        if (evt.event === geo.event.annotation.cursor_action) {
+            if (evt.operation && evt.operation !== 'union' && evt.operation !== 'difference') {
+                return;
+            }
+            source = brushLayer.toPolygonList({ pixelTolerance: brushPixelTolerance});
+            if (lastState && lastState.stateId && lastState.stateId === evt.evt.state.stateId) {
+                const bbox1 = brushLayer.annotations()[0]._coordinates();
+                const bbox2 = lastState.bbox;
+                if (bbox1[0].x !== bbox2[0].x || bbox1[0].y !== bbox2[0].y) {
+
+                    const c1x = (bbox1[0].x + bbox1[2].x) * 0.5;
+                    const c1y = (bbox1[0].y + bbox1[2].y) * 0.5;
+                    const c2x = (bbox2[0].x + bbox2[2].x) * 0.5;
+                    const c2y = (bbox2[0].y + bbox2[2].y) * 0.5;
+                    const ang = Math.atan2(c2y - c1y, c2x - c1x) + Math.PI / 2;
+                    source.push([[
+                        [c1x + size / 2 * Math.cos(ang), c1y + size / 2 * Math.sin(ang)],
+                        [c1x - size / 2 * Math.cos(ang), c1y - size / 2 * Math.sin(ang)],
+                        [c2x - size / 2 * Math.cos(ang), c2y - size / 2 * Math.sin(ang)],
+                        [c2x + size / 2 * Math.cos(ang), c2y + size / 2 * Math.sin(ang)]
+                    ]]);
+                }
+            }
+            lastBrushState.current = evt.evt.state;
+            lastBrushState.current.bbox = brushLayer.annotations()[0]._coordinates();
+            geo.util.polyops[ 'union'](annotationLayer, source, { correspond: {}, keepAnnotations: 'exact', style: annotationLayer });
+        } else {
+            lastBrushState.current = null;
+        }
+    }
+
+    // const handleUpdateBrushMode = (evt) => {
+    //     let source;
+    //     const brushLayer = geojs_map.current.layers()[LAYER_KEYS.BRUSH];
+    //     const annotationLayer = geojs_map.current.layers()[LAYER_KEYS.ANN];
+    //     if (evt.event === geo.event.annotation.cursor_action) {
+    //         if (lastBrushState.current && lastBrushState.current.stateId && lastBrushState.current.stateId === evt.evt.state.stateId) {
+    //             source = brushLayer.toPolygonList();
+    //             const bbox1 = brushLayer.annotations()[0]._coordinates();
+    //             const bbox2 = lastBrushState.current.bbox;
+                
+    //             if (bbox1[0].x !== bbox2[0].x || bbox1[0].y !== bbox2[0].y) {
+    //                 const c1x = (bbox1[0].x + bbox1[2].x) * 0.5;
+    //                 const c1y = (bbox1[0].y + bbox1[2].y) * 0.5;
+    //                 const c2x = (bbox2[0].x + bbox2[2].x) * 0.5;
+    //                 const c2y = (bbox2[0].y + bbox2[2].y) * 0.5;
+    //                 const ang = Math.atan2(c2y - c1y, c2x - c1x) + Math.PI / 2;
+    //                 source.push([[
+    //                     [c1x + size / 2 * Math.cos(ang), c1y + size / 2 * Math.sin(ang)],
+    //                     [c1x - size / 2 * Math.cos(ang), c1y - size / 2 * Math.sin(ang)],
+    //                     [c2x - size / 2 * Math.cos(ang), c2y - size / 2 * Math.sin(ang)],
+    //                     [c2x + size / 2 * Math.cos(ang), c2y + size / 2 * Math.sin(ang)]
+    //                 ]]);
+    //             }
+    //             lastBrushState.current = evt.evt.state;
+    //             if (!lastBrushState.current) {
+    //                 console.error("Last brush state is null.");
+    //                 return;
+    //             }
+    //             lastBrushState.current.bbox = brushLayer.annotations()[0]._coordinates();
+    //         } else {
+    //             lastBrushState.current = null;
+    //         }
+    //         // geo.util.polyops[evt.operation || 'union'](annotationLayer, source || brushLayer, { correspond: {}, keepAnnotations: 'exact', style: annotationLayer });
+    //     }
+    // }
+
+    function setBrushMode(setOn: boolean = true) {
+        const layers = geojs_map.current.layers();
+        const brushLayer = layers[LAYER_KEYS.BRUSH];
+        const annotationLayer = layers[LAYER_KEYS.ANN];
+
+        if (brushLayer) {
+          brushLayer.mode(null);
+          brushLayer.removeAllAnnotations();
+        }
+
+        if (setOn) {
+            annotationLayer.mode(null);
+
+            const shape = 'circle'; // Explicitly setting the brush shape to 'rectangle'
+            const annot = geo.registries.annotations[shape].func({layer: annotationLayer});
+            brushLayer.addAnnotation(annot);
+            annot._coordinates([{x: 0, y: 0}, {x: size, y: 0}, {x: size, y: size}, {y: size, x: 0}]);
+            brushLayer.mode(brushLayer.modes.cursor, annot);
+            geojs_map.current.draw();
+        }
+    }
+
+
     function handleDeleteAnnotation(evt) {
         console.log("Delete annotation detected.")
 
@@ -250,8 +350,6 @@ const ViewportMap = (props: Props) => {
     function handleControlUp() {
         handleControlKey(false);
     }
-
-
 
 
     const updateAnnotation = (currentState: Annotation, newPolygon: Polygon) => {
@@ -470,6 +568,11 @@ const ViewportMap = (props: Props) => {
             {
                 active: true,
                 zIndex: 2,
+                showLabels: false,
+            });
+
+        const brushLayer = map.createLayer('annotation', {
+                showLabels: false
             });
 
         const uiLayer = map.createLayer('ui');
@@ -516,6 +619,12 @@ const ViewportMap = (props: Props) => {
         annotationLayer.geoOn(geo.event.annotation.state, handleNewAnnotation);
         annotationLayer.geoOn(geo.event.annotation.mode, handleAnnotationModeChange);
 
+        const brushLayer = geojs_map.current.layers()[LAYER_KEYS.BRUSH];
+        brushLayer.geoOn(geo.event.annotation.cursor_click, handleBrushAction);
+        brushLayer.geoOn(geo.event.annotation.cursor_action, handleBrushAction);
+        // brushLayer.geoOn(geo.event.annotation.mode, handleUpdateBrushMode);
+        // brushLayer.geoOn(geo.event.annotation.state, handleUpdateBrushMode);
+
         window.onkeydown = (evt) => {
             if (evt.key === 'Backspace' || evt.key === 'Delete') {
                 handleDeleteAnnotation(evt);
@@ -532,6 +641,12 @@ const ViewportMap = (props: Props) => {
             annotationLayer.geoOff(geo.event.mousedown, handleMousedown);
             annotationLayer.geoOff(geo.event.annotation.state, handleNewAnnotation);
             annotationLayer.geoOff(geo.event.annotation.mode, handleAnnotationModeChange);
+
+            brushLayer.geoOff(geo.event.annotation.cursor_click, handleBrushAction);
+            brushLayer.geoOff(geo.event.annotation.cursor_action, handleBrushAction);
+            // brushLayer.geoOff(geo.event.annotation.mode, handleUpdateBrushMode);
+            // brushLayer.geoOff(geo.event.annotation.state, handleUpdateBrushMode);
+
             window.onkeydown = null;
             map.geoOff(geo.event.mousemove);
             map.geoOff(geo.event.zoom);
@@ -578,6 +693,10 @@ const ViewportMap = (props: Props) => {
     useEffect(() => {
         console.log('detected toolbar change');
         const layer = geojs_map.current?.layers()[LAYER_KEYS.ANN];
+
+        // Clean up the brush layer
+        setBrushMode(false) 
+
         switch (props.currentTool) {
             case null:
                 console.log("toolbar is null");
@@ -592,6 +711,9 @@ const ViewportMap = (props: Props) => {
                 break;
             case TOOLBAR_KEYS.IMPORT:    // import tool
                 layer.mode('point');
+                break;
+            case TOOLBAR_KEYS.BRUSH:     // brush tool
+                setBrushMode(true);
                 break;
             default:
 
@@ -675,6 +797,5 @@ const ViewportMap = (props: Props) => {
         </div>
     )
 }
-
 
 export default ViewportMap;

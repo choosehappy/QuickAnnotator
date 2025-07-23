@@ -24,6 +24,7 @@ export enum LAYER_KEYS {
     PRED,
     OSM,
     ANN,
+    BRUSH,
 }
 
 export enum TILE_STATUS {

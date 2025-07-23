@@ -30,7 +30,7 @@ const Toolbar = React.memo((props: Props) => {
     const radios = [
         { icon: <Cursor/>, disabled: false },
         { icon: <Download/>, disabled: false },
-        { icon: <Brush/>, disabled: true },
+        { icon: <Brush/>, disabled: false },
         { icon: <Magic/>, disabled: true },
         { icon: <Eraser/>, disabled: true },
         { icon: <Heptagon/>, disabled: false },
