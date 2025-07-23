@@ -203,6 +203,10 @@ const ViewportMap = (props: Props) => {
         const brushLayer = layers[LAYER_KEYS.BRUSH];
         const annotationLayer = layers[LAYER_KEYS.ANN];
         const lastState = lastBrushState.current;
+        if (evt.evt.event === geo.event.actionup) {
+            handleNewAnnotation(evt);
+            return; // Brush action ends on mouse up.
+        }
         const brushPixelTolerance = 0.05; // Determines the side length of the brush polygon.
         if (evt.event === geo.event.annotation.cursor_action) {
             if (evt.operation && evt.operation !== 'union' && evt.operation !== 'difference') {
@@ -454,7 +458,7 @@ const ViewportMap = (props: Props) => {
         console.log("Annotation layer cleared.");
 
 
-        if (currentTool === TOOLBAR_KEYS.POLYGON) {
+        if (currentTool === TOOLBAR_KEYS.POLYGON || currentTool === TOOLBAR_KEYS.BRUSH) {
             const currentState = currentAnnotation?.currentState;
 
             // If currentAnnotation exists, update the currentAnnotation
