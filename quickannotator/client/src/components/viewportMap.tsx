@@ -6,7 +6,7 @@ import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson
 
 import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID, COOKIE_NAMES, POLYGON_OPERATIONS } from "../helpers/config.ts";
 
-import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered, tileIdIsValid } from '../utils/map.ts';
+import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered, tileIdIsValid, getScaledSize, createCirclePolygon, createConnectingRectangle} from '../utils/map.ts';
 import { useCookies } from 'react-cookie';
 import { useHotkeys, isHotkeyPressed } from 'react-hotkeys-hook';
 
@@ -236,35 +236,6 @@ const ViewportMap = (props: Props) => {
         }
     }
 
-    function getScaledSize(geojs_map: geo.map, size: number): number {
-        const currentZoom = geojs_map.zoom();  
-        const scaleFactor = Math.pow(2, currentZoom);  
-        return size / scaleFactor * geojs_map.unitsPerPixel();  // Scale the size based on the current zoom level
-    }
-
-    function createCirclePolygon(x: number, y: number, size: number, layer: geo.layer, pixelTolerance: number): geo.annotation.circleAnnotation {
-        const circle = geo.annotation.circleAnnotation({
-            layer: layer,
-            corners: [
-                { x: x - size, y: y - size },  // top-left
-                { x: x + size, y: y - size },  // top-right
-                { x: x + size, y: y + size },  // bottom-right
-                { x: x - size, y: y + size }   // bottom-left
-            ],
-        });
-
-        return circle.toPolygonList({ pixelTolerance: pixelTolerance }); // Convert to polygon with a pixel tolerance
-    }
-
-    const createConnectingRectangle = (x1: number, y1: number, x2: number, y2: number, size: number) => {
-        const ang = Math.atan2(y2 - y1, x2 - x1) + Math.PI / 2;
-        return [[
-            [x1 + size * Math.cos(ang), y1 + size * Math.sin(ang)],
-            [x1 - size * Math.cos(ang), y1 - size * Math.sin(ang)],
-            [x2 - size * Math.cos(ang), y2 - size * Math.sin(ang)],
-            [x2 + size * Math.cos(ang), y2 + size * Math.sin(ang)]
-        ]];
-    };
 
     function setBrushActive(active: boolean = true) {
         if (!geojs_map.current) {
