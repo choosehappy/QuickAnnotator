@@ -38,8 +38,8 @@ const ViewportMap = (props: Props) => {
     const activeRenderPredictionsCall = useRef<number>(0);
     const featureIdsToUpdate = useRef<number[]>([]);
     const [cookies, setCookies] = useCookies([COOKIE_NAMES.SKIP_CONFIRM_IMPORT]);
-    const lastBrushState = useRef<{ stateId: number, bbox: [Position, Position] } | null>(null);
-    const size = 1000;
+    const lastBrushState = useRef<{ stateId: number, coords: [Position] } | null>(null);
+    const size = 20;
 
     let zoomPanTimeout: any = null;
 
@@ -198,11 +198,13 @@ const ViewportMap = (props: Props) => {
     }
 
     const handleBrushAction = (evt) => {
-        let source;
-        const layers = geojs_map.current.layers();
+        const map = geojs_map.current;
+        const layers = map.layers();
         const brushLayer = layers[LAYER_KEYS.BRUSH];
         const annotationLayer = layers[LAYER_KEYS.ANN];
         const lastState = lastBrushState.current;
+        const scaledSize = getScaledSize(map, size); // Get the scaled size based on the current zoom level
+
         if (evt.evt.event === geo.event.actionup) {
             handleNewAnnotation(evt);
             return; // Brush action ends on mouse up.
@@ -210,34 +212,61 @@ const ViewportMap = (props: Props) => {
         const brushPixelTolerance = 0.05; // Determines the side length of the brush polygon.
         if (evt.event === geo.event.annotation.cursor_action) {
             if (evt.operation && evt.operation !== 'union' && evt.operation !== 'difference') {
-                return;
+            return;
             }
-            source = brushLayer.toPolygonList({ pixelTolerance: brushPixelTolerance});
+            const coords1 = brushLayer.annotations()[0]._coordinates(); 
+            const c1x = coords1[0].x;
+            const c1y = coords1[0].y;
+            const source = createCirclePolygon(c1x, c1y, scaledSize, annotationLayer, brushPixelTolerance); // Create a polygon for the brush action
+             
             if (lastState && lastState.stateId && lastState.stateId === evt.evt.state.stateId) {
-                const bbox1 = brushLayer.annotations()[0]._coordinates();
-                const bbox2 = lastState.bbox;
-                if (bbox1[0].x !== bbox2[0].x || bbox1[0].y !== bbox2[0].y) {
-
-                    const c1x = (bbox1[0].x + bbox1[2].x) * 0.5;
-                    const c1y = (bbox1[0].y + bbox1[2].y) * 0.5;
-                    const c2x = (bbox2[0].x + bbox2[2].x) * 0.5;
-                    const c2y = (bbox2[0].y + bbox2[2].y) * 0.5;
-                    const ang = Math.atan2(c2y - c1y, c2x - c1x) + Math.PI / 2;
-                    source.push([[
-                        [c1x + size / 2 * Math.cos(ang), c1y + size / 2 * Math.sin(ang)],
-                        [c1x - size / 2 * Math.cos(ang), c1y - size / 2 * Math.sin(ang)],
-                        [c2x - size / 2 * Math.cos(ang), c2y - size / 2 * Math.sin(ang)],
-                        [c2x + size / 2 * Math.cos(ang), c2y + size / 2 * Math.sin(ang)]
-                    ]]);
-                }
+            const coords2 = lastState.coords; // Store the previous point coordinates  
+            const c2x = coords2[0].x;  
+            const c2y = coords2[0].y;  
+            
+            if (c1x !== c2x || c1y !== c2y) {  
+                source.push(createConnectingRectangle(c1x, c1y, c2x, c2y, scaledSize)); // Create a rectangle connecting the previous and current points
+            }
             }
             lastBrushState.current = evt.evt.state;
-            lastBrushState.current.bbox = brushLayer.annotations()[0]._coordinates();
-            geo.util.polyops[ 'union'](annotationLayer, source, { correspond: {}, keepAnnotations: 'exact', style: annotationLayer });
+            lastBrushState.current.coords = coords1;
+            geo.util.polyops['union'](annotationLayer, source, { correspond: {}, keepAnnotations: 'exact', style: annotationLayer });
         } else {
             lastBrushState.current = null;
         }
     }
+
+    function getScaledSize(geojs_map: geo.map, size: number): number {
+        const currentZoom = geojs_map.zoom();  
+        const scaleFactor = Math.pow(2, currentZoom);  
+        return size / scaleFactor * geojs_map.unitsPerPixel();  // Scale the size based on the current zoom level
+    }
+
+    function createCirclePolygon(x: number, y: number, size: number, layer: geo.layer, pixelTolerance: number): geo.annotation.circleAnnotation {
+        const circle = geo.annotation.circleAnnotation({
+            layer: layer,
+            corners: [
+                { x: x - size, y: y - size },  // top-left
+                { x: x + size, y: y - size },  // top-right
+                { x: x + size, y: y + size },  // bottom-right
+                { x: x - size, y: y + size }   // bottom-left
+            ],
+        });
+
+        return circle.toPolygonList({ pixelTolerance: pixelTolerance }); // Convert to polygon with a pixel tolerance
+    }
+
+    const createConnectingRectangle = (x1: number, y1: number, x2: number, y2: number, size: number) => {
+        const ang = Math.atan2(y2 - y1, x2 - x1) + Math.PI / 2;
+        return [[
+            [x1 + size * Math.cos(ang), y1 + size * Math.sin(ang)],
+            [x1 - size * Math.cos(ang), y1 - size * Math.sin(ang)],
+            [x2 - size * Math.cos(ang), y2 - size * Math.sin(ang)],
+            [x2 + size * Math.cos(ang), y2 + size * Math.sin(ang)]
+        ]];
+    };
+
+
 
     // const handleUpdateBrushMode = (evt) => {
     //     let source;
@@ -292,16 +321,24 @@ const ViewportMap = (props: Props) => {
         if (active) {
             annotationLayer.mode(null);
 
-            const shape = 'ellipse'; // Explicitly setting the brush shape to 'rectangle'
-            const annot = geo.registries.annotations[shape].func({
-                layer: annotationLayer,
-                style: {
-                    scaleWithZoom: geo.markerFeature.scaleMode.none,
-                }
-            });
-            brushLayer.addAnnotation(annot);
-            annot._coordinates([{x: 0, y: 0}, {x: size, y: 0}, {x: size, y: size}, {y: size, x: 0}]);
-            brushLayer.mode(brushLayer.modes.cursor, annot);
+            var centerX = 0;  // your desired center X  
+            var centerY = 0;  // your desired center Y  
+              
+            var pointAnnotation = geo.annotation.pointAnnotation({  
+                position: {x: centerX, y: centerY}, // your desired center position  
+                style: {  
+                  radius: size,  
+                  scaled: false, // This prevents scaling with zoom  
+                  fill: true,  
+                  fillColor: {r: 0, g: 1, b: 0},  
+                  stroke: true,  
+                  strokeColor: {r: 0, g: 0, b: 0}  
+                }  
+              });  
+            brushLayer.addAnnotation(pointAnnotation);
+
+            // circleAnnotation._coordinates([{x: 0, y: 0}, {x: size, y: 0}, {x: size, y: size}, {y: size, x: 0}]);
+            brushLayer.mode(brushLayer.modes.cursor, pointAnnotation);
             geojs_map.current.draw();
         }
     }
