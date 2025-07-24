@@ -266,44 +266,6 @@ const ViewportMap = (props: Props) => {
         ]];
     };
 
-
-
-    // const handleUpdateBrushMode = (evt) => {
-    //     let source;
-    //     const brushLayer = geojs_map.current.layers()[LAYER_KEYS.BRUSH];
-    //     const annotationLayer = geojs_map.current.layers()[LAYER_KEYS.ANN];
-    //     if (evt.event === geo.event.annotation.cursor_action) {
-    //         if (lastBrushState.current && lastBrushState.current.stateId && lastBrushState.current.stateId === evt.evt.state.stateId) {
-    //             source = brushLayer.toPolygonList();
-    //             const bbox1 = brushLayer.annotations()[0]._coordinates();
-    //             const bbox2 = lastBrushState.current.bbox;
-                
-    //             if (bbox1[0].x !== bbox2[0].x || bbox1[0].y !== bbox2[0].y) {
-    //                 const c1x = (bbox1[0].x + bbox1[2].x) * 0.5;
-    //                 const c1y = (bbox1[0].y + bbox1[2].y) * 0.5;
-    //                 const c2x = (bbox2[0].x + bbox2[2].x) * 0.5;
-    //                 const c2y = (bbox2[0].y + bbox2[2].y) * 0.5;
-    //                 const ang = Math.atan2(c2y - c1y, c2x - c1x) + Math.PI / 2;
-    //                 source.push([[
-    //                     [c1x + size / 2 * Math.cos(ang), c1y + size / 2 * Math.sin(ang)],
-    //                     [c1x - size / 2 * Math.cos(ang), c1y - size / 2 * Math.sin(ang)],
-    //                     [c2x - size / 2 * Math.cos(ang), c2y - size / 2 * Math.sin(ang)],
-    //                     [c2x + size / 2 * Math.cos(ang), c2y + size / 2 * Math.sin(ang)]
-    //                 ]]);
-    //             }
-    //             lastBrushState.current = evt.evt.state;
-    //             if (!lastBrushState.current) {
-    //                 console.error("Last brush state is null.");
-    //                 return;
-    //             }
-    //             lastBrushState.current.bbox = brushLayer.annotations()[0]._coordinates();
-    //         } else {
-    //             lastBrushState.current = null;
-    //         }
-    //         // geo.util.polyops[evt.operation || 'union'](annotationLayer, source || brushLayer, { correspond: {}, keepAnnotations: 'exact', style: annotationLayer });
-    //     }
-    // }
-
     function setBrushActive(active: boolean = true) {
         if (!geojs_map.current) {
             console.error("GeoJS map is not initialized.");
