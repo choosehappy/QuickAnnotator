@@ -116,10 +116,10 @@ Logs are stored within the QuickAnnotator database and may be visualized using G
     > Note: The following command assumes your sqlite database is contained in the base directory of the qadb_data volume.
 
     ```bash
-    docker run -d \ 
-    --name=grafana \ 
-    -p 3000:3000 \ 
-    -v qadb_data:/var/lib/grafana/sqlite \ 
+    docker run -d \
+    --name=grafana \
+    -p 3000:3000 \
+    -v qadb_data:/var/lib/grafana/sqlite \
     --network quickannotator-net \
     grafana/grafana 
     ```
