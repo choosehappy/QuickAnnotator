@@ -158,7 +158,7 @@ class GeometryOperation:
         return result
 
     @staticmethod
-    def difference(poly1: Polygon, poly2: Polygon) -> Polygon:
+    def difference(poly1: Polygon, poly2: Polygon, multipoly_func=constants.MultiPolygonToPolygonFuncs.MAX) -> Polygon:
         """
         Perform a difference operation between two polygons.
 
@@ -184,6 +184,9 @@ class GeometryOperation:
             raise ValueError("Resulting polygon is not valid after difference operation")
         if result.geom_type == 'MultiPolygon':
             # If the result is a MultiPolygon, return the largest polygon by area
-            result = max(result.geoms, key=lambda geom: geom.area)
+            if multipoly_func == constants.MultiPolygonToPolygonFuncs.MAX:
+                result = max(result.geoms, key=lambda geom: geom.area)
+            else:
+                raise ValueError(f"Unsupported multipolygon function: {multipoly_func}")
 
         return result
