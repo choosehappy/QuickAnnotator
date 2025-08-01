@@ -220,13 +220,13 @@ const ViewportMap = (props: Props) => {
             const source = createCirclePolygon(c1x, c1y, scaledSize, annotationLayer, brushPixelTolerance); // Create a polygon for the brush action
              
             if (lastState && lastState.stateId && lastState.stateId === evt.evt.state.stateId) {
-            const coords2 = lastState.coords; // Store the previous point coordinates  
-            const c2x = coords2[0].x;  
-            const c2y = coords2[0].y;  
-            
-            if (c1x !== c2x || c1y !== c2y) {  
-                source.push(createConnectingRectangle(c1x, c1y, c2x, c2y, scaledSize)); // Create a rectangle connecting the previous and current points
-            }
+                const coords2 = lastState.coords; // Store the previous point coordinates  
+                const c2x = coords2[0].x;  
+                const c2y = coords2[0].y;  
+                
+                if (c1x !== c2x || c1y !== c2y) {  
+                    source.push(createConnectingRectangle(c1x, c1y, c2x, c2y, scaledSize)); // Create a rectangle connecting the previous and current points
+                }
             }
             lastBrushState.current = evt.evt.state;
             lastBrushState.current.coords = coords1;
@@ -270,7 +270,6 @@ const ViewportMap = (props: Props) => {
               });  
             brushLayer.addAnnotation(pointAnnotation);
 
-            // circleAnnotation._coordinates([{x: 0, y: 0}, {x: size, y: 0}, {x: size, y: size}, {y: size, x: 0}]);
             brushLayer.mode(brushLayer.modes.cursor, pointAnnotation);
             geojs_map.current.draw();
         }
@@ -492,9 +491,15 @@ const ViewportMap = (props: Props) => {
 
     const handleAnnotationModeChange = (evt) => {
         console.log(`Mode changed from ${evt.oldMode} to ${evt.mode}`);
-        if (evt.mode === null && evt.oldMode === 'polygon' && props.currentTool !== TOOLBAR_KEYS.POINTER) {
-            const annotationLayer = geojs_map.current.layers()[LAYER_KEYS.ANN];
-            annotationLayer.mode('polygon');
+        const annotationLayer = geojs_map.current.layers()[LAYER_KEYS.ANN];
+        if (evt.mode === null) {    // Annotation creation events automatically set annotationLayer mode to null
+            if (props.currentTool === TOOLBAR_KEYS.POLYGON) {
+                annotationLayer.mode('polygon');
+            }
+
+            if (props.currentTool === TOOLBAR_KEYS.IMPORT) {
+                annotationLayer.mode('point');
+            }
         }
     }
 
@@ -699,6 +704,7 @@ const ViewportMap = (props: Props) => {
                 break;
             case TOOLBAR_KEYS.BRUSH:     // brush tool
                 setBrushActive(true);
+                lastBrushState.current = null;
                 break;
             default:
 
