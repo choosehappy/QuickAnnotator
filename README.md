@@ -54,21 +54,26 @@ By default, QuickAnnotator uses a SQLite database. If you would like to use a po
     git checkout v2.0
     ```
 
+2. Modify `devcontainer.json` to suit your use case. Particularly, change the value of `CUDA_VISIBLE_DEVICES` to your desired GPU ids.
+
 2. Within VS Code, open the cloned repository and click on the "Reopen in Container" button to build the devcontainer. This will create a docker container with all the necessary dependencies to run QuickAnnotator.
 ![image](https://github.com/user-attachments/assets/b776577f-a4c2-4eb8-858c-c603ac20cc6d)
 
 
 ### Usage
-1. Connect to a Ray cluster. Ray is used to run operations which require asyncronous processing. There are three ways to connect to a Ray cluster:
-    - **Default**: By default QA will initialize a local Ray cluster within the docker container. 
-        - Note: The default ray cluster does not host the Ray dashboard.
+Once the devcontainer is built, run the following commands within the container terminal to use QuickAnnotator
+
+1. Connect to a Ray cluster. Ray is used to run operations which require asyncronous processing. There are two ways to connect to a Ray cluster:
     - **Manual local cluster**: Run the following command to start a Ray cluster with the Ray dashboard:
         ```bash
         ray start --head --dashboard-host 0.0.0.0
         ```
-    - **Pre-existing cluster**: If you would like QA to connect to an existing Ray cluster, use the `--cluster_address` argument.
+    - **Pre-existing cluster**: To add the container to an existing cluster, use the `--cluster_address` argument.
+        ```bash
+        ray start --cluster_address <cluster_address>
+        ```
 
-2. Once the devcontainer is built, you can run the following command to start the QuickAnnotator server:
+2. Run the following command to start the QuickAnnotator server:
     ```
     (venv) root@e4392ecdd8ef:/opt/QuickAnnotator# quickannotator
     * Serving Flask app '__main__'
