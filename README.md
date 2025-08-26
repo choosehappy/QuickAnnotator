@@ -68,9 +68,9 @@ Once the devcontainer is built, run the following commands within the container 
         ```bash
         ray start --head --dashboard-host 0.0.0.0
         ```
-    - **Pre-existing cluster**: To add the container to an existing cluster, use the `--cluster_address` argument.
+    - **Pre-existing cluster**: To add the container to an existing cluster, use the `--address` argument.
         ```bash
-        ray start --cluster_address <cluster_address>
+        ray start --address <cluster_address>
         ```
 
 2. Run the following command to start the QuickAnnotator server:
