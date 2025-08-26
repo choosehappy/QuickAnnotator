@@ -1,4 +1,5 @@
 import logging
+import os
 from quickannotator.db.logging import LoggingManager
 import ray
 from ray.train import ScalingConfig
@@ -49,12 +50,13 @@ class DLActor:
         self.setProcRunningSince()
 
         total_gpus = ray.cluster_resources().get("GPU", 0)
-        self.logger.info(f"Total GPUs available: {total_gpus}")
+        self.logger.info(f"{os.environ['RAY_EXPERIMENTAL_NOSET_CUDA_VISIBLE_DEVICES']=}")
+        self.logger.info(f"{os.environ['CUDA_VISIBLE_DEVICES']=}")
         scaling_config = ray.train.ScalingConfig(
             num_workers=int(total_gpus),
             use_gpu=True,
             resources_per_worker={"GPU": .01},
-            placement_strategy="STRICT_SPREAD"
+            # placement_strategy="STRICT_SPREAD"  #TODO: remove
         )
     
         trainer = ray.train.torch.TorchTrainer(
