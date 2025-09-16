@@ -11,7 +11,8 @@ name: Publish Docker image
 
 on:
   push:
-    branches: [ "v2.0" ]
+    branches: 
+    - "v2.0"
   workflow_dispatch:
 
 jobs:
