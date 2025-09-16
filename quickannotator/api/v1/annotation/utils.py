@@ -21,11 +21,7 @@ from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 from tqdm import tqdm
 from shapely.geometry import shape
 
-def import_annotations(image_id: int,annotation_class_id: int, annot_file_path):
-    store = AnnotationStore(image_id, annotation_class_id, is_gt=True)
-    import_geojson_annotation_file(image_id, annotation_class_id, isgt=True, filepath=annot_file_path)
-
-def import_geojson_annotation_file(image_id: int, annotation_class_id: int, isgt: bool, filepath: str):
+def import_annotations(image_id: int, annotation_class_id: int, isgt: bool, filepath: str):
     '''
     This is expected to be a geojson feature collection file, with each polygon being a feature.
     
@@ -101,7 +97,7 @@ class AnnotationImporter():
             self.logger.info(class_name)
             cls = get_annotation_class_by_name_case_insensitive(class_name)
             if cls and data[name].strip():
-                import_annotations(image_id, cls.id, fsmanager.nas_read.relative_to_global(data[name].strip()))
+                import_annotations(image_id, cls.id, True, fsmanager.nas_read.relative_to_global(data[name].strip()))
         # import each annotations by annotation classes
 
 

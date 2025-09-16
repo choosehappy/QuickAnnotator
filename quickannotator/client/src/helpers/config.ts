@@ -121,4 +121,4 @@ export const WSI_EXTS = ['svs', 'tif','dcm','vms', 'vmu', 'ndpi',
 export const JSON_EXTS = ['json','geojosn']
 
 // TSV bunch extension
-export const BUNCH_EXTS = ['tsv']
+export const TABULAR_EXTS = ['tsv']

@@ -109,6 +109,7 @@ class AnnotationReturnMode(enum.IntEnum):
     WKB = 1
 
 class TSVFields(enum.Enum):
+    HISTO_TSV_HEADLINE = 6
     HISTO_FILE_NAME = '#dataset:filename'
     FILE_NAME = 'filename'
     #

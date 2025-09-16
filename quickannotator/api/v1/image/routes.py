@@ -84,13 +84,13 @@ class ImageSearch(MethodView):
 WSI_extensions = ['svs', 'tif','dcm','vms', 'vmu', 'ndpi',
                   'scn', 'mrxs','tiff','svslide','bif','czi']
 JSON_extensions = ['json','geojson']
-BUNCH_extensions = ['tsv']
+TABULAR_extensions = ['tsv']
 
 
 
 def isHistoqcResult(tsv_path):
     with open(tsv_path, 'r') as f:
-        for i in range(5):
+        for i in range(constants.TSVFields.HISTO_TSV_HEADLINE.value):
             line = f.readline()
             if not line:
                 return False
@@ -148,7 +148,7 @@ class FileUpload(MethodView):
                     annot_filepath = os.path.join(temp_image_path, f'{file_basename}_annotations.{format.value}')
                     # for geojson
                     if os.path.exists(annot_filepath):
-                        import_annotations(image_id, 1 , annot_filepath)
+                        import_annotations(image_id, 1 , True, annot_filepath)
             # handle annotation file
             if file_ext in JSON_extensions:
                 temp_image_path = fsmanager.nas_write.get_temp_image_path(relative=False)
@@ -159,7 +159,7 @@ class FileUpload(MethodView):
                 file.save(annot_filepath)
 
             # handle tsv file
-            if file_ext in BUNCH_extensions:
+            if file_ext in TABULAR_extensions:
                 # save tsv under current project folder
                 project_path = fsmanager.nas_write.get_project_path(project_id=project_id ,relative=False)
                 tsv_filepath = os.path.join(project_path, filename)
@@ -167,10 +167,10 @@ class FileUpload(MethodView):
                 file.save(tsv_filepath)
 
                 # read tsv file
-                header=0
+                header = 0
                 col_name_filename = constants.TSVFields.FILE_NAME.value
                 if isHistoqcResult(tsv_filepath):
-                    header = 5
+                    header = constants.TSVFields.HISTO_TSV_HEADLINE.value - 1
                     col_name_filename = constants.TSVFields.HISTO_FILE_NAME.value 
                 data = pd.read_csv(tsv_filepath, sep='\t', header=header, keep_default_na=False)
                 columns = data.columns

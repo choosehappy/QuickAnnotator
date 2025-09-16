@@ -10,7 +10,7 @@ import FileProgressPanel from './fileProgressPanel/fileProgressPanel.tsx'
 import './fileDropUploader.css'
 import { Prev } from "react-bootstrap/esm/PageItem";
 
-import {UPLOAD_ACCEPTED_FILES, WSI_EXTS, JSON_EXTS, BUNCH_EXTS} from '../../helpers/config.ts'
+import {UPLOAD_ACCEPTED_FILES, WSI_EXTS, JSON_EXTS, TABULAR_EXTS} from '../../helpers/config.ts'
 interface Props {
 
 }
@@ -67,7 +67,7 @@ const FileDropUploader = (props: any) => {
     const fileNameVerify = () => {
         const WSIFiles = filterByExtensions(files, WSI_EXTS)
         const annotFiles = filterByExtensions(files, JSON_EXTS)
-        const bunchFiles = filterByExtensions(files, BUNCH_EXTS)
+        const bunchFiles = filterByExtensions(files, TABULAR_EXTS)
         return 
     }
 
@@ -165,13 +165,13 @@ const FileDropUploader = (props: any) => {
                         <div>
                             <p>Drag and drop your files here</p>
                             <p>
-                                Supported WSI files: .svs, .tif, .dcm, .ndpi, .vms, .vmu, .scn,
+                                Supported WSI files: {WSI_EXTS.map(ext=>`.${ext}`).join(', ')}
                             </p>
                             <p>
-                                Supported Annotation files:.json, .geojson
+                                Supported Annotation files: {JSON_EXTS.map(ext=>`.${ext}`).join(', ')}
                             </p>
                             <p>
-                                Supported Bunch Slides and Annotations import:.tsv
+                                Supported tabular formats for bulk import of slides and annotations: {TABULAR_EXTS.map(ext=>`.${ext}`).join(', ')}
                             </p>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
