@@ -1,23 +1,24 @@
 import React, { useState } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { ModalData } from '../types';
+import { useCookies } from 'react-cookie';
+import { COOKIE_NAMES } from '../helpers/config';
+
 
 interface ConfirmationModalProps {
     activeModal: number | null;
     config: ModalData;
     onConfirm: () => void;
     onCancel: () => void;
-    onDoNotShowAgainChange?: (checked: boolean) => void;
+    checkboxCookieName: COOKIE_NAMES;
 }
 
 const ConfirmationModal: React.FC<ConfirmationModalProps> = (props: ConfirmationModalProps) => {
-    const [doNotShowAgain, setDoNotShowAgain] = useState(false);
+    const [cookies, setCookies] = useCookies([props.checkboxCookieName]);
 
     const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        setDoNotShowAgain(event.target.checked);
-        if (props.onDoNotShowAgainChange) {
-            props.onDoNotShowAgainChange(event.target.checked);
-        }
+        const isChecked = event.target.checked;
+        setCookies(props.checkboxCookieName, isChecked, {path: '/' });
     };
 
     return (
@@ -30,7 +31,6 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = (props: Confirmation
                 <Form.Check 
                     type="checkbox" 
                     label="Do not show again" 
-                    checked={doNotShowAgain} 
                     onChange={handleCheckboxChange} 
                 />
             </Modal.Body>

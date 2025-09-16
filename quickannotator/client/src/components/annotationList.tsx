@@ -54,6 +54,10 @@ export default class AnnotationList extends React.Component<Props, any> {
             if (this.props.containerId === 'gt' && currentAnnId && prevAnnId !== currentAnnId) {
                 const annotationId = currentAnn.currentState?.id;
                 const annotationIndex = this.state.dataset.findIndex((annotation: Annotation) => annotation.id === annotationId);
+                if (annotationIndex === -1) {
+                    console.warn('Annotation not found in dataset:', annotationId);
+                    return;
+                }
                 if (annotationId) {
                     this.state.reactGrid?.gridService.setSelectedRow(annotationIndex);
                     this.state.reactGrid?.slickGrid.scrollRowIntoView(annotationIndex);
