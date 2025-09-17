@@ -1,4 +1,4 @@
-FROM rayproject/ray-ml:2.49.1.3fe06a-py310-gpu
+FROM rayproject/ray-ml:2.49.1.3fe06a-py310-cu121
 SHELL ["/bin/bash", "-c"]
 
 USER root
@@ -46,15 +46,16 @@ RUN mkdir -p /opt/QuickAnnotator
 WORKDIR /opt/QuickAnnotator
 
 # Copy the dependencies files and install python dependencies
-COPY ./pyproject.toml /opt/QuickAnnotator/pyproject.toml
-COPY ./uv.lock /opt/QuickAnnotator/uv.lock
+COPY ./pyproject.toml ./uv.lock /opt/QuickAnnotator/
 RUN uv sync --frozen
 
 # Install node dependencies
-COPY ./quickannotator/client/package.json /opt/package.json
-COPY ./quickannotator/client/package-lock.json /opt/package-lock.json
+COPY ./quickannotator/client/package.json ./quickannotator/client/package-lock.json /opt/
 ENV NODE_PATH=/opt/node_modules
 WORKDIR /opt
 RUN npm ci
 
+USER ray
+
 WORKDIR /opt/QuickAnnotator
+COPY ./ /opt/QuickAnnotator/
