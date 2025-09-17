@@ -16,3 +16,4 @@ build/
 .coverage*
 *cache/
 mounts/
+.venv/
