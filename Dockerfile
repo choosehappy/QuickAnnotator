@@ -42,12 +42,20 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 RUN apt-get install -y nodejs
 
+RUN chown -R ray:users /opt
+USER ray
 RUN mkdir -p /opt/QuickAnnotator
 WORKDIR /opt/QuickAnnotator
 
 # Copy the dependencies files and install python dependencies
 COPY ./pyproject.toml ./uv.lock /opt/QuickAnnotator/
-RUN uv sync --frozen
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project --python /home/ray/anaconda3/bin/python3
+COPY ./ /opt/QuickAnnotator/
+# Sync the project
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --python /home/ray/anaconda3/bin/python3
+
 
 # Install node dependencies
 COPY ./quickannotator/client/package.json ./quickannotator/client/package-lock.json /opt/
@@ -56,6 +64,3 @@ WORKDIR /opt
 RUN npm ci
 
 WORKDIR /opt/QuickAnnotator
-COPY ./ /opt/QuickAnnotator/
-
-USER ray
