@@ -55,7 +55,7 @@ ENV NODE_PATH=/opt/node_modules
 WORKDIR /opt
 RUN npm ci
 
-USER ray
-
 WORKDIR /opt/QuickAnnotator
 COPY ./ /opt/QuickAnnotator/
+
+USER ray
