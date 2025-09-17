@@ -11,7 +11,7 @@ def get_database_uri():
   if "pytest" in sys.modules:
     return config.get('sqlalchemy', 'test_database_uri', fallback='sqlite:///:memory:')
   else:
-    return config.get('sqlalchemy', 'database_uri', fallback='sqlite:////opt/QuickAnnotator/quickannotator/instance/quickannotator.db')
+    return os.environ.get('POSTGRES_URI', 'sqlite:////opt/QuickAnnotator/quickannotator/instance/quickannotator.db')
 
 def get_database_path():
   return config.get('sqlalchemy', 'database_path', fallback='quickannotator/instance')
