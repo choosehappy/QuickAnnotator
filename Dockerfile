@@ -1,5 +1,7 @@
-FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
+FROM rayproject/ray-ml:2.49.1.3fe06a-py310-gpu
 SHELL ["/bin/bash", "-c"]
+
+USER root
 
 CMD nvidia-smi
 
@@ -7,11 +9,11 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
          build-essential \
          cmake \
          ca-certificates \
-         python3-venv \
-         python3-wheel \
-         python3-dev \
-         python3-pip \
-         python3-setuptools \
+         # python3-venv \  # likely included in rayproject/ray:2.49.1-py310-cu124
+         # python3-wheel \ # likely included
+         # python3-dev \   # likely included
+         # python3-pip \   # likely included
+         # python3-setuptools \ # likely included
          libglib2.0-0 \
          libjpeg-dev \
          libpng-dev \
@@ -32,7 +34,9 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
          vim \
          graphviz \
          libgraphviz-dev \
-         libgdal-dev
+         libgdal-dev \
+         gdal-bin \
+         python3-gdal
 
 # Install node and npm
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
@@ -40,15 +44,11 @@ RUN apt-get install -y nodejs
 
 RUN mkdir -p /opt/QuickAnnotator
 WORKDIR /opt/QuickAnnotator
+
+# Copy the dependencies files and install python dependencies
 COPY ./pyproject.toml /opt/QuickAnnotator/pyproject.toml
-
-# Install uv
-RUN pip install uv
-
-# Create a virtual environment for uv and install all dependencies
-RUN uv venv /opt/uv_venv
-ENV PATH="/opt/uv_venv/bin:$PATH"
-RUN uv pip install -r <(uv pip compile pyproject.toml)
+COPY ./uv.lock /opt/QuickAnnotator/uv.lock
+RUN uv sync --frozen
 
 # Install node dependencies
 COPY ./quickannotator/client/package.json /opt/package.json
