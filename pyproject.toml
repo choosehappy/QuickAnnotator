@@ -33,6 +33,7 @@ dependencies = [
     "flask~=3.0.3",
     "flask-caching~=2.3.0",
     "flask-smorest~=0.44.0",
+    "gdal==3.4.1",
     "geoalchemy2~=0.15.2",
     "geojson>=3.2.0",
     "ipykernel>=6.30.1",

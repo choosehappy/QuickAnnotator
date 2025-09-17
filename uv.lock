@@ -1011,6 +1011,12 @@ wheels = [
 ]
 
 [[package]]
+name = "gdal"
+version = "3.4.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c5/f6/4fed0cacc8a6fb5d7659a05d300e01a1a13e2d9febf1911b05695057c662/GDAL-3.4.1.tar.gz", hash = "sha256:b19e8143bc2c0d3e222789a465d82b6874236eb78801aec608bf5c8c44d20fcf", size = 755854, upload-time = "2022-01-04T11:10:53.023Z" }
+
+[[package]]
 name = "geoalchemy2"
 version = "0.15.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2957,12 +2963,13 @@ wheels = [
 [[package]]
 name = "quickannotator"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "eralchemy", extra = ["pygraphviz"] },
     { name = "flask" },
     { name = "flask-caching" },
     { name = "flask-smorest" },
+    { name = "gdal" },
     { name = "geoalchemy2" },
     { name = "geojson" },
     { name = "ipykernel" },
@@ -2996,6 +3003,7 @@ requires-dist = [
     { name = "flask", specifier = "~=3.0.3" },
     { name = "flask-caching", specifier = "~=2.3.0" },
     { name = "flask-smorest", specifier = "~=0.44.0" },
+    { name = "gdal", specifier = "==3.4.1" },
     { name = "geoalchemy2", specifier = "~=0.15.2" },
     { name = "geojson", specifier = ">=3.2.0" },
     { name = "ipykernel", specifier = ">=6.30.1" },
