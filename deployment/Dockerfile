@@ -64,3 +64,4 @@ WORKDIR /opt
 RUN npm ci
 
 WORKDIR /opt/QuickAnnotator
+ENV PYTHONPYCACHEPREFIX=/opt/qa_pycache

@@ -51,6 +51,7 @@ dependencies = [
     "pytest~=8.3.4",
     "pytest-cov~=6.0.0",
     "ray[default,train]~=2.49.1",
+    "segmentation-models-pytorch==0.5.0",
     "shapely>=2.1.1",
     "sqlalchemy~=2.0.35",
     "tensorboard~=2.19.0",
