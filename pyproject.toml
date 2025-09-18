@@ -71,6 +71,10 @@ Homepage = "https://github.com/choosehappy/QuickAnnotator"
 quickannotator = "quickannotator.__main__:main"
 
 # ----------------------------------------------------------------------------------
+[tool.setuptools]
+packages = ["quickannotator"]
+
+# ----------------------------------------------------------------------------------
 [tool.setuptools_scm]
 version_file = "quickannotator/_version.py"
 
@@ -91,3 +95,6 @@ exclude_lines = [
   "if MYPY:",
   "except ImportError:",
 ]
+
+[tool.distutils.egg_info]
+egg_base = "../"

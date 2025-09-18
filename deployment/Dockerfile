@@ -48,17 +48,17 @@ RUN mkdir -p /opt/QuickAnnotator
 WORKDIR /opt/QuickAnnotator
 
 # Copy the dependencies files and install python dependencies
-COPY ./pyproject.toml /opt/QuickAnnotator/
+COPY ../pyproject.toml /opt/QuickAnnotator/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install -r pyproject.toml --system
-COPY ./ /opt/QuickAnnotator/
-# Sync the project
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install -e . --system
+# COPY ./ /opt/QuickAnnotator/
+# # Sync the project
+# RUN --mount=type=cache,target=/root/.cache/uv \
+#     uv pip install -e . --system
 
 
 # Install node dependencies
-COPY ./quickannotator/client/package.json ./quickannotator/client/package-lock.json /opt/
+COPY ../quickannotator/client/package.json ../quickannotator/client/package-lock.json /opt/
 ENV NODE_PATH=/opt/node_modules
 WORKDIR /opt
 RUN npm ci

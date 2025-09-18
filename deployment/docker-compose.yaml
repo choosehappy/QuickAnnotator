@@ -1,0 +1,37 @@
+name: quickannotator_services
+
+services:
+  postgis:
+    image: postgis/postgis:latest
+    container_name: qa_postgis
+    environment:
+      POSTGRES_DB: qa_postgis_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - qa_net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: qa_grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "5111:3000"
+    depends_on:
+      - postgis
+    restart: unless-stopped
+    networks:
+      - qa_net
+
+networks:
+  qa_net:
+    driver: bridge
+
+volumes:
+  postgis_data:
