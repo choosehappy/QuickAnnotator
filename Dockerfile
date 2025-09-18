@@ -48,13 +48,13 @@ RUN mkdir -p /opt/QuickAnnotator
 WORKDIR /opt/QuickAnnotator
 
 # Copy the dependencies files and install python dependencies
-COPY ./pyproject.toml ./uv.lock /opt/QuickAnnotator/
+COPY ./pyproject.toml /opt/QuickAnnotator/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --python /home/ray/anaconda3/bin/python3
+    uv pip install -r pyproject.toml --system
 COPY ./ /opt/QuickAnnotator/
 # Sync the project
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --python /home/ray/anaconda3/bin/python3
+    uv pip install -e . --system
 
 
 # Install node dependencies
