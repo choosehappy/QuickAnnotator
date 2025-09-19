@@ -4,24 +4,22 @@ from flask.views import MethodView
 from flask import current_app, request, send_from_directory, send_file
 from sqlalchemy import func
 import quickannotator.constants as constants
+import quickannotator.db.models as db_models
 from quickannotator.db import db_session
 from quickannotator.db.fsmanager import fsmanager
-from quickannotator.api.v1.annotation.utils import AnnotationImporter, compute_actor_name
+from quickannotator.db.crud.image import get_image_by_id
+from quickannotator.db.crud.annotation_class import get_all_annotation_classes
+from quickannotator.api.v1.annotation.utils import AnnotationImporter, compute_actor_name, import_annotations, save_annotation_file_to_temp_dir
+from quickannotator.api.v1.image.utils import delete_image_and_related_data, save_image_from_file
+from quickannotator.api.v1.project.utils import save_tsv_to_temp_dir
 import large_image
-import openslide as ops
 import os
 import io
 import pandas as pd
-from quickannotator.db.crud.image import get_image_by_id
-import shutil
-import quickannotator.db.models as db_models
+
 from . import models as server_models
 from flask_smorest import Blueprint
-from quickannotator.db.crud.annotation import AnnotationStore
-from quickannotator.db.crud.image import add_image_by_path
-from quickannotator.api.v1.image.utils import delete_image_and_related_data
-from quickannotator.api.v1.annotation.utils import import_annotations
-from quickannotator.db.crud.annotation_class import get_annotation_class_by_name_case_insensitive
+
 
 bp = Blueprint('image', __name__, description='Image operations')
 @bp.route('/', endpoint="image")
@@ -110,61 +108,36 @@ class FileUpload(MethodView):
         if file and project_id:
             # filename = secure_filename(file.filename)
             filename = file.filename
-
-            # TODO: add filename validation and reject if it is not valid
-
             # get file extension
             file_basename, file_ext = os.path.splitext(filename)
             file_ext = str(file_ext[1:]).lower()
+            
             # handle image file
             if file_ext in WSI_extensions:
-                temp_path = fsmanager.nas_write.get_temp_image_path(relative=False)
-                temp_filepath = os.path.join(temp_path,filename)
+                image_id = save_image_from_file(project_id, file)
 
-                # save image to temp folder
-                os.makedirs(temp_path, exist_ok=True)
-                file.save(temp_filepath)
-                
-                # read image info and insert to image table
-                new_image = add_image_by_path(project_id, temp_filepath)
-                # move the actual slides file and update the slide path after create image in DB
-                # image = db_session.query(db_models.Image).filter_by(name=name, path=temp_slide_path).first()
-                image_id = new_image.id
-                slide_folder_path = fsmanager.nas_write.get_project_image_path(project_id, image_id, relative=False)
-                image_full_path = os.path.join(slide_folder_path, filename)
-                # move image file to img_{id} folder
-                os.makedirs(slide_folder_path, exist_ok=True)
-                shutil.move(temp_filepath, image_full_path)
-
-                new_image.path = image_full_path
-                db_session.add(new_image)
-                db_session.commit()
-
-                # TODO get all annotation class name
+                # get all annotation class name
+                annotation_classes = get_all_annotation_classes()
                 # import annotation if it exist in temp dir
-
-                for format in constants.AnnotationFileFormats:
-                    temp_image_path = fsmanager.nas_write.get_temp_image_path(relative=False)
-                    annot_filepath = os.path.join(temp_image_path, f'{file_basename}_annotations.{format.value}')
-                    # for geojson
-                    if os.path.exists(annot_filepath):
-                        import_annotations(image_id, 1 , True, annot_filepath)
+                for annot_cls in annotation_classes:
+                    for format in constants.AnnotationFileFormats:
+                        temp_image_path = fsmanager.nas_write.get_temp_image_path(relative=False)
+                        annot_filepath = os.path.join(temp_image_path, f'{file_basename}_{annot_cls.name}_annotations.{format.value}')
+                        # for geojson
+                        if os.path.exists(annot_filepath):
+                            # ?? should always ground true is True ??
+                            import_annotations(image_id, annot_cls.id , True, annot_filepath)
+                
             # handle annotation file
             if file_ext in JSON_extensions:
-                temp_image_path = fsmanager.nas_write.get_temp_image_path(relative=False)
-                annot_filepath = os.path.join(temp_image_path, filename)
-
-                # save annot to temp folder
-                os.makedirs(temp_image_path, exist_ok=True)
-                file.save(annot_filepath)
+                save_annotation_file_to_temp_dir(file)
 
             # handle tsv file
             if file_ext in TABULAR_extensions:
                 # save tsv under current project folder
-                project_path = fsmanager.nas_write.get_project_path(project_id=project_id ,relative=False)
-                tsv_filepath = os.path.join(project_path, filename)
-                os.makedirs(project_path, exist_ok=True)
-                file.save(tsv_filepath)
+
+                tsv_filepath = save_tsv_to_temp_dir(project_id, file)
+
 
                 # read tsv file
                 header = 0
@@ -184,6 +157,8 @@ class FileUpload(MethodView):
                     done_ids, tester_ids = ray.wait(tester_ids, timeout=1)
                 
                 return {'name':filename}, 200
+            
+
         else:
             abort(404, message="No project id foundin Args")
     

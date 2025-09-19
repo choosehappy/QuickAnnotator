@@ -20,6 +20,20 @@ from quickannotator.db.crud.annotation_class import get_annotation_class_by_name
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 from tqdm import tqdm
 from shapely.geometry import shape
+from werkzeug.datastructures import FileStorage
+
+def save_annotation_file_to_temp_dir(file: FileStorage):
+    temp_image_path = fsmanager.nas_write.get_temp_image_path(relative=False)
+    annot_filepath = os.path.join(temp_image_path, file.filename)
+
+    # save annot to temp folder
+    os.makedirs(temp_image_path, exist_ok=True)
+    try:
+        file.save(annot_filepath)
+    except IOError as e:
+        print(f"Saving Annotation File Error: An I/O error occurred when saving ${file.filename}: {e}")
+    except Exception as e:
+        print(f"Saving Annotation File Error: An unexpected error occurred when saving ${file.filename}: {e}")
 
 def import_annotations(image_id: int, annotation_class_id: int, isgt: bool, filepath: str):
     '''
@@ -75,6 +89,8 @@ class AnnotationImporter():
         self.logger = LoggingManager.init_logger(constants.LoggerNames.RAY.value)
 
     def import_from_tsv_row(self, project_id, image_path_col_name, data, columns):
+
+        time.sleep(30)
         # get slide path
         slide_path = data[image_path_col_name].strip()
         if (constants.TSVFields.FILE_PATH.value in columns) and (data[constants.TSVFields.FILE_PATH.value].strip()):
@@ -83,8 +99,7 @@ class AnnotationImporter():
         if os.path.exists(fsmanager.nas_read.relative_to_global(slide_path)) is False:
             self.logger.error(f"Slide path - {slide_path} not found")
             raise Exception(f"Slide path - {slide_path} not found")
-        # create the image      
-        # if os.path.exists(fsmanager.nas_read.relative_to_global(slide_path)):
+        # create the image
         new_image = add_image_by_path(project_id, slide_path)
         image_id = new_image.id
 
@@ -92,19 +107,10 @@ class AnnotationImporter():
         annto_class_names = [col for col in columns if col.endswith(constants.ANNOTATION_CLASS_SUFFIX)]
         for name in annto_class_names:
             class_name = name[:-len(constants.ANNOTATION_CLASS_SUFFIX)]
-            print(new_image.name)
-            print(class_name)
             self.logger.info(class_name)
             cls = get_annotation_class_by_name_case_insensitive(class_name)
             if cls and data[name].strip():
-                import_annotations(image_id, cls.id, True, fsmanager.nas_read.relative_to_global(data[name].strip()))
-        # import each annotations by annotation classes
-
-
-
-        # if 'tissue mask_annotations' in columns and (data['tissue mask_annotations'].strip()) and (os.path.exists(fsmanager.nas_read.relative_to_global(data['tissue mask_annotations'].strip()))):
-        #     # import annotations
-        #     
+                import_annotations(image_id, cls.id, True, fsmanager.nas_read.relative_to_global(data[name].strip()))  
 
 
 @ray.remote(max_concurrency=2)  # Add max_concurrency=2

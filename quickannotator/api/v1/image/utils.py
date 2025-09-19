@@ -1,16 +1,46 @@
 import os
 import shutil
-
+from werkzeug.datastructures import FileStorage
 from quickannotator import constants
 from quickannotator.db import db_session
 from quickannotator.db.fsmanager import fsmanager
 
-from quickannotator.db.crud.image import delete_images, get_image_by_id
+from quickannotator.db.crud.image import delete_images, get_image_by_id, add_image_by_path
 from quickannotator.db.crud.tile import TileStoreFactory
 
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.annotation_class import get_all_annotation_classes_for_project
 
+def save_image_from_file(project_id: int, file: FileStorage) -> int:
+    filename = file.filename
+    temp_path = fsmanager.nas_write.get_temp_image_path(relative=False)
+    temp_filepath = os.path.join(temp_path, filename)
+
+    # save image to temp folder
+    os.makedirs(temp_path, exist_ok=True)
+    try:
+        file.save(temp_filepath)
+    except IOError as e:
+        print(f"Saving Image Error: An I/O error occurred when saving ${filename}: {e}")
+    except Exception as e:
+        print(f"Saving Image Error: An unexpected error occurred when saving ${filename}: {e}")    
+    
+    # read image info and insert to image table
+    new_image = add_image_by_path(project_id, temp_filepath)
+    # move the actual slides file and update the slide path after create image in DB
+    # image = db_session.query(db_models.Image).filter_by(name=name, path=temp_slide_path).first()
+    image_id = new_image.id
+    slide_folder_path = fsmanager.nas_write.get_project_image_path(project_id, image_id, relative=False)
+    image_full_path = os.path.join(slide_folder_path, filename)
+    # move image file to img_{id} folder
+    os.makedirs(slide_folder_path, exist_ok=True)
+    shutil.move(temp_filepath, image_full_path)
+
+    new_image.path = image_full_path
+    db_session.add(new_image)
+    db_session.commit()
+    
+    return image_id
 
 def delete_image_and_related_data(image_id):
     image = get_image_by_id(image_id)

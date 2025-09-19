@@ -8,8 +8,23 @@ from quickannotator.db.crud.image import delete_images
 from quickannotator.db.crud.project import delete_projects, get_project_by_id
 from quickannotator.db.crud.tile import TileStoreFactory
 import quickannotator.constants as constants
+from werkzeug.datastructures import FileStorage
 
+def save_tsv_to_temp_dir(project_id: int, file: FileStorage):
+    # save tsv under current project folder
+    project_path = fsmanager.nas_write.get_project_path(project_id=project_id ,relative=False)
+    tsv_filepath = os.path.join(project_path, file.filename)
+    os.makedirs(project_path, exist_ok=True)
 
+    try:
+        file.save(tsv_filepath)
+    except IOError as e:
+        print(f"Saving TSV File Error: An I/O error occurred when saving ${file.filename}: {e}")
+    except Exception as e:
+        print(f"Saving TSV File Error: An unexpected error occurred when saving ${file.filename}: {e}")
+    
+    return tsv_filepath
+    
 
 def delete_project_and_related_data(project_id):
     project = get_project_by_id(project_id)
