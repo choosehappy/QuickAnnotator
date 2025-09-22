@@ -73,8 +73,8 @@ idle_timeout_minutes: 30
 # that directory to all nodes and call `conda -n my_env -f /path1/on/remote/machine/environment.yaml`. In this
 # example paths on all nodes must be the same (so that conda can be called always with the same argument)
 file_mounts: {
-    # "/docker_config/": "./",  # Mount local docker-compose.yaml to /app in the container
-    "/opt/QuickAnnotator/": "./",  # Mount local QuickAnnotator code to /opt/QuickAnnotator in the container
+    "/deployment/": "./deployment/",  # Mount local docker-compose.yaml to /app in the container
+    # "/opt/QuickAnnotator/": "./",  # Mount local QuickAnnotator code to /opt/QuickAnnotator in the container
 #    "/path1/on/remote/machine": "/path1/on/local/machine",
 #    "/path2/on/remote/machine": "/path2/on/local/machine",
 }
@@ -106,16 +106,13 @@ rsync_filter:
 # is setup.
 initialization_commands: [
     # JJ note: unclear if there is a variable for root path.
-    docker compose -f /tmp/ray_tmp_mount/qa_cluster/opt/QuickAnnotator/deployment/docker-compose.yaml up -d,
+    docker compose -f /tmp/ray_tmp_mount/qa_cluster/deployment/docker-compose.yaml up postgis grafana -d,
     # JJ note: Worker nodes do not shut down properly, so we need to ensure they are shut down so that the new image can be pulled and run.
     docker stop qa_container || true,
 ]
 
 # List of shell commands to run to set up each nodes.
-setup_commands:
-    # - sudo chown -R ray:users ./
-    - sudo chmod -R a+rw ./
-    - uv pip install -e . --system  # JJ Note: Assumes that uv is executable in PATH and the current directory is /opt/QuickAnnotator
+setup_commands: []
 
 head_setup_commands: ['mkdir -p ~/.ssh', 'echo -e "Host *\n\tStrictHostKeyChecking no\n\tUserKnownHostsFile /dev/null" >> ~/.ssh/config']
 

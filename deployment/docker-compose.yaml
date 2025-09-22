@@ -29,9 +29,32 @@ services:
     networks:
       - qa_net
 
+  devcontainer:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    container_name: qa_devcontainer
+    volumes:
+      - ..:/opt/QuickAnnotator
+      - qa_data:/opt/QuickAnnotator/quickannotator/mounts/nas_read
+      - qadb_data:/opt/QuickAnnotator/quickannotator/instance
+    networks:
+      - qa_net
+    depends_on:
+      - postgis
+    environment:
+      - POSTGRES_URI=postgresql+psycopg2://admin:admin@170.140.138.87:5432/qa_postgis_db
+    ports:
+      - "5000:5000"
+      - "5173:5173"
+      - "8265:8265"
+      - "6006:6006"
+
 networks:
   qa_net:
     driver: bridge
 
 volumes:
   postgis_data:
+  qa_data:
+  qadb_data:

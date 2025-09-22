@@ -1,24 +1,14 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-dockerfile
 {
-	"name": "Existing Dockerfile",
+	"name": "Existing Docker Compose",
+	"dockerComposeFile": "../deployment/docker-compose.yaml",
+	"service": "devcontainer",
 	"workspaceFolder": "/opt/QuickAnnotator",
-	"build": {
-		// Sets the run context to one level up instead of the .devcontainer folder.
-		"context": "../",
-		// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
-		"dockerfile": "../Dockerfile",
-		
-	},
-
+	
 	"forwardPorts": [5000, 5173, 8265, 6006],
-
-	// Add -v tag to mount a data directory
-	"mounts": [
-		"source=${localWorkspaceFolder},target=/opt/QuickAnnotator,type=bind,consistency=cached",
-		"source=qa_data,target=/opt/QuickAnnotator/quickannotator/mounts/nas_read,type=volume",
-		"source=qadb_data,target=/opt/QuickAnnotator/quickannotator/instance,type=volume"
-	],
+	"remoteUser": "ray",
+	"updateRemoteUserUID": false,
 
 	// Add VS Code extensions
 	"customizations": {
@@ -26,16 +16,6 @@
 		  "extensions": ["ms-python.python", "alexcvzz.vscode-sqlite", "ms-toolsai.jupyter"]
 		}
 	},
-
-	"runArgs": [
-		"--gpus", "all",
-		"--shm-size=8G",
-		"--network", "quickannotator-net",
-		"-p", "5000:5000",
-		"-p", "5173:5173",
-		"-p", "8265:8265",
-		"-p", "6006:6006"
-	],
 
 	"postCreateCommand": "ln -sf /opt/QuickAnnotator/quickannotator/client/package.json /opt/package.json && ln -sf /opt/QuickAnnotator/quickannotator/client/package-lock.json /opt/package-lock.json && uv pip install -e ."
 
