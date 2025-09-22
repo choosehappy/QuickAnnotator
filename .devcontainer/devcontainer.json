@@ -7,7 +7,6 @@
 	"workspaceFolder": "/opt/QuickAnnotator",
 	
 	"forwardPorts": [5000, 5173, 8265, 6006],
-	"remoteUser": "ray",
 	"updateRemoteUserUID": false,
 
 	// Add VS Code extensions
@@ -17,6 +16,6 @@
 		}
 	},
 
-	"postCreateCommand": "ln -sf /opt/QuickAnnotator/quickannotator/client/package.json /opt/package.json && ln -sf /opt/QuickAnnotator/quickannotator/client/package-lock.json /opt/package-lock.json && uv pip install -e ."
+	"postCreateCommand": "uv pip install -e ."
 
 }

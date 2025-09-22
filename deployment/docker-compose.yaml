@@ -49,6 +49,9 @@ services:
       - "5173:5173"
       - "8265:8265"
       - "6006:6006"
+    command: /bin/bash
+    stdin_open: true
+    tty: true
 
 networks:
   qa_net:
