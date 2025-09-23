@@ -1,52 +1,34 @@
-# QuickAnnotator
-Quick Annotator is an open-source digital pathology annotation tool.
-
-# Purpose
-Machine learning approaches for segmentation of histologic primitives (e.g., cell nuclei) in digital pathology (DP) Whole Slide Images (WSI) require large numbers of exemplars. Unfortunately, annotating each object is laborious and often intractable even in moderately sized cohorts. The purpose of QuickAnnotator is to rapidly bootstrap annotation creation for digital pathology projects. 
-
-QuickAnnotator leverages active learning to suggest annotations which the user may accept as they annotate.
-
 # Installation
-## For Developers
-### Development Environment
-- VS Code with the following extensions:
-    - `ms-azuretools.vscode-docker`
-    - `ms-vscode-remote.remote-containers`
-- Docker
-- Access to example data.
 
-### Volumes
-Create docker volumes to store your data persistently:
-```bash
-docker volume create qadb_data  # Will store the database
-docker volume create qa_data    # Will store example WSIs
-```
+## 1. Quick Start
+The following instructions detail how to install QuickAnnotator on a single node (e.g., a laptop with GPU support).
+#### 1.1.1. Prerequisites
+Ensure the following prerequisites are met on your machine:
+- [Docker](https://docs.docker.com/get-docker/) Install Docker desktop for Windows, MacOS or Linux. For Linux, you can alternatively install [docker engine](https://docs.docker.com/engine/install/).
+- [NVIDIA Driver](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/)
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
 
-### Database
-By default, QuickAnnotator uses a SQLite database. If you would like to use a postgis database, follow these steps:
-
-1. Create a docker network
+#### Installation Steps
+1. Install Ray
     ```bash
-    docker network create quickannotator-net
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install ray~=2.49.1
     ```
 
-2. Run the container
+2. Run QuickAnnotator using ray up
     ```bash
-    docker run -d \
-        --name postgis \
-        --network quickannotator-net \
-        -e POSTGRES_USER=admin \
-        -e POSTGRES_PASSWORD=admin \
-        -e POSTGRES_DB=gisdb \
-        -p 5432:5432 \
-        -v postgis_data:/var/lib/postgresql/data \
-        postgis/postgis
+    ray up deployment/local_cluster_config.yaml -vy
     ```
-3. Change the `database_uri` in the `quickannotator/config.ini` file
 
-4. Running quickannotator will automatically seed the database.
+## 2. For Developers
+### 2.1. Volumes
 
-### Container
+
+### 2.2. Database
+
+
+### 2.3. Container
 1. Clone the QuickAnnotator repository and checkout the v2.0 branch:
     ```bash
     git clone https://github.com/choosehappy/QuickAnnotator.git
@@ -58,7 +40,7 @@ By default, QuickAnnotator uses a SQLite database. If you would like to use a po
 ![image](https://github.com/user-attachments/assets/b776577f-a4c2-4eb8-858c-c603ac20cc6d)
 
 
-### Usage
+## 3. Usage
 1. Connect to a Ray cluster. Ray is used to run operations which require asyncronous processing. There are three ways to connect to a Ray cluster:
     - **Default**: By default QA will initialize a local Ray cluster within the docker container. 
         - Note: The default ray cluster does not host the Ray dashboard.
@@ -83,13 +65,7 @@ By default, QuickAnnotator uses a SQLite database. If you would like to use a po
     * Debugger PIN: 581-630-257
     ``` 
 
-
-3. **(Optional)** Upload example data to QuickAnnotator
-    1. Download the `test_ndpi` folder (request access from jackson.jacobs@emory.edu) and copy it to the `qa_data` volume.
-    1. Run the `populate_db.ipynb` notebook.
-
-
-4. Then in a second terminal, run the QuickAnnotator client:
+3. Then in a second terminal, run the QuickAnnotator client:
     ```
     (venv) root@e4392ecdd8ef:/opt/QuickAnnotator# cd quickannotator/client
     (venv) root@e4392ecdd8ef:/opt/QuickAnnotator/quickannotator/client# npm run dev -- --host 0.0.0.0

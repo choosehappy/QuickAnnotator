@@ -75,10 +75,6 @@ idle_timeout_minutes: 30
 # that directory to all nodes and call `conda -n my_env -f /path1/on/remote/machine/environment.yaml`. In this
 # example paths on all nodes must be the same (so that conda can be called always with the same argument)
 file_mounts: {
-    "/deployment/": "./deployment/",  # Mount local docker-compose.yaml to /app in the container
-    # "/opt/QuickAnnotator/": "./",  # Mount local QuickAnnotator code to /opt/QuickAnnotator in the container
-#    "/path1/on/remote/machine": "/path1/on/local/machine",
-#    "/path2/on/remote/machine": "/path2/on/local/machine",
 }
 
 # Files or directories to copy from the head node to the worker nodes. The format is a
@@ -89,7 +85,7 @@ cluster_synced_files: []
 
 # Whether changes to directories in file_mounts or cluster_synced_files in the head node
 # should sync to the worker node continuously
-file_mounts_sync_continuously: True
+file_mounts_sync_continuously: False
 
 # Patterns for files to exclude when running rsync up or rsync down
 rsync_exclude: []
