@@ -36,8 +36,9 @@ services:
     container_name: qa_devcontainer
     volumes:
       - ..:/opt/QuickAnnotator
-      - qa_data:/opt/QuickAnnotator/quickannotator/mounts/nas_read
-      - qadb_data:/opt/QuickAnnotator/quickannotator/instance
+      - nas_read:/opt/QuickAnnotator/quickannotator/mounts/nas_read
+      - nas_write:/opt/QuickAnnotator/quickannotator/mounts/nas_write
+      # - qadb_data:/opt/QuickAnnotator/quickannotator/instance # only needed if using sqlite db
     networks:
       - qa_net
     depends_on:
@@ -52,6 +53,14 @@ services:
     command: /bin/bash
     stdin_open: true
     tty: true
+    shm_size: '12gb'
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
 
 networks:
   qa_net:
@@ -59,5 +68,6 @@ networks:
 
 volumes:
   postgis_data:
-  qa_data:
-  qadb_data:
+  nas_read:
+  nas_write:
+  # qadb_data: # only needed if using sqlite db
