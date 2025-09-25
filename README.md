@@ -37,6 +37,7 @@ Ray cluster launcher is used for multi-node deployments.
     ```
 
 2. Configure the `deployment/multi_node_cluster_config.yaml` file to specify the head and worker nodes of your ray cluster. See the [ray cluster launcher documentation](https://docs.ray.io/en/latest/cluster/vms/user-guides/launching.html) for more details. 
+    > All lines with the comment `CHANGE ME` should be configured.
 
 3. Install ray cluster launcher
     ```bash
