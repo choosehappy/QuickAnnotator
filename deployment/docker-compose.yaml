@@ -29,16 +29,12 @@ services:
     networks:
       - qa_net
 
-  devcontainer:
-    build:
-      context: ..
-      dockerfile: deployment/Dockerfile
-    container_name: qa_devcontainer
+  qa:
+    image: histotools/quickannotator:main
+    container_name: qa
     volumes:
-      - ..:/opt/QuickAnnotator
       - nas_read:/opt/QuickAnnotator/quickannotator/mounts/nas_read
       - nas_write:/opt/QuickAnnotator/quickannotator/mounts/nas_write
-      # - qadb_data:/opt/QuickAnnotator/quickannotator/instance # only needed if using sqlite db
     networks:
       - qa_net
     depends_on:
@@ -61,6 +57,7 @@ services:
           - driver: nvidia
             count: all
             capabilities: [gpu]
+
 
 networks:
   qa_net:

@@ -75,6 +75,7 @@ idle_timeout_minutes: 30
 # that directory to all nodes and call `conda -n my_env -f /path1/on/remote/machine/environment.yaml`. In this
 # example paths on all nodes must be the same (so that conda can be called always with the same argument)
 file_mounts: {
+    "/deployment/": "./deployment/",
 }
 
 # Files or directories to copy from the head node to the worker nodes. The format is a

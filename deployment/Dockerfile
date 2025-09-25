@@ -44,18 +44,20 @@ USER ray
 RUN mkdir -p /opt/QuickAnnotator
 WORKDIR /opt/QuickAnnotator
 
-# Copy the dependencies files and install python dependencies
-COPY ../pyproject.toml /opt/QuickAnnotator/
+# Copy the dependencies files and install python dependencies.
+# --chown is needed because USER ray only affects run commands, not copy commands.
+# --mount is a feature that allows caching of pip downloads between builds.
+COPY --chown=ray:users ../pyproject.toml /opt/QuickAnnotator/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install -r pyproject.toml --system
-COPY ./ /opt/QuickAnnotator/
+COPY --chown=ray:users ./ /opt/QuickAnnotator/
 # Install QuickAnnotator to the uv-managed environment
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install . --system
 
 
 # Install node dependencies
-COPY ../quickannotator/client/package.json ../quickannotator/client/package-lock.json /opt/
+COPY --chown=ray:users ../quickannotator/client/package.json ../quickannotator/client/package-lock.json /opt/
 ENV NODE_PATH=/opt/node_modules
 WORKDIR /opt
 RUN npm ci

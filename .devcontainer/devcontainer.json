@@ -2,7 +2,10 @@
 // README at: https://github.com/devcontainers/templates/tree/main/src/docker-existing-dockerfile
 {
 	"name": "Existing Docker Compose",
-	"dockerComposeFile": "../deployment/docker-compose.yaml",
+	"dockerComposeFile": [
+		"../deployment/docker-compose.yaml",
+		"../deployment/docker-compose.dev.yaml"
+	],
 	"service": "devcontainer",
 	"workspaceFolder": "/opt/QuickAnnotator",
 	
