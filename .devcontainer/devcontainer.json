@@ -6,7 +6,7 @@
 		"../deployment/docker-compose.yaml",
 		"../deployment/docker-compose.dev.yaml"
 	],
-	"service": "devcontainer",
+	"service": "qa",
 	"workspaceFolder": "/opt/QuickAnnotator",
 	
 	"forwardPorts": [5000, 5173, 8265, 6006],
