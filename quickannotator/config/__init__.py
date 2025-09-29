@@ -49,3 +49,6 @@ def get_grafana_username():
 
 def get_grafana_password():
     return config.get('grafana', 'password', fallback='admin')
+
+def get_logs_dashboard_config_path():
+  return config.get('grafana', 'logs_dashboard_config_path', fallback='quickannotator/grafana/logs_postgres.json')

@@ -22,7 +22,7 @@ services:
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
     ports:
-      - "5111:3000"
+      - "3000:3000"
     depends_on:
       - postgis
     restart: unless-stopped
