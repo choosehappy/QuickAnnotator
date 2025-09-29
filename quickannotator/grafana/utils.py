@@ -14,10 +14,12 @@ class GrafanaClient:
 
     def add_postgres_datasource(self, host, port, db, username, password) -> str:
         name = "PostgreSQL"
-        existing_datasource = self.api.datasource.get_datasource_by_name(name)
-        if existing_datasource:
+        try:    # NOTE: api client does not have a datasource search method, so we just have to try getting the datasource by name.
+            existing_datasource = self.api.datasource.get_datasource_by_name(name)
             self.logger.info(f"Grafana datasource '{name}' already exists. Skipping creation.")
             return existing_datasource["uid"]
+        except Exception as e:
+            self.logger.error(f"Datasource does not exist. Creating datasource...")
 
         datasource = {
             "name": name,
@@ -26,15 +28,17 @@ class GrafanaClient:
             "url": f"{host}:{port}",
             "database": db,
             "user": username,
-            "password": password,
             "jsonData": {
                 "sslmode": "disable",
+            },
+            "secureJsonData": {
+                "password": password
             }
         }
 
-        new_datasource = self.api.datasource.create_datasource(datasource)
+        resp = self.api.datasource.create_datasource(datasource)
         self.logger.info(f"Grafana datasource '{name}' created successfully.")
-        return new_datasource["uid"]
+        return resp['datasource']["uid"]
 
 
     def add_logs_dashboard(self, path, datasource_uid) -> str:
