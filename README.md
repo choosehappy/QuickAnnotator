@@ -27,6 +27,9 @@ Ray cluster launcher is used for multi-node deployments.
 ### 2.1. Additional Prerequisites
 - Each worker node must match the general prerequisites listed above.
 - The machine running `ray up` must have passwordless SSH access to all cluster nodes.
+- All machines must have a two NAS shares mounted within the `Quickannotator/quickannotator/mounts` directory:
+   1. `nas_read`: A share with at least read access.
+   2. `nas_write`: A share with read and write access.
 
 ### 2.2. Installation Steps
 1. Clone the git repository and checkout the v2.0 branch:
