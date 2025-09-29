@@ -12,7 +12,7 @@ docker:
         - --ulimit nofile=65536:65536
         - --gpus all
         - --shm-size=12G
-        - -e POSTGRES_URI=postgresql+psycopg2://admin:admin@170.140.138.87:5432/qa_postgis_db   # CHANGE ME so that the IP address matches the head node's IP address
+        - -e POSTGRES_HOST=170.140.138.87   # CHANGE ME so that the IP address matches the head node's IP address
 
 provider:
     type: local

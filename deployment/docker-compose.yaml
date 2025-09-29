@@ -40,7 +40,7 @@ services:
     depends_on:
       - postgis
     environment:
-      - POSTGRES_URI=postgresql+psycopg2://admin:admin@qa_postgis:5432/qa_postgis_db
+      - POSTGRES_HOST=qa_postgis
     ports:
       - "5000:5000"
       - "5173:5173"
