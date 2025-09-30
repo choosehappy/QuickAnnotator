@@ -76,6 +76,8 @@ export const UI_SETTINGS = {
     highlightedPredColor: 'red',
     pendingTileFillColor: 'grey',
     pendingTileFillOpacity: 0.5,
+    continuousCloseProximity: true, // NOTE: int values do not seem to have an effect.
+    finalPointProximity: 1000,
 }
 
 export const MASK_CLASS_ID = 1; // TODO: app setting
