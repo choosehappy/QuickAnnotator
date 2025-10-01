@@ -21,20 +21,19 @@ const Toolbar = React.memo((props: Props) => {
         alignSelf: 'center', // Centers within the toolbar if using flex
     };
 
-
     const buttons = [
-        { icon: <Fullscreen/>, disabled: true, title: "Fullscreen" },
-        { icon: <ArrowCounterclockwise/>, disabled: true, title: "Undo" },
-        { icon: <ArrowClockwise/>, disabled: true, title: "Redo" },
+        { icon: <Fullscreen/>, disabled: true, title: "Fullscreen", shortcut: "F" },
+        { icon: <ArrowCounterclockwise/>, disabled: true, title: "Undo", shortcut: "Ctrl+Z" },
+        { icon: <ArrowClockwise/>, disabled: true, title: "Redo", shortcut: "Ctrl+Y" },
     ];
 
     const radios = [
-        { icon: <Cursor/>, disabled: false, title: "Select" },
-        { icon: <Download/>, disabled: false, title: "Download" },
-        { icon: <Brush/>, disabled: true, title: "Brush" },
-        { icon: <Magic/>, disabled: true, title: "Magic" },
-        { icon: <Eraser/>, disabled: true, title: "Eraser" },
-        { icon: <Heptagon/>, disabled: false, title: "Polygon" },
+        { icon: <Cursor/>, disabled: false, title: "Select", shortcut: "1" },
+        { icon: <Download/>, disabled: false, title: "Import", shortcut: "2" },
+        { icon: <Brush/>, disabled: true, title: "Brush", shortcut: "3" },
+        { icon: <Magic/>, disabled: true, title: "Magic", shortcut: "4" },
+        { icon: <Eraser/>, disabled: true, title: "Eraser", shortcut: "5" },
+        { icon: <Heptagon/>, disabled: false, title: "Polygon", shortcut: "6" },
     ];
     const buttonStyle: React.CSSProperties = {
         display: 'flex',
@@ -52,6 +51,15 @@ const Toolbar = React.memo((props: Props) => {
         fontSize: '0.5rem',
         marginTop: '2px',
         textAlign: 'center',
+        fontWeight: 'bold',
+    };
+
+    const buttonShortcutStyle: React.CSSProperties = {
+        fontSize: '0.75rem',
+        marginTop: '2px',
+        textAlign: 'center',
+        fontWeight: 'bold',
+        color: 'white',
     };
 
     return (
@@ -70,6 +78,9 @@ const Toolbar = React.memo((props: Props) => {
                 {button.icon}
                 <span style={buttonTextStyle}>
                     {button.title}
+                </span>
+                <span style={buttonShortcutStyle}>
+                    {button.shortcut}
                 </span>
                 </Button>
             ))}
@@ -91,6 +102,9 @@ const Toolbar = React.memo((props: Props) => {
                     {radio.icon}
                     <span style={buttonTextStyle}>
                         {radio.title}
+                    </span>
+                    <span style={buttonShortcutStyle}>
+                        {radio.shortcut}
                     </span>
                 </ToggleButton>
             ))}
