@@ -1,9 +1,11 @@
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import ToggleButton from 'react-bootstrap/ToggleButton';
-import {Button, ButtonToolbar} from 'react-bootstrap';
-import { Fullscreen, ArrowCounterclockwise, ArrowClockwise, Download, Cursor, Brush, Magic, Eraser, Heptagon } from 'react-bootstrap-icons';
+import { Button, ButtonToolbar, OverlayTrigger, Popover } from 'react-bootstrap';
+import Tooltip from 'react-bootstrap/Tooltip';
+import { Fullscreen, ArrowCounterclockwise, ArrowClockwise, Download, ArrowsMove, Brush, Magic, Eraser, Heptagon } from 'react-bootstrap-icons';
 import React, { useState } from "react";
-import {Annotation} from "../types.ts";
+import { Annotation, PopoverData, ToolbarButton } from "../types.ts";
+    import { POPOVER_DATA } from "../helpers/config";
 
 interface Props {
     currentTool: string;
@@ -12,28 +14,19 @@ interface Props {
 
 const Toolbar = React.memo((props: Props) => {
 
-    const dividerStyle = {
-        width: '1px',
-        backgroundColor: '#ccc',
-        margin: '0 10px', // Adjust spacing between groups
-        height: '20px', // Full height to match ButtonToolbar
-        display: 'inline-block', // Aligns with buttons
-        alignSelf: 'center', // Centers within the toolbar if using flex
-    };
-
-    const buttons = [
-        { icon: <Fullscreen/>, disabled: true, title: "Fullscreen", shortcut: "F" },
-        { icon: <ArrowCounterclockwise/>, disabled: true, title: "Undo", shortcut: "Ctrl+Z" },
-        { icon: <ArrowClockwise/>, disabled: true, title: "Redo", shortcut: "Ctrl+Y" },
+    const buttons: ToolbarButton[] = [
+        { icon: <Fullscreen />, disabled: true, title: "Fullscreen", shortcut: "F", content: POPOVER_DATA.FULLSCREEN_TOOL },
+        { icon: <ArrowCounterclockwise />, disabled: true, title: "Undo", shortcut: "Ctrl+Z", content: POPOVER_DATA.UNDO_TOOL },
+        { icon: <ArrowClockwise />, disabled: true, title: "Redo", shortcut: "Ctrl+Y", content: POPOVER_DATA.REDO_TOOL },
     ];
 
-    const radios = [
-        { icon: <Cursor/>, disabled: false, title: "Select", shortcut: "1" },
-        { icon: <Download/>, disabled: false, title: "Import", shortcut: "2" },
-        { icon: <Brush/>, disabled: true, title: "Brush", shortcut: "3" },
-        { icon: <Magic/>, disabled: true, title: "Magic", shortcut: "4" },
-        { icon: <Eraser/>, disabled: true, title: "Eraser", shortcut: "5" },
-        { icon: <Heptagon/>, disabled: false, title: "Polygon", shortcut: "6" },
+    const radios: ToolbarButton[] = [
+        { icon: <ArrowsMove />, disabled: false, title: "Pan", shortcut: "1", content: POPOVER_DATA.PAN_TOOL },
+        { icon: <Download />, disabled: false, title: "Import", shortcut: "2", content: POPOVER_DATA.IMPORT_TOOL },
+        { icon: <Brush />, disabled: true, title: "Brush", shortcut: "3", content: POPOVER_DATA.BRUSH_TOOL },
+        { icon: <Magic />, disabled: true, title: "Magic", shortcut: "4", content: POPOVER_DATA.MAGIC_TOOL },
+        { icon: <Eraser />, disabled: true, title: "Eraser", shortcut: "5", content: POPOVER_DATA.ERASER_TOOL },
+        { icon: <Heptagon />, disabled: false, title: "Polygon", shortcut: "6", content: POPOVER_DATA.POLYGON_TOOL },
     ];
     const buttonStyle: React.CSSProperties = {
         display: 'flex',
@@ -62,52 +55,77 @@ const Toolbar = React.memo((props: Props) => {
         color: 'white',
     };
 
+    const tooltipStyle: React.CSSProperties = {
+        textAlign: 'left',
+    };
+
+
+    const renderTooltip = (content: PopoverData) => (
+        <Popover id="button-popover" style={tooltipStyle}>
+            <Popover.Header as="h3">{content.title}</Popover.Header>
+            <Popover.Body>
+                {content.description}
+            </Popover.Body>
+        </Popover>
+    );
+
     return (
         <ButtonToolbar
             aria-label="Toolbar with button groups"
         >
             <ButtonGroup className={"me-2"}>
-            {buttons.map((button, idx) => (
-                <Button
-                key={idx}
-                variant="secondary"
-                onClick={() => props.setCurrentTool(null)}
-                disabled={button.disabled}
-                style={buttonStyle}
-                >
-                {button.icon}
-                <span style={buttonTextStyle}>
-                    {button.title}
-                </span>
-                <span style={buttonShortcutStyle}>
-                    {button.shortcut}
-                </span>
-                </Button>
-            ))}
+                {buttons.map((button, idx) => (
+                    <OverlayTrigger
+                        placement="bottom"
+                        overlay={renderTooltip(button.content)}
+                        key={idx}
+                    >
+                        <Button
+                            variant="secondary"
+                            onClick={() => props.setCurrentTool(null)}
+                            disabled={button.disabled}
+                            style={buttonStyle}
+                        >
+                            {button.icon}
+                            <span style={buttonTextStyle}>
+                                {button.title}
+                            </span>
+                            <span style={buttonShortcutStyle}>
+                                {button.shortcut}
+                            </span>
+                        </Button>
+                    </OverlayTrigger>
+                ))}
             </ButtonGroup>
             <ButtonGroup className={"me-2"}>
-            {radios.map((radio, idx) => (
-                <ToggleButton
-                    key={idx}
-                    id={`radio-${idx}`}
-                    type="radio"
-                    variant="secondary"
-                    name="radio"
-                    value={idx}
-                    checked={props.currentTool === idx.toString()}
-                    onChange={(e) => props.setCurrentTool(e.currentTarget.value)}
-                    disabled={radio.disabled}
-                    style={buttonStyle}
-                >
-                    {radio.icon}
-                    <span style={buttonTextStyle}>
-                        {radio.title}
-                    </span>
-                    <span style={buttonShortcutStyle}>
-                        {radio.shortcut}
-                    </span>
-                </ToggleButton>
-            ))}
+                {radios.map((radio, idx) => (
+                    <OverlayTrigger
+                        placement="bottom"
+
+                        overlay={renderTooltip(radio.content)}
+                    >
+                        <ToggleButton
+                            key={idx}
+                            id={`radio-${idx}`}
+                            type="radio"
+                            variant="secondary"
+                            name="radio"
+                            value={idx}
+                            checked={props.currentTool === idx.toString()}
+                            onChange={(e) => props.setCurrentTool(e.currentTarget.value)}
+                            disabled={radio.disabled}
+                            style={buttonStyle}
+                        >
+                            {radio.icon}
+                            <span style={buttonTextStyle}>
+                                {radio.title}
+                            </span>
+                            <span style={buttonShortcutStyle}>
+                                {radio.shortcut}
+                            </span>
+                        </ToggleButton>
+                    </OverlayTrigger>
+                ))}
             </ButtonGroup>
         </ButtonToolbar>
     )

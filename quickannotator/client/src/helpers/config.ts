@@ -1,4 +1,4 @@
-import { ModalData, ProjectModalData } from "../types";
+import { ModalData, ProjectModalData, PopoverData } from "../types";
 
 export enum TOOLBAR_KEYS {
     POINTER = '0',  // TODO: should use int enum here.
@@ -62,8 +62,43 @@ export const MODAL_DATA: { [key: string]: ModalData } = {
 }
 
 
-export const POPOVER_DATA = {
-
+export const POPOVER_DATA: { [key: string]: PopoverData } = {
+    FULLSCREEN_TOOL: {
+        title: 'Fullscreen Tool',
+        description: 'Toggle fullscreen mode for the application window.',
+    },
+    UNDO_TOOL: {
+        title: 'Undo Tool',
+        description: 'Revert the last action performed on the current annotation.',
+    },
+    REDO_TOOL: {
+        title: 'Redo Tool',
+        description: 'Reapply the last action that was undone on the current annotation.',
+    },
+    PAN_TOOL: {
+        title: 'Pan Tool',
+        description: 'Pan around the image. You can temporarily enable this tool by holding down the middle mouse button.',
+    },
+    IMPORT_TOOL: {
+        title: 'Import Tool',
+        description: 'Select predicted annotation to save them as ground truth annotations.',
+    },
+    BRUSH_TOOL: {
+        title: 'Brush Tool',
+        description: 'Brush tool for annotation.',
+    },
+    MAGIC_TOOL: {
+        title: 'Magic Tool',
+        description: 'Magic tool for annotation.',
+    },
+    ERASER_TOOL: {
+        title: 'Eraser Tool',
+        description: 'Eraser tool for annotation.',
+    },
+    POLYGON_TOOL: {
+        title: 'Polygon Tool',
+        description: 'Polygon tool for annotation.',
+    },
 }
 
 // Viewport settings

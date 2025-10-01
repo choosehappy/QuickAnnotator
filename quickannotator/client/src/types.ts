@@ -152,6 +152,14 @@ export type OutletContextType = {
     setCurrentImage: (image: Image | null) => void;
 }
 
+export type ToolbarButton = {
+        icon: JSX.Element;
+        disabled: boolean;
+        title: string;
+        shortcut: string;
+        content: PopoverData;
+};
+
 export enum ExportFormat {
     GEOJSON = "geojson",
     TSV = "tsv"
@@ -204,6 +212,12 @@ export interface ModalData {
     title: string;
     description: string;
 }
+
+export interface PopoverData {
+    title: string;
+    description: string;
+}
+
 export class DataItem {
     id: number;
     name: string;
