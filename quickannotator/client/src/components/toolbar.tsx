@@ -21,51 +21,79 @@ const Toolbar = React.memo((props: Props) => {
         alignSelf: 'center', // Centers within the toolbar if using flex
     };
 
+
     const buttons = [
-        { icon: <Fullscreen/>, disabled: true },
-        { icon: <ArrowCounterclockwise/>, disabled: true },
-        { icon: <ArrowClockwise/>, disabled: true },
+        { icon: <Fullscreen/>, disabled: true, title: "Fullscreen" },
+        { icon: <ArrowCounterclockwise/>, disabled: true, title: "Undo" },
+        { icon: <ArrowClockwise/>, disabled: true, title: "Redo" },
     ];
 
     const radios = [
-        { icon: <Cursor/>, disabled: false },
-        { icon: <Download/>, disabled: false },
-        { icon: <Brush/>, disabled: true },
-        { icon: <Magic/>, disabled: true },
-        { icon: <Eraser/>, disabled: true },
-        { icon: <Heptagon/>, disabled: false },
+        { icon: <Cursor/>, disabled: false, title: "Select" },
+        { icon: <Download/>, disabled: false, title: "Download" },
+        { icon: <Brush/>, disabled: true, title: "Brush" },
+        { icon: <Magic/>, disabled: true, title: "Magic" },
+        { icon: <Eraser/>, disabled: true, title: "Eraser" },
+        { icon: <Heptagon/>, disabled: false, title: "Polygon" },
     ];
+    const buttonStyle: React.CSSProperties = {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        minWidth: '48px',
+        minHeight: '48px',
+        justifyContent: 'center',
+        fontSize: '1rem',
+        gap: '2px',
+        padding: '4px 8px',
+    };
+
+    const buttonTextStyle: React.CSSProperties = {
+        fontSize: '0.5rem',
+        marginTop: '2px',
+        textAlign: 'center',
+    };
 
     return (
-        <ButtonToolbar aria-label="Toolbar with button groups">
+        <ButtonToolbar
+            aria-label="Toolbar with button groups"
+        >
             <ButtonGroup className={"me-2"}>
-                {buttons.map((button, idx) => (
-                    <Button
-                        key={idx}
-                        variant="secondary"
-                        onClick={() => props.setCurrentTool(null)}
-                        disabled={button.disabled}
-                    >
-                        {button.icon}
-                    </Button>
-                ))}
+            {buttons.map((button, idx) => (
+                <Button
+                key={idx}
+                variant="secondary"
+                onClick={() => props.setCurrentTool(null)}
+                disabled={button.disabled}
+                style={buttonStyle}
+                >
+                {button.icon}
+                <span style={buttonTextStyle}>
+                    {button.title}
+                </span>
+                </Button>
+            ))}
             </ButtonGroup>
             <ButtonGroup className={"me-2"}>
-                {radios.map((radio, idx) => (
-                    <ToggleButton
-                        key={idx}
-                        id={`radio-${idx}`}
-                        type="radio"
-                        variant="secondary"
-                        name="radio"
-                        value={idx}
-                        checked={props.currentTool === idx.toString()}
-                        onChange={(e) => props.setCurrentTool(e.currentTarget.value)}
-                        disabled={radio.disabled}
-                    >
-                        {radio.icon}
-                    </ToggleButton>
-                ))}
+            {radios.map((radio, idx) => (
+                <ToggleButton
+                    key={idx}
+                    id={`radio-${idx}`}
+                    type="radio"
+                    variant="secondary"
+                    name="radio"
+                    value={idx}
+                    checked={props.currentTool === idx.toString()}
+                    onChange={(e) => props.setCurrentTool(e.currentTarget.value)}
+                    disabled={radio.disabled}
+                    style={buttonStyle}
+                >
+                    {radio.icon}
+                    <span style={buttonTextStyle}>
+                        {radio.title}
+                    </span>
+                </ToggleButton>
+            ))}
             </ButtonGroup>
         </ButtonToolbar>
     )
