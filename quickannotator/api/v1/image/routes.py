@@ -1,25 +1,24 @@
 from flask_smorest import abort
-import ray
+
 from flask.views import MethodView
-from flask import current_app, request, send_from_directory, send_file
+from flask import request, send_from_directory, send_file
 from sqlalchemy import func
 import quickannotator.constants as constants
 import quickannotator.db.models as db_models
 from quickannotator.db import db_session
 from quickannotator.db.fsmanager import fsmanager
 from quickannotator.db.crud.image import get_image_by_id
-from quickannotator.db.crud.annotation_class import get_all_annotation_classes
-from quickannotator.api.v1.annotation.utils import AnnotationImporter, compute_actor_name, import_annotations, save_annotation_file_to_temp_dir
-from quickannotator.api.v1.image.utils import delete_image_and_related_data, save_image_from_file
-from quickannotator.api.v1.project.utils import save_tsv_to_temp_dir
+from quickannotator.api.v1.annotation.utils import import_annotation_from_json
+from quickannotator.api.v1.image.utils import delete_image_and_related_data, import_image_from_wsi
+from quickannotator.api.v1.project.utils import import_from_tabular
 import large_image
 import os
 import io
-import pandas as pd
 
+import logging
 from . import models as server_models
 from flask_smorest import Blueprint
-
+logger = logging.getLogger(constants.LoggerNames.FLASK.value)
 
 bp = Blueprint('image', __name__, description='Image operations')
 @bp.route('/', endpoint="image")
@@ -84,19 +83,6 @@ WSI_extensions = ['svs', 'tif','dcm','vms', 'vmu', 'ndpi',
 JSON_extensions = ['json','geojson']
 TABULAR_extensions = ['tsv']
 
-
-
-def isHistoqcResult(tsv_path):
-    with open(tsv_path, 'r') as f:
-        for i in range(constants.TSVFields.HISTO_TSV_HEADLINE.value):
-            line = f.readline()
-            if not line:
-                return False
-            if not line.startswith('#'):
-                return False
-        return True
-
-
 @bp.route('/upload')
 class FileUpload(MethodView):
     @bp.arguments(server_models.UploadFileArgsSchema, location='form')
@@ -106,7 +92,6 @@ class FileUpload(MethodView):
         file = request.files['file']
         project_id = args["project_id"]
         if file and project_id:
-            # filename = secure_filename(file.filename)
             filename = file.filename
             # get file extension
             file_basename, file_ext = os.path.splitext(filename)
@@ -114,50 +99,16 @@ class FileUpload(MethodView):
             
             # handle image file
             if file_ext in WSI_extensions:
-                image_id = save_image_from_file(project_id, file)
+                import_image_from_wsi(project_id, file)
 
-                # get all annotation class name
-                annotation_classes = get_all_annotation_classes()
-                # import annotation if it exist in temp dir
-                for annot_cls in annotation_classes:
-                    for format in constants.AnnotationFileFormats:
-                        temp_image_path = fsmanager.nas_write.get_temp_image_path(relative=False)
-                        annot_filepath = os.path.join(temp_image_path, f'{file_basename}_{annot_cls.name}_annotations.{format.value}')
-                        # for geojson
-                        if os.path.exists(annot_filepath):
-                            # ?? should always ground true is True ??
-                            import_annotations(image_id, annot_cls.id , True, annot_filepath)
-                
             # handle annotation file
             if file_ext in JSON_extensions:
-                save_annotation_file_to_temp_dir(file)
+                import_annotation_from_json(file)
 
             # handle tsv file
             if file_ext in TABULAR_extensions:
-                # save tsv under current project folder
-
-                tsv_filepath = save_tsv_to_temp_dir(project_id, file)
-
-
-                # read tsv file
-                header = 0
-                col_name_filename = constants.TSVFields.FILE_NAME.value
-                if isHistoqcResult(tsv_filepath):
-                    header = constants.TSVFields.HISTO_TSV_HEADLINE.value - 1
-                    col_name_filename = constants.TSVFields.HISTO_FILE_NAME.value 
-                data = pd.read_csv(tsv_filepath, sep='\t', header=header, keep_default_na=False)
-                columns = data.columns
-
-                actor_name = compute_actor_name(project_id, constants.NamedRayActorType.ANNOTATION_EXPORTER)
-                importer = AnnotationImporter.options(name=actor_name).remote()
-                
-                # check if the actor is done
-                tester_ids = [importer.import_from_tsv_row.remote(project_id, col_name_filename, row, columns) for index, row in data.iterrows()]
-                while tester_ids:
-                    done_ids, tester_ids = ray.wait(tester_ids, timeout=1)
-                
+                import_from_tabular(project_id, file)
                 return {'name':filename}, 200
-            
 
         else:
             abort(404, message="No project id foundin Args")

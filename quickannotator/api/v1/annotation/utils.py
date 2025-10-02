@@ -6,21 +6,23 @@ import os
 from datetime import datetime
 from quickannotator.db.fsmanager import fsmanager
 from quickannotator.db import get_session
-from quickannotator.db.crud.annotation import build_export_filepath
-from quickannotator.db.crud.annotation import AnnotationStore
+from quickannotator.db.crud.annotation import build_export_filepath, AnnotationStore
 from quickannotator.dsa_sdk import DSAClient
 from quickannotator.db import db_session
 from quickannotator import constants
-from quickannotator.db.crud.image import get_image_by_id, add_image_by_path
+from quickannotator.db.crud.image import get_image_by_id, add_image_by_path, get_image_by_name_case_insensitive
 from itertools import product
 from quickannotator.constants import IMPORT_ANNOTATION_BATCH_SIZE
 from quickannotator.db.logging import LoggingManager
-import ujson
+import orjson
 from quickannotator.db.crud.annotation_class import get_annotation_class_by_name_case_insensitive
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 from tqdm import tqdm
 from shapely.geometry import shape
 from werkzeug.datastructures import FileStorage
+import logging
+# logger
+logger = logging.getLogger(constants.LoggerNames.FLASK.value)
 
 def save_annotation_file_to_temp_dir(file: FileStorage):
     temp_image_path = fsmanager.nas_write.get_temp_image_path(relative=False)
@@ -30,6 +32,7 @@ def save_annotation_file_to_temp_dir(file: FileStorage):
     os.makedirs(temp_image_path, exist_ok=True)
     try:
         file.save(annot_filepath)
+        return annot_filepath
     except IOError as e:
         print(f"Saving Annotation File Error: An I/O error occurred when saving ${file.filename}: {e}")
     except Exception as e:
@@ -43,8 +46,7 @@ def import_annotations(image_id: int, annotation_class_id: int, isgt: bool, file
     # use ujson to read fast
     with open(filepath, 'r', encoding='utf-8') as file:
         # Load the JSON data into a Python dictionary
-        # TODO need to switch to orjson after export annotation and landing page merged.
-        data = ujson.loads(file.read())
+        data = orjson.loads(file.read())
         features = data["features"]
 
 
@@ -67,7 +69,37 @@ def import_annotations(image_id: int, annotation_class_id: int, isgt: bool, file
         tile_ids = {ann.tile_id for ann in anns}
         tile_store.upsert_gt_tiles(image_id=image_id, annotation_class_id=annotation_class_id, tile_ids=tile_ids)
         db_session.commit()
+    
+    # remove annotation file
+    try:
+        os.remove(filepath)
+        print(f"/tAnnotation json file '{filepath}' deleted successfully.")
+    except OSError as e:
+        print(f"Error deleting Annotation json file '{filepath}': {e}")
 
+    # logging message
+    logger.info("/tImported the annotations for image ${image_id} and annotation_class ${annotation_class_id} from ${filepath}")
+
+def import_annotation_from_json(file: FileStorage):
+
+    annot_filepath = save_annotation_file_to_temp_dir(file)
+    
+    filename = file.filename
+    # get file extension
+    file_basename = os.path.splitext(filename)
+    [image_name, annotation_class_name] = file_basename.name.split('_')[:]
+    # find the image by file name
+    img = get_image_by_name_case_insensitive(image_name)
+    cls = get_annotation_class_by_name_case_insensitive(annotation_class_name)
+    if not img:
+        logger.info('/tImage Name ({image_name}) not found')
+        return
+    if not cls:
+        logger.info('/tAnnotation class name ({annotation_class_name}) not found')
+        return 
+    # import 
+    import_annotations(img.id, cls.id, True, annot_filepath)
+  
 class ProgressTracker:
     def __init__(self, total: int):
         self.total = total
@@ -84,9 +116,13 @@ class ProgressTracker:
             return (self.progress / self.total) * 100
 
 @ray.remote(max_concurrency=2)  # Add max_concurrency=2
-class AnnotationImporter():
+class AnnotationImporter(ProgressTracker): # Inherit from ProgressTracker
     def __init__(self):
         self.logger = LoggingManager.init_logger(constants.LoggerNames.RAY.value)
+        # step 1: import slide
+        # step 2: import annotations
+        super().__init__(len(2))  # Initialize ProgressTracker
+        
 
     def import_from_tsv_row(self, project_id, image_path_col_name, data, columns):
 
@@ -99,19 +135,24 @@ class AnnotationImporter():
         if os.path.exists(fsmanager.nas_read.relative_to_global(slide_path)) is False:
             self.logger.error(f"Slide path - {slide_path} not found")
             raise Exception(f"Slide path - {slide_path} not found")
+        
         # create the image
         new_image = add_image_by_path(project_id, slide_path)
         image_id = new_image.id
+        self.increment()
+        self.logger.info(f"Import a image '{new_image.name}' successfully")
+        self.logger.info(f"Progress: {self.get_progress()}%")
 
         # Filter annotation classes ending with '_annotations'
         annto_class_names = [col for col in columns if col.endswith(constants.ANNOTATION_CLASS_SUFFIX)]
         for name in annto_class_names:
             class_name = name[:-len(constants.ANNOTATION_CLASS_SUFFIX)]
-            self.logger.info(class_name)
             cls = get_annotation_class_by_name_case_insensitive(class_name)
             if cls and data[name].strip():
                 import_annotations(image_id, cls.id, True, fsmanager.nas_read.relative_to_global(data[name].strip()))  
-
+                self.logger.info(f"Import the class '{class_name}' annotations successfully")
+        self.increment()
+        self.logger.info(f"Progress: {self.get_progress()}%")
 
 @ray.remote(max_concurrency=2)  # Add max_concurrency=2
 class AnnotationExporter(ProgressTracker):  # Inherit from ProgressTracker

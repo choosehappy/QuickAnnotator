@@ -1,7 +1,7 @@
 import quickannotator.db.models as db_models
 from quickannotator.db import db_session
 from quickannotator.db.fsmanager import fsmanager
-
+from sqlalchemy import func
 
 import large_image
 
@@ -35,6 +35,12 @@ def add_image_by_path(project_id, relative_path):
     db_session.add(image)
     db_session.commit()
     return image
+
+def get_image_by_name(name: str) -> db_models.Image:
+    return db_session.query(db_models.Image).filter(db_models.Image.name == name).first()
+
+def get_image_by_name_case_insensitive(name: str) -> db_models.Image:
+    return db_session.query(db_models.Image).filter(func.lower(db_models.Image.name) == name.lower()).first()
 
 def get_images_by_project_id(project_id: int) -> List[db_models.Image]:
     return db_session.query(db_models.Image).filter(db_models.Image.project_id==project_id).all()

@@ -5,11 +5,14 @@ from quickannotator import constants
 from quickannotator.db import db_session
 from quickannotator.db.fsmanager import fsmanager
 
-from quickannotator.db.crud.image import delete_images, get_image_by_id, add_image_by_path
+from quickannotator.db.crud.image import delete_images, get_image_by_id, add_image_by_path, get_image_by_name_case_insensitive
 from quickannotator.db.crud.tile import TileStoreFactory
-
+import logging
 from quickannotator.db.crud.annotation import AnnotationStore
-from quickannotator.db.crud.annotation_class import get_all_annotation_classes_for_project
+from quickannotator.db.crud.annotation_class import get_all_annotation_classes_for_project, get_all_annotation_classes
+from quickannotator.api.v1.annotation.utils import import_annotations
+# logger
+logger = logging.getLogger(constants.LoggerNames.FLASK.value)
 
 def save_image_from_file(project_id: int, file: FileStorage) -> int:
     filename = file.filename
@@ -70,3 +73,23 @@ def remove_image_folders(project_id: int, image_id: int):
             shutil.rmtree(full_image_path)
         except OSError as e:
             print(f"Error deleting folder '{full_image_path}': {e}")
+
+def import_image_from_wsi(project_id:int ,file: FileStorage):
+    filename = file.filename
+    # get file extension
+    file_basename, file_ext = os.path.splitext(filename)
+
+    logger.info("Import image ${filename}:")
+    image_id = save_image_from_file(project_id, file)
+
+    # get all annotation class name
+    annotation_classes = get_all_annotation_classes()
+    # import annotation if it exist in temp dir
+    for annot_cls in annotation_classes:
+        for format in constants.AnnotationFileFormats:
+            temp_image_path = fsmanager.nas_write.get_temp_image_path(relative=False)
+            annot_filepath = os.path.join(temp_image_path, f'{file_basename}_{annot_cls.name}_annotations.{format.value}')
+            # for geojson
+            if os.path.exists(annot_filepath):
+                logger.info("/tFound image annotation file - ${annot_filepath}")
+                import_annotations(image_id, annot_cls.id , True, annot_filepath)

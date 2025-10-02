@@ -7,9 +7,22 @@ from quickannotator.db.crud.annotation_class import delete_annotation_classes
 from quickannotator.db.crud.image import delete_images
 from quickannotator.db.crud.project import delete_projects, get_project_by_id
 from quickannotator.db.crud.tile import TileStoreFactory
+from quickannotator.api.v1.annotation.utils import AnnotationImporter, compute_actor_name
 import quickannotator.constants as constants
 from werkzeug.datastructures import FileStorage
+import pandas as pd
+import ray
 
+def isHistoqcResult(tsv_path):
+    with open(tsv_path, 'r') as f:
+        for i in range(constants.TSVFields.HISTO_TSV_HEADLINE.value):
+            line = f.readline()
+            if not line:
+                return False
+            if not line.startswith('#'):
+                return False
+        return True
+    
 def save_tsv_to_temp_dir(project_id: int, file: FileStorage):
     # save tsv under current project folder
     project_path = fsmanager.nas_write.get_project_path(project_id=project_id ,relative=False)
@@ -25,6 +38,29 @@ def save_tsv_to_temp_dir(project_id: int, file: FileStorage):
     
     return tsv_filepath
     
+def import_from_tabular(project_id: int, file: FileStorage):
+    tsv_filepath = save_tsv_to_temp_dir(project_id, file)
+    # read tsv file
+    header = 0
+    col_name_filename = constants.TSVFields.FILE_NAME.value
+    if isHistoqcResult(tsv_filepath):
+        header = constants.TSVFields.HISTO_TSV_HEADLINE.value - 1
+        col_name_filename = constants.TSVFields.HISTO_FILE_NAME.value 
+    data = pd.read_csv(tsv_filepath, sep='\t', header=header, keep_default_na=False)
+    columns = data.columns
+
+
+
+    actor_ids = []
+    for row in data.iterrows():
+        # create a actor for current row
+            actor_name = compute_actor_name(project_id, constants.NamedRayActorType.ANNOTATION_IMPORTER)
+            importer = AnnotationImporter.options(name=actor_name).remote()
+            actor_id = importer.import_from_tsv_row.remote(project_id, col_name_filename, row, columns)
+            actor_ids.append(actor_id)
+    # check if the actor is done
+    while actor_ids:
+        done_ids, actor_ids = ray.wait(actor_ids, timeout=1)
 
 def delete_project_and_related_data(project_id):
     project = get_project_by_id(project_id)
