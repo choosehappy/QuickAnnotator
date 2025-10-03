@@ -39,6 +39,7 @@ const AnnotationPage = () => {
     const [currentTool, setCurrentTool] = useState<string | null>('0');
     const [action, setAction] = useState<string | null>(null);
     const [currentAnnotation, setCurrentAnnotation] = useState<CurrentAnnotation | null>(null);
+    const [selectedPred, setSelectedPred] = useState<CurrentAnnotation | null>(null);
     const [highlightedPreds, setHighlightedPreds] = useState<Annotation[] | null>(null); // TODO: should just be a list of annotations
     const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
     const [activeModal, setActiveModal] = useState<number | null>(null);
@@ -170,6 +171,8 @@ const AnnotationPage = () => {
                                                     currentAnnotation, 
                                                     setCurrentAnnotation, 
                                                     prevCurrentAnnotation,
+                                                    selectedPred,
+                                                    setSelectedPred,
                                                     highlightedPreds,
                                                     setHighlightedPreds,
                                                     activeModal,
@@ -189,7 +192,7 @@ const AnnotationPage = () => {
                                     {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, annotationClasses, setActiveModal }}
                                 />
                                 <PredictionsPane
-                                    {...{ preds, setPreds, currentAnnotation, annotationClasses }}
+                                    {...{ preds, setPreds, selectedPred, setSelectedPred, annotationClasses}}
                                 />
                             </Stack>
                         </Col>

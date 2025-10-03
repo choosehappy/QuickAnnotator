@@ -25,6 +25,8 @@ interface Props {
     setPreds: React.Dispatch<React.SetStateAction<Annotation[]>>;
     currentTool: string | null;
     setCurrentTool: React.Dispatch<React.SetStateAction<string | null>>;
+    selectedPred: CurrentAnnotation | null;
+    setSelectedPred: React.Dispatch<React.SetStateAction<CurrentAnnotation | null>>;
     highlightedPreds: Annotation[] | null;
     setHighlightedPreds: React.Dispatch<React.SetStateAction<Annotation[] | null>>;
     activeModal: number | null;
@@ -650,6 +652,7 @@ const ViewportMap = (props: Props) => {
         const annotationId = currentState?.id;
         const prevAnnotationId = prevState?.id;
         const layer = geojs_map.current?.layers()[LAYER_KEYS.GT];
+        // If the current annotation is associated with a tile feature, "redraw" the feature.
         if (tileIdIsValid(tile_id)) {
             const feature = getTileFeatureById(layer, tile_id);
             redrawTileFeature(feature, { currentAnnotationId: currentState?.id });
@@ -658,12 +661,12 @@ const ViewportMap = (props: Props) => {
                 const centroid = currentState.parsedCentroid;
                 translateMap(centroid.coordinates[0], centroid.coordinates[1]);
             }
+        }
 
-            // If the previous current annotation is associated with a tile feature, "redraw" the old tile.
-            if (prevTileId !== tile_id) {
-                const feature = getTileFeatureById(layer, prevTileId);
-                redrawTileFeature(feature);
-            }
+        // If the previous current annotation is associated with a tile feature, "redraw" the old tile.
+        if (tileIdIsValid(prevTileId) && prevTileId !== tile_id) {
+            const feature = getTileFeatureById(layer, prevTileId);
+            redrawTileFeature(feature);
         }
 
         // TODO: PUT is called even when the annotation has been deleted. The PUT fails, which is fine, but it's not efficient.
@@ -674,6 +677,12 @@ const ViewportMap = (props: Props) => {
         }
 
     }, [props.currentAnnotation])
+
+    useEffect(() => {
+        const x = props.selectedPred?.currentState?.parsedCentroid?.coordinates[0];
+        const y = props.selectedPred?.currentState?.parsedCentroid?.coordinates[1];
+        if (x && y) translateMap(x, y);
+    }, [props.selectedPred]);
 
     // When the highlighted predictions change, redraw the features
     useEffect(() => {
