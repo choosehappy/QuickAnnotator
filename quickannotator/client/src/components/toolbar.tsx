@@ -3,11 +3,13 @@ import ToggleButton from 'react-bootstrap/ToggleButton';
 import {Button, ButtonToolbar} from 'react-bootstrap';
 import { Fullscreen, ArrowCounterclockwise, ArrowClockwise, Download, Cursor, Brush, Magic, Eraser, Heptagon } from 'react-bootstrap-icons';
 import React, { useState } from "react";
-import {Annotation} from "../types.ts";
+import { TOOLBAR_KEYS } from '../helpers/config.ts';
+
 
 interface Props {
-    currentTool: string;
+    currentTool: string | null;
     setCurrentTool: (currentTool: string | null) => void;
+    ctrlHeld: boolean;
 }
 
 const Toolbar = React.memo((props: Props) => {
@@ -27,14 +29,13 @@ const Toolbar = React.memo((props: Props) => {
         { icon: <ArrowClockwise/>, disabled: true },
     ];
 
-    const radios = [
-        { icon: <Cursor/>, disabled: false },
-        { icon: <Download/>, disabled: false },
-        { icon: <Brush/>, disabled: false },
-        { icon: <Magic/>, disabled: true },
-        { icon: <Eraser/>, disabled: true },
-        { icon: <Heptagon/>, disabled: false },
-    ];
+    const radios = {
+        [TOOLBAR_KEYS.POINTER]: { icon: <Cursor/>, ctrlIcon: null, disabled: false },
+        [TOOLBAR_KEYS.IMPORT]: { icon: <Download/>, ctrlIcon: null, disabled: false },
+        [TOOLBAR_KEYS.BRUSH]: { icon: <Brush/>, ctrlIcon: <Eraser/>, disabled: false },
+        [TOOLBAR_KEYS.WAND]: { icon: <Magic/>, ctrlIcon: null, disabled: true },
+        [TOOLBAR_KEYS.POLYGON]: { icon: <Heptagon/>, ctrlIcon: <Eraser/>, disabled: false },
+    };
 
     return (
         <ButtonToolbar aria-label="Toolbar with button groups">
@@ -51,19 +52,22 @@ const Toolbar = React.memo((props: Props) => {
                 ))}
             </ButtonGroup>
             <ButtonGroup className={"me-2"}>
-                {radios.map((radio, idx) => (
+                {Object.entries(radios).map(([key, radio]) => (
                     <ToggleButton
-                        key={idx}
-                        id={`radio-${idx}`}
+                        key={key}
+                        id={`radio-${key}`}
                         type="radio"
                         variant="secondary"
                         name="radio"
-                        value={idx}
-                        checked={props.currentTool === idx.toString()}
-                        onChange={(e) => props.setCurrentTool(e.currentTarget.value)}
+                        value={key}
+                        checked={props.currentTool === key}
+                        onChange={(e) => {
+                            props.setCurrentTool(e.currentTarget.value);
+                            e.currentTarget.blur(); // Return focus to annotation page, allowing hotkey events to fire.
+                        }}
                         disabled={radio.disabled}
                     >
-                        {radio.icon}
+                        {props.ctrlHeld && props.currentTool === key && radio.ctrlIcon ? radio.ctrlIcon : radio.icon}
                     </ToggleButton>
                 ))}
             </ButtonGroup>

@@ -5,8 +5,7 @@ export enum TOOLBAR_KEYS {
     IMPORT = '1',
     BRUSH = '2',
     WAND = '3',
-    ERASER = '4',
-    POLYGON = '5',
+    POLYGON = '4',
 }
 
 export enum INTERACTION_MODE {

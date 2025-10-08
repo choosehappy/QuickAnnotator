@@ -23,6 +23,8 @@ interface Props {
     setPreds: React.Dispatch<React.SetStateAction<Annotation[]>>;
     currentTool: string | null;
     setCurrentTool: React.Dispatch<React.SetStateAction<string | null>>;
+    ctrlHeld: boolean;
+    setCtrlHeld: React.Dispatch<React.SetStateAction<boolean>>;
     highlightedPreds: Annotation[] | null;
     setHighlightedPreds: React.Dispatch<React.SetStateAction<Annotation[] | null>>;
     activeModal: number | null;
@@ -307,32 +309,6 @@ const ViewportMap = (props: Props) => {
         }
     }
 
-    function handleControlKey(isKeyDown: boolean) {
-        console.log(`Control key ${isKeyDown ? 'down' : 'up'} detected.`);
-        if (props.currentTool === TOOLBAR_KEYS.IMPORT) {
-            const annotationLayer = geojs_map.current?.layers()[LAYER_KEYS.ANN];
-            if (annotationLayer) {
-                annotationLayer.mode(isKeyDown ? 'polygon' : 'point');
-            }
-        }
-
-        if (props.currentTool === TOOLBAR_KEYS.POLYGON && isKeyDown) {
-            console.log("Ctrl key is pressed. The polygon tool is in subtraction mode.")
-        }
-
-        if (props.currentTool === TOOLBAR_KEYS.BRUSH && isKeyDown) {
-            console.log("Ctrl key is pressed. The brush tool is in selection mode.")
-        }
-    }
-
-    function handleControlDown() {
-        handleControlKey(true);
-    }
-
-    function handleControlUp() {
-        handleControlKey(false);
-    }
-
 
     const updateAnnotation = (currentState: Annotation, newPolygon: Polygon, operation: POLYGON_OPERATIONS) => {
         const layer = geojs_map.current.layers()[LAYER_KEYS.GT];
@@ -443,7 +419,7 @@ const ViewportMap = (props: Props) => {
         // Get the polygon from the annotation layer.
         const polygon = getPolygonFromAnnotationLayer();
         if (!polygon) {
-            console.error("No polygon found in the annotation layer.");
+            console.log("No polygon found in the annotation layer while changing annotation mode .");
             return;
         }
 
@@ -790,9 +766,24 @@ const ViewportMap = (props: Props) => {
 
     }, [props.highlightedPreds]);
 
+    useEffect(() => {
+        if (props.currentTool === TOOLBAR_KEYS.IMPORT) {
+            const annotationLayer = geojs_map.current?.layers()[LAYER_KEYS.ANN];
+            if (annotationLayer) {
+                annotationLayer.mode(props.ctrlHeld ? 'polygon' : 'point');
+            }
+        }
+
+        if (props.currentTool === TOOLBAR_KEYS.POLYGON && props.ctrlHeld) {
+            console.log("Ctrl key is pressed. The polygon tool is in subtraction mode.")
+        }
+
+        if (props.currentTool === TOOLBAR_KEYS.BRUSH && props.ctrlHeld) {
+            console.log("Ctrl key is pressed. The brush tool is in selection mode.")
+        }
+    }, [props.ctrlHeld, props.currentTool]);
+
     useHotkeys('backspace, delete', handleDeleteAnnotation, [props.currentAnnotation, props.currentImage, props.currentAnnotationClass, props.gts]);
-    useHotkeys('ctrl', handleControlDown, { keydown: true, keyup: false }, [props.currentTool]);
-    useHotkeys('ctrl', handleControlUp, { keydown: false, keyup: true }, [props.currentTool]);
 
     return (
         <div ref={viewRef} style={
