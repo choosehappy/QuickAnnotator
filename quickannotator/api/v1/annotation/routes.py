@@ -149,16 +149,23 @@ class AnnotationOperation(MethodView):
         poly2 = shape(args['polygon2'])
         operation = args['operation']
 
-        if operation == PolygonOperations.UNION:
-            result = GeometryOperation.union(poly1, poly2)
-        elif operation == PolygonOperations.DIFFERENCE:
-            result = GeometryOperation.difference(poly1, poly2)
-        
-        if result is None:
-            return {"message": "Invalid operation or polygons"}, 400
+        try:
+            if operation == PolygonOperations.UNION:
+                result = GeometryOperation.union(poly1, poly2)
+            elif operation == PolygonOperations.DIFFERENCE:
+                result = GeometryOperation.difference(poly1, poly2)
+        except ValueError as e:
+            logger.error(str(e))
+            return {"message": str(e)}, 400
         
         resp = {field: args[field] for field in server_models.AnnRespSchema().fields.keys() if field in args} # Basically a copy of args without "polygon2" or "operation"
         # unfortunately we have to lose the dictionary format because we are mimicking the geojson string outputted by the db.
+        
+        if result is None:
+            resp['polygon'] = None
+            resp['centroid'] = None
+            resp['area'] = 0
+            return resp, 200
         resp['polygon'] = json.dumps(mapping(result))
         resp['centroid'] = json.dumps(mapping(result.centroid))   
         resp['area'] = result.area

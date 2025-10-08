@@ -345,11 +345,29 @@ const ViewportMap = (props: Props) => {
         const data = feature.data();
         operateOnAnnotation(currentState, newPolygon, operation).then((resp) => {
             const newState = new Annotation(resp.data, currentState.annotation_class_id);
-            const updatedData: Annotation[] = data.map((d: Annotation) => d.id === currentState.id ? newState : d);
-            const updatedGroundTruths = props.gts.map((gt: Annotation) => gt.id === currentState.id ? newState : gt);
+            if (resp.data.polygon === null) {
+                // Remove the annotation from updated data and ground truths
+                const updatedData: Annotation[] = data.filter((d: Annotation) => d.id !== currentState.id);
+                const updatedGroundTruths = props.gts.filter((gt: Annotation) => gt.id !== currentState.id);
 
-            props.setGts(updatedGroundTruths);
-            redrawTileFeature(feature, { currentAnnotationId: currentState.id }, updatedData);
+                props.setGts(updatedGroundTruths);
+                redrawTileFeature(feature, {}, updatedData);
+
+                // Call the deleteAnnotation API method
+                if (props.currentImage && props.currentAnnotationClass && currentState.id) {
+                    removeAnnotation(props.currentImage.id, props.currentAnnotationClass.id, currentState.id, true)
+                        .then(() => {
+                            console.log(`Annotation id=${currentState.id} deleted due to null polygon.`);
+                        });
+                }
+            } else {
+                // Update the annotation
+                const updatedData: Annotation[] = data.map((d: Annotation) => d.id === currentState.id ? newState : d);
+                const updatedGroundTruths = props.gts.map((gt: Annotation) => gt.id === currentState.id ? newState : gt);
+
+                props.setGts(updatedGroundTruths);
+                redrawTileFeature(feature, { currentAnnotationId: currentState.id }, updatedData);
+            }
         });
     }
 
