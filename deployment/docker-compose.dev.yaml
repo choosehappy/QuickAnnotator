@@ -1,0 +1,8 @@
+services:
+  qa:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    image: histotools/quickannotator:local
+    volumes:
+      - ..:/opt/QuickAnnotator

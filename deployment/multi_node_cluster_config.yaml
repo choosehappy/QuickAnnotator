@@ -1,0 +1,65 @@
+# A unique identifier for the head node and workers of this cluster.
+cluster_name: qa_cluster
+
+docker:
+    image: "histotools/quickannotator:main" # You can change this to latest-cpu if you don't need GPU support and want a faster startup
+    # image: histotools/quickannotator:main   # use this one if you don't need ML dependencies, it's faster to pull
+    container_name: "qa_container"
+    # If true, pulls latest version of image. Otherwise, `docker run` will only pull the image
+    # if no cached version is present.
+    pull_before_run: True
+    run_options:
+        - --ulimit nofile=65536:65536
+        - --gpus all
+        - --shm-size=12G
+        - -e POSTGRES_HOST=170.140.138.87   # CHANGE ME so that the IP address matches the head node's IP address
+
+provider:
+    type: local
+    head_ip: 170.140.138.87 # CHANGE ME to your head node's IP address
+    worker_ips: [170.140.138.63, 170.140.138.73]    # CHANGE ME to your worker nodes' IP addresses
+    cache_stopped_nodes: False  # JJ note: does not seem to have an effect for local provider.
+
+# How Ray will authenticate with newly launched nodes.
+auth:
+    ssh_user: jjaco34   # CHANGE ME to your username on the cluster nodes
+    ssh_private_key: ~/.ssh/id_rsa
+
+upscaling_speed: 1.0
+
+idle_timeout_minutes: 30
+
+# Files or directories to copy to the head and worker nodes.
+file_mounts: {
+    "/deployment/": "./deployment/",
+}
+
+# Whether changes to directories in file_mounts or cluster_synced_files in the head node
+# should sync to the worker node continuously
+file_mounts_sync_continuously: False
+
+# List of commands that will be run before `setup_commands`.
+initialization_commands: [
+    # JJ note: unclear if there is a variable for root path.
+    docker compose -f /tmp/ray_tmp_mount/qa_cluster/deployment/docker-compose.yaml up postgis grafana -d,
+    # JJ note: Worker nodes do not shut down properly, so we need to ensure they are shut down so that the new image can be pulled and run.
+    docker stop qa_container || true,
+]
+
+# List of shell commands to run to set up each nodes.
+setup_commands: []
+
+head_setup_commands: ['mkdir -p ~/.ssh', 'echo -e "Host *\n\tStrictHostKeyChecking no\n\tUserKnownHostsFile /dev/null" >> ~/.ssh/config']
+
+# Custom commands that will be run on worker nodes after common setup.
+worker_setup_commands: []
+
+# Command to start ray on the head node. You don't need to change this.
+head_start_ray_commands:
+        - ray stop
+        - ulimit -c unlimited && ray start --head --port=6379 --dashboard-port=8265 --autoscaling-config=~/ray_bootstrap_config.yaml
+
+# Command to start ray on worker nodes. You don't need to change this.
+worker_start_ray_commands:
+    - ray stop
+    - ray start --address=$RAY_HEAD_IP:6379
