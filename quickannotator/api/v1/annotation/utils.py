@@ -5,6 +5,7 @@ import ray
 import time
 import os
 from datetime import datetime
+import builtins
 
 from quickannotator.db import get_session
 from quickannotator.db.crud.annotation import build_export_filepath
@@ -184,9 +185,11 @@ class GeometryOperation:
             raise ValueError("Resulting polygon is not valid after difference operation")
         if result.geom_type == 'MultiPolygon':
             # If the result is a MultiPolygon, return the largest polygon by area
-            if multipoly_func == constants.MultiPolygonToPolygonFuncs.MAX:
-                result = max(result.geoms, key=lambda geom: geom.area)
-            else:
-                raise ValueError(f"Unsupported multipolygon function: {multipoly_func}")
+            try:  
+                func = getattr(builtins, multipoly_func.value)  
+            except AttributeError:  
+                raise ValueError(f"Unsupported function for handling multipolygons: {multipoly_func.value}")  
+
+            result = func(result.geoms, key=lambda g: g.area)
 
         return result
