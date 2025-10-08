@@ -1,144 +1,71 @@
-# QuickAnnotator
-Quick Annotator is an open-source digital pathology annotation tool.
-
-# Purpose
-Machine learning approaches for segmentation of histologic primitives (e.g., cell nuclei) in digital pathology (DP) Whole Slide Images (WSI) require large numbers of exemplars. Unfortunately, annotating each object is laborious and often intractable even in moderately sized cohorts. The purpose of QuickAnnotator is to rapidly bootstrap annotation creation for digital pathology projects. 
-
-QuickAnnotator leverages active learning to suggest annotations which the user may accept as they annotate.
-
 # Installation
-## For Developers
-### Development Environment
-- VS Code with the following extensions:
-    - `ms-azuretools.vscode-docker`
-    - `ms-vscode-remote.remote-containers`
-- Docker
-- Access to example data.
+**General Prerequisites**
 
-### Volumes
-Create docker volumes to store your data persistently:
-```bash
-docker volume create qadb_data  # Will store the database
-docker volume create qa_data    # Will store example WSIs
-```
+Ensure the following prerequisites are met on your machine:
+- [Docker](https://docs.docker.com/get-docker/) Install Docker desktop for Windows, MacOS or Linux. For Linux, you can alternatively install [docker engine](https://docs.docker.com/engine/install/).
+- [NVIDIA Driver](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/)
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
+  
+## 1. Quick Start
+The following instructions detail how to install QuickAnnotator on a single node (e.g., a laptop with GPU support).
 
-### Database
-By default, QuickAnnotator uses a SQLite database. If you would like to use a postgis database, follow these steps:
 
-1. Create a docker network
+
+### 1.1. Installation Steps
+1. Download the docker compose file from the QuickAnnotator repository:
     ```bash
-    docker network create quickannotator-net
+    curl -O https://raw.githubusercontent.com/choosehappy/QuickAnnotator/main/deployment/docker-compose.yaml
     ```
 
-2. Run the container
+2. Run the docker compose file:
     ```bash
-    docker run -d \
-        --name postgis \
-        --network quickannotator-net \
-        -e POSTGRES_USER=admin \
-        -e POSTGRES_PASSWORD=admin \
-        -e POSTGRES_DB=gisdb \
-        -p 5432:5432 \
-        -v postgis_data:/var/lib/postgresql/data \
-        postgis/postgis
+    docker compose -f docker-compose.yaml up -d
     ```
-3. Change the `database_uri` in the `quickannotator/config.ini` file
 
-4. Running quickannotator will automatically seed the database.
+## 2. Multi-node Deployment
+Ray cluster launcher is used for multi-node deployments.
+### 2.1. Additional Prerequisites
+- Each worker node must match the general prerequisites listed above.
+- The machine running `ray up` must have passwordless SSH access to all cluster nodes.
+- All machines must have a two NAS shares mounted within the `Quickannotator/quickannotator/mounts` directory:
+   1. `nas_read`: A share with at least read access.
+   2. `nas_write`: A share with read and write access.
 
-### Container
-1. Clone the QuickAnnotator repository and checkout the v2.0 branch:
+### 2.2. Installation Steps
+1. Clone the git repository and checkout the v2.0 branch:
     ```bash
     git clone https://github.com/choosehappy/QuickAnnotator.git
     cd QuickAnnotator
     git checkout v2.0
     ```
 
+2. Configure the `deployment/multi_node_cluster_config.yaml` file to specify the head and worker nodes of your ray cluster. See the [ray cluster launcher documentation](https://docs.ray.io/en/latest/cluster/vms/user-guides/launching.html) for more details. 
+    > All lines with the comment `CHANGE ME` must be configured.
+
+3. Install ray cluster launcher
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install -r deployment/requirements.txt
+    ```
+
+
+4. Run ray cluster launcher to start a ray cluster and deploy QuickAnnotator:
+    ```bash
+    ray up -y deployment/multi_node_cluster_config.yaml
+    ```
+
+
+## 3. For Developers
+### 3.1. Additional Prerequisites
+- VS Code with the devcontainers extension installed.
+
+### 3.2. Installation Steps
+1. Clone the git repository and checkout the v2.0 branch:
+    ```bash
+    git clone https://github.com/choosehappy/QuickAnnotator.git
+    cd QuickAnnotator
+    git checkout v2.0
+    ```
 2. Within VS Code, open the cloned repository and click on the "Reopen in Container" button to build the devcontainer. This will create a docker container with all the necessary dependencies to run QuickAnnotator.
 ![image](https://github.com/user-attachments/assets/b776577f-a4c2-4eb8-858c-c603ac20cc6d)
-
-
-### Usage
-1. Connect to a Ray cluster. Ray is used to run operations which require asyncronous processing. There are three ways to connect to a Ray cluster:
-    - **Default**: By default QA will initialize a local Ray cluster within the docker container. 
-        - Note: The default ray cluster does not host the Ray dashboard.
-    - **Manual local cluster**: Run the following command to start a Ray cluster with the Ray dashboard:
-        ```bash
-        ray start --head --dashboard-host 0.0.0.0
-        ```
-    - **Pre-existing cluster**: If you would like QA to connect to an existing Ray cluster, use the `--cluster_address` argument.
-
-2. Once the devcontainer is built, you can run the following command to start the QuickAnnotator server:
-    ```
-    (venv) root@e4392ecdd8ef:/opt/QuickAnnotator# quickannotator
-    * Serving Flask app '__main__'
-    * Debug mode: on
-    WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
-    * Running on all addresses (0.0.0.0)
-    * Running on http://127.0.0.1:5000
-    * Running on http://172.17.0.2:5000
-    Press CTRL+C to quit
-    * Restarting with stat
-    * Debugger is active!
-    * Debugger PIN: 581-630-257
-    ``` 
-
-
-3. **(Optional)** Upload example data to QuickAnnotator
-    1. Download the `test_ndpi` folder (request access from jackson.jacobs@emory.edu) and copy it to the `qa_data` volume.
-    1. Run the `populate_db.ipynb` notebook.
-
-
-4. Then in a second terminal, run the QuickAnnotator client:
-    ```
-    (venv) root@e4392ecdd8ef:/opt/QuickAnnotator# cd quickannotator/client
-    (venv) root@e4392ecdd8ef:/opt/QuickAnnotator/quickannotator/client# npm run dev -- --host 0.0.0.0
-
-    > client@0.0.0 dev
-    > vite --host 0.0.0.0
-
-
-    VITE v5.4.8  ready in 595 ms
-
-    ➜  Local:   http://localhost:5173/
-    ➜  Network: http://172.17.0.2:5173/
-    ➜  press h + enter to show help
-    ```
-
-5. Use the following URLs:
-    1. OpenAPI 3.0 documentation: [http://172.17.0.2:5000/api/v1]()
-    2. Client: [http://172.17.0.2:5173/]()
-
-# Logs
-Logs are stored within the QuickAnnotator database and may be visualized using Grafana. The following instructions detail how to set up Grafana to connect to a sqlite database.
-
-1. Run the Grafana docker container
-    > Note: The following command assumes your sqlite database is contained in the base directory of the qadb_data volume.
-
-    ```bash
-    docker run -d \
-    --name=grafana \
-    -p 3000:3000 \
-    -v qadb_data:/var/lib/grafana/sqlite \
-    --network quickannotator-net \
-    grafana/grafana 
-    ```
-
-2. If working with sqlite, install the sqlite datasource plugin within the grafana container.
-    ```bash
-    docker exec -it grafana grafana-cli plugins install frser-sqlite-datasource
-    docker restart grafana
-    ```
-
-3. Set up the datasource within Grafana [http://localhost:3000/connections/datasources](). 
-    - If you have to log in, use the default grafana credentials:
-        - Username: admin
-        - Password: admin
-    - If you are adding a postgres datasource, set TSL/SSL mode to "disable".
-
-
-4. Open the grafana import page [http://localhost:3000/dashboard/import]()
-
-5. Drop a dashboard configuration file (e.g., [logs_sqlite.json](./quickannotator/grafana/logs_sqlite.json)) into the upload box and click "Import".
-    > Note: Dashboard configuration files are located in the `quickannotator/grafana` directory. 
-
