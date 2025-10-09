@@ -83,6 +83,58 @@ export const UI_SETTINGS = {
     pendingTileFillOpacity: 0.5,
 }
 
+const ADD_POLYGON_COLOR = { r: 0, g: 0, b: 1 };
+const SUBTRACT_POLYGON_COLOR = { r: 1, g: 0, b: 0 };
+export const BRUSH_SIZE = 20;
+
+
+export const POLYGON_CREATE_STYLE = {
+    closed: true,
+    stroke: true,
+    strokeColor: ADD_POLYGON_COLOR,
+    strokeWidth: 3,
+};
+
+
+export const POLYGON_CREATE_STYLE_SECONDARY = {
+    closed: true,
+    stroke: true,
+    strokeColor: SUBTRACT_POLYGON_COLOR,
+    strokeWidth: 3,
+};
+
+
+export const IMPORT_CREATE_STYLE = {
+    closed: true,
+    fill: true, // BUG: Fill does not work for some reason.
+    fillColor: { r: 1, g: 0.5, b: 0 },
+    stroke: true,
+    strokeColor: { r: 1, g: 0.5, b: 0 },
+    strokeWidth: 10,
+    fillOpacity: 0.9,
+};
+
+
+export const BRUSH_CREATE_STYLE = {  
+    radius: BRUSH_SIZE,  
+    scaled: false, // This prevents scaling with zoom  
+    fill: true,  
+    fillColor: {r: 0, g: 1, b: 0},  
+    stroke: true,  
+    strokeColor: SUBTRACT_POLYGON_COLOR  
+};
+
+
+export const BRUSH_CREATE_STYLE_SECONDARY = {  
+    radius: BRUSH_SIZE,  
+    scaled: false, // This prevents scaling with zoom  
+    fill: true,  
+    fillColor: {r: 0, g: 1, b: 0},  
+    stroke: true,  
+    strokeColor: SUBTRACT_POLYGON_COLOR  
+};
+
+
 export const MASK_CLASS_ID = 1; // TODO: app setting
 
 export const SERVER_URL = 'http://localhost:5000'; // TODO: app setting

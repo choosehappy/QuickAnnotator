@@ -1,14 +1,15 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, act } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse } from "../types.ts"
 import { searchTileIds, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileIdsWithinPolygon, fetchTileBoundingBox, fetchImageMetadata } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 
-import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID, COOKIE_NAMES, POLYGON_OPERATIONS } from "../helpers/config.ts";
+import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID, COOKIE_NAMES, POLYGON_OPERATIONS, POLYGON_CREATE_STYLE, POLYGON_CREATE_STYLE_SECONDARY, IMPORT_CREATE_STYLE, BRUSH_CREATE_STYLE, BRUSH_CREATE_STYLE_SECONDARY, BRUSH_SIZE } from "../helpers/config.ts";
 
 import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered, tileIdIsValid, getScaledSize, createCirclePolygon, createConnectingRectangle} from '../utils/map.ts';
 import { useCookies } from 'react-cookie';
 import { useHotkeys, isHotkeyPressed } from 'react-hotkeys-hook';
+import { propTypes } from 'react-bootstrap/esm/Image';
 
 
 interface Props {
@@ -41,7 +42,6 @@ const ViewportMap = (props: Props) => {
     const featureIdsToUpdate = useRef<number[]>([]);
     const [cookies, setCookies] = useCookies([COOKIE_NAMES.SKIP_CONFIRM_IMPORT]);
     const lastBrushState = useRef<{ stateId: number, coords: [Position] } | null>(null);
-    const size = 20;
 
     let zoomPanTimeout: any = null;
 
@@ -205,7 +205,7 @@ const ViewportMap = (props: Props) => {
         const brushLayer = layers[LAYER_KEYS.BRUSH];
         const annotationLayer = layers[LAYER_KEYS.ANN];
         const lastState = lastBrushState.current;
-        const scaledSize = getScaledSize(map, size); // Get the scaled size based on the current zoom level
+        const scaledSize = getScaledSize(map, BRUSH_SIZE); // Get the scaled size based on the current zoom level
 
         if (evt.evt.event === geo.event.actionup) {
             handleNewAnnotation(evt);
@@ -235,45 +235,6 @@ const ViewportMap = (props: Props) => {
             geo.util.polyops['union'](annotationLayer, source, { correspond: {}, keepAnnotations: 'exact', style: annotationLayer });
         } else {
             lastBrushState.current = null;
-        }
-    }
-
-
-    function setBrushActive(active: boolean = true) {
-        if (!geojs_map.current) {
-            console.error("GeoJS map is not initialized.");
-            return;
-        }
-        const layers = geojs_map.current.layers();
-        const brushLayer = layers[LAYER_KEYS.BRUSH];
-        const annotationLayer = layers[LAYER_KEYS.ANN];
-
-        if (brushLayer) {
-          brushLayer.mode(null);
-          brushLayer.removeAllAnnotations();
-        }
-
-        if (active) {
-            annotationLayer.mode(null);
-
-            var centerX = 0;  // your desired center X  
-            var centerY = 0;  // your desired center Y  
-              
-            var pointAnnotation = geo.annotation.pointAnnotation({  
-                position: {x: centerX, y: centerY}, // your desired center position  
-                style: {  
-                  radius: size,  
-                  scaled: false, // This prevents scaling with zoom  
-                  fill: true,  
-                  fillColor: {r: 0, g: 1, b: 0},  
-                  stroke: true,  
-                  strokeColor: {r: 0, g: 0, b: 0}  
-                }  
-              });  
-            brushLayer.addAnnotation(pointAnnotation);
-
-            brushLayer.mode(brushLayer.modes.cursor, pointAnnotation);
-            geojs_map.current.draw();
         }
     }
 
@@ -424,7 +385,7 @@ const ViewportMap = (props: Props) => {
         }
 
         // Clear the annotation layer
-        annotationLayer.mode(null);
+        // annotationLayer.mode(null);
         annotationLayer.removeAllAnnotations();
         console.log("Annotation layer cleared.");
 
@@ -485,14 +446,20 @@ const ViewportMap = (props: Props) => {
 
     const handleAnnotationModeChange = (evt) => {
         console.log(`Mode changed from ${evt.oldMode} to ${evt.mode}`);
-        const annotationLayer = geojs_map.current.layers()[LAYER_KEYS.ANN];
+        const layer = geojs_map.current?.layers()[LAYER_KEYS.ANN];
         if (evt.mode === null) {    // Annotation creation events automatically set annotationLayer mode to null
-            if (props.currentTool === TOOLBAR_KEYS.POLYGON) {
-                annotationLayer.mode('polygon');
-            }
-
-            if (props.currentTool === TOOLBAR_KEYS.IMPORT) {
-                annotationLayer.mode('point');
+            switch (props.currentTool) {
+                case TOOLBAR_KEYS.POLYGON:
+                    activatePolygonTool(layer, props.ctrlHeld);
+                    break;
+                case TOOLBAR_KEYS.IMPORT:
+                    activateImportTool(layer, props.ctrlHeld);
+                    break;
+                case TOOLBAR_KEYS.BRUSH:
+                    activateBrushTool(layer, props.ctrlHeld);
+                    break;
+                default:
+                    break;
             }
         }
     }
@@ -606,8 +573,6 @@ const ViewportMap = (props: Props) => {
         const brushLayer = geojs_map.current.layers()[LAYER_KEYS.BRUSH];
         brushLayer.geoOn(geo.event.annotation.cursor_click, handleBrushAction);
         brushLayer.geoOn(geo.event.annotation.cursor_action, handleBrushAction);
-        // brushLayer.geoOn(geo.event.annotation.mode, handleUpdateBrushMode);
-        // brushLayer.geoOn(geo.event.annotation.state, handleUpdateBrushMode);
 
         window.onkeydown = (evt) => {
             if (evt.key === 'Backspace' || evt.key === 'Delete') {
@@ -628,15 +593,13 @@ const ViewportMap = (props: Props) => {
 
             brushLayer.geoOff(geo.event.annotation.cursor_click, handleBrushAction);
             brushLayer.geoOff(geo.event.annotation.cursor_action, handleBrushAction);
-            // brushLayer.geoOff(geo.event.annotation.mode, handleUpdateBrushMode);
-            // brushLayer.geoOff(geo.event.annotation.state, handleUpdateBrushMode);
 
             window.onkeydown = null;
             map.geoOff(geo.event.mousemove);
             map.geoOff(geo.event.zoom);
             map.geoOff(geo.event.pan);
         };
-    }, [props.currentImage, props.currentAnnotationClass, props.currentTool, props.currentAnnotation, props.gts]);
+    }, [props.currentImage, props.currentAnnotationClass, props.currentTool, props.currentAnnotation, props.gts, props.ctrlHeld]);
 
     // When the currentAnnotationClass changes
     useEffect(() => {
@@ -673,39 +636,102 @@ const ViewportMap = (props: Props) => {
     }, [props.currentAnnotationClass]);
 
 
-    // UseEffect for when the toolbar value changes
+    // Individual tool activation methods
+    function activatePointerTool(layer: any) {
+        console.log("toolbar is 0");
+        layer?.mode(null);
+    }
+
+    function activatePolygonTool(layer: any, ctrlHeld: boolean) {
+        layer.mode('polygon', undefined, {
+            createStyle: ctrlHeld ? POLYGON_CREATE_STYLE_SECONDARY : POLYGON_CREATE_STYLE
+        });
+    }
+
+    function activateImportTool(layer: any, ctrlHeld: boolean) {
+        layer.mode(ctrlHeld ? 'polygon' : 'point', undefined, {
+            createStyle: ctrlHeld ? IMPORT_CREATE_STYLE : {}
+        });
+    }
+
+    function activateBrushTool(layer: any, ctrlHeld: boolean) {
+        if (!geojs_map.current) {
+            console.error("GeoJS map is not initialized.");
+            return;
+        }
+        const layers = geojs_map.current.layers();
+        const brushLayer = layers[LAYER_KEYS.BRUSH];
+
+        if (brushLayer) {
+          brushLayer.mode(null);
+          brushLayer.removeAllAnnotations();
+        }
+
+        layer.mode(null);
+
+        var centerX = 0;  // your desired center X  
+        var centerY = 0;  // your desired center Y  
+            
+        var pointAnnotation = geo.annotation.pointAnnotation({  
+            position: {x: centerX, y: centerY}, // your desired center position  
+            style: ctrlHeld ? BRUSH_CREATE_STYLE_SECONDARY : BRUSH_CREATE_STYLE, 
+            });  
+        brushLayer.addAnnotation(pointAnnotation);
+
+        brushLayer.mode(brushLayer.modes.cursor, pointAnnotation);
+        geojs_map.current.draw();
+
+        lastBrushState.current = null;
+    }
+
+    function removeCursor() {
+        if (!geojs_map.current) {
+            console.error("GeoJS map is not initialized.");
+            return;
+        }
+        const layers = geojs_map.current.layers();
+        const brushLayer = layers[LAYER_KEYS.BRUSH];
+
+        if (brushLayer) {
+          brushLayer.mode(null);
+          brushLayer.removeAllAnnotations();
+        }
+    }
+
+    // Update the active tool when the toolbar changes or when the ctrl key is pressed/released.
     useEffect(() => {
         console.log('detected toolbar change');
         const layer = geojs_map.current?.layers()[LAYER_KEYS.ANN];
 
-        // Clean up the brush layer
-        setBrushActive(false) 
+
+        // We need to clean up the cursor
+        removeCursor();
 
         switch (props.currentTool) {
             case null:
                 console.log("toolbar is null");
                 break;
-            case TOOLBAR_KEYS.POINTER:   // Pointer tool
-                console.log("toolbar is 0");
-                layer?.mode(null);
+            case TOOLBAR_KEYS.POINTER:
+                activatePointerTool(layer);
                 break;
-            case TOOLBAR_KEYS.POLYGON:   // polygon tool
-                // layer.active(true)
-                layer.mode('polygon');
+            case TOOLBAR_KEYS.POLYGON:
+                activatePolygonTool(layer, false);
                 break;
-            case TOOLBAR_KEYS.IMPORT:    // import tool
-                layer.mode('point');
+            case TOOLBAR_KEYS.IMPORT:
+                activateImportTool(layer, false);
                 break;
-            case TOOLBAR_KEYS.BRUSH:     // brush tool
-                setBrushActive(true);
-                lastBrushState.current = null;
+            case TOOLBAR_KEYS.BRUSH:
+                // activateBrushTool(layer, false);
                 break;
             default:
-
                 break;
-
         }
-    }, [props.currentTool])
+    }, [props.currentTool]);
+
+    useEffect(() => {
+        const layer = geojs_map.current?.layers()[LAYER_KEYS.ANN];
+        layer.mode(null);   // Set the mode to null (allowing for mode updates including style changes). This triggers the mode event listener.
+    }, [props.ctrlHeld])
 
     useEffect(() => {
         console.log("Current annotation changed.");
@@ -749,11 +775,11 @@ const ViewportMap = (props: Props) => {
 
         const predLayer = geojs_map.current.layers()[LAYER_KEYS.PRED];
         if (!predLayer) return;
-        const features = predLayer.features().filter((f) => f.featureType === 'polygon');
-        const featuresToRedraw = features.filter((f) => featureIdsToUpdate.current.includes(f.props.tile_id));
+        const features = predLayer.features().filter((f: any) => f.featureType === 'polygon');
+        const featuresToRedraw = features.filter((f: any) => featureIdsToUpdate.current.includes(f.props.tile_id));
         const highlightedPolyIds = props.highlightedPreds ? props.highlightedPreds.map(ann => ann.id) : null;
 
-        featuresToRedraw.forEach((f) => {
+        featuresToRedraw.forEach((f: any) => {
             redrawTileFeature(f, highlightedPolyIds ? { highlightedPolyIds: highlightedPolyIds } : {});
         });
 
@@ -766,24 +792,10 @@ const ViewportMap = (props: Props) => {
 
     }, [props.highlightedPreds]);
 
-    useEffect(() => {
-        if (props.currentTool === TOOLBAR_KEYS.IMPORT) {
-            const annotationLayer = geojs_map.current?.layers()[LAYER_KEYS.ANN];
-            if (annotationLayer) {
-                annotationLayer.mode(props.ctrlHeld ? 'polygon' : 'point');
-            }
-        }
-
-        if (props.currentTool === TOOLBAR_KEYS.POLYGON && props.ctrlHeld) {
-            console.log("Ctrl key is pressed. The polygon tool is in subtraction mode.")
-        }
-
-        if (props.currentTool === TOOLBAR_KEYS.BRUSH && props.ctrlHeld) {
-            console.log("Ctrl key is pressed. The brush tool is in selection mode.")
-        }
-    }, [props.ctrlHeld, props.currentTool]);
 
     useHotkeys('backspace, delete', handleDeleteAnnotation, [props.currentAnnotation, props.currentImage, props.currentAnnotationClass, props.gts]);
+    useHotkeys('ctrl', () => props.setCtrlHeld(true), { keydown: true, keyup: false });
+    useHotkeys('ctrl', () => props.setCtrlHeld(false), { keydown: false, keyup: true });
 
     return (
         <div ref={viewRef} style={

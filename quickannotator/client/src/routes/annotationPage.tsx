@@ -94,8 +94,8 @@ const AnnotationPage = () => {
     }
 
 
-    useHotkeys('ctrl', () => setCtrlHeld(true), { keydown: true, keyup: false }, [currentTool]);
-    useHotkeys('ctrl', () => setCtrlHeld(false), { keydown: false, keyup: true }, [currentTool]);
+    // useHotkeys('ctrl', () => setCtrlHeld(true), { keydown: true, keyup: false });
+    // useHotkeys('ctrl', () => setCtrlHeld(false), { keydown: false, keyup: true });
 
 
     useEffect(() => {
