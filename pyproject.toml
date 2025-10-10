@@ -8,7 +8,7 @@ license = {file = "LICENSE.txt"}
 version = "0.1.0"
 authors = [{name = "Andrew Janowczyk"}]
 maintainers = [{name = "Jackson Jacobs"}, {name = "Nan Li"}]
-description = "Quick Annotator is an open-source digital pathology annotation tool."
+description = "QuickAnnotator is an open-source digital pathology annotation tool."
 readme = {file = "README.md", content-type = "text/markdown"}
 classifiers = [
     "Intended Audience :: Science/Research",
