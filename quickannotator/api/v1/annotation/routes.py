@@ -149,6 +149,7 @@ class AnnotationOperation(MethodView):
         poly2 = shape(args['polygon2'])
         operation = args['operation']
 
+        resp = {field: args[field] for field in server_models.AnnRespSchema().fields.keys() if field in args} # Basically a copy of args without "polygon2" or "operation"
         try:
             if operation == PolygonOperations.UNION:
                 result = GeometryOperation.union(poly1, poly2)
@@ -158,7 +159,7 @@ class AnnotationOperation(MethodView):
             logger.error(str(e))
             return {"message": str(e)}, 400
         
-        resp = {field: args[field] for field in server_models.AnnRespSchema().fields.keys() if field in args} # Basically a copy of args without "polygon2" or "operation"
+        
         # unfortunately we have to lose the dictionary format because we are mimicking the geojson string outputted by the db.
         
         if result is None:
