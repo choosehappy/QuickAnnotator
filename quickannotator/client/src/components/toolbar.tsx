@@ -1,7 +1,7 @@
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import ToggleButton from 'react-bootstrap/ToggleButton';
 import {Button, ButtonToolbar} from 'react-bootstrap';
-import { Fullscreen, ArrowCounterclockwise, ArrowClockwise, Download, Cursor, Brush, Magic, Eraser, Heptagon } from 'react-bootstrap-icons';
+import { Fullscreen, ArrowCounterclockwise, ArrowClockwise, Download, Cursor, Brush, Magic, Eraser, Heptagon, Bookmark, Bookmarks } from 'react-bootstrap-icons';
 import React, { useState } from "react";
 import { TOOLBAR_KEYS } from '../helpers/config.ts';
 
@@ -31,7 +31,7 @@ const Toolbar = React.memo((props: Props) => {
 
     const radios = {
         [TOOLBAR_KEYS.POINTER]: { icon: <Cursor/>, ctrlIcon: null, disabled: false },
-        [TOOLBAR_KEYS.IMPORT]: { icon: <Download/>, ctrlIcon: null, disabled: false },
+        [TOOLBAR_KEYS.IMPORT]: { icon: <Bookmark/>, ctrlIcon: <Bookmarks/>, disabled: false },
         [TOOLBAR_KEYS.BRUSH]: { icon: <Brush/>, ctrlIcon: <Eraser/>, disabled: false },
         [TOOLBAR_KEYS.WAND]: { icon: <Magic/>, ctrlIcon: null, disabled: true },
         [TOOLBAR_KEYS.POLYGON]: { icon: <Heptagon/>, ctrlIcon: <Eraser/>, disabled: false },
