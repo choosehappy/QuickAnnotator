@@ -385,7 +385,6 @@ const ViewportMap = (props: Props) => {
         }
 
         // Clear the annotation layer
-        // annotationLayer.mode(null);
         annotationLayer.removeAllAnnotations();
         console.log("Annotation layer cleared.");
 
@@ -447,7 +446,7 @@ const ViewportMap = (props: Props) => {
     const handleAnnotationModeChange = (evt) => {
         console.log(`Mode changed from ${evt.oldMode} to ${evt.mode}`);
         const layer = geojs_map.current?.layers()[LAYER_KEYS.ANN];
-        if (evt.mode === null) {    // Annotation creation events automatically set annotationLayer mode to null
+        if (evt.mode === null) {    // Annotation creation events and ctrl key events automatically set annotationLayer mode to null
             switch (props.currentTool) {
                 case TOOLBAR_KEYS.POLYGON:
                     activatePolygonTool(layer, props.ctrlHeld);
@@ -456,7 +455,7 @@ const ViewportMap = (props: Props) => {
                     activateImportTool(layer, props.ctrlHeld);
                     break;
                 case TOOLBAR_KEYS.BRUSH:
-                    activateBrushTool(layer, props.ctrlHeld);
+                    // activateBrushTool(layer, props.ctrlHeld);
                     break;
                 default:
                     break;
@@ -642,19 +641,19 @@ const ViewportMap = (props: Props) => {
         layer?.mode(null);
     }
 
-    function activatePolygonTool(layer: any, ctrlHeld: boolean) {
+    function activatePolygonTool(layer: any, secondary: boolean) {
         layer.mode('polygon', undefined, {
-            createStyle: ctrlHeld ? POLYGON_CREATE_STYLE_SECONDARY : POLYGON_CREATE_STYLE
+            createStyle: secondary ? POLYGON_CREATE_STYLE_SECONDARY : POLYGON_CREATE_STYLE
         });
     }
 
-    function activateImportTool(layer: any, ctrlHeld: boolean) {
-        layer.mode(ctrlHeld ? 'polygon' : 'point', undefined, {
-            createStyle: ctrlHeld ? IMPORT_CREATE_STYLE : {}
+    function activateImportTool(layer: any, secondary: boolean) {
+        layer.mode(secondary ? 'polygon' : 'point', undefined, {
+            createStyle: secondary ? IMPORT_CREATE_STYLE : {}
         });
     }
 
-    function activateBrushTool(layer: any, ctrlHeld: boolean) {
+    function activateBrushTool(layer: any, secondary: boolean) {
         if (!geojs_map.current) {
             console.error("GeoJS map is not initialized.");
             return;
@@ -662,20 +661,22 @@ const ViewportMap = (props: Props) => {
         const layers = geojs_map.current.layers();
         const brushLayer = layers[LAYER_KEYS.BRUSH];
 
-        if (brushLayer) {
-          brushLayer.mode(null);
-          brushLayer.removeAllAnnotations();
+        if (!brushLayer) {
+            console.error("Brush layer not found.");
+            return;
         }
 
-        layer.mode(null);
+        brushLayer.mode(null);
+        brushLayer.removeAllAnnotations();
+
 
         var centerX = 0;  // your desired center X  
         var centerY = 0;  // your desired center Y  
             
         var pointAnnotation = geo.annotation.pointAnnotation({  
             position: {x: centerX, y: centerY}, // your desired center position  
-            style: ctrlHeld ? BRUSH_CREATE_STYLE_SECONDARY : BRUSH_CREATE_STYLE, 
-            });  
+            style: secondary ? BRUSH_CREATE_STYLE_SECONDARY : BRUSH_CREATE_STYLE, 
+        });  
         brushLayer.addAnnotation(pointAnnotation);
 
         brushLayer.mode(brushLayer.modes.cursor, pointAnnotation);
@@ -690,11 +691,16 @@ const ViewportMap = (props: Props) => {
             return;
         }
         const layers = geojs_map.current.layers();
+        const annotationLayer = layers[LAYER_KEYS.ANN];
         const brushLayer = layers[LAYER_KEYS.BRUSH];
 
         if (brushLayer) {
           brushLayer.mode(null);
           brushLayer.removeAllAnnotations();
+        }
+
+        if (annotationLayer) {
+            annotationLayer.mode(null);
         }
     }
 
@@ -702,7 +708,7 @@ const ViewportMap = (props: Props) => {
     useEffect(() => {
         console.log('detected toolbar change');
         const layer = geojs_map.current?.layers()[LAYER_KEYS.ANN];
-
+        if (!layer) return;
 
         // We need to clean up the cursor
         removeCursor();
@@ -721,17 +727,13 @@ const ViewportMap = (props: Props) => {
                 activateImportTool(layer, false);
                 break;
             case TOOLBAR_KEYS.BRUSH:
-                // activateBrushTool(layer, false);
+                activateBrushTool(layer, false);
                 break;
             default:
                 break;
         }
     }, [props.currentTool]);
 
-    useEffect(() => {
-        const layer = geojs_map.current?.layers()[LAYER_KEYS.ANN];
-        layer.mode(null);   // Set the mode to null (allowing for mode updates including style changes). This triggers the mode event listener.
-    }, [props.ctrlHeld])
 
     useEffect(() => {
         console.log("Current annotation changed.");
@@ -794,8 +796,30 @@ const ViewportMap = (props: Props) => {
 
 
     useHotkeys('backspace, delete', handleDeleteAnnotation, [props.currentAnnotation, props.currentImage, props.currentAnnotationClass, props.gts]);
-    useHotkeys('ctrl', () => props.setCtrlHeld(true), { keydown: true, keyup: false });
-    useHotkeys('ctrl', () => props.setCtrlHeld(false), { keydown: false, keyup: true });
+    useHotkeys('ctrl', (event) => {
+        const isKeyDown = event.type === 'keydown';
+        props.setCtrlHeld(isKeyDown);
+        console.log(`Ctrl key ${isKeyDown ? 'down' : 'up'}.`);
+        const annotationLayer = geojs_map.current?.layers()[LAYER_KEYS.ANN];
+        const brushLayer = geojs_map.current?.layers()[LAYER_KEYS.BRUSH];
+        if (!annotationLayer) return;
+
+        switch (props.currentTool) {
+            case TOOLBAR_KEYS.POLYGON:
+                annotationLayer.annotations()[0]?.createStyle(isKeyDown ? POLYGON_CREATE_STYLE_SECONDARY : POLYGON_CREATE_STYLE);
+                break;
+            case TOOLBAR_KEYS.BRUSH:
+                brushLayer.annotations()[0]?.createStyle(isKeyDown ? BRUSH_CREATE_STYLE_SECONDARY : BRUSH_CREATE_STYLE);
+                break;
+            case TOOLBAR_KEYS.IMPORT:
+                annotationLayer.mode(isKeyDown ? 'polygon' : 'point', undefined, {
+                    createStyle: isKeyDown ? IMPORT_CREATE_STYLE : {}
+                });
+                break;
+            default:
+                break;
+        }
+    }, { keydown: true, keyup: true }, [props.currentTool]);
 
     return (
         <div ref={viewRef} style={

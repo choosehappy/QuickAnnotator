@@ -110,7 +110,7 @@ export const IMPORT_CREATE_STYLE = {
     fillColor: { r: 1, g: 0.5, b: 0 },
     stroke: true,
     strokeColor: { r: 1, g: 0.5, b: 0 },
-    strokeWidth: 10,
+    strokeWidth: 3,
     fillOpacity: 0.9,
 };
 
@@ -121,7 +121,7 @@ export const BRUSH_CREATE_STYLE = {
     fill: true,  
     fillColor: {r: 0, g: 1, b: 0},  
     stroke: true,  
-    strokeColor: SUBTRACT_POLYGON_COLOR  
+    strokeColor: ADD_POLYGON_COLOR  
 };
 
 
