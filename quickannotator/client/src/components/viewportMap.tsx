@@ -501,8 +501,19 @@ const ViewportMap = (props: Props) => {
 
         const map = geo.map({ ...params.map, max: 20 });
         const interactor = map.interactor();
-        // We don't need rotation functionality.
-        interactor.removeAction(geo.geo_action.zoom, 'button zoom')
+
+        // Disable hotkeys for zooming to prevent conflicts with annotation tools
+        const keyboardOptions = interactor.keyboard();  
+        keyboardOptions.actions['zoom.0'] = [];  
+        keyboardOptions.actions['zoom.3'] = [];  
+        keyboardOptions.actions['zoom.6'] = [];  
+        keyboardOptions.actions['zoom.9'] = [];  
+        keyboardOptions.actions['zoom.12'] = [];  
+        keyboardOptions.actions['zoom.15'] = [];  
+        keyboardOptions.actions['zoom.18'] = [];  
+        interactor.keyboard(keyboardOptions);
+
+        // Disable rotation interactions
         interactor.removeAction(geo.geo_action.rotate, 'button rotate');
         interactor.removeAction(geo.geo_action.rotate, 'wheel rotate');
 
