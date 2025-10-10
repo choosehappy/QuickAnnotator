@@ -20,6 +20,7 @@ import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation, Data
 import AnnotationExportModal from '../components/annotationExportModal.tsx';
 import { propTypes } from 'react-bootstrap/esm/Image';
 import { CookiesProvider } from 'react-cookie';
+import { useHotkeys } from 'react-hotkeys-hook';
 
 function usePrevious<T>(value: T): T | undefined {
     const ref = useRef<T>();
@@ -37,7 +38,7 @@ const AnnotationPage = () => {
     const [gts, setGts] = useState<Annotation[]>([]);
     const [preds, setPreds] = useState<Annotation[]>([]);
     const [currentTool, setCurrentTool] = useState<string | null>('0');
-    const [action, setAction] = useState<string | null>(null);
+    const [ctrlHeld, setCtrlHeld] = useState(false);
     const [currentAnnotation, setCurrentAnnotation] = useState<CurrentAnnotation | null>(null);
     const [highlightedPreds, setHighlightedPreds] = useState<Annotation[] | null>(null); // TODO: should just be a list of annotations
     const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
@@ -91,6 +92,15 @@ const AnnotationPage = () => {
     function handleCancelExport() {
         setActiveModal(null);
     }
+
+
+    // useHotkeys('ctrl', () => setCtrlHeld(true), { keydown: true, keyup: false });
+    // useHotkeys('ctrl', () => setCtrlHeld(false), { keydown: false, keyup: true });
+    useHotkeys('1', () => setCurrentTool(TOOLBAR_KEYS.POINTER), { keydown: true });
+    useHotkeys('2', () => setCurrentTool(TOOLBAR_KEYS.IMPORT), { keydown: true });
+    useHotkeys('3', () => setCurrentTool(TOOLBAR_KEYS.BRUSH), { keydown: true });
+    // useHotkeys('4', () => setCurrentTool(TOOLBAR_KEYS.WAND), { keydown: true });
+    useHotkeys('5', () => setCurrentTool(TOOLBAR_KEYS.POLYGON), { keydown: true });
 
     useEffect(() => {
         if (projectid && imageid) {
@@ -154,9 +164,8 @@ const AnnotationPage = () => {
                                     zIndex: 10,
                                 }}>
                                     <Toolbar {...{ currentTool, 
-                                                setCurrentTool, 
-                                                action, 
-                                                setAction }} />
+                                                setCurrentTool,
+                                                ctrlHeld }} />
                                 </Card.Header>
                                 <Card.Body style={{ padding: "0px" }}>
                                     <ViewportMap {...{ currentImage, 
@@ -167,6 +176,8 @@ const AnnotationPage = () => {
                                                     setPreds, 
                                                     currentTool, 
                                                     setCurrentTool,
+                                                    ctrlHeld,
+                                                    setCtrlHeld,
                                                     currentAnnotation, 
                                                     setCurrentAnnotation, 
                                                     prevCurrentAnnotation,
