@@ -86,23 +86,19 @@ export const POPOVER_DATA: { [key: string]: PopoverData } = {
     },
     IMPORT_TOOL: {
         title: 'Import Tool',
-        description: 'Select predicted annotation to save them as ground truth annotations.',
+        description: 'Select predicted annotation to save them as ground truth annotations. Click to select a single prediction, or hold CTRL to lasso multiple predictions.',
     },
     BRUSH_TOOL: {
         title: 'Brush Tool',
-        description: 'Brush tool for annotation.',
+        description: 'Brush tool for annotation. Hold CTRL to switch to eraser mode.',
     },
     MAGIC_TOOL: {
         title: 'Magic Tool',
         description: 'Magic tool for annotation.',
     },
-    ERASER_TOOL: {
-        title: 'Eraser Tool',
-        description: 'Eraser tool for annotation.',
-    },
     POLYGON_TOOL: {
         title: 'Polygon Tool',
-        description: 'Polygon tool for annotation.',
+        description: 'Polygon tool for annotation. Hold CTRL to switch to eraser mode.',
     },
 }
 
