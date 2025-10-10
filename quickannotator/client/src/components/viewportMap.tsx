@@ -6,7 +6,7 @@ import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson
 
 import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID, COOKIE_NAMES, POLYGON_OPERATIONS, POLYGON_CREATE_STYLE, POLYGON_CREATE_STYLE_SECONDARY, IMPORT_CREATE_STYLE, BRUSH_CREATE_STYLE, BRUSH_CREATE_STYLE_SECONDARY, BRUSH_SIZE } from "../helpers/config.ts";
 
-import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered, tileIdIsValid, getScaledSize, createCirclePolygon, createConnectingRectangle} from '../utils/map.ts';
+import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered, tileIdIsValid, getScaledSize, createCirclePolygon, createConnectingRectangle } from '../utils/map.ts';
 import { useCookies } from 'react-cookie';
 import { useHotkeys, isHotkeyPressed } from 'react-hotkeys-hook';
 import { propTypes } from 'react-bootstrap/esm/Image';
@@ -214,19 +214,19 @@ const ViewportMap = (props: Props) => {
         const brushPixelTolerance = 0.05; // Determines the side length of the brush polygon.
         if (evt.event === geo.event.annotation.cursor_action) {
             if (evt.operation && evt.operation !== 'union' && evt.operation !== 'difference') {
-            return;
+                return;
             }
-            const coords1 = brushLayer.annotations()[0]._coordinates(); 
+            const coords1 = brushLayer.annotations()[0]._coordinates();
             const c1x = coords1[0].x;
             const c1y = coords1[0].y;
             const source = createCirclePolygon(c1x, c1y, scaledSize, annotationLayer, brushPixelTolerance); // Create a polygon for the brush action
-             
+
             if (lastState && lastState.stateId && lastState.stateId === evt.evt.state.stateId) {
                 const coords2 = lastState.coords; // Store the previous point coordinates  
-                const c2x = coords2[0].x;  
-                const c2y = coords2[0].y;  
-                
-                if (c1x !== c2x || c1y !== c2y) {  
+                const c2x = coords2[0].x;
+                const c2y = coords2[0].y;
+
+                if (c1x !== c2x || c1y !== c2y) {
                     source.push(createConnectingRectangle(c1x, c1y, c2x, c2y, scaledSize)); // Create a rectangle connecting the previous and current points
                 }
             }
@@ -419,7 +419,7 @@ const ViewportMap = (props: Props) => {
                 //     props.setHighlightedPreds(anns);
                 //     props.setActiveModal(MODAL_DATA.IMPORT_CONF.id);
                 // } else {
-                    // Get the ids for the features to redraw
+                // Get the ids for the features to redraw
                 setHighlightedPreds(anns);
                 const tilesResp = await searchTileIdsWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon, false);
                 if (tilesResp.status === 200) {
@@ -522,8 +522,8 @@ const ViewportMap = (props: Props) => {
             });
 
         const brushLayer = map.createLayer('annotation', {
-                showLabels: false
-            });
+            showLabels: false
+        });
 
         const uiLayer = map.createLayer('ui');
 
@@ -573,11 +573,6 @@ const ViewportMap = (props: Props) => {
         brushLayer.geoOn(geo.event.annotation.cursor_click, handleBrushAction);
         brushLayer.geoOn(geo.event.annotation.cursor_action, handleBrushAction);
 
-        window.onkeydown = (evt) => {
-            if (evt.key === 'Backspace' || evt.key === 'Delete') {
-                handleDeleteAnnotation(evt);
-            }
-        };
         map.geoOn(geo.event.mousemove, function (evt: any) {
             props.setMouseCoords({ x: Math.round(evt.geo.x * 100) / 100, y: Math.round(evt.geo.y * 100) / 100 });
         });
@@ -672,11 +667,11 @@ const ViewportMap = (props: Props) => {
 
         var centerX = 0;  // your desired center X  
         var centerY = 0;  // your desired center Y  
-            
-        var pointAnnotation = geo.annotation.pointAnnotation({  
-            position: {x: centerX, y: centerY}, // your desired center position  
-            style: secondary ? BRUSH_CREATE_STYLE_SECONDARY : BRUSH_CREATE_STYLE, 
-        });  
+
+        var pointAnnotation = geo.annotation.pointAnnotation({
+            position: { x: centerX, y: centerY }, // your desired center position  
+            style: secondary ? BRUSH_CREATE_STYLE_SECONDARY : BRUSH_CREATE_STYLE,
+        });
         brushLayer.addAnnotation(pointAnnotation);
 
         brushLayer.mode(brushLayer.modes.cursor, pointAnnotation);
@@ -695,8 +690,8 @@ const ViewportMap = (props: Props) => {
         const brushLayer = layers[LAYER_KEYS.BRUSH];
 
         if (brushLayer) {
-          brushLayer.mode(null);
-          brushLayer.removeAllAnnotations();
+            brushLayer.mode(null);
+            brushLayer.removeAllAnnotations();
         }
 
         if (annotationLayer) {

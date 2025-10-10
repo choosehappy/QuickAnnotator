@@ -23,7 +23,7 @@ export const getTileFeatureById = (layer: geo.layer, featureId: number, type='an
 
 export const tileIdIsValid = (tileId: number | null | undefined) => {
     if (tileId === null || tileId === undefined) {
-        console.warn('Tile ID is invalid:', tileId);
+        console.log('Tile ID is invalid:', tileId);
         return false;
     }
 
