@@ -19,7 +19,7 @@ class GrafanaClient:
             self.logger.info(f"Grafana datasource '{name}' already exists. Skipping creation.")
             return existing_datasource["uid"]
         except Exception as e:
-            self.logger.error(f"Datasource does not exist. Creating datasource...")
+            self.logger.info(f"Datasource does not exist. Creating datasource...")
 
         datasource = {
             "name": name,
