@@ -4,7 +4,7 @@ import { Button, ButtonToolbar, OverlayTrigger, Popover } from 'react-bootstrap'
 import Tooltip from 'react-bootstrap/Tooltip';
 import React, { useState } from "react";
 import { Annotation, PopoverData, ToolbarButton } from "../types.ts";
-import { POPOVER_DATA } from "../helpers/config";
+import { BRUSH_TOOL_HOTKEY, IMPORT_TOOL_HOTKEY, PAN_TOOL_HOTKEY, POLYGON_TOOL_HOTKEY, POPOVER_DATA, WAND_TOOL_HOTKEY } from "../helpers/config";
 import { Fullscreen, ArrowCounterclockwise, ArrowClockwise, ArrowsMove, Cursor, Brush, Magic, Eraser, Heptagon, Bookmark, Bookmarks } from 'react-bootstrap-icons';
 import { TOOLBAR_KEYS } from '../helpers/config.ts';
 
@@ -63,11 +63,11 @@ const Toolbar = React.memo((props: Props) => {
         </Popover>
     );
     const radios = {
-        [TOOLBAR_KEYS.POINTER]: { icon: <Cursor/>, ctrlIcon: null, disabled: false, title: "Pan", shortcut: "1", content: POPOVER_DATA.PAN_TOOL },
-        [TOOLBAR_KEYS.IMPORT]: { icon: <Bookmark/>, ctrlIcon: <Bookmarks/>, disabled: false, title: "Import", shortcut: "2", content: POPOVER_DATA.IMPORT_TOOL },
-        [TOOLBAR_KEYS.BRUSH]: { icon: <Brush/>, ctrlIcon: <Eraser/>, disabled: false, title: "Brush", shortcut: "3", content: POPOVER_DATA.BRUSH_TOOL },
-        [TOOLBAR_KEYS.WAND]: { icon: <Magic/>, ctrlIcon: null, disabled: true, title: "Magic", shortcut: "4", content: POPOVER_DATA.MAGIC_TOOL },
-        [TOOLBAR_KEYS.POLYGON]: { icon: <Heptagon/>, ctrlIcon: <Eraser/>, disabled: false, title: "Polygon", shortcut: "6", content: POPOVER_DATA.POLYGON_TOOL },
+        [TOOLBAR_KEYS.POINTER]: { icon: <Cursor/>, ctrlIcon: null, disabled: false, title: "Pan", shortcut: PAN_TOOL_HOTKEY, content: POPOVER_DATA.PAN_TOOL },
+        [TOOLBAR_KEYS.IMPORT]: { icon: <Bookmark/>, ctrlIcon: <Bookmarks/>, disabled: false, title: "Import", shortcut: IMPORT_TOOL_HOTKEY, content: POPOVER_DATA.IMPORT_TOOL },
+        [TOOLBAR_KEYS.BRUSH]: { icon: <Brush/>, ctrlIcon: <Eraser/>, disabled: false, title: "Brush", shortcut: BRUSH_TOOL_HOTKEY, content: POPOVER_DATA.BRUSH_TOOL },
+        [TOOLBAR_KEYS.WAND]: { icon: <Magic/>, ctrlIcon: null, disabled: true, title: "Magic", shortcut: WAND_TOOL_HOTKEY, content: POPOVER_DATA.MAGIC_TOOL },
+        [TOOLBAR_KEYS.POLYGON]: { icon: <Heptagon/>, ctrlIcon: <Eraser/>, disabled: false, title: "Polygon", shortcut: POLYGON_TOOL_HOTKEY, content: POPOVER_DATA.POLYGON_TOOL },
     };
 
     return (

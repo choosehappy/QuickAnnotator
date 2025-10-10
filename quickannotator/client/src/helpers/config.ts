@@ -118,6 +118,13 @@ export const UI_SETTINGS = {
     pendingTileFillOpacity: 0.5,
 }
 
+// Hotkeys
+export const PAN_TOOL_HOTKEY = '1';
+export const IMPORT_TOOL_HOTKEY = '2';
+export const BRUSH_TOOL_HOTKEY = '3';
+export const WAND_TOOL_HOTKEY = '4';
+export const POLYGON_TOOL_HOTKEY = '5';
+
 const ADD_POLYGON_COLOR = { r: 0, g: 0, b: 1 };
 const SUBTRACT_POLYGON_COLOR = { r: 1, g: 0, b: 0 };
 export const BRUSH_SIZE = 20;

@@ -500,9 +500,9 @@ const ViewportMap = (props: Props) => {
             viewRef.current, img.base_width, img.base_height, img.dz_tilesize, img.dz_tilesize);
 
         const map = geo.map({ ...params.map, max: 20 });
-
         const interactor = map.interactor();
         // We don't need rotation functionality.
+        interactor.removeAction(geo.geo_action.zoom, 'button zoom')
         interactor.removeAction(geo.geo_action.rotate, 'button rotate');
         interactor.removeAction(geo.geo_action.rotate, 'wheel rotate');
 
