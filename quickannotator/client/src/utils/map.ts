@@ -23,7 +23,7 @@ export const getTileFeatureById = (layer: geo.layer, featureId: number, type='an
 
 export const tileIdIsValid = (tileId: number | null | undefined) => {
     if (tileId === null || tileId === undefined) {
-        console.warn('Tile ID is invalid:', tileId);
+        console.log('Tile ID is invalid:', tileId);
         return false;
     }
 
@@ -51,7 +51,10 @@ export const createGTTileFeature = (featureProps: any, annotations: Annotation[]
 
     feature
         .position((d: Position) => ({ x: d[0], y: d[1] }))
-        .polygon((a: Annotation) => a.parsedPolygon.coordinates[0])
+        .polygon((a: Annotation) => ({
+            outer: a.parsedPolygon.coordinates[0],
+            inner: a.parsedPolygon.coordinates.slice(1)
+        }))
         .data(annotations)
         .style('fill', true)
         .style('fillColor', color)
@@ -86,7 +89,10 @@ export const createPredTileFeature = (featureProps: any, annotations: Annotation
     feature.props = featureProps;
     feature
         .position((d: Position) => ({ x: d[0], y: d[1] }))
-        .polygon((a: Annotation) => a.parsedPolygon.coordinates[0])
+        .polygon((a: Annotation) => ({
+            outer: a.parsedPolygon.coordinates[0],
+            inner: a.parsedPolygon.coordinates.slice(1)
+        }))
         .data(annotations)
         .style('fill', true)
         .style('fillColor', color)
@@ -128,3 +134,34 @@ export const createPendingTileFeature = (featureProps: any, polygons: Polygon[],
     feature.draw();
     return feature;
 }
+
+export function getScaledSize(geojs_map: geo.map, size: number): number {
+    const currentZoom = geojs_map.zoom();  
+    const scaleFactor = Math.pow(2, currentZoom);  
+    return size / scaleFactor * geojs_map.unitsPerPixel();  // Scale the size based on the current zoom level
+}
+
+export function createCirclePolygon(x: number, y: number, size: number, layer: geo.layer, pixelTolerance: number): geo.annotation.circleAnnotation {
+    const circle = geo.annotation.circleAnnotation({
+        layer: layer,
+        corners: [
+            { x: x - size, y: y - size },  // top-left
+            { x: x + size, y: y - size },  // top-right
+            { x: x + size, y: y + size },  // bottom-right
+            { x: x - size, y: y + size }   // bottom-left
+        ],
+    });
+
+    return circle.toPolygonList({ pixelTolerance: pixelTolerance }); // Convert to polygon with a pixel tolerance
+}
+
+export function createConnectingRectangle(x1: number, y1: number, x2: number, y2: number, size: number) {
+    const ang = Math.atan2(y2 - y1, x2 - x1) + Math.PI / 2;
+    return [[
+        [x1 + size * Math.cos(ang), y1 + size * Math.sin(ang)],
+        [x1 - size * Math.cos(ang), y1 - size * Math.sin(ang)],
+        [x2 - size * Math.cos(ang), y2 - size * Math.sin(ang)],
+        [x2 + size * Math.cos(ang), y2 + size * Math.sin(ang)]
+    ]];
+};
+

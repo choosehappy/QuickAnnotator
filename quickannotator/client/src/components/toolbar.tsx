@@ -2,14 +2,16 @@ import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import ToggleButton from 'react-bootstrap/ToggleButton';
 import { Button, ButtonToolbar, OverlayTrigger, Popover } from 'react-bootstrap';
 import Tooltip from 'react-bootstrap/Tooltip';
-import { Fullscreen, ArrowCounterclockwise, ArrowClockwise, Download, ArrowsMove, Brush, Magic, Eraser, Heptagon } from 'react-bootstrap-icons';
 import React, { useState } from "react";
 import { Annotation, PopoverData, ToolbarButton } from "../types.ts";
-    import { POPOVER_DATA } from "../helpers/config";
+import { POPOVER_DATA } from "../helpers/config";
+import { Fullscreen, ArrowCounterclockwise, ArrowClockwise, ArrowsMove, Cursor, Brush, Magic, Eraser, Heptagon, Bookmark, Bookmarks } from 'react-bootstrap-icons';
+import { TOOLBAR_KEYS } from '../helpers/config.ts';
 
 interface Props {
-    currentTool: string;
+    currentTool: string | null;
     setCurrentTool: (currentTool: string | null) => void;
+    ctrlHeld: boolean;
 }
 
 const Toolbar = React.memo((props: Props) => {
@@ -20,14 +22,6 @@ const Toolbar = React.memo((props: Props) => {
         { icon: <ArrowClockwise />, disabled: true, title: "Redo", shortcut: "Ctrl+Y", content: POPOVER_DATA.REDO_TOOL },
     ];
 
-    const radios: ToolbarButton[] = [
-        { icon: <ArrowsMove />, disabled: false, title: "Pan", shortcut: "1", content: POPOVER_DATA.PAN_TOOL },
-        { icon: <Download />, disabled: false, title: "Import", shortcut: "2", content: POPOVER_DATA.IMPORT_TOOL },
-        { icon: <Brush />, disabled: true, title: "Brush", shortcut: "3", content: POPOVER_DATA.BRUSH_TOOL },
-        { icon: <Magic />, disabled: true, title: "Magic", shortcut: "4", content: POPOVER_DATA.MAGIC_TOOL },
-        { icon: <Eraser />, disabled: true, title: "Eraser", shortcut: "5", content: POPOVER_DATA.ERASER_TOOL },
-        { icon: <Heptagon />, disabled: false, title: "Polygon", shortcut: "6", content: POPOVER_DATA.POLYGON_TOOL },
-    ];
     const buttonStyle: React.CSSProperties = {
         display: 'flex',
         flexDirection: 'column',
@@ -68,6 +62,13 @@ const Toolbar = React.memo((props: Props) => {
             </Popover.Body>
         </Popover>
     );
+    const radios = {
+        [TOOLBAR_KEYS.POINTER]: { icon: <Cursor/>, ctrlIcon: null, disabled: false, title: "Pan", shortcut: "1", content: POPOVER_DATA.PAN_TOOL },
+        [TOOLBAR_KEYS.IMPORT]: { icon: <Bookmark/>, ctrlIcon: <Bookmarks/>, disabled: false, title: "Import", shortcut: "2", content: POPOVER_DATA.IMPORT_TOOL },
+        [TOOLBAR_KEYS.BRUSH]: { icon: <Brush/>, ctrlIcon: <Eraser/>, disabled: false, title: "Brush", shortcut: "3", content: POPOVER_DATA.BRUSH_TOOL },
+        [TOOLBAR_KEYS.WAND]: { icon: <Magic/>, ctrlIcon: null, disabled: true, title: "Magic", shortcut: "4", content: POPOVER_DATA.MAGIC_TOOL },
+        [TOOLBAR_KEYS.POLYGON]: { icon: <Heptagon/>, ctrlIcon: <Eraser/>, disabled: false, title: "Polygon", shortcut: "6", content: POPOVER_DATA.POLYGON_TOOL },
+    };
 
     return (
         <ButtonToolbar
@@ -98,32 +99,35 @@ const Toolbar = React.memo((props: Props) => {
                 ))}
             </ButtonGroup>
             <ButtonGroup className={"me-2"}>
-                {radios.map((radio, idx) => (
+                {Object.entries(radios).map(([key, radio]) => (
                     <OverlayTrigger
+                        key={key}
                         placement="bottom"
-
                         overlay={renderTooltip(radio.content)}
                     >
-                        <ToggleButton
-                            key={idx}
-                            id={`radio-${idx}`}
-                            type="radio"
-                            variant="secondary"
-                            name="radio"
-                            value={idx}
-                            checked={props.currentTool === idx.toString()}
-                            onChange={(e) => props.setCurrentTool(e.currentTarget.value)}
-                            disabled={radio.disabled}
-                            style={buttonStyle}
-                        >
-                            {radio.icon}
-                            <span style={buttonTextStyle}>
-                                {radio.title}
-                            </span>
-                            <span style={buttonShortcutStyle}>
-                                {radio.shortcut}
-                            </span>
-                        </ToggleButton>
+                    <ToggleButton
+                        key={key}
+                        id={`radio-${key}`}
+                        type="radio"
+                        variant="secondary"
+                        name="radio"
+                        value={key}
+                        style={buttonStyle}
+                        checked={props.currentTool === key}
+                        onChange={(e) => {
+                            props.setCurrentTool(e.currentTarget.value);
+                            e.currentTarget.blur(); // Return focus to annotation page, allowing hotkey events to fire.
+                        }}
+                        disabled={radio.disabled}
+                    >
+                        {props.ctrlHeld && props.currentTool === key && radio.ctrlIcon ? radio.ctrlIcon : radio.icon}
+                        <span style={buttonTextStyle}>
+                            {radio.title}
+                        </span>
+                        <span style={buttonShortcutStyle}>
+                            {radio.shortcut}
+                        </span>
+                    </ToggleButton>
                     </OverlayTrigger>
                 ))}
             </ButtonGroup>
