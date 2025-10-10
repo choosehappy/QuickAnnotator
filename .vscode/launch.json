@@ -2,9 +2,9 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type":"firefox",
+            "type":"chrome",
             "request":"launch",
-            "name":"Launch Firefox against localhost",
+            "name":"Launch Chrome against localhost",
             "url":"http://localhost:5173",
             "webRoot":"${workspaceFolder}/quickannotator/client"
         },

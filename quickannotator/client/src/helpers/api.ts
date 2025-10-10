@@ -2,7 +2,7 @@
 type ApiResponse<T> = Promise<T>;
 import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, TileIds, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileIdsByPolygonArgs, PostAnnClassArgs } from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
-import { API_URI } from "./config.ts";
+import { API_URI, POLYGON_OPERATIONS } from "./config.ts";
 
 interface FetchOptions extends RequestInit {
     headers?: HeadersInit;
@@ -224,7 +224,7 @@ export const fetchTile = async (image_id: number, annotation_class_id: number, t
     return await get<Tile>(`/tile?${query}`);
 }
 
-export const operateOnAnnotation = async (annotation: Annotation, polygon2: Polygon, operation: number) => {
+export const operateOnAnnotation = async (annotation: Annotation, polygon2: Polygon, operation: POLYGON_OPERATIONS) => {
     const { annotation_class_id, ...rest } = annotation;
     const requestBody: PostOperationArgs = {
         ...rest,
