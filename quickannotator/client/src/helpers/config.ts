@@ -1,4 +1,4 @@
-import { ModalData, ProjectModalData } from "../types";
+import { ModalData, ProjectModalData, PopoverData } from "../types";
 
 export enum TOOLBAR_KEYS {
     POINTER = '0',  // TODO: should use int enum here.
@@ -67,8 +67,39 @@ export const MODAL_DATA: { [key: string]: ModalData } = {
 }
 
 
-export const POPOVER_DATA = {
-
+export const POPOVER_DATA: { [key: string]: PopoverData } = {
+    FULLSCREEN_TOOL: {
+        title: 'Fullscreen Tool',
+        description: 'Toggle fullscreen mode for the application window.',
+    },
+    UNDO_TOOL: {
+        title: 'Undo Tool',
+        description: 'Revert the last action performed on the current annotation.',
+    },
+    REDO_TOOL: {
+        title: 'Redo Tool',
+        description: 'Reapply the last action that was undone on the current annotation.',
+    },
+    PAN_TOOL: {
+        title: 'Pan Tool',
+        description: 'Pan around the image. You can temporarily enable this tool by holding down the middle mouse button.',
+    },
+    IMPORT_TOOL: {
+        title: 'Import Tool',
+        description: 'Select predicted annotation to save them as ground truth annotations. Click to select a single prediction, or hold CTRL to lasso multiple predictions.',
+    },
+    BRUSH_TOOL: {
+        title: 'Brush Tool',
+        description: 'Brush tool for annotation. Hold CTRL to switch to eraser mode.',
+    },
+    MAGIC_TOOL: {
+        title: 'Magic Tool',
+        description: 'Magic tool for annotation.',
+    },
+    POLYGON_TOOL: {
+        title: 'Polygon Tool',
+        description: 'Polygon tool for annotation. Hold CTRL to switch to eraser mode.',
+    },
 }
 
 // Viewport settings
@@ -82,6 +113,13 @@ export const UI_SETTINGS = {
     pendingTileFillColor: 'grey',
     pendingTileFillOpacity: 0.5,
 }
+
+// Hotkeys
+export const PAN_TOOL_HOTKEY = '1';
+export const IMPORT_TOOL_HOTKEY = '2';
+export const BRUSH_TOOL_HOTKEY = '3';
+export const WAND_TOOL_HOTKEY = '4';
+export const POLYGON_TOOL_HOTKEY = '5';
 
 const ADD_POLYGON_COLOR = { r: 0, g: 0, b: 1 };
 const SUBTRACT_POLYGON_COLOR = { r: 1, g: 0, b: 0 };

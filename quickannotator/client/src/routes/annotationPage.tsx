@@ -96,7 +96,11 @@ const AnnotationPage = () => {
 
     // useHotkeys('ctrl', () => setCtrlHeld(true), { keydown: true, keyup: false });
     // useHotkeys('ctrl', () => setCtrlHeld(false), { keydown: false, keyup: true });
-
+    useHotkeys('1', () => setCurrentTool(TOOLBAR_KEYS.POINTER), { keydown: true });
+    useHotkeys('2', () => setCurrentTool(TOOLBAR_KEYS.IMPORT), { keydown: true });
+    useHotkeys('3', () => setCurrentTool(TOOLBAR_KEYS.BRUSH), { keydown: true });
+    // useHotkeys('4', () => setCurrentTool(TOOLBAR_KEYS.WAND), { keydown: true });
+    useHotkeys('5', () => setCurrentTool(TOOLBAR_KEYS.POLYGON), { keydown: true });
 
     useEffect(() => {
         if (projectid && imageid) {
