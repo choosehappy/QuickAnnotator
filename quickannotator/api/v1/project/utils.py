@@ -49,18 +49,15 @@ def import_from_tabular(project_id: int, file: FileStorage):
     data = pd.read_csv(tsv_filepath, sep='\t', header=header, keep_default_na=False)
     columns = data.columns
 
-
-
     actor_ids = []
-    for row in data.iterrows():
+    for idx, row in data.iterrows():
         # create a actor for current row
-            actor_name = compute_actor_name(project_id, constants.NamedRayActorType.ANNOTATION_IMPORTER)
-            importer = AnnotationImporter.options(name=actor_name).remote()
-            actor_id = importer.import_from_tsv_row.remote(project_id, col_name_filename, row, columns)
+            # actor_name = compute_actor_name(project_id, constants.NamedRayActorType.ANNOTATION_IMPORTER)
+            importer = AnnotationImporter.remote()
+            actor_id = importer._actor_id.hex()
+            task_ref = importer.import_from_tsv_row.remote(project_id, col_name_filename, row, columns)
             actor_ids.append(actor_id)
-    # check if the actor is done
-    while actor_ids:
-        done_ids, actor_ids = ray.wait(actor_ids, timeout=1)
+    return  actor_ids
 
 def delete_project_and_related_data(project_id):
     project = get_project_by_id(project_id)

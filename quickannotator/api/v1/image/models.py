@@ -17,6 +17,8 @@ class GetImageArgsSchema(Schema):
 
 class UploadFileSchema(Schema):
     name = fields.Str(required=True)
+    type = fields.Str(required=True)
+    actor_ids = fields.List(fields.Str(required=False))
 
 
 class SearchImageArgsSchema(Schema):

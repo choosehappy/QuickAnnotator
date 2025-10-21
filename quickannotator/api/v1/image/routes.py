@@ -96,20 +96,20 @@ class FileUpload(MethodView):
             # get file extension
             file_basename, file_ext = os.path.splitext(filename)
             file_ext = str(file_ext[1:]).lower()
-            
+            resp = {'type':file_ext, 'name': filename}
             # handle image file
             if file_ext in WSI_extensions:
                 import_image_from_wsi(project_id, file)
-
+                return resp, 200
             # handle annotation file
             if file_ext in JSON_extensions:
                 import_annotation_from_json(file)
-
+                return resp, 200
             # handle tsv file
             if file_ext in TABULAR_extensions:
-                import_from_tabular(project_id, file)
-                return {'name':filename}, 200
-
+                actor_ids = import_from_tabular(project_id, file)
+                resp['actor_ids'] = actor_ids
+                return resp, 200
         else:
             abort(404, message="No project id foundin Args")
     

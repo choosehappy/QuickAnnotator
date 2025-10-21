@@ -24,9 +24,9 @@ def save_image_from_file(project_id: int, file: FileStorage) -> int:
     try:
         file.save(temp_filepath)
     except IOError as e:
-        print(f"Saving Image Error: An I/O error occurred when saving ${filename}: {e}")
+        logger.info(f"Saving Image Error: An I/O error occurred when saving ${filename}: {e}")
     except Exception as e:
-        print(f"Saving Image Error: An unexpected error occurred when saving ${filename}: {e}")    
+        logger.info(f"Saving Image Error: An unexpected error occurred when saving ${filename}: {e}")    
     
     # read image info and insert to image table
     new_image = add_image_by_path(project_id, temp_filepath)

@@ -15,6 +15,7 @@ from itertools import product
 from quickannotator.constants import IMPORT_ANNOTATION_BATCH_SIZE
 from quickannotator.db.logging import LoggingManager
 import orjson
+# import ujson
 from quickannotator.db.crud.annotation_class import get_annotation_class_by_name_case_insensitive
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 from tqdm import tqdm
@@ -46,7 +47,8 @@ def import_annotations(image_id: int, annotation_class_id: int, isgt: bool, file
     # use ujson to read fast
     with open(filepath, 'r', encoding='utf-8') as file:
         # Load the JSON data into a Python dictionary
-        data = orjson.loads(file.read())
+        # data = orjson.loads(file.read())
+        data = ujson.loads(file.read())
         features = data["features"]
 
 
@@ -92,10 +94,10 @@ def import_annotation_from_json(file: FileStorage):
     img = get_image_by_name_case_insensitive(image_name)
     cls = get_annotation_class_by_name_case_insensitive(annotation_class_name)
     if not img:
-        logger.info('/tImage Name ({image_name}) not found')
+        logger.info(f'/tImage Name ({image_name}) not found')
         return
     if not cls:
-        logger.info('/tAnnotation class name ({annotation_class_name}) not found')
+        logger.info(f'/tAnnotation class name ({annotation_class_name}) not found')
         return 
     # import 
     import_annotations(img.id, cls.id, True, annot_filepath)
@@ -121,12 +123,10 @@ class AnnotationImporter(ProgressTracker): # Inherit from ProgressTracker
         self.logger = LoggingManager.init_logger(constants.LoggerNames.RAY.value)
         # step 1: import slide
         # step 2: import annotations
-        super().__init__(len(2))  # Initialize ProgressTracker
+        super().__init__(2)  # Initialize ProgressTracker
         
 
     def import_from_tsv_row(self, project_id, image_path_col_name, data, columns):
-
-        time.sleep(30)
         # get slide path
         slide_path = data[image_path_col_name].strip()
         if (constants.TSVFields.FILE_PATH.value in columns) and (data[constants.TSVFields.FILE_PATH.value].strip()):
