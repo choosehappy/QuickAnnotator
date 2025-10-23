@@ -35,9 +35,9 @@ def save_annotation_file_to_temp_dir(file: FileStorage):
         file.save(annot_filepath)
         return annot_filepath
     except IOError as e:
-        print(f"Saving Annotation File Error: An I/O error occurred when saving ${file.filename}: {e}")
+        logger.info(f"Saving Annotation File Error: An I/O error occurred when saving {file.filename}: {e}")
     except Exception as e:
-        print(f"Saving Annotation File Error: An unexpected error occurred when saving ${file.filename}: {e}")
+        logger.info(f"Saving Annotation File Error: An unexpected error occurred when saving {file.filename}: {e}")
 
 def import_annotations(image_id: int, annotation_class_id: int, isgt: bool, filepath: str):
     '''
@@ -47,8 +47,8 @@ def import_annotations(image_id: int, annotation_class_id: int, isgt: bool, file
     # use ujson to read fast
     with open(filepath, 'r', encoding='utf-8') as file:
         # Load the JSON data into a Python dictionary
-        # data = orjson.loads(file.read())
-        data = ujson.loads(file.read())
+        data = orjson.loads(file.read())
+        # data = ujson.loads(file.read())
         features = data["features"]
 
 

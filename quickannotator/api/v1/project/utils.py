@@ -11,7 +11,9 @@ from quickannotator.api.v1.annotation.utils import AnnotationImporter, compute_a
 import quickannotator.constants as constants
 from werkzeug.datastructures import FileStorage
 import pandas as pd
-import ray
+import logging
+# logger
+logger = logging.getLogger(constants.LoggerNames.FLASK.value)
 
 def isHistoqcResult(tsv_path):
     with open(tsv_path, 'r') as f:
@@ -32,9 +34,9 @@ def save_tsv_to_temp_dir(project_id: int, file: FileStorage):
     try:
         file.save(tsv_filepath)
     except IOError as e:
-        print(f"Saving TSV File Error: An I/O error occurred when saving ${file.filename}: {e}")
+        logger.info(f"Saving TSV File Error: An I/O error occurred when saving {file.filename}: {e}")
     except Exception as e:
-        print(f"Saving TSV File Error: An unexpected error occurred when saving ${file.filename}: {e}")
+        logger.info(f"Saving TSV File Error: An unexpected error occurred when saving {file.filename}: {e}")
     
     return tsv_filepath
     

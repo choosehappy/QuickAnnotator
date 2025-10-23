@@ -24,9 +24,9 @@ def save_image_from_file(project_id: int, file: FileStorage) -> int:
     try:
         file.save(temp_filepath)
     except IOError as e:
-        logger.info(f"Saving Image Error: An I/O error occurred when saving ${filename}: {e}")
+        logger.info(f"Saving Image Error: An I/O error occurred when saving {filename}: {e}")
     except Exception as e:
-        logger.info(f"Saving Image Error: An unexpected error occurred when saving ${filename}: {e}")    
+        logger.info(f"Saving Image Error: An unexpected error occurred when saving {filename}: {e}")    
     
     # read image info and insert to image table
     new_image = add_image_by_path(project_id, temp_filepath)
@@ -79,7 +79,7 @@ def import_image_from_wsi(project_id:int ,file: FileStorage):
     # get file extension
     file_basename, file_ext = os.path.splitext(filename)
 
-    logger.info("Import image ${filename}:")
+    logger.info("Import image {filename}:")
     image_id = save_image_from_file(project_id, file)
 
     # get all annotation class name
@@ -91,5 +91,5 @@ def import_image_from_wsi(project_id:int ,file: FileStorage):
             annot_filepath = os.path.join(temp_image_path, f'{file_basename}_{annot_cls.name}_annotations.{format.value}')
             # for geojson
             if os.path.exists(annot_filepath):
-                logger.info("/tFound image annotation file - ${annot_filepath}")
+                logger.info("/tFound image annotation file - {annot_filepath}")
                 import_annotations(image_id, annot_cls.id , True, annot_filepath)
