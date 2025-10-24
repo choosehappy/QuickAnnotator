@@ -623,7 +623,6 @@ const ViewportMap = (props: Props) => {
             return;
         }
 
-        activeRenderGroundTruthsCall.current = 0;
         geojs_map.current?.exit();
         initializeMap()
 
@@ -634,9 +633,9 @@ const ViewportMap = (props: Props) => {
         props.setGts([]);
         props.setPreds([]);
 
-        // renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
-        //     console.log("Ground truths rendered on initial load.");
-        // })
+        renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
+            console.log("Ground truths rendered on initial load.");
+        })
 
         const interval = setInterval(() => {
             // console.log("Interval triggered.");
