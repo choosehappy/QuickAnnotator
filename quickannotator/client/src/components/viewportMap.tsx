@@ -433,6 +433,9 @@ const ViewportMap = (props: Props) => {
                     if (cookies[COOKIE_NAMES.SKIP_CONFIRM_IMPORT]) {
                         postAnnotations(currentImage.id, currentAnnotationClass?.id, anns.map(ann => ann.parsedPolygon)).then(() => {
                             setHighlightedPreds(null);
+                            renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
+                                console.log("Ground truths rendered.");
+                            });
                         });
                     } else {
                         // Open the import confirmation modal
@@ -631,9 +634,9 @@ const ViewportMap = (props: Props) => {
         props.setGts([]);
         props.setPreds([]);
 
-        renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
-            console.log("Ground truths rendered on initial load.");
-        })
+        // renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
+        //     console.log("Ground truths rendered on initial load.");
+        // })
 
         const interval = setInterval(() => {
             // console.log("Interval triggered.");
@@ -798,14 +801,6 @@ const ViewportMap = (props: Props) => {
         featuresToRedraw.forEach((f: any) => {
             redrawTileFeature(f, highlightedPolyIds ? { highlightedPolyIds: highlightedPolyIds } : {});
         });
-
-        if (!highlightedPolyIds) {
-            renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
-                console.log("Predictions rendered.");
-                featureIdsToUpdate.current = [];
-            });
-        }
-
     }, [props.highlightedPreds]);
 
 
