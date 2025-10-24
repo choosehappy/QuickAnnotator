@@ -22,14 +22,6 @@ import { propTypes } from 'react-bootstrap/esm/Image';
 import { CookiesProvider } from 'react-cookie';
 import { useHotkeys } from 'react-hotkeys-hook';
 
-function usePrevious<T>(value: T): T | undefined {
-    const ref = useRef<T>();
-    useEffect(() => {
-        ref.current = value;
-    }, [value]);
-    return ref.current;
-}
-
 const AnnotationPage = () => {
     const { projectid, imageid } = useParams();
     const { currentImage, setCurrentImage, currentProject, setCurrentProject } = useOutletContext<OutletContextType>();
@@ -40,11 +32,41 @@ const AnnotationPage = () => {
     const [currentTool, setCurrentTool] = useState<string | null>('0');
     const [ctrlHeld, setCtrlHeld] = useState(false);
     const [currentAnnotation, setCurrentAnnotation] = useState<CurrentAnnotation | null>(null);
-    const [highlightedPreds, setHighlightedPreds] = useState<Annotation[] | null>(null); // TODO: should just be a list of annotations
-    const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
+    const [highlightedPreds, setHighlightedPreds] = useState<Annotation[] | null>(null);
+    const prevCurrentAnnotation = useRef<CurrentAnnotation | null>(null);
     const [activeModal, setActiveModal] = useState<number | null>(null);
     const [mouseCoords, setMouseCoords] = useState<{ x: number, y: number }>({x: 0, y: 0});
     const [annotationClasses, setAnnotationClasses] = useState<AnnotationClass[]>([]);
+
+    function setCurrentAndPreviousAnnotation(newAnnotation: Annotation | null) {    // NOTE: Consider making this a custom hook if the pattern is used elsewhere
+        setCurrentAnnotation((currAnn: CurrentAnnotation | null) => {
+            const prevAnnotationId = currAnn?.currentState ?? null;
+            const newAnnotationId = newAnnotation?.id ?? null;
+
+            // If the user clicked away from an annotation update currentAnnotation to null
+            if (newAnnotation === null) {
+                prevCurrentAnnotation.current = currAnn;
+                return null;
+            }
+
+            // If the user clicked on a different annotation, create a new CurrentAnnotation and save the last one to prevCurrentAnnotation
+            if (newAnnotationId !== prevAnnotationId) {
+                prevCurrentAnnotation.current = currAnn;
+                return new CurrentAnnotation(newAnnotation);
+            } else {
+                return currAnn;
+            }
+        })
+    }
+
+    function pushAnnotationStateToUndoStack(annotation: Annotation) {
+        setCurrentAnnotation((currAnn: CurrentAnnotation | null) => {
+            if (currAnn === null) return null;
+            else {
+                return currAnn.addAnnotation(annotation);
+            }
+        });
+    }
 
     function handleConfirmImport() {
         // Set activeModal to null
@@ -179,7 +201,8 @@ const AnnotationPage = () => {
                                                     ctrlHeld,
                                                     setCtrlHeld,
                                                     currentAnnotation, 
-                                                    setCurrentAnnotation, 
+                                                    setCurrentAndPreviousAnnotation, 
+                                                    pushAnnotationStateToUndoStack,
                                                     prevCurrentAnnotation,
                                                     highlightedPreds,
                                                     setHighlightedPreds,

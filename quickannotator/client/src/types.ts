@@ -178,9 +178,12 @@ export class CurrentAnnotation {
         return this.undoStack.at(-1);
     }
 
-    addAnnotation(annotation: Annotation) {
-        this.undoStack.push(annotation);
-        this.redoStack = [];
+    // Note that useState objects cannot be mutated directly, so we have to return a new object.
+    addAnnotation(annotation: Annotation): CurrentAnnotation {
+        const newCurrentAnnotation = new CurrentAnnotation(this.undoStack[0]);
+        newCurrentAnnotation.undoStack = [...this.undoStack, annotation];
+        newCurrentAnnotation.redoStack = [];
+        return newCurrentAnnotation;
     }
 
     undo() {
