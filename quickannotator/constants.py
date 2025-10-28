@@ -20,6 +20,9 @@ class PolygonOperations(enum.IntEnum):
     UNION = 0
     DIFFERENCE = 1
 
+class MultiPolygonToPolygonFuncs(enum.Enum):
+    MAX = 'max'
+
 class ImageType(enum.IntEnum):
     IMAGE = 0
     THUMBNAIL = 1

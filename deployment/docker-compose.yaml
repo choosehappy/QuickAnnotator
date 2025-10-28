@@ -1,0 +1,66 @@
+name: quickannotator_services
+
+services:
+  postgis:
+    image: postgis/postgis:latest
+    container_name: qa_postgis
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - qa_net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: qa_grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgis
+    restart: unless-stopped
+    networks:
+      - qa_net
+
+  qa:
+    image: histotools/quickannotator:main
+    container_name: qa
+    volumes:
+      - nas_read:/opt/QuickAnnotator/quickannotator/mounts/nas_read
+      - nas_write:/opt/QuickAnnotator/quickannotator/mounts/nas_write
+    networks:
+      - qa_net
+    depends_on:
+      - postgis
+    environment:
+      - POSTGRES_HOST=qa_postgis
+    ports:
+      - "5000:5000"
+      - "5173:5173"
+      - "8265:8265"
+      - "6006:6006"
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+    shm_size: '12gb'
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+
+
+networks:
+  qa_net:
+    driver: bridge
+
+volumes:
+  postgis_data:
+  nas_read:
+  nas_write:
+  # qadb_data: # only needed if using sqlite db

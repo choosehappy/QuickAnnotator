@@ -34,7 +34,7 @@ const Navigation = (props: NavbarProps) => {
             <Navbar bg="dark" data-bs-theme="dark">
                 <Container fluid>
                     <Nav>
-                        <Navbar.Brand as={Link} to="/">Quick Annotator</Navbar.Brand>
+                        <Navbar.Brand as={Link} to="/">QuickAnnotator</Navbar.Brand>
                         {props.currentProject && <Item><Nav.Link as={Link} to={`/project/${props.currentProject.id}`}>{props.currentProject.name}</Nav.Link></Item>}
                         {props.currentProject && props.currentImage && <Item><Nav.Link as={Link} to={`/project/${props.currentProject.id}/annotate/${props.currentImage.id}`} >{props.currentImage.name}</Nav.Link></Item>}
                     </Nav>

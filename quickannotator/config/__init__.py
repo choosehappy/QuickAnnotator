@@ -11,7 +11,23 @@ def get_database_uri():
   if "pytest" in sys.modules:
     return config.get('sqlalchemy', 'test_database_uri', fallback='sqlite:///:memory:')
   else:
-    return config.get('sqlalchemy', 'database_uri', fallback='sqlite:////opt/QuickAnnotator/quickannotator/instance/quickannotator.db')
+    postgres_uri = f"postgresql+psycopg2://{get_postgres_username()}:{get_postgres_password()}@{get_postgres_host()}:{get_postgres_port()}/{get_postgres_db()}"
+    return postgres_uri
+  
+def get_postgres_host():
+    return os.environ.get('POSTGRES_HOST', 'qa_postgis')
+
+def get_postgres_port():
+    return config.getint('sqlalchemy', 'postgres_port', fallback=5432)
+
+def get_postgres_username():
+    return config.get('sqlalchemy', 'postgres_username', fallback='admin')
+
+def get_postgres_password():
+    return config.get('sqlalchemy', 'postgres_password', fallback='admin')
+
+def get_postgres_db():
+    return config.get('sqlalchemy', 'postgres_db', fallback='qa_postgis_db')
 
 def get_database_path():
   return config.get('sqlalchemy', 'database_path', fallback='quickannotator/instance')
@@ -24,3 +40,15 @@ def get_ray_dashboard_port():
 
 def get_api_version():
   return config.get('api', 'version', fallback='v1')
+
+def get_grafana_host():
+    return config.get('grafana', 'host', fallback='http://grafana:3000')
+
+def get_grafana_username():
+    return config.get('grafana', 'username', fallback='admin')
+
+def get_grafana_password():
+    return config.get('grafana', 'password', fallback='admin')
+
+def get_logs_dashboard_config_path():
+  return config.get('grafana', 'logs_dashboard_config_path', fallback='quickannotator/grafana/logs_postgres.json')

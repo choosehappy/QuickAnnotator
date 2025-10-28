@@ -13,6 +13,8 @@ import quickannotator.constants as constants
 from quickannotator.db.logging import LoggingManager
 import logging
 
+from quickannotator.grafana.utils import initialize_grafana
+
 def serve_quickannotator(app):
     # NOTE: Will need to account for reverse proxy scenarios: https://docs.pylonsproject.org/projects/waitress/en/stable/reverse-proxy.html
     try:
@@ -72,6 +74,8 @@ def main():
     # ------------------------ LOGGING SETUP --------------------
     logger = LoggingManager.init_logger(constants.LoggerNames.FLASK.value)
     logger.info("Initialized logger.")
+
+    initialize_grafana()
 
     # ------------------------ RAY SETUP ------------------------
     logger.info("Starting Ray...")

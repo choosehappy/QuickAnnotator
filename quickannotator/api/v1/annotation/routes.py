@@ -4,7 +4,7 @@ from quickannotator.db.crud.annotation import AnnotationStore, build_export_file
 from quickannotator.db.crud.image import get_image_by_id
 from quickannotator.db.crud.tile import TileStoreFactory
 from quickannotator.db.fsmanager import fsmanager
-from .utils import AnnotationExporter, compute_actor_name
+from .utils import AnnotationExporter, compute_actor_name, GeometryOperation
 import quickannotator.db.models as db_models
 from . import models as server_models
 from quickannotator import constants
@@ -149,14 +149,27 @@ class AnnotationOperation(MethodView):
         poly2 = shape(args['polygon2'])
         operation = args['operation']
 
-        if operation == PolygonOperations.UNION:
-            union = poly1.union(poly2)
+        resp = {field: args[field] for field in server_models.AnnRespSchema().fields.keys() if field in args} # Basically a copy of args without "polygon2" or "operation"
+        try:
+            if operation == PolygonOperations.UNION:
+                result = GeometryOperation.union(poly1, poly2)
+            elif operation == PolygonOperations.DIFFERENCE:
+                result = GeometryOperation.difference(poly1, poly2)
+        except ValueError as e:
+            logger.error(str(e))
+            return {"message": str(e)}, 400
         
-            resp = {field: args[field] for field in server_models.AnnRespSchema().fields.keys() if field in args} # Basically a copy of args without "polygon2" or "operation"
-            # unfortunately we have to lose the dictionary format because we are mimicking the geojson string outputted by the db.
-            resp['polygon'] = json.dumps(mapping(union))
-            resp['centroid'] = json.dumps(mapping(union.centroid))   
-            resp['area'] = union.area
+        
+        # unfortunately we have to lose the dictionary format because we are mimicking the geojson string outputted by the db.
+        
+        if result is None:
+            resp['polygon'] = None
+            resp['centroid'] = None
+            resp['area'] = 0
+            return resp, 200
+        resp['polygon'] = json.dumps(mapping(result))
+        resp['centroid'] = json.dumps(mapping(result.centroid))   
+        resp['area'] = result.area
 
         return resp, 200
     
