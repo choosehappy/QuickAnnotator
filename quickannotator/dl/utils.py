@@ -229,7 +229,7 @@ class CacheManager(ABC, Generic[T]):
             logger.info("Memcached client successfully created.")
             return client
         except Exception as e:
-            logger.error(f"Failed to create Memcached client: {e}")
+            logger.warning(f"Failed to create Memcached client: {e}")
             return None
 
     def cache(self, key: str, data: T, expire: int = 3600):
@@ -247,7 +247,7 @@ class CacheManager(ABC, Generic[T]):
             self.client.set(key, data, expire)
             logger.info(f"Data cached successfully with key: {key}")
         except Exception as e:
-            logger.error(f"Failed to cache data with key {key}: {e}. Continuing without cache.")
+            logger.warning(f"Failed to cache data with key {key}: {e}. Continuing without cache.")
 
     def get_cached(self, key: str) -> Optional[T]:
         """
@@ -280,7 +280,7 @@ class CacheManager(ABC, Generic[T]):
             self.client.delete(key)
             logger.info(f"Cache invalidated for key: {key}")
         except Exception as e:
-            logger.error(f"Failed to invalidate cache for key {key}: {e}. Continuing without invalidation.")
+            logger.warning(f"Failed to invalidate cache for key {key}: {e}. Continuing without invalidation.")
             return
 
 

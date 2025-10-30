@@ -16,8 +16,9 @@ interface Props {
     currentImage: Image | null;
     currentAnnotationClass: AnnotationClass | null;
     currentAnnotation: CurrentAnnotation | null;
-    setCurrentAnnotation: React.Dispatch<React.SetStateAction<CurrentAnnotation | null>>;
-    prevCurrentAnnotation: CurrentAnnotation | null;
+    setCurrentAndPreviousAnnotation: (newAnnotation: Annotation | null) => void;
+    pushAnnotationStateToUndoStack: (annotation: Annotation) => void;
+    prevCurrentAnnotation: React.MutableRefObject<CurrentAnnotation | null>;
     gts: Annotation[];
     setGts: React.Dispatch<React.SetStateAction<Annotation[]>>;
     preds: Annotation[];
@@ -177,7 +178,8 @@ const ViewportMap = (props: Props) => {
         console.log(evt.data)
         polygonClicked.current = true;
 
-        props.setCurrentAnnotation(new CurrentAnnotation(evt.data));
+        // Note: gets called even when clicking on an already selected polygon.
+        props.setCurrentAndPreviousAnnotation(evt.data);
 
         setTimeout(() => {
             polygonClicked.current = false;
@@ -194,7 +196,7 @@ const ViewportMap = (props: Props) => {
             const currentState = props.currentAnnotation.currentState;
             const tile_id = currentState?.tile_id;
             if (tileIdIsValid(tile_id)) {
-                props.setCurrentAnnotation(null);
+                props.setCurrentAndPreviousAnnotation(null);
             }
         }
     }
@@ -264,7 +266,7 @@ const ViewportMap = (props: Props) => {
                 const updatedGroundTruths = props.gts.filter((gt: Annotation) => gt.id !== annotationId);
                 props.setGts(updatedGroundTruths);
                 redrawTileFeature(feature, {}, deletedData);
-                props.setCurrentAnnotation(null);
+                props.setCurrentAndPreviousAnnotation(null);
                 console.log(`Annotation id=${annotationId} deleted.`)
             })
         }
@@ -297,6 +299,7 @@ const ViewportMap = (props: Props) => {
                             console.log(`Annotation id=${currentState.id} deleted due to null polygon.`);
                         });
                 }
+                props.setCurrentAndPreviousAnnotation(null);
             } else {
                 // Update the annotation
                 const updatedData: Annotation[] = data.map((d: Annotation) => d.id === currentState.id ? newState : d);
@@ -304,7 +307,9 @@ const ViewportMap = (props: Props) => {
 
                 props.setGts(updatedGroundTruths);
                 redrawTileFeature(feature, { currentAnnotationId: currentState.id }, updatedData);
+                props.pushAnnotationStateToUndoStack(newState);
             }
+
         });
     }
 
@@ -428,6 +433,9 @@ const ViewportMap = (props: Props) => {
                     if (cookies[COOKIE_NAMES.SKIP_CONFIRM_IMPORT]) {
                         postAnnotations(currentImage.id, currentAnnotationClass?.id, anns.map(ann => ann.parsedPolygon)).then(() => {
                             setHighlightedPreds(null);
+                            renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
+                                console.log("Ground truths rendered.");
+                            });
                         });
                     } else {
                         // Open the import confirmation modal
@@ -615,7 +623,6 @@ const ViewportMap = (props: Props) => {
             return;
         }
 
-        activeRenderGroundTruthsCall.current = 0;
         geojs_map.current?.exit();
         initializeMap()
 
@@ -746,7 +753,7 @@ const ViewportMap = (props: Props) => {
     useEffect(() => {
         console.log("Current annotation changed.");
         const currentState = props.currentAnnotation?.currentState;
-        const prevState = props.prevCurrentAnnotation?.currentState;
+        const prevState = props.prevCurrentAnnotation?.current?.currentState;
         const tile_id = currentState?.tile_id;
         const prevTileId = prevState?.tile_id;
         const annotationId = currentState?.id;
@@ -757,8 +764,9 @@ const ViewportMap = (props: Props) => {
         if (tileIdIsValid(tile_id)) {
             const feature = getTileFeatureById(layer, tile_id);
             redrawTileFeature(feature, { currentAnnotationId: currentState?.id });
+            const undoStackLength = props.currentAnnotation?.undoStack.length;
 
-            if (!polygonClicked.current) {  // The polygon was selected from the ground truth list.
+            if (currentState && !polygonClicked.current && undoStackLength && undoStackLength === 1) {  // If the annotation was changed programmatically (not clicked), we center the map.
                 const centroid = currentState.parsedCentroid;
                 translateMap(centroid.coordinates[0], centroid.coordinates[1]);
             }
@@ -792,14 +800,6 @@ const ViewportMap = (props: Props) => {
         featuresToRedraw.forEach((f: any) => {
             redrawTileFeature(f, highlightedPolyIds ? { highlightedPolyIds: highlightedPolyIds } : {});
         });
-
-        if (!highlightedPolyIds) {
-            renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
-                console.log("Predictions rendered.");
-                featureIdsToUpdate.current = [];
-            });
-        }
-
     }, [props.highlightedPreds]);
 
 

@@ -40,7 +40,7 @@ export const post = async <U, T>(url: string, data: U, options: FetchOptions = {
 };
 
 // PUT request method
-export const put = async <T, U>(url: string, data: U, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
+export const put = async <U, T>(url: string, data: U, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
     const response = await fetch(`${API_URL}${url}`, {
         method: 'PUT',
         headers: {
