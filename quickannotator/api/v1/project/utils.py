@@ -44,10 +44,10 @@ def import_from_tabular(project_id: int, file: FileStorage):
     tsv_filepath = save_tsv_to_temp_dir(project_id, file)
     # read tsv file
     header = 0
-    col_name_filename = constants.TSVFields.FILE_NAME.value
+    col_name_filepath = constants.TSVFields.FILE_PATH.value
+
     if isHistoqcResult(tsv_filepath):
         header = constants.TSVFields.HISTO_TSV_HEADLINE.value - 1
-        col_name_filename = constants.TSVFields.HISTO_FILE_NAME.value 
     data = pd.read_csv(tsv_filepath, sep='\t', header=header, keep_default_na=False)
     columns = data.columns
 
@@ -57,7 +57,7 @@ def import_from_tabular(project_id: int, file: FileStorage):
             # actor_name = compute_actor_name(project_id, constants.NamedRayActorType.ANNOTATION_IMPORTER)
             importer = AnnotationImporter.remote()
             actor_id = importer._actor_id.hex()
-            task_ref = importer.import_from_tsv_row.remote(project_id, row, columns, col_name_filename)
+            task_ref = importer.import_from_tsv_row.remote(project_id, row, columns, col_name_filepath)
             actor_ids.append(actor_id)
     return  actor_ids
 
