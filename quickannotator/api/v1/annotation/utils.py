@@ -130,21 +130,24 @@ class AnnotationImporter(ProgressTracker): # Inherit from ProgressTracker
         super().__init__(2)  # Initialize ProgressTracker
         
 
-    def import_from_tsv_row(self, project_id, image_path_col_name, data, columns):
+    def import_from_tsv_row(self, project_id, data, columns, image_path_col_name=constants.TSVFields.FILE_PATH.value):
         # get slide path
-        slide_path = data[image_path_col_name].strip()
-        if (constants.TSVFields.FILE_PATH.value in columns) and (data[constants.TSVFields.FILE_PATH.value].strip()):
-                slide_path = data[constants.TSVFields.FILE_PATH.value].strip()        
+        slide_path = data[image_path_col_name].strip()    
         # create slide if the slide path exist
-        if os.path.exists(fsmanager.nas_read.relative_to_global(slide_path)) is False:
+        if not os.path.exists(fsmanager.nas_read.relative_to_global(slide_path)):
             self.logger.error(f"Slide path - {slide_path} not found")
             raise Exception(f"Slide path - {slide_path} not found")
         
-        # create the image
-        new_image = add_image_by_path(project_id, slide_path)
-        image_id = new_image.id
+        image = get_image_by_name_case_insensitive(os.path.basename(slide_path))
+        if image:
+            self.logger.info(f"Image '{image.name}' already exists, skip importing.")
+        else:
+            # create the image
+            image = add_image_by_path(project_id, slide_path)          
+            self.logger.info(f"Import a image '{image.name}' successfully")
+
         self.increment()
-        self.logger.info(f"Import a image '{new_image.name}' successfully")
+
         self.logger.info(f"Progress: {self.get_progress()}%")
 
         # Filter annotation classes ending with '_annotations'
@@ -153,7 +156,7 @@ class AnnotationImporter(ProgressTracker): # Inherit from ProgressTracker
             class_name = name[:-len(constants.ANNOTATION_CLASS_SUFFIX)]
             cls = get_annotation_class_by_name_case_insensitive(class_name)
             if cls and data[name].strip():
-                import_annotations(image_id, cls.id, True, fsmanager.nas_read.relative_to_global(data[name].strip()))  
+                import_annotations(image.id, cls.id, True, fsmanager.nas_read.relative_to_global(data[name].strip()))  
                 self.logger.info(f"Import the class '{class_name}' annotations successfully")
         self.increment()
         self.logger.info(f"Progress: {self.get_progress()}%")

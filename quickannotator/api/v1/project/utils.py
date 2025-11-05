@@ -57,7 +57,7 @@ def import_from_tabular(project_id: int, file: FileStorage):
             # actor_name = compute_actor_name(project_id, constants.NamedRayActorType.ANNOTATION_IMPORTER)
             importer = AnnotationImporter.remote()
             actor_id = importer._actor_id.hex()
-            task_ref = importer.import_from_tsv_row.remote(project_id, col_name_filename, row, columns)
+            task_ref = importer.import_from_tsv_row.remote(project_id, row, columns, col_name_filename)
             actor_ids.append(actor_id)
     return  actor_ids
 
