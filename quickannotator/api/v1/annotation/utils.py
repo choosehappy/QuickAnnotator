@@ -48,14 +48,21 @@ def import_annotations(image_id: int, annotation_class_id: int, isgt: bool, file
     This is expected to be a geojson feature collection file, with each polygon being a feature.
     
     '''
+    if not os.path.exists(filepath):
+        logger.warning(f"File {filepath} does not exist - skipping.")
+        return
+
     # use ujson to read fast
     with open(filepath, 'r', encoding='utf-8') as file:
         # Load the JSON data into a Python dictionary
         data = orjson.loads(file.read())
         # data = ujson.loads(file.read())
+        if 'features' not in data:
+            logger.error("Invalid GeoJSON: Must be a FeatureCollection containing a 'features' item - skipping")
+            return
         features = data["features"]
 
-
+    breakpoint()
     tile_store: TileStore = TileStoreFactory.get_tilestore()
     annotation_store = AnnotationStore(image_id, annotation_class_id, isgt, in_work_mag=False)
     all_anno = []
@@ -79,24 +86,22 @@ def import_annotations(image_id: int, annotation_class_id: int, isgt: bool, file
     # remove annotation file
     try:
         os.remove(filepath)
-        print(f"/tAnnotation json file '{filepath}' deleted successfully.")
+        logger.info(f"/tAnnotation json file '{filepath}' deleted successfully.")
     except OSError as e:
-        print(f"Error deleting Annotation json file '{filepath}': {e}")
+        logger.error(f"Error deleting Annotation json file '{filepath}': {e}")
 
     # logging message
     logger.info("/tImported the annotations for image ${image_id} and annotation_class ${annotation_class_id} from ${filepath}")
 
-def import_annotation_from_json(file: FileStorage):
-
+def import_annotation_from_json(project_id: int, file: FileStorage):
     annot_filepath = save_annotation_file_to_temp_dir(file)
-    
     filename = file.filename
     # get file extension
     file_basename = os.path.splitext(filename)
     [image_name, annotation_class_name] = file_basename.name.split('_')[:]
     # find the image by file name
-    img = get_image_by_name_case_insensitive(image_name)
-    cls = get_annotation_class_by_name_case_insensitive(annotation_class_name)
+    img = get_image_by_name_case_insensitive(project_id, image_name)
+    cls = get_annotation_class_by_name_case_insensitive(project_id, annotation_class_name)
     if not img:
         logger.info(f'/tImage Name ({image_name}) not found')
         return
@@ -139,17 +144,16 @@ class AnnotationImporter(ProgressTracker): # Inherit from ProgressTracker
             raise Exception(f"Slide path - {slide_path} not found")
         
         with get_session() as db_session:
-            image = get_image_by_name_case_insensitive(os.path.basename(slide_path))
+            image = get_image_by_name_case_insensitive(project_id, os.path.basename(slide_path))
             if image:
                 image_id = image.id
-                self.logger.info(f"Image '{image_id}' already exists, skip importing.")
+                self.logger.info(f"Image '{image_id}' already exists. Moving on to import annotations...")
             else:
                 # create the image
                 image = add_image_by_path(project_id, slide_path)
                 image_id = image.id
-
                 if image_id:
-                    self.logger.info(f"Import a image '{image.name}' successfully")
+                    self.logger.info(f"Imported image '{image.name}' successfully")
                 else:
                     self.logger.error(f"Failed to import image from path: {slide_path}")
                     raise Exception(f"Failed to import image from path: {slide_path}")
@@ -157,12 +161,12 @@ class AnnotationImporter(ProgressTracker): # Inherit from ProgressTracker
             self.increment()
 
             self.logger.info(f"Progress: {self.get_progress()}%")
-
         # Filter annotation classes ending with '_annotations'
             annto_class_names = [col for col in columns if col.endswith(constants.ANNOTATION_CLASS_SUFFIX)]
             for name in annto_class_names:
                 class_name = name[:-len(constants.ANNOTATION_CLASS_SUFFIX)]
-                cls = get_annotation_class_by_name_case_insensitive(class_name)
+                cls = get_annotation_class_by_name_case_insensitive(project_id, class_name)
+                breakpoint()
                 if cls and data[name].strip():
                     import_annotations(image_id, cls.id, True, fsmanager.nas_read.relative_to_global(data[name].strip()))  
                     self.logger.info(f"Import the class '{class_name}' annotations successfully")

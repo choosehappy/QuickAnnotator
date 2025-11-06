@@ -11,11 +11,14 @@ def get_annotation_class_by_id(annotation_class_id: int) -> db_models.Annotation
 def get_all_annotation_classes_for_project(project_id: int) -> List[db_models.AnnotationClass]:
     return db_session.query(db_models.AnnotationClass).filter(db_models.AnnotationClass.project_id == project_id).all()
 
-def get_annotation_class_by_name(name: str) -> db_models.AnnotationClass:
-    return db_session.query(db_models.AnnotationClass).filter(db_models.AnnotationClass.name == name).first()
+def get_annotation_class_by_name(project_id: int, name: str) -> db_models.AnnotationClass:
+    return db_session.query(db_models.AnnotationClass).filter(db_models.AnnotationClass.project_id == project_id, db_models.AnnotationClass.name == name).first()
 
-def get_annotation_class_by_name_case_insensitive(name: str) -> db_models.AnnotationClass:
-    return db_session.query(db_models.AnnotationClass).filter(sqlalchemy.func.lower(db_models.AnnotationClass.name) == name.lower()).first()
+def get_annotation_class_by_name_case_insensitive(project_id: int, name: str) -> db_models.AnnotationClass:
+    return db_session.query(db_models.AnnotationClass).filter(
+            (db_models.AnnotationClass.project_id == project_id) | (db_models.AnnotationClass.project_id == None), 
+            sqlalchemy.func.lower(db_models.AnnotationClass.name) == name.lower()
+        ).first()
 
 def get_all_annotation_classes() -> List[db_models.AnnotationClass]:
     return db_session.query(db_models.AnnotationClass).all()

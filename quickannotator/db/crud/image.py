@@ -36,11 +36,11 @@ def add_image_by_path(project_id, relative_path):
     db_session.commit()
     return image
 
-def get_image_by_name(name: str) -> db_models.Image:
-    return db_session.query(db_models.Image).filter(db_models.Image.name == name).first()
+def get_image_by_name(project_id: int, name: str) -> db_models.Image:
+    return db_session.query(db_models.Image).filter(db_models.Image.project_id == project_id, db_models.Image.name == name).first()
 
-def get_image_by_name_case_insensitive(name: str) -> db_models.Image:
-    return db_session.query(db_models.Image).filter(func.lower(db_models.Image.name) == name.lower()).first()
+def get_image_by_name_case_insensitive(project_id: int, name: str) -> db_models.Image:
+    return db_session.query(db_models.Image).filter(db_models.Image.project_id == project_id, func.lower(db_models.Image.name) == name.lower()).first()
 
 def get_images_by_project_id(project_id: int) -> List[db_models.Image]:
     return db_session.query(db_models.Image).filter(db_models.Image.project_id==project_id).all()

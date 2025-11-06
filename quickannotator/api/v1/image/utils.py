@@ -78,8 +78,10 @@ def import_image_from_wsi(project_id:int ,file: FileStorage):
     filename = file.filename
     # get file extension
     file_basename, file_ext = os.path.splitext(filename)
-
-    logger.info("Import image {filename}:")
+    logger.info(f"Import image {filename}:")
+    if get_image_by_name_case_insensitive(project_id, filename):
+        logger.info(f"Image {filename} already exists. Skipping image upload")
+        return
     image_id = save_image_from_file(project_id, file)
 
     # get all annotation class name
