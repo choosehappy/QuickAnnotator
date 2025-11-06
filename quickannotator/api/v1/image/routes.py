@@ -102,7 +102,7 @@ class FileUpload(MethodView):
                 import_image_from_wsi(project_id, file)
             # handle annotation file
             if file_ext in JSON_extensions:
-                import_annotation_from_json(file)
+                import_annotation_from_json(project_id, file)
             # handle tsv file
             if file_ext in TABULAR_extensions:
                 actor_ids = import_from_tabular(project_id, file)

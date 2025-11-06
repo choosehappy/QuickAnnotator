@@ -62,7 +62,6 @@ def import_annotations(image_id: int, annotation_class_id: int, isgt: bool, file
             return
         features = data["features"]
 
-    breakpoint()
     tile_store: TileStore = TileStoreFactory.get_tilestore()
     annotation_store = AnnotationStore(image_id, annotation_class_id, isgt, in_work_mag=False)
     all_anno = []
@@ -91,7 +90,7 @@ def import_annotation_from_json(project_id: int, file: FileStorage):
     filename = file.filename
     # get file extension
     file_basename = os.path.splitext(filename)
-    [image_name, annotation_class_name] = file_basename.name.split('_')[:]
+    image_name, annotation_class_name = file_basename[0].rsplit('_', 1)
     # find the image by file name
     img = get_image_by_name_case_insensitive(project_id, image_name)
     cls = get_annotation_class_by_name_case_insensitive(project_id, annotation_class_name)
@@ -166,7 +165,6 @@ class AnnotationImporter(ProgressTracker): # Inherit from ProgressTracker
             for name in annto_class_names:
                 class_name = name[:-len(constants.ANNOTATION_CLASS_SUFFIX)]
                 cls = get_annotation_class_by_name_case_insensitive(project_id, class_name)
-                breakpoint()
                 if cls and data[name].strip():
                     import_annotations(image_id, cls.id, True, fsmanager.nas_read.relative_to_global(data[name].strip()))  
 
