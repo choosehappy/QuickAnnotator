@@ -16,7 +16,7 @@ logger = logging.getLogger(constants.LoggerNames.FLASK.value)
 
 def save_image_from_file(project_id: int, file: FileStorage) -> int:
     filename = file.filename
-    temp_path = fsmanager.nas_write.get_temp_image_path(relative=False)
+    temp_path = fsmanager.nas_write.get_temp_path(relative=False)
     temp_filepath = os.path.join(temp_path, filename)
 
     # save image to temp folder
@@ -89,9 +89,10 @@ def import_image_from_wsi(project_id:int ,file: FileStorage):
     # import annotation if it exist in temp dir
     for annot_cls in annotation_classes:
         for format in constants.AnnotationFileFormats:
-            temp_image_path = fsmanager.nas_write.get_temp_image_path(relative=False)
-            annot_filepath = os.path.join(temp_image_path, f'{file_basename}_{annot_cls.name}_annotations.{format.value}')
+            temp_path = fsmanager.nas_write.get_temp_path(relative=False)
+            annotation_filename = fsmanager.nas_write.construct_annotation_file_name(file_basename, annot_cls.name, format.value)
+            annot_filepath = os.path.join(temp_path, annotation_filename)
             # for geojson
             if os.path.exists(annot_filepath):
-                logger.info("/tFound image annotation file - {annot_filepath}")
+                logger.info(f"Found image annotation file - {annot_filepath}")
                 import_annotations(image_id, annot_cls.id , True, annot_filepath)

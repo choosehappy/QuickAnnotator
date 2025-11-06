@@ -30,7 +30,7 @@ import logging
 logger = logging.getLogger(constants.LoggerNames.FLASK.value)
 
 def save_annotation_file_to_temp_dir(file: FileStorage):
-    temp_image_path = fsmanager.nas_write.get_temp_image_path(relative=False)
+    temp_image_path = fsmanager.nas_write.get_temp_path(relative=False)
     annot_filepath = os.path.join(temp_image_path, file.filename)
 
     # save annot to temp folder
@@ -88,9 +88,7 @@ def import_annotations(image_id: int, annotation_class_id: int, isgt: bool, file
 def import_annotation_from_json(project_id: int, file: FileStorage):
     temp_annotation_filepath = save_annotation_file_to_temp_dir(file)
     filename = file.filename
-    # get file extension
-    file_basename = os.path.splitext(filename)
-    image_name, annotation_class_name = file_basename[0].rsplit('_', 1)
+    image_name, annotation_class_name = fsmanager.nas_write.parse_annotation_file_name(filename)
     # find the image by file name
     img = get_image_by_name_case_insensitive(project_id, image_name)
     cls = get_annotation_class_by_name_case_insensitive(project_id, annotation_class_name)
@@ -160,9 +158,9 @@ class AnnotationImporter(ProgressTracker): # Inherit from ProgressTracker
             self.increment()
 
             self.logger.info(f"Progress: {self.get_progress()}%")
-        # Filter annotation classes ending with '_annotations'
-            annto_class_names = [col for col in columns if col.endswith(constants.ANNOTATION_CLASS_SUFFIX)]
-            for name in annto_class_names:
+            # Filter annotation classes ending with '_annotations'
+            annot_class_names = [col for col in columns if col.endswith(constants.ANNOTATION_CLASS_SUFFIX)]
+            for name in annot_class_names:
                 class_name = name[:-len(constants.ANNOTATION_CLASS_SUFFIX)]
                 cls = get_annotation_class_by_name_case_insensitive(project_id, class_name)
                 if cls and data[name].strip():
