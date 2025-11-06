@@ -230,7 +230,7 @@ class NASWrite(FileStore):
         Returns:
             str: The constructed annotation file name.
         """
-        return f"{image_name}_{annotation_class_name}{constants.ANNOTATION_CLASS_SUFFIX}.{extension}"
+        return f"{image_name}_{annotation_class_name}.{extension}"
 
     def get_debug_path(self, relative: bool = False):
         """
