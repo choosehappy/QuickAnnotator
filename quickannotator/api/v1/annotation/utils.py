@@ -81,20 +81,13 @@ def import_annotations(image_id: int, annotation_class_id: int, isgt: bool, file
         anns = annotation_store.insert_annotations(all_anno)
         tile_ids = {ann.tile_id for ann in anns}
         tile_store.upsert_gt_tiles(image_id=image_id, annotation_class_id=annotation_class_id, tile_ids=tile_ids)
-        db_session.commit()
-    
-    # remove annotation file
-    try:
-        os.remove(filepath)
-        logger.info(f"/tAnnotation json file '{filepath}' deleted successfully.")
-    except OSError as e:
-        logger.error(f"Error deleting Annotation json file '{filepath}': {e}")
+        db_session.commit()    
 
     # logging message
-    logger.info("/tImported the annotations for image ${image_id} and annotation_class ${annotation_class_id} from ${filepath}")
+    logger.info(f'/tImported the annotations for image {image_id} and annotation_class {annotation_class_id} from {filepath}')
 
 def import_annotation_from_json(project_id: int, file: FileStorage):
-    annot_filepath = save_annotation_file_to_temp_dir(file)
+    temp_annotation_filepath = save_annotation_file_to_temp_dir(file)
     filename = file.filename
     # get file extension
     file_basename = os.path.splitext(filename)
@@ -109,7 +102,14 @@ def import_annotation_from_json(project_id: int, file: FileStorage):
         logger.info(f'/tAnnotation class name ({annotation_class_name}) not found')
         return 
     # import 
-    import_annotations(img.id, cls.id, True, annot_filepath)
+    import_annotations(img.id, cls.id, True, temp_annotation_filepath)
+
+    # remove annotation file.
+    try:
+        os.remove(temp_annotation_filepath)
+        logger.info(f"/tAnnotation json file '{temp_annotation_filepath}' deleted successfully.")
+    except OSError as e:
+        logger.error(f"Error deleting Annotation json file '{temp_annotation_filepath}': {e}")
   
 class ProgressTracker:
     def __init__(self, total: int):
@@ -169,7 +169,6 @@ class AnnotationImporter(ProgressTracker): # Inherit from ProgressTracker
                 breakpoint()
                 if cls and data[name].strip():
                     import_annotations(image_id, cls.id, True, fsmanager.nas_read.relative_to_global(data[name].strip()))  
-                    self.logger.info(f"Import the class '{class_name}' annotations successfully")
 
         self.increment()
         self.logger.info(f"Progress: {self.get_progress()}%")
