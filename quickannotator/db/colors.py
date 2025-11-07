@@ -12,8 +12,7 @@ class ColorPalette():
         self.project_id = project_id
 
     def get_unused_color(self):
-        result = [get_annotation_class_by_id(constants.MASK_CLASS_ID)]  # Always include the mask class
-        result.extend(get_all_annotation_classes_for_project(self.project_id))
+        result = get_all_annotation_classes_for_project(self.project_id)
         used_colors = {ac.color for ac in result}
         for color in self.color_list:
             if color not in used_colors:
