@@ -87,7 +87,6 @@ def import_image_from_wsi(project_id:int ,file: FileStorage):
     # get all annotation class name
     annotation_classes = list(get_all_annotation_classes())
     db_session.expunge_all()
-    breakpoint()
     # import annotation if it exist in temp dir
     for annot_cls in annotation_classes:
         annot_cls_name = annot_cls.name
@@ -96,7 +95,6 @@ def import_image_from_wsi(project_id:int ,file: FileStorage):
             temp_path = fsmanager.nas_write.get_temp_path(relative=False)
             annotation_filename = fsmanager.nas_write.construct_annotation_file_name(file_basename, annot_cls_name, format.value)
             annot_filepath = os.path.join(temp_path, annotation_filename)
-            # breakpoint()
             # for geojson
             if os.path.exists(annot_filepath):
                 logger.info(f"Found image annotation file - {annot_filepath}")
