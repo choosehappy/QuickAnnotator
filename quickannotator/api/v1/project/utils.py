@@ -41,8 +41,7 @@ def save_tsv_to_temp_dir(project_id: int, file: FileStorage):
     
     return tsv_filepath
     
-@ray.remote
-def import_from_tabular(project_id: int, file: FileStorage):
+def import_from_tabular(project_id: int, file: FileStorage) -> ray.ObjectRef:
     tsv_filepath = save_tsv_to_temp_dir(project_id, file)
     # read tsv file
     header = 0
@@ -53,13 +52,15 @@ def import_from_tabular(project_id: int, file: FileStorage):
     data = pd.read_csv(tsv_filepath, sep='\t', header=header, keep_default_na=False)
     columns = data.columns
 
+    ref = process_tabular_rows.remote(data, project_id)
+    return ref
+
+@ray.remote
+def process_tabular_rows(data: pd.DataFrame, project_id: int) -> None:
     for idx, row in data.iterrows():
         # create a actor for current row
         importer = AnnotationImporter.remote()
-        actor_id = importer._actor_id.hex()
-        task_ref = importer.import_from_tsv_row.remote(project_id, row, columns, col_name_filepath)
-        actor_ids.append(actor_id)
-    return actor_ids
+        importer.import_from_tsv_row.remote(project_id, row, data.columns, constants.TSVFields.FILE_PATH.value)
 
 def delete_project_and_related_data(project_id):
     project = get_project_by_id(project_id)
