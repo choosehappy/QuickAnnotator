@@ -3,6 +3,7 @@ from flask_smorest import abort
 from flask.views import MethodView
 from flask import request, send_from_directory, send_file
 from sqlalchemy import func
+from quickannotator.api.v1.utils.ray_cluster import build_ray_cluster_filters
 import quickannotator.constants as constants
 import quickannotator.db.models as db_models
 from quickannotator.db import db_session
@@ -14,6 +15,7 @@ from quickannotator.api.v1.project.utils import import_from_tabular
 import large_image
 import os
 import io
+import ray.util.state
 
 import logging
 from . import models as server_models
@@ -105,8 +107,9 @@ class FileUpload(MethodView):
                 import_annotation_from_json(project_id, file)
             # handle tsv file
             if file_ext in TABULAR_extensions:
-                actor_ids = import_from_tabular(project_id, file)
-                resp['actor_ids'] = actor_ids
+                ref = import_from_tabular.remote(project_id, file)
+                task_id = ray.util.state.get_task(ref).task_id
+                resp['ray_cluster_filters'] = build_ray_cluster_filters(task_id)
             
             return resp, 200
         else:

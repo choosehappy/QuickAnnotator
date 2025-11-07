@@ -18,8 +18,7 @@ class GetImageArgsSchema(Schema):
 class UploadFileSchema(Schema):
     name = fields.Str(required=True)
     type = fields.Str(required=True)
-    actor_ids = fields.List(fields.Str(required=False))
-
+    ray_cluster_filters = fields.List(fields.Tuple(fields.Str(), fields.Str(), fields.Str()), required=False)
 
 class SearchImageArgsSchema(Schema):
     pass

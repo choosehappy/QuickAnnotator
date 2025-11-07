@@ -12,6 +12,7 @@ import quickannotator.constants as constants
 from werkzeug.datastructures import FileStorage
 import pandas as pd
 import logging
+import ray
 # logger
 logger = logging.getLogger(constants.LoggerNames.FLASK.value)
 
@@ -40,6 +41,7 @@ def save_tsv_to_temp_dir(project_id: int, file: FileStorage):
     
     return tsv_filepath
     
+@ray.remote
 def import_from_tabular(project_id: int, file: FileStorage):
     tsv_filepath = save_tsv_to_temp_dir(project_id, file)
     # read tsv file
@@ -51,15 +53,13 @@ def import_from_tabular(project_id: int, file: FileStorage):
     data = pd.read_csv(tsv_filepath, sep='\t', header=header, keep_default_na=False)
     columns = data.columns
 
-    actor_ids = []
     for idx, row in data.iterrows():
         # create a actor for current row
-            # actor_name = compute_actor_name(project_id, constants.NamedRayActorType.ANNOTATION_IMPORTER)
-            importer = AnnotationImporter.remote()
-            actor_id = importer._actor_id.hex()
-            task_ref = importer.import_from_tsv_row.remote(project_id, row, columns, col_name_filepath)
-            actor_ids.append(actor_id)
-    return  actor_ids
+        importer = AnnotationImporter.remote()
+        actor_id = importer._actor_id.hex()
+        task_ref = importer.import_from_tsv_row.remote(project_id, row, columns, col_name_filepath)
+        actor_ids.append(actor_id)
+    return actor_ids
 
 def delete_project_and_related_data(project_id):
     project = get_project_by_id(project_id)
