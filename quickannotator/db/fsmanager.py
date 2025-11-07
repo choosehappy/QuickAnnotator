@@ -193,7 +193,7 @@ class NASWrite(FileStore):
         relative_path = os.path.join(self.get_annotation_class_path(annotation_class_id, relative=True), "logs")
         return relative_path if relative else self.relative_to_global(relative_path)
 
-    def get_temp_image_path(self, relative: bool = False):
+    def get_temp_path(self, relative: bool = False):
         """
         Get the directory path for temporary images.
 
@@ -206,6 +206,32 @@ class NASWrite(FileStore):
         relative_path = "temp"  # Removed os.path.join
         return relative_path if relative else self.relative_to_global(relative_path)
     
+    def parse_annotation_file_name(self, filename: str):
+        """
+        Parse the annotation file name to extract image name and annotation class name.
+
+        Args:
+            filename (str): The annotation file name.
+        Returns:
+            tuple: A tuple containing the image name and annotation class name.
+        """
+        file_basename = os.path.splitext(filename)
+        image_name, annotation_class_name = file_basename[0].rsplit('_', 1)
+        return image_name, annotation_class_name
+
+    def construct_annotation_file_name(self, image_name: str, annotation_class_name: str, extension: str) -> str:
+        """
+        Construct the annotation file name from image name and annotation class name.
+
+        Args:
+            image_name (str): The image name.
+            annotation_class_name (str): The annotation class name.
+
+        Returns:
+            str: The constructed annotation file name.
+        """
+        return f"{image_name}_{annotation_class_name}.{extension}"
+
     def get_debug_path(self, relative: bool = False):
         """
         Get the directory path for debug files.

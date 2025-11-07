@@ -7,9 +7,59 @@ from quickannotator.db.crud.annotation_class import delete_annotation_classes
 from quickannotator.db.crud.image import delete_images
 from quickannotator.db.crud.project import delete_projects, get_project_by_id
 from quickannotator.db.crud.tile import TileStoreFactory
+from quickannotator.api.v1.annotation.utils import AnnotationImporter, compute_actor_name
 import quickannotator.constants as constants
+from werkzeug.datastructures import FileStorage
+import pandas as pd
+import logging
+# logger
+logger = logging.getLogger(constants.LoggerNames.FLASK.value)
 
+def isHistoqcResult(tsv_path):
+    with open(tsv_path, 'r') as f:
+        for i in range(constants.TSVFields.HISTO_TSV_HEADLINE.value):
+            line = f.readline()
+            if not line:
+                return False
+            if not line.startswith('#'):
+                return False
+        return True
+    
+def save_tsv_to_temp_dir(project_id: int, file: FileStorage):
+    # save tsv under current project folder
+    project_path = fsmanager.nas_write.get_project_path(project_id=project_id ,relative=False)
+    tsv_filepath = os.path.join(project_path, file.filename)
+    os.makedirs(project_path, exist_ok=True)
 
+    try:
+        file.save(tsv_filepath)
+    except IOError as e:
+        logger.info(f"Saving TSV File Error: An I/O error occurred when saving {file.filename}: {e}")
+    except Exception as e:
+        logger.info(f"Saving TSV File Error: An unexpected error occurred when saving {file.filename}: {e}")
+    
+    return tsv_filepath
+    
+def import_from_tabular(project_id: int, file: FileStorage):
+    tsv_filepath = save_tsv_to_temp_dir(project_id, file)
+    # read tsv file
+    header = 0
+    col_name_filepath = constants.TSVFields.FILE_PATH.value
+
+    if isHistoqcResult(tsv_filepath):
+        header = constants.TSVFields.HISTO_TSV_HEADLINE.value - 1
+    data = pd.read_csv(tsv_filepath, sep='\t', header=header, keep_default_na=False)
+    columns = data.columns
+
+    actor_ids = []
+    for idx, row in data.iterrows():
+        # create a actor for current row
+            # actor_name = compute_actor_name(project_id, constants.NamedRayActorType.ANNOTATION_IMPORTER)
+            importer = AnnotationImporter.remote()
+            actor_id = importer._actor_id.hex()
+            task_ref = importer.import_from_tsv_row.remote(project_id, row, columns, col_name_filepath)
+            actor_ids.append(actor_id)
+    return  actor_ids
 
 def delete_project_and_related_data(project_id):
     project = get_project_by_id(project_id)

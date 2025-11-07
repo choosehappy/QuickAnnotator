@@ -29,12 +29,13 @@ class ImageType(enum.IntEnum):
 
 class NamedRayActorType(enum.Enum):
     ANNOTATION_EXPORTER = 'exporter'
+    ANNOTATION_IMPORTER = 'importer'
     
 class ExportFormatExtensions(enum.Enum):
     GEOJSON = 'geojson'
     TSV = 'tsv'
 
-
+ANNOTATION_CLASS_SUFFIX = '_annotations'
 MASK_DILATION = 1
 BASE_PATH = '/opt/QuickAnnotator'
 MOUNTS_PATH = os.path.join(BASE_PATH, 'quickannotator/mounts')
@@ -109,3 +110,18 @@ class ImageFormat(enum.Enum):
 class AnnotationReturnMode(enum.IntEnum):
     GEOJSON = 0
     WKB = 1
+
+class TSVFields(enum.Enum):
+    HISTO_TSV_HEADLINE = 6
+    HISTO_FILE_NAME = '#dataset:filename'
+    FILE_NAME = 'filename'
+    #
+    FILE_PATH = 'filepath'
+    #
+    QA_COMMENTS = 'qa_comments'
+    HISTOQC_COMMENTS = 'histoqc_comments'
+    PRIORITY_COMMENTS = 'priority_comments'
+    #
+    EMBEDDING_COORD = 'embedding_coord'
+    GROUP_ID = 'group_id'
+    SPLIT = 'split'
