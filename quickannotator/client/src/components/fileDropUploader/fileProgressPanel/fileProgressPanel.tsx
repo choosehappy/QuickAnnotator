@@ -1,12 +1,3 @@
-
-import { useEffect, useState } from "react";
-import { UploadedFiles } from "../../types.ts";
-import Dropzone from 'react-dropzone';
-import { useDropzone } from 'react-dropzone';
-import { CloudArrowUp } from 'react-bootstrap-icons';
-import { uploadFiles } from '../../helpers/api.ts';
-import Alert from 'react-bootstrap/Alert';
-import CloseButton from 'react-bootstrap/CloseButton';
 import ProgressBar from 'react-bootstrap/ProgressBar';
 import './fileProgressPanel.css'
 import { FileEarmarkText, FileEarmarkImage, Check, X } from 'react-bootstrap-icons';
@@ -27,7 +18,10 @@ interface Props {
 const WSI_FILES_EXT: string[] = ['svs', 'tif', 'dcm', 'ndpi', 'vms', 'vmu', 'scn']
 
 const isWSIFile = (file_name: string) => {
-    const file_ext: string = file_name.split('.').pop();
+    const file_ext: string | undefined = file_name.split('.').pop();
+    if (!file_ext) {
+        throw new Error("File extension could not be determined.");
+    }
     return WSI_FILES_EXT.includes(file_ext)
 }
 
