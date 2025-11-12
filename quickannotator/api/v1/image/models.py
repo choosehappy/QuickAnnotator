@@ -1,5 +1,6 @@
 from flask_smorest.fields import Upload
 from marshmallow import fields, Schema
+from quickannotator.api.v1.ray.models import RayClusterStateFilters
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 import quickannotator.db.models as db_models
@@ -15,10 +16,9 @@ class GetImageArgsSchema(Schema):
     image_id = fields.Int(required=True)
 
 
-class UploadFileSchema(Schema):
+class UploadFileSchema(RayClusterStateFilters):
     name = fields.Str(required=True)
     type = fields.Str(required=True)
-    ray_cluster_filters = fields.List(fields.Tuple((fields.Str(), fields.Str(), fields.Str())), required=False)
 
 class SearchImageArgsSchema(Schema):
     pass

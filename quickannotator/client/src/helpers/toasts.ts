@@ -37,5 +37,3 @@ export function addPendingToast() {
         }
     );
 }
-
-type Toast
