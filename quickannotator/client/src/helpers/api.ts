@@ -336,4 +336,4 @@ export const getAnnotationPageURL = (project_id: number, image_id: number) => `/
 
 export const getImageThumbnailURL = (image_id: number) =>`/api/v1/image/${image_id}/1/file`
 
-export const UploadImageURL = () =>`/api/v1/image/upload`
+export const UploadImageURL = () =>`/api/v1/image/upload`;

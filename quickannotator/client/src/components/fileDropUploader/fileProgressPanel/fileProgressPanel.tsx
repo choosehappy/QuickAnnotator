@@ -1,18 +1,14 @@
 import ProgressBar from 'react-bootstrap/ProgressBar';
 import './fileProgressPanel.css'
 import { FileEarmarkText, FileEarmarkImage, Check, X } from 'react-bootstrap-icons';
+import { UploadStatus } from '../../../types.ts';
+import { Spinner } from 'react-bootstrap';
 
 interface Props {
     name: string
-    status: number
+    status: UploadStatus
     progress: number
     removeHandler: (file_name: string) => void;
-}
-// status -> 0 - selected, 1 - uploading, 2 - done
-interface Props {
-    // gts: Annotation[];
-    // setGts: (gts: Annotation[]) => void;
-    // currentAnnotation: CurrentAnnotation
 }
 
 const WSI_FILES_EXT: string[] = ['svs', 'tif', 'dcm', 'ndpi', 'vms', 'vmu', 'scn']
@@ -38,14 +34,18 @@ const FileProgressPanel = (props: Props) => {
                         <ProgressBar now={props.progress} label={`${props.progress}%`} />
                     </div>
                     <div className="check-circle">
-                        {props.status === 0 ? (
+                        {props.status === UploadStatus.selected ? (
                             <X onClick={(e) => {
                                 e.stopPropagation();
                                 props.removeHandler(props.name)
                             }} />
-                            ): props.status === 1 ? (
-                                `${props.progress}%`
-                            ) : <Check onClick={(e) => {e.stopPropagation();}}/>}
+                        ) : props.status === UploadStatus.pending ? (
+                            <Spinner animation="border" size="sm" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                            </Spinner>
+                        ) : (
+                            <Check onClick={(e) => { e.stopPropagation(); }} />
+                        )}
                     </div>
                     
 

@@ -53,6 +53,7 @@ def import_from_tabular(project_id: int, file: FileStorage) -> ray.ObjectRef:
     columns = data.columns
 
     ref = process_tabular_rows.remote(data, project_id)
+    ray.wait([ref], timeout=0) # ensure the task has been submitted to the cluster before returning the task id.
     return ref
 
 @ray.remote

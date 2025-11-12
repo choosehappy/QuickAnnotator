@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { UploadStatus, UploadFileStore, DropzoneFile } from "../../types.ts";
 import Dropzone from 'react-dropzone';
@@ -24,13 +23,40 @@ const FileDropUploader = (props: any) => {
 
 
     // remove file form files
-    const removeFile = (fileName: string) => {
+    function removeFile(fileName: string) {
         const files_removed = files.filter(f => f.name !== fileName)
         delete filesStatus[fileName]
         setFiles([...files_removed])
         setFilesStatus({ ...filesStatus })
     }
-    const handleDone = (e) => {
+
+    function updateFileStatus(fileName: string, progress: number, status: UploadStatus) {
+        const newStatus: UploadFileStore = {}
+        if (filesStatus[fileName]) {
+            newStatus[fileName] = { progress: progress, status: status };
+        } else {
+            console.error(`File ${fileName} not found in status store.`);
+            return;
+        }
+        setFilesStatus((prev) => ({
+            ...prev,
+            ...newStatus
+        }));
+    }
+
+    function addNewFiles(newFiles: FileWithPath[]) {
+        const newFileStatus: UploadFileStore = {}
+        newFiles.forEach(f => {
+            newFileStatus[f.name] = { progress: 0, status: UploadStatus.selected }
+        });
+        setFiles([...files, ...newFiles]);
+        setFilesStatus((prev) => ({
+            ...prev,
+            ...newFileStatus
+        }));
+    }
+
+    function handleDone(e) {
         e.stopPropagation();
         setFiles([])
         setFilesStatus({})
@@ -50,15 +76,7 @@ const FileDropUploader = (props: any) => {
         });
 
         if (newFiles.length > 0) {
-            const newFileStatus: UploadFileStore = {}
-            newFiles.forEach(f => {
-                newFileStatus[f.name] = { progress: 0, status: UploadStatus.selected }
-            });
-            setFiles([...files, ...newFiles]);
-            setFilesStatus((prev) => ({
-                ...prev,
-                ...newFileStatus
-            }));
+            addNewFiles(newFiles);
         }
     };
 
@@ -87,27 +105,26 @@ const FileDropUploader = (props: any) => {
             formData.append('project_id',props.project_id)
             xhr.upload.onprogress = (event) => {
                 if (event.lengthComputable && filesStatus[d.name]) {
-                    const newStatus: UploadFileStore = {}
-                    newStatus[d.name] = { progress: Math.round((event.loaded / event.total) * 100), status: UploadStatus.uploading }
-                    setFilesStatus((prev) => ({
-                        ...prev,
-                        ...newStatus
-                    }));
+                    updateFileStatus(d.name, Math.round((event.loaded / event.total) * 100), UploadStatus.uploading)
                 }
 
             };
 
             xhr.onload = () => {
                 if (xhr.status === 200) {
-                    if (filesStatus[d.name]) {
-                        const newStatus: UploadFileStore = {}
-                        newStatus[d.name] = { progress: 100, status: UploadStatus.done }
-                        setFilesStatus((prev) => ({
-                            ...prev,
-                            ...newStatus
-                        }));
-                        props.reloadHandler()
+                    const response = JSON.parse(xhr.responseText);
+
+                    if (response.ray_cluster_filters) {
+                        updateFileStatus(d.name, 100, UploadStatus.pending);
+                        setInterval(() => {
+                            console.log('This will poll the ray cluster state every 5 seconds');
+                            updateFileStatus(d.name, 100, UploadStatus.pending);
+                        }, 5000);
+                    } else if (filesStatus[d.name]) {
+                        updateFileStatus(d.name, 100, UploadStatus.done);
+                        props.reloadHandler();
                     }
+
                 } else {
                     console.error(`Error uploading ${d.name}`);
                 }

@@ -108,8 +108,7 @@ class FileUpload(MethodView):
             # handle tsv file
             if file_ext in TABULAR_extensions:
                 ref = import_from_tabular(project_id, file)
-                task_id = ray.util.state.get_task(ref).task_id
-                resp['ray_cluster_filters'] = build_ray_cluster_filters(task_id)
+                resp['ray_cluster_filters'] = build_ray_cluster_filters(ref.task_id())
             
             return resp, 200
         else:

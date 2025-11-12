@@ -12,6 +12,6 @@ class RayTaskState(Schema):
     errorMessage = fields.Str(required=True)
 
 
-# class RayTaskStateResponse(Schema):
-#     taskStates = fields.List(RayTaskState)
+class RayTaskStateResponse(Schema):
+    taskStates = fields.List(fields.Nested(RayTaskState))
 
