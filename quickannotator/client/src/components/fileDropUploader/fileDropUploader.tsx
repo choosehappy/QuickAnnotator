@@ -1,7 +1,8 @@
 
 import { useEffect, useState } from "react";
-import { UploadedFiles } from "../../types.ts";
+import { UploadStatus, UploadFileStore, DropzoneFile } from "../../types.ts";
 import Dropzone from 'react-dropzone';
+
 import { useDropzone } from 'react-dropzone';
 import { CloudArrowUp } from 'react-bootstrap-icons';
 import { UploadImageURL } from '../../helpers/api.ts';
@@ -11,18 +12,19 @@ import './fileDropUploader.css'
 import { Prev } from "react-bootstrap/esm/PageItem";
 
 import {UPLOAD_ACCEPTED_FILES, WSI_EXTS, JSON_EXTS, TABULAR_EXTS} from '../../helpers/config.ts'
+import { FileWithPath } from 'react-dropzone';
 interface Props {
 
 }
 
 const FileDropUploader = (props: any) => {
 
-    const [files, setFiles] = useState([]);
-    const [filesStatus, setFilesStatus] = useState({});
+    const [files, setFiles] = useState<FileWithPath[]>([]);
+    const [filesStatus, setFilesStatus] = useState<UploadFileStore>({});
 
 
     // remove file form files
-    const removeFile = (fileName) => {
+    const removeFile = (fileName: string) => {
         const files_removed = files.filter(f => f.name !== fileName)
         delete filesStatus[fileName]
         setFiles([...files_removed])
@@ -39,18 +41,18 @@ const FileDropUploader = (props: any) => {
 
     // file { file:File, status: Number }
     // status: 0 - selected, 1 - uploading, 2 - uploaded, 3 - error
-    const handleDrop = (acceptedFiles) => {
+    const handleDrop = (acceptedFiles: FileWithPath[]) => {
 
 
         const newFiles = acceptedFiles.filter((file) => {
-            const existingFile = files.find((f) => f.file === file);
+            const existingFile = files.find((f) => f === file);
             return !existingFile;
         });
 
         if (newFiles.length > 0) {
-            const newFileStatus = {}
+            const newFileStatus: UploadFileStore = {}
             newFiles.forEach(f => {
-                newFileStatus[f.name] = { progress: 0, status: 0 }
+                newFileStatus[f.name] = { progress: 0, status: UploadStatus.selected }
             });
             setFiles([...files, ...newFiles]);
             setFilesStatus((prev) => ({
@@ -59,10 +61,10 @@ const FileDropUploader = (props: any) => {
             }));
         }
     };
-    
-    const filterByExtensions = (files, exts) => {
+
+    const filterByExtensions = (files: FileWithPath[], exts: string[]) => {
         const regex = new RegExp(`\\.(${exts.join('|')})$`, 'i');
-        return files.filter((f) => regex.test(f));
+        return files.filter((f) => regex.test(f.name));
     }
     const fileNameVerify = () => {
         const WSIFiles = filterByExtensions(files, WSI_EXTS)
@@ -85,8 +87,8 @@ const FileDropUploader = (props: any) => {
             formData.append('project_id',props.project_id)
             xhr.upload.onprogress = (event) => {
                 if (event.lengthComputable && filesStatus[d.name]) {
-                    const newStatus = {}
-                    newStatus[d.name] = { progress: Math.round((event.loaded / event.total) * 100), status: 1 }
+                    const newStatus: UploadFileStore = {}
+                    newStatus[d.name] = { progress: Math.round((event.loaded / event.total) * 100), status: UploadStatus.uploading }
                     setFilesStatus((prev) => ({
                         ...prev,
                         ...newStatus
@@ -98,8 +100,8 @@ const FileDropUploader = (props: any) => {
             xhr.onload = () => {
                 if (xhr.status === 200) {
                     if (filesStatus[d.name]) {
-                        const newStatus = {}
-                        newStatus[d.name] = { progress: 100, status: 2 }
+                        const newStatus: UploadFileStore = {}
+                        newStatus[d.name] = { progress: 100, status: UploadStatus.done }
                         setFilesStatus((prev) => ({
                             ...prev,
                             ...newStatus
@@ -175,8 +177,8 @@ const FileDropUploader = (props: any) => {
                             </p>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                            {files.length > 0 && Object.entries(filesStatus).every(([fileName,{status}])=>status===0) && <Button variant="primary" onClick={handleUpload}>Upload</Button>}
-                            {files.length > 0 && Object.entries(filesStatus).every(([fileName,{status}])=>status===2) && <Button variant="primary" onClick={handleDone}>Done</Button>}
+                            {files.length > 0 && Object.entries(filesStatus).every(([fileName,{status}])=>status===UploadStatus.selected) && <Button variant="primary" onClick={handleUpload}>Upload</Button>}
+                            {files.length > 0 && Object.entries(filesStatus).every(([fileName,{status}])=>status===UploadStatus.done) && <Button variant="primary" onClick={handleDone}>Done</Button>}
                         </div>
                         <section>
                             {Object.entries(filesStatus).map(([file_name, { progress, status }]) => (
