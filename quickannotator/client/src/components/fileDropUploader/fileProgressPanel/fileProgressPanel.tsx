@@ -13,7 +13,6 @@ import { FileEarmarkText, FileEarmarkImage, Check, X } from 'react-bootstrap-ico
 
 interface Props {
     name: string
-    path: string
     status: number
     progress: number
     removeHandler: (file_name: string) => void;
