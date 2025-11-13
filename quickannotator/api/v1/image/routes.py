@@ -108,11 +108,11 @@ class FileUpload(MethodView):
             # handle tsv file
             if file_ext in TABULAR_extensions:
                 ref = import_from_tabular(project_id, file)
-                resp['rayClusterFilters'] = build_ray_cluster_filters(ref.task_id())
+                resp['ray_task_id'] = ref.task_id()
             
             return resp, 200
         else:
-            abort(404, message="No project id foundin Args")
+            abort(404, message="No project id found in Args")
     
 @bp.route('/<int:image_id>/<int:file_type>/file', endpoint="file")
 class ImageFile(MethodView):

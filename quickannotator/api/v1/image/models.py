@@ -17,7 +17,7 @@ class GetImageArgsSchema(Schema):
 
 
 class UploadFileSchema(Schema):
-    task_id = fields.Str(required=True)
+    ray_task_id = fields.Str(required=True)
     name = fields.Str(required=True)
     type = fields.Str(required=True)
 

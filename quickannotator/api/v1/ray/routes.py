@@ -26,15 +26,13 @@ class RayTaskByIdResource(MethodView):
             return {"message": f"Error retrieving task: {str(e)}"}, 500
 
 
-@bp.route('/task', endpoint='ray')
-class RayTaskResource(MethodView):
     @bp.arguments(server_models.RayClusterStateFilters, location='json')
     @bp.response(200, server_models.RayTaskState(many=True))
     def post(self, args):
         """
-        Handle POST requests to retrieve Ray task information based on filters.
+        Handle POST requests to retrieve Ray task information based on filters. See https://docs.ray.io/en/latest/ray-observability/reference/doc/ray.util.state.list_tasks.html for more information.
         """
-        filters = args.get('rayClusterFilters', [])
+        filters = args.get('ray_cluster_filters', [])
         
         # Fetch tasks from Ray state with the provided filters
         try:

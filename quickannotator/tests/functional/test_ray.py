@@ -43,7 +43,7 @@ def test_ray_list_and_get_tasks(test_client):
     # The updated endpoint returns a list of task dicts (not wrapped in a taskStates key)
     assert isinstance(data, list)
     # There should be at least one entry for our function name
-    names = {t.get("funcOrClassName") for t in data}
+    names = {t.get("func_or_class_name") for t in data}
     assert any("report_task_id" in (n or "") for n in names)
 
     # 2) Test GET /api/v1/ray/task/<task_id> for one of the returned task ids
@@ -56,8 +56,21 @@ def test_ray_list_and_get_tasks(test_client):
     if get_resp.status_code == 200:
         task_obj = get_resp.get_json()
         # The GET endpoint returns a single task dict using camelCase keys
-        assert task_obj.get("taskId") == tid
-        assert "report_task_id" in task_obj.get("funcOrClassName", "")
+        assert task_obj.get("task_id") == tid
+        assert "report_task_id" in task_obj.get("func_or_class_name", "")
+
+    # 3) Test POST /api/v1/ray/task with a filter in the JSON payload
+    filter_resp = test_client.post(
+        "/api/v1/ray/task",
+        json={"ray_cluster_filters": [("func_or_class_name", "=", "report_task_id")]},
+    )
+
+    assert filter_resp.status_code == 200
+    filtered_data = filter_resp.get_json()
+    assert isinstance(filtered_data, list)
+    # Ensure the filtered response only includes tasks matching the filter
+    filtered_names = {t.get("func_or_class_name") for t in filtered_data}
+    assert all("report_task_id" in (n or "") for n in filtered_names)
 
     # Shutdown ray for cleanliness
     ray.shutdown()

@@ -114,7 +114,7 @@ const FileDropUploader = (props: any) => {
                 if (xhr.status === 200) {
                     const response = JSON.parse(xhr.responseText);
 
-                    if (response.rayClusterFilters) {
+                    if (response.ray_cluster_filters) {
                         updateFileStatus(d.name, 100, UploadStatus.pending);
                         setInterval(() => {
                             console.log('This will poll the ray cluster state every 5 seconds');
