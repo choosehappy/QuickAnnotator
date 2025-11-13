@@ -17,7 +17,7 @@ class GetImageArgsSchema(Schema):
 
 
 class UploadFileSchema(Schema):
-    ray_cluster_filters = fields.Nested(RayClusterStateFilters, required=False)
+    task_id = fields.Str(required=True)
     name = fields.Str(required=True)
     type = fields.Str(required=True)
 

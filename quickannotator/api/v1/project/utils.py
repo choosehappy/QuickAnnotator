@@ -58,10 +58,15 @@ def import_from_tabular(project_id: int, file: FileStorage) -> ray.ObjectRef:
 
 @ray.remote
 def process_tabular_rows(data: pd.DataFrame, project_id: int) -> None:
+    tasks = []
     for idx, row in data.iterrows():
-        # create a actor for current row
+        # create an actor for the current row
         importer = AnnotationImporter.remote()
-        importer.import_from_tsv_row.remote(project_id, row, data.columns, constants.TSVFields.FILE_PATH.value)
+        task = importer.import_from_tsv_row.remote(project_id, row, data.columns, constants.TSVFields.FILE_PATH.value)
+        tasks.append(task)
+    
+    # Wait for all tasks to complete
+    ray.get(tasks)
 
 def delete_project_and_related_data(project_id):
     project = get_project_by_id(project_id)
