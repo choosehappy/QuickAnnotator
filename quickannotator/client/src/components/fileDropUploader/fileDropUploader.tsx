@@ -1,16 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { UploadStatus, UploadFileStore, DropzoneFile } from "../../types.ts";
 import Dropzone from 'react-dropzone';
 
 import { useDropzone } from 'react-dropzone';
 import { CloudArrowUp } from 'react-bootstrap-icons';
-import { UploadImageURL } from '../../helpers/api.ts';
+import { UploadImageURL, fetchRayTaskById } from '../../helpers/api.ts';
 import Button from 'react-bootstrap/Button';
 import FileProgressPanel from './fileProgressPanel/fileProgressPanel.tsx'
 import './fileDropUploader.css'
-import { Prev } from "react-bootstrap/esm/PageItem";
 
-import {UPLOAD_ACCEPTED_FILES, WSI_EXTS, JSON_EXTS, TABULAR_EXTS} from '../../helpers/config.ts'
+import {UPLOAD_ACCEPTED_FILES, WSI_EXTS, JSON_EXTS, TABULAR_EXTS, POLLING_INTERVAL_MS} from '../../helpers/config.ts'
 import { FileWithPath } from 'react-dropzone';
 interface Props {
 
@@ -20,12 +19,21 @@ const FileDropUploader = (props: any) => {
 
     const [files, setFiles] = useState<FileWithPath[]>([]);
     const [filesStatus, setFilesStatus] = useState<UploadFileStore>({});
+    // store interval ids for polling ray tasks: taskId -> intervalId
+    const intervalsRef = useRef<Record<string, number>>({});
+
+    // clear any running pollers on unmount
+    useEffect(() => {
+        return () => {
+            Object.values(intervalsRef.current).forEach((id) => clearInterval(id));
+            intervalsRef.current = {};
+        };
+    }, []);
 
 
     // remove file form files
     function removeFile(fileName: string) {
         const files_removed = files.filter(f => f.name !== fileName)
-        delete filesStatus[fileName]
         setFiles([...files_removed])
         setFilesStatus({ ...filesStatus })
     }
@@ -56,13 +64,11 @@ const FileDropUploader = (props: any) => {
         }));
     }
 
-    function handleDone(e) {
+    function handleDone(e: any) {
         e.stopPropagation();
         setFiles([])
         setFilesStatus({})
     }
-
-
 
 
     // file { file:File, status: Number }
@@ -91,7 +97,7 @@ const FileDropUploader = (props: any) => {
         return 
     }
 
-    const handleUpload = async (e) => {
+    const handleUpload = async (e: any) => {
         e.stopPropagation();
         // TODO verify by file name
         // if(fileNameVerify()) {
@@ -114,12 +120,36 @@ const FileDropUploader = (props: any) => {
                 if (xhr.status === 200) {
                     const response = JSON.parse(xhr.responseText);
 
-                    if (response.ray_cluster_filters) {
+                    if (response.ray_task_id) {
+                        const taskId = response.ray_task_id;
                         updateFileStatus(d.name, 100, UploadStatus.pending);
-                        setInterval(() => {
-                            console.log('This will poll the ray cluster state every 5 seconds');
-                            updateFileStatus(d.name, 100, UploadStatus.pending);
-                        }, 5000);
+
+                        // start polling the ray task status every 5 seconds until finished
+                        const intervalId = window.setInterval(async () => {
+                            try {
+                                const res = await fetchRayTaskById(taskId);
+                                if (res.status === 200 && res.data && res.data.state) {
+                                    const state = res.data.state;
+                                    // When Ray reports the task finished, mark upload done and stop polling
+                                    if (state === 'FINISHED') {
+                                        updateFileStatus(d.name, 100, UploadStatus.done);
+                                        if (props.reloadHandler) props.reloadHandler();
+                                        // clear this interval
+                                        clearInterval(intervalsRef.current[taskId]);
+                                        delete intervalsRef.current[taskId];
+                                    }
+                                } else {
+                                    // if task not found or error, keep pending but log
+                                    console.warn(`Polling ray task ${taskId} returned status ${res.status}`);
+                                }
+                            } catch (err) {
+                                console.error('Error polling ray task:', err);
+                            }
+                        }, POLLING_INTERVAL_MS);
+
+                        // store interval id so we can clear later
+                        intervalsRef.current[taskId] = intervalId as unknown as number;
+
                     } else if (filesStatus[d.name]) {
                         updateFileStatus(d.name, 100, UploadStatus.done);
                         props.reloadHandler();

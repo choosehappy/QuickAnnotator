@@ -108,7 +108,7 @@ class FileUpload(MethodView):
             # handle tsv file
             if file_ext in TABULAR_extensions:
                 ref = import_from_tabular(project_id, file)
-                resp['ray_task_id'] = ref.task_id()
+                resp['ray_task_id'] = ref.task_id().hex()
             
             return resp, 200
         else:

@@ -236,3 +236,5 @@ export enum COOKIE_NAMES {
     SKIP_CONFIRM_IMPORT = 'skipConfirmImport',
     SKIP_CONFIRM_DELETE_CLASS = 'skipConfirmDeleteClass',
 }
+
+export const POLLING_INTERVAL_MS = 3000; // 3 seconds

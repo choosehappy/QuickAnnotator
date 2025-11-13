@@ -332,8 +332,24 @@ export const exportAnnotationsToDSA = async (
 
     return response.data;
 };
+
+
+
 export const getAnnotationPageURL = (project_id: number, image_id: number) => `/project/${project_id}/annotate/${image_id}`
 
 export const getImageThumbnailURL = (image_id: number) =>`/api/v1/image/${image_id}/1/file`
 
 export const UploadImageURL = () =>`/api/v1/image/upload`;
+
+// Ray cluster / task helpers
+// Fetch a single Ray task by its task id
+export const fetchRayTaskById = async (task_id: string) => {
+    return await get<any>(`/ray/task/${task_id}`);
+};
+
+// List Ray tasks using RayClusterStateFilters. The server expects a JSON body
+// with a `ray_cluster_filters` array. Returns an array of task state objects.
+export const listRayTasks = async (ray_cluster_filters: any[] = []) => {
+    const requestBody = { ray_cluster_filters };
+    return await post<typeof requestBody, any[]>(`/ray/task`, requestBody);
+};
