@@ -240,8 +240,14 @@ export enum COOKIE_NAMES {
 export const POLLING_INTERVAL_MS = 3000; // 3 seconds
 
 // Mapping for task states used by TaskChildrenGrid formatter. Keys should be UPPERCASE.
-export const TASK_STATE_MAP: { [key: string]: string } = {
-    'RUNNING': `<div class='d-flex align-items-center'><span class='spinner-border spinner-border-sm me-2' role='status' aria-hidden='true'></span><span class='text-muted'>Running</span></div>`,
-    'FINISHED': `<div class='d-flex align-items-center text-success'><span style='display:inline-flex;align-items:center'><svg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M2 8l3 3 7-7' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span style='margin-left:8px'>Finished</span></div>`,
-    'FAILED': `<div class='d-flex align-items-center text-danger'><span style='display:inline-flex;align-items:center'><svg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M4 4l8 8M12 4l-8 8' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span style='margin-left:8px'>Failed</span></div>`,
+export enum TASK_STATE {
+    RUNNING = 'RUNNING',
+    FINISHED = 'FINISHED',
+    FAILED = 'FAILED',
+}
+
+export const TASK_STATE_MAP: { [key in TASK_STATE]: string } = {
+    [TASK_STATE.RUNNING]: `<div class='d-flex align-items-center'><span class='spinner-border spinner-border-sm me-2' role='status' aria-hidden='true'></span><span class='text-muted'>Running</span></div>`,
+    [TASK_STATE.FINISHED]: `<div class='d-flex align-items-center text-success'><span style='display:inline-flex;align-items:center'><svg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M2 8l3 3 7-7' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span style='margin-left:8px'>Finished</span></div>`,
+    [TASK_STATE.FAILED]: `<div class='d-flex align-items-center text-danger'><span style='display:inline-flex;align-items:center'><svg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M4 4l8 8M12 4l-8 8' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span style='margin-left:8px'>Failed</span></div>`,
 };

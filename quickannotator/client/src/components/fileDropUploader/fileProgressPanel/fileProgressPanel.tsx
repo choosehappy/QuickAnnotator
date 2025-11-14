@@ -43,6 +43,8 @@ const FileProgressPanel = (props: Props) => {
                             <Spinner animation="border" size="sm" role="status">
                                 <span className="visually-hidden">Loading...</span>
                             </Spinner>
+                        ) : props.status === UploadStatus.error ? (
+                            <X className="failure-icon" />
                         ) : (
                             <Check onClick={(e) => { e.stopPropagation(); }} />
                         )}

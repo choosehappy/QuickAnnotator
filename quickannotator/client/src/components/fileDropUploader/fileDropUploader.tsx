@@ -13,7 +13,7 @@ import ListGroup from 'react-bootstrap/ListGroup';
 import FileProgressPanel from './fileProgressPanel/fileProgressPanel.tsx'
 import './fileDropUploader.css'
 
-import {UPLOAD_ACCEPTED_FILES, WSI_EXTS, JSON_EXTS, TABULAR_EXTS, POLLING_INTERVAL_MS} from '../../helpers/config.ts'
+import {UPLOAD_ACCEPTED_FILES, WSI_EXTS, JSON_EXTS, TABULAR_EXTS, POLLING_INTERVAL_MS, TASK_STATE} from '../../helpers/config.ts'
 import { FileWithPath } from 'react-dropzone';
 import { toast } from "react-toastify";
 import TaskChildrenGrid from '../taskChildren/TaskChildrenGrid';
@@ -146,12 +146,22 @@ const FileDropUploader = (props: any) => {
                                 if (res.status === 200 && res.data && res.data.state) {
                                     const state = res.data.state;
                                     // When Ray reports the task finished, mark upload done and stop polling
-                                    if (state === 'FINISHED') {
+                                    if (state === TASK_STATE.FINISHED) {
                                         updateFileStatus(d.name, 100, UploadStatus.done);
                                         if (props.reloadHandler) props.reloadHandler();
                                         // clear this interval
                                         clearInterval(intervalsRef.current[taskId]);
                                         delete intervalsRef.current[taskId];
+                                    } else if (state === TASK_STATE.FAILED) {
+                                        updateFileStatus(d.name, 100, UploadStatus.error);
+                                        if (props.reloadHandler) props.reloadHandler();
+                                        // clear this interval
+                                        clearInterval(intervalsRef.current[taskId]);
+                                        delete intervalsRef.current[taskId];
+                                    } else if (state === TASK_STATE.RUNNING) {
+                                        console.info(`Ray task ${taskId} is still running...`);
+                                    } else {
+                                        console.warn(`Unhandled task state: ${state} for task ${taskId}`);
                                     }
                                 } else {
                                     // if task not found or error, keep pending but log
@@ -233,7 +243,7 @@ const FileDropUploader = (props: any) => {
                                                     {files.length > 0 && Object.entries(filesStatus).every(([fileName, { status }]) => status === UploadStatus.selected) && (
                                                         <Button variant="primary" onClick={handleUpload}>Upload</Button>
                                                     )}
-                                                    {files.length > 0 && Object.entries(filesStatus).every(([fileName, { status }]) => status === UploadStatus.done) && (
+                                                    {files.length > 0 && Object.entries(filesStatus).every(([fileName, { status }]) => status === UploadStatus.done || status === UploadStatus.error) && (
                                                         <Button variant="primary" onClick={handleDone}>Done</Button>
                                                     )}
                                                 </div>

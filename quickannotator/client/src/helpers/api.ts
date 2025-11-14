@@ -355,6 +355,6 @@ export const searchRayTasks = async (ray_cluster_filters: any[] = []) => {
 };
 
 export const getChildRayTasks = async (parent_task_id: string) => {
-    const filters = [["parent_task_id", "=", parent_task_id]];
+    const filters = [["parent_task_id", "=", parent_task_id], ["type", "=", "ACTOR_TASK"]];
     return await searchRayTasks(filters);
 }
