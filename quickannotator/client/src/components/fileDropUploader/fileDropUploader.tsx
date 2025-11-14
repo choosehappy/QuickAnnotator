@@ -6,11 +6,16 @@ import { useDropzone } from 'react-dropzone';
 import { CloudArrowUp } from 'react-bootstrap-icons';
 import { UploadImageURL, fetchRayTaskById } from '../../helpers/api.ts';
 import Button from 'react-bootstrap/Button';
+import Container from 'react-bootstrap/Container';
+import Row from 'react-bootstrap/Row';
+import Col from 'react-bootstrap/Col';
+import ListGroup from 'react-bootstrap/ListGroup';
 import FileProgressPanel from './fileProgressPanel/fileProgressPanel.tsx'
 import './fileDropUploader.css'
 
 import {UPLOAD_ACCEPTED_FILES, WSI_EXTS, JSON_EXTS, TABULAR_EXTS, POLLING_INTERVAL_MS} from '../../helpers/config.ts'
 import { FileWithPath } from 'react-dropzone';
+import { toast } from "react-toastify";
 interface Props {
 
 }
@@ -34,6 +39,7 @@ const FileDropUploader = (props: any) => {
     // remove file form files
     function removeFile(fileName: string) {
         const files_removed = files.filter(f => f.name !== fileName)
+        delete filesStatus[fileName];
         setFiles([...files_removed])
         setFilesStatus({ ...filesStatus })
     }
@@ -123,6 +129,19 @@ const FileDropUploader = (props: any) => {
                     if (response.ray_task_id) {
                         const taskId = response.ray_task_id;
                         updateFileStatus(d.name, 100, UploadStatus.pending);
+                        toast.info(
+                            <div>
+                                Processing File {d.name}
+                                <Button 
+                                    variant="link" 
+                                    size="sm" 
+                                    onClick={() => toast.dismiss()}
+                                    style={{ marginLeft: '10px' }}
+                                >
+                                    Dismiss
+                                </Button>
+                            </div>
+                        );
 
                         // start polling the ray task status every 5 seconds until finished
                         const intervalId = window.setInterval(async () => {
@@ -207,35 +226,45 @@ const FileDropUploader = (props: any) => {
         <Dropzone accept={UPLOAD_ACCEPTED_FILES} onDrop={handleDrop} multiple>
             {({ getRootProps, getInputProps }) => (
                 <section style={{ width: '100%' }} {...getRootProps({ className: 'document-uploader upload-info upload-box' })}>
-                    <div className="upload-box">
-
-                        <CloudArrowUp />
-                        <input {...getInputProps()} />
-                        <div>
-                            <p>Drag and drop your files here</p>
-                            <p>
-                                Supported WSI files: {WSI_EXTS.map(ext=>`.${ext}`).join(', ')}
-                            </p>
-                            <p>
-                                Supported Annotation files: {JSON_EXTS.map(ext=>`.${ext}`).join(', ')}
-                            </p>
-                            <p>
-                                Supported tabular formats for bulk import of slides and annotations: {TABULAR_EXTS.map(ext=>`.${ext}`).join(', ')}
-                            </p>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                            {files.length > 0 && Object.entries(filesStatus).every(([fileName,{status}])=>status===UploadStatus.selected) && <Button variant="primary" onClick={handleUpload}>Upload</Button>}
-                            {files.length > 0 && Object.entries(filesStatus).every(([fileName,{status}])=>status===UploadStatus.done) && <Button variant="primary" onClick={handleDone}>Done</Button>}
-                        </div>
-                        <section>
-                            {Object.entries(filesStatus).map(([file_name, { progress, status }]) => (
-                                <FileProgressPanel key={file_name} name={file_name} status={status} progress={progress} removeHandler={removeFile} />
-
-                            ))}
-                        </section>
-
-
-                    </div>
+                    <input {...getInputProps()} />
+                    <Container fluid className="p-2">
+                                <Row>
+                                    <Col xs={12} md={6} className="px-0">
+                                        <div className="drop-instructions">
+                                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                <CloudArrowUp />
+                                                <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
+                                                    {files.length > 0 && Object.entries(filesStatus).every(([fileName, { status }]) => status === UploadStatus.selected) && (
+                                                        <Button variant="primary" onClick={handleUpload}>Upload</Button>
+                                                    )}
+                                                    {files.length > 0 && Object.entries(filesStatus).every(([fileName, { status }]) => status === UploadStatus.done) && (
+                                                        <Button variant="primary" onClick={handleDone}>Done</Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <p>Drag and drop your files here</p>
+                                            <p>
+                                                Supported WSI files: {WSI_EXTS.map(ext => `.${ext}`).join(', ')}
+                                            </p>
+                                            <p>
+                                                Supported Annotation files: {JSON_EXTS.map(ext => `.${ext}`).join(', ')}
+                                            </p>
+                                            <p>
+                                                Supported tabular formats for bulk import of slides and annotations: {TABULAR_EXTS.map(ext => `.${ext}`).join(', ')}
+                                            </p>
+                                        </div>
+                                    </Col>
+                                    <Col xs={12} md={6} className="px-0">
+                                        <ListGroup variant="flush" className="file-list-scroll">
+                                            {Object.entries(filesStatus).map(([file_name, { progress, status }]) => (
+                                                <ListGroup.Item key={file_name} className="p-0 border-0">
+                                                    <FileProgressPanel name={file_name} status={status} progress={progress} removeHandler={removeFile} />
+                                                </ListGroup.Item>
+                                            ))}
+                                        </ListGroup>
+                                    </Col>
+                                </Row>
+                </Container>
                 </section>
             )}
         </Dropzone>
