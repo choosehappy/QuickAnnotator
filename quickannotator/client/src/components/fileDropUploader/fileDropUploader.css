@@ -63,3 +63,19 @@
     display: block;
     gap: 8px;
 }
+
+/* React-Toastify progress bar overrides */
+/* Use project's toast variables when available and increase specificity to ensure override */
+.Toastify__toast .Toastify__progress-bar,
+.Toastify__progress-bar,
+.Toastify__progress-bar--default {
+    /* prefer a dark grey over a lighter gray */
+    background: #6c757d !important; /* Dark grey */
+    height: 6px !important;
+    border-radius: 6px !important;
+    box-shadow: inset 0 -2px 6px rgba(108, 117, 125, 0.2) !important; /* Lighter gray shadow */
+    opacity: 0.98 !important;
+    transform: scaleX(-1); /* Flip the progress bar to make it decrease */
+    transform-origin: left; /* Ensure the bar decreases from left to right */
+}
+
