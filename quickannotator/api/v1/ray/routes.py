@@ -26,6 +26,8 @@ class RayTaskByIdResource(MethodView):
             return {"message": f"Error retrieving task: {str(e)}"}, 500
 
 
+@bp.route('/task', endpoint='ray_tasks')
+class RayTasksResource(MethodView):
     @bp.arguments(server_models.RayClusterStateFilters, location='json')
     @bp.response(200, server_models.RayTaskState(many=True))
     def post(self, args):

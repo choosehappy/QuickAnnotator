@@ -133,7 +133,7 @@ const FileDropUploader = (props: any) => {
                         toast(
                             <div>
                                 <div>Processing File {d.name}</div>
-                                <div style={{ marginTop: 8, marginBottom: 8 }}>
+                                <div>
                                     <TaskChildrenGrid parentTaskId={taskId} containerId={`toast-task-${taskId}`} />
                                 </div>
                             </div>

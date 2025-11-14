@@ -46,24 +46,18 @@ export default function NotificationCenter({ show, onHide, notificationCenter }:
         {!list || list.length === 0 ? (
           <div className="text-center text-muted">Your queue is empty!</div>
         ) : (
-          <ListGroup>
+            <ListGroup style={{ maxWidth: '350px', margin: '0 auto' }}>
             {list.map((n: any) => (
               <ListGroup.Item key={n.id} className="d-flex justify-content-between align-items-start">
-                <div>
-                  <div style={{ fontWeight: n.read ? 'normal' : '600' }}>{n.content}</div>
-                  {n.createdAt && (
-                    <div className="text-muted small">{new Date(n.createdAt).toLocaleString()}</div>
-                  )}
-                </div>
-                <div className="d-flex flex-column align-items-end">
-                  {!n.read && (
-                    <Button variant="link" size="sm" onClick={() => markAsRead(n.id)}>Mark read</Button>
-                  )}
-                  <Button variant="link" size="sm" onClick={() => remove(n.id)}>Dismiss</Button>
-                </div>
+              <div>
+                <div style={{ fontWeight: n.read ? 'normal' : '600' }}>{n.content}</div>
+                {n.createdAt && (
+                <div className="text-muted small">{new Date(n.createdAt).toLocaleString()}</div>
+                )}
+              </div>
               </ListGroup.Item>
             ))}
-          </ListGroup>
+            </ListGroup>
         )}
       </Offcanvas.Body>
     </Offcanvas>

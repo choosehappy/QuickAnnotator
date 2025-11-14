@@ -349,7 +349,12 @@ export const fetchRayTaskById = async (task_id: string) => {
 
 // List Ray tasks using RayClusterStateFilters. The server expects a JSON body
 // with a `ray_cluster_filters` array. Returns an array of task state objects.
-export const listRayTasks = async (ray_cluster_filters: any[] = []) => {
+export const searchRayTasks = async (ray_cluster_filters: any[] = []) => {
     const requestBody = { ray_cluster_filters };
     return await post<typeof requestBody, any[]>(`/ray/task`, requestBody);
 };
+
+export const getChildRayTasks = async (parent_task_id: string) => {
+    const filters = [["parent_task_id", "=", parent_task_id]];
+    return await searchRayTasks(filters);
+}
