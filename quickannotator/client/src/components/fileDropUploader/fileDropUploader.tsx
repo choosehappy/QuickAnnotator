@@ -16,6 +16,7 @@ import './fileDropUploader.css'
 import {UPLOAD_ACCEPTED_FILES, WSI_EXTS, JSON_EXTS, TABULAR_EXTS, POLLING_INTERVAL_MS} from '../../helpers/config.ts'
 import { FileWithPath } from 'react-dropzone';
 import { toast } from "react-toastify";
+import TaskChildrenGrid from '../taskChildren/TaskChildrenGrid';
 interface Props {
 
 }
@@ -129,17 +130,12 @@ const FileDropUploader = (props: any) => {
                     if (response.ray_task_id) {
                         const taskId = response.ray_task_id;
                         updateFileStatus(d.name, 100, UploadStatus.pending);
-                        toast.info(
+                        toast(
                             <div>
-                                Processing File {d.name}
-                                <Button 
-                                    variant="link" 
-                                    size="sm" 
-                                    onClick={() => toast.dismiss()}
-                                    style={{ marginLeft: '10px' }}
-                                >
-                                    Dismiss
-                                </Button>
+                                <div>Processing File {d.name}</div>
+                                <div style={{ marginTop: 8, marginBottom: 8 }}>
+                                    <TaskChildrenGrid parentTaskId={taskId} containerId={`toast-task-${taskId}`} />
+                                </div>
                             </div>
                         );
 
