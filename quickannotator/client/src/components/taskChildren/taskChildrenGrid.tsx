@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Column, GridOption, SlickgridReactInstance, SlickgridReact, ExcelExportService } from 'slickgrid-react';
+import { Column, GridOption, SlickgridReactInstance, SlickgridReact } from 'slickgrid-react';
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
 import { getChildRayTasks } from '../../helpers/api.ts';
 import { POLLING_INTERVAL_MS, TASK_STATE, TASK_STATE_MAP } from '../../helpers/config.ts';
@@ -89,21 +89,39 @@ export default class TaskChildrenGrid extends React.Component<Props, State> {
     defineGrid() {
         // Formatter for three explicit states: FINISHED, FAILED, PENDING
         // SlickGrid expects formatters to return strings/HTML; return an HTML string using inline SVG + Bootstrap spinner markup.
-        const stateFormatter = (_row: number, _cell: number, value: string, _columnDef: Column, _dataContext: TaskRow) => {
+        const stateFormatter = (_row: number, _cell: number, value: string, _columnDef: Column, dataContext: TaskRow) => {
             const s = (value ?? '').toString().toUpperCase() as TASK_STATE;
 
-            // if (TASK_STATE_MAP[s]) {
-            //     return `<span>${TASK_STATE_MAP[s]}</span>`;
-            // }
+            if (TASK_STATE_MAP[s]) {
+                {
+                    const raw = dataContext?.error_message ?? '';
+                    const escapeHtml = (str: string) =>
+                        String(str)
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/'/g, '&#39;');
+                    const escaped = escapeHtml(raw);
 
-            // fallback: raw value from the row
-            const raw = _dataContext?.state ?? value ?? 'Unknown';
-            return `<span title="regular tooltip (from title attribute)\r${_dataContext.error_message || ''} cell value:\r${raw}">${raw}</span>`;
-        };
+                    // Show the state label and the full, formatted error below it (preserve whitespace).
+                    // Also put the full escaped error in the title attribute for a native tooltip.
+                    return `<div title="${escaped}" style="display:flex;flex-direction:column;">
+                                <span>${TASK_STATE_MAP[s]}</span>
+                                <pre style="white-space:pre-wrap;margin:4px 0 0;font-family:inherit;">${escaped}</pre>
+                            </div>`;
+                }
+            }
 
-        const tooltipFormatter = (_row: number, _cell: number, value: string, _columnDef: Column, _dataContext: TaskRow) => {            
-            return `<div class="tooltip-2cols-row"><div>Title:</div> <div>${_dataContext.error_message}</div></div>`
+            // Fall back: raw value from the row
+            return `<span>${dataContext?.state ?? value ?? 'Unknown'}</span>`;
+
         };
+        
+        // Doesn't seem to work.
+        // const tooltipFormatter = (_row: number, _cell: number, value: string, _columnDef: Column, _dataContext: TaskRow) => {            
+        //     return `<div class="tooltip-2cols-row"><div>Title:</div> <div>${_dataContext.error_message}</div></div>`
+        // };
 
 
         const columns: Column[] = [

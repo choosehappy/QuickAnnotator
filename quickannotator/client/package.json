@@ -10,14 +10,14 @@
     "preview": "cd /opt/QuickAnnotator/quickannotator/client && vite preview"
   },
   "dependencies": {
-    "@slickgrid-universal/custom-tooltip-plugin": "^9.10.0",
+    "@slickgrid-universal/custom-tooltip-plugin": "^5.14.0",
     "@types/geojson": "^7946.0.14",
     "bootstrap": "^5.3.3",
     "bootstrap-icons": "^1.11.3",
     "geojs": "^1.12.3",
     "geojson": "^0.5.0",
     "react": "^18.3.1",
-    "react-bootstrap": "^2.10.5",
+    "react-bootstrap": "^2.10.10",
     "react-bootstrap-icons": "^1.11.4",
     "react-cookie": "^8.0.1",
     "react-dom": "^18.3.1",
@@ -25,7 +25,8 @@
     "react-hook-form": "^7.55.0",
     "react-hotkeys-hook": "^5.1.0",
     "react-router-dom": "^6.26.2",
-    "slickgrid-react": "^5.8.0"
+    "react-toastify": "^11.0.5",
+    "slickgrid-react": "^5.14.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.11.1",
