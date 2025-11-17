@@ -1,6 +1,6 @@
 import ProgressBar from 'react-bootstrap/ProgressBar';
 import './fileProgressPanel.css'
-import { FileEarmarkText, FileEarmarkImage, Check, X } from 'react-bootstrap-icons';
+import { FileEarmarkText, FileEarmarkImage, Check, X, Exclamation } from 'react-bootstrap-icons';
 import { UploadStatus } from '../../../types.ts';
 import { Spinner } from 'react-bootstrap';
 
@@ -44,7 +44,7 @@ const FileProgressPanel = (props: Props) => {
                                 <span className="visually-hidden">Loading...</span>
                             </Spinner>
                         ) : props.status === UploadStatus.error ? (
-                            <X className="failure-icon" />
+                            <Exclamation className="failure-icon" />
                         ) : (
                             <Check onClick={(e) => { e.stopPropagation(); }} />
                         )}

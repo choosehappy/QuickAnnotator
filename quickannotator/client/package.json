@@ -10,6 +10,7 @@
     "preview": "cd /opt/QuickAnnotator/quickannotator/client && vite preview"
   },
   "dependencies": {
+    "@slickgrid-universal/custom-tooltip-plugin": "^9.10.0",
     "@types/geojson": "^7946.0.14",
     "bootstrap": "^5.3.3",
     "bootstrap-icons": "^1.11.3",

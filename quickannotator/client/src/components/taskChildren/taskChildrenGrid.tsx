@@ -1,10 +1,13 @@
 import * as React from 'react';
-import { Column, GridOption, SlickgridReactInstance, SlickgridReact } from 'slickgrid-react';
+import { Column, GridOption, SlickgridReactInstance, SlickgridReact, ExcelExportService } from 'slickgrid-react';
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
 import { getChildRayTasks } from '../../helpers/api.ts';
-import { POLLING_INTERVAL_MS, TASK_STATE_MAP } from '../../helpers/config.ts';
+import { POLLING_INTERVAL_MS, TASK_STATE, TASK_STATE_MAP } from '../../helpers/config.ts';
 import Button from 'react-bootstrap/Button';
 import Collapse from 'react-bootstrap/Collapse';
+import { SlickCustomTooltip } from '@slickgrid-universal/custom-tooltip-plugin';
+import './taskChildrenGrid.css';
+
 
 type TaskRow = {
     id: string; // unique id for SlickGrid
@@ -86,29 +89,45 @@ export default class TaskChildrenGrid extends React.Component<Props, State> {
     defineGrid() {
         // Formatter for three explicit states: FINISHED, FAILED, PENDING
         // SlickGrid expects formatters to return strings/HTML; return an HTML string using inline SVG + Bootstrap spinner markup.
-        const infoSvg = "<svg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'><circle cx='8' cy='8' r='7' stroke='currentColor' stroke-width='1.2'/><path d='M8 5h.01M8 8v3' stroke='currentColor' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/></svg>";
-
         const stateFormatter = (_row: number, _cell: number, value: string, _columnDef: Column, _dataContext: TaskRow) => {
-            const s = (value ?? '').toString().toUpperCase();
+            const s = (value ?? '').toString().toUpperCase() as TASK_STATE;
 
-            if (TASK_STATE_MAP[s]) {
-                return TASK_STATE_MAP[s];
-            }
+            // if (TASK_STATE_MAP[s]) {
+            //     return `<span>${TASK_STATE_MAP[s]}</span>`;
+            // }
 
             // fallback: raw value from the row
             const raw = _dataContext?.state ?? value ?? 'Unknown';
-            return `<div class='d-flex align-items-center text-muted'><span style='display:inline-flex;align-items:center'>${infoSvg}</span><span style='margin-left:8px'>${raw}</span></div>`;
+            return `<span title="regular tooltip (from title attribute)\r${_dataContext.error_message || ''} cell value:\r${raw}">${raw}</span>`;
         };
 
+        const tooltipFormatter = (_row: number, _cell: number, value: string, _columnDef: Column, _dataContext: TaskRow) => {            
+            return `<div class="tooltip-2cols-row"><div>Title:</div> <div>${_dataContext.error_message}</div></div>`
+        };
+
+
         const columns: Column[] = [
-            { id: 'state', name: 'State', field: 'state', sortable: true, minWidth: 40, formatter: stateFormatter },
-            { id: 'func', name: 'Function/Class', field: 'func_or_class_name', sortable: true, minWidth: 60 },
+                { id: 'state', 
+                    name: 'State', 
+                    field: 'state', 
+                    sortable: true, 
+                    minWidth: 40, 
+                    formatter: stateFormatter,
+                    // use the formatter's `title` attribute as the tooltip when available
+                    customTooltip: {    
+                        useRegularTooltip: true, useRegularTooltipFromCellTextOnly: true 
+                    }},
+                { id: 'func', name: 'Function/Class', field: 'func_or_class_name', sortable: true, minWidth: 60,
+                    // show a regular tooltip based on the cell text for the function/class column
+                    customTooltip: { 
+                        useRegularTooltip: true, useRegularTooltipFromCellTextOnly: true 
+                    } },
             // { id: 'error', name: 'Error', field: 'error_message', sortable: false, minWidth: 60 },
             // { id: 'task_id', name: 'Task ID', field: 'task_id', sortable: true, minWidth: 60 },
         ];
 
         const options: GridOption = {
-            enableAutoResize: true,
+            enableAutoResize: false,
             // force fit columns so they will shrink/expand to fill the parent width
             forceFitColumns: true,
             autoResize: {
@@ -121,7 +140,8 @@ export default class TaskChildrenGrid extends React.Component<Props, State> {
             enableCellNavigation: true,
             enableRowSelection: true,
             multiSelect: false,
-            showColumnHeader: false
+            showColumnHeader: false,
+            externalResources: [new SlickCustomTooltip() as any]
         };
 
         this.setState(() => ({
@@ -152,7 +172,11 @@ export default class TaskChildrenGrid extends React.Component<Props, State> {
                 }));
 
                 // Only update dataset
-                this.setState({ dataset: rows });
+                this.state.reactGrid?.gridService.resetGrid();
+                this.setState(() => ({
+                    ...this.state,
+                    dataset: rows,
+                }));
             }
         } catch (err) {
             // swallow network or parsing errors for now; could surface later
