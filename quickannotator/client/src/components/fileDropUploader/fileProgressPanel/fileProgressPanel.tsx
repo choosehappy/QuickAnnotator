@@ -16,7 +16,8 @@ const WSI_FILES_EXT: string[] = ['svs', 'tif', 'dcm', 'ndpi', 'vms', 'vmu', 'scn
 const isWSIFile = (file_name: string) => {
     const file_ext: string | undefined = file_name.split('.').pop();
     if (!file_ext) {
-        throw new Error("File extension could not be determined.");
+        console.log("File extension could not be determined.");
+        return false;
     }
     return WSI_FILES_EXT.includes(file_ext)
 }

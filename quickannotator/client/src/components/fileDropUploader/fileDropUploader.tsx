@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { UploadStatus, UploadFileStore, DropzoneFile } from "../../types.ts";
+import { UploadStatus, UploadFileStore } from "../../types.ts";
 import Dropzone from 'react-dropzone';
 
 import { useDropzone } from 'react-dropzone';
@@ -139,7 +139,7 @@ const FileDropUploader = (props: any) => {
                             </div>
                         );
 
-                        // start polling the ray task status every 5 seconds until finished
+                        // start polling the ray task status every N seconds until finished
                         const intervalId = window.setInterval(async () => {
                             try {
                                 const res = await fetchRayTaskById(taskId);
@@ -172,8 +172,11 @@ const FileDropUploader = (props: any) => {
                             }
                         }, POLLING_INTERVAL_MS);
 
+                        if (intervalsRef.current[taskId]) {
+                            clearInterval(intervalsRef.current[taskId]);
+                        }
                         // store interval id so we can clear later
-                        intervalsRef.current[taskId] = intervalId as unknown as number;
+                        intervalsRef.current[taskId] = intervalId;
 
                     } else if (filesStatus[d.name]) {
                         updateFileStatus(d.name, 100, UploadStatus.done);

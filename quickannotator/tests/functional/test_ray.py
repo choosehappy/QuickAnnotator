@@ -1,11 +1,7 @@
-import time
 import pytest
 
 # Skip the whole module if ray isn't installed
 import ray
-
-from quickannotator import constants
-
 
 @pytest.mark.functional
 def test_ray_list_and_get_tasks(test_client):

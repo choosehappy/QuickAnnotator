@@ -201,12 +201,12 @@ export default class TaskChildrenGrid extends React.Component<Props, State> {
         // then poll
         this.pollRef = window.setInterval(() => {
             this.fetchChildrenOnce();
-        }, POLLING_INTERVAL_MS) as unknown as number;
+        }, POLLING_INTERVAL_MS);
     }
 
     stopPolling() {
         if (this.pollRef) {
-            clearInterval(this.pollRef as unknown as number);
+            clearInterval(this.pollRef);
             this.pollRef = null;
         }
     }

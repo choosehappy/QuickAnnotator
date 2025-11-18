@@ -9,7 +9,6 @@ import { useNotificationCenter } from "react-toastify/addons/use-notification-ce
 export default function Root() {
     const [currentProject, setCurrentProject] = useState<Project | null>(null);
     const [currentImage, setCurrentImage] = useState<Image | null>(null);
-    const { notifications } = useNotificationCenter();
 
     return (
         <div className="d-flex flex-column" style={{ height: '100vh' }}>
