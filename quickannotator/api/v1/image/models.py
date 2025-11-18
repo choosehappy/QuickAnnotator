@@ -1,6 +1,5 @@
 from flask_smorest.fields import Upload
 from marshmallow import fields, Schema
-from quickannotator.api.v1.ray.models import RayClusterStateFilters
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 
 import quickannotator.db.models as db_models

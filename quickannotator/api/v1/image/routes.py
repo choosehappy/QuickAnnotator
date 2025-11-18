@@ -3,7 +3,6 @@ from flask_smorest import abort
 from flask.views import MethodView
 from flask import request, send_from_directory, send_file
 from sqlalchemy import func
-from quickannotator.api.v1.utils.ray_cluster import build_ray_cluster_filters
 import quickannotator.constants as constants
 import quickannotator.db.models as db_models
 from quickannotator.db import db_session
@@ -15,7 +14,6 @@ from quickannotator.api.v1.project.utils import import_from_tabular
 import large_image
 import os
 import io
-import ray.util.state
 
 import logging
 from . import models as server_models
