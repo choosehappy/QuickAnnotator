@@ -125,3 +125,5 @@ class TSVFields(enum.Enum):
     EMBEDDING_COORD = 'embedding_coord'
     GROUP_ID = 'group_id'
     SPLIT = 'split'
+
+RAY_TASK_RETURN_LIMIT = 30

@@ -165,6 +165,26 @@ export enum ExportFormat {
     TSV = "tsv"
 }
 
+export enum UploadStatus {
+    selected = 0,
+    uploading = 1,
+    pending = 2,
+    error = 3,
+    done = 4,
+}
+
+export type UploadFileStore = {
+    [fileName: string]: {
+        progress: number;
+        status: UploadStatus;
+    };
+}
+
+export type DropzoneFile = {
+    file: File;
+    status: UploadStatus;
+}
+
 export class CurrentAnnotation {
     undoStack: Annotation[];
     redoStack: Annotation[];

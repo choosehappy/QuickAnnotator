@@ -1,12 +1,6 @@
-.drag-drop {
-    background: #c6c6c6;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-}
-
 .document-uploader {
     border: 2px dashed #4282fe;
-    background-color: #f4fbff;
+    background-color: #ffffff;
     padding: 10px;
     display: flex;
     flex-direction: column;
@@ -15,12 +9,16 @@
     position: relative;
     border-radius: 8px;
     cursor: pointer;
+    height: 100%; /* Ensure the uploader has a defined height */
+    /* prevent the uploader from growing indefinitely when many files are added */
+    overflow: hidden;
 }
 
 .upload-info {
     display: flex;
     align-items: center;
     margin-bottom: 1rem;
+    height: 100%; /* Fill the height of the parent */
 
     svg {
         font-size: 36px;
@@ -38,3 +36,46 @@
         }
     }
 }
+
+.drop-content {
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    width: 100%;
+    align-items: flex-start;
+    margin-top: 12px;
+    height: 100%; /* Fill the height of the parent */
+    /* ensure overflow inside columns is handled by the list container */
+    overflow: hidden;
+}
+
+.drop-instructions {
+    flex: 1 1 auto;
+}
+
+.file-list-scroll {
+    width: 100%;
+    /* limit the height so the list scrolls instead of expanding the row */
+    height: 160px;
+    overflow-y: scroll;
+    padding-left: 12px;
+    border-left: 1px solid rgba(0,0,0,0.06);
+    display: block;
+    gap: 8px;
+}
+
+/* React-Toastify progress bar overrides */
+/* Use project's toast variables when available and increase specificity to ensure override */
+.Toastify__toast .Toastify__progress-bar,
+.Toastify__progress-bar,
+.Toastify__progress-bar--default {
+    /* prefer a dark grey over a lighter gray */
+    background: #6c757d !important; /* Dark grey */
+    height: 6px !important;
+    border-radius: 6px !important;
+    box-shadow: inset 0 -2px 6px rgba(108, 117, 125, 0.2) !important; /* Lighter gray shadow */
+    opacity: 0.98 !important;
+    transform: scaleX(-1); /* Flip the progress bar to make it decrease */
+    transform-origin: left; /* Ensure the bar decreases from left to right */
+}
+
