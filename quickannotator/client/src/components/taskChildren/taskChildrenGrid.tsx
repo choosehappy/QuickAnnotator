@@ -108,20 +108,13 @@ export default class TaskChildrenGrid extends React.Component<Props, State> {
                     // Also put the full escaped error in the title attribute for a native tooltip.
                     return `<div title="${escaped}" style="display:flex;flex-direction:column;">
                                 <span>${TASK_STATE_MAP[s]}</span>
-                                <pre style="white-space:pre-wrap;margin:4px 0 0;font-family:inherit;">${escaped}</pre>
                             </div>`;
                 }
             }
 
             // Fall back: raw value from the row
-            return `<span>${dataContext?.state ?? value ?? 'Unknown'}</span>`;
-
+            return `<div style="display:flex;flex-direction:column;"><span>${TASK_STATE_MAP.SUBMITTED_TO_WORKER}</span></div>`;
         };
-        
-        // Doesn't seem to work.
-        // const tooltipFormatter = (_row: number, _cell: number, value: string, _columnDef: Column, _dataContext: TaskRow) => {            
-        //     return `<div class="tooltip-2cols-row"><div>Title:</div> <div>${_dataContext.error_message}</div></div>`
-        // };
 
 
         const columns: Column[] = [
