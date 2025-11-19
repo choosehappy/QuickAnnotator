@@ -8,8 +8,8 @@ import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RE
 
 import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered, tileIdIsValid, getScaledSize, createCirclePolygon, createConnectingRectangle } from '../utils/map.ts';
 import { useCookies } from 'react-cookie';
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useHotkeys, isHotkeyPressed } from 'react-hotkeys-hook';
-import { propTypes } from 'react-bootstrap/esm/Image';
 
 
 interface Props {
@@ -25,6 +25,8 @@ interface Props {
     setPreds: React.Dispatch<React.SetStateAction<Annotation[]>>;
     currentTool: string | null;
     setCurrentTool: React.Dispatch<React.SetStateAction<string | null>>;
+    selectedPred: CurrentAnnotation | null;
+    setSelectedPred: React.Dispatch<React.SetStateAction<CurrentAnnotation | null>>;
     ctrlHeld: boolean;
     setCtrlHeld: React.Dispatch<React.SetStateAction<boolean>>;
     highlightedPreds: Annotation[] | null;
@@ -42,6 +44,7 @@ const ViewportMap = (props: Props) => {
     const activeRenderPredictionsCall = useRef<number>(0);
     const featureIdsToUpdate = useRef<number[]>([]);
     const [cookies, setCookies] = useCookies([COOKIE_NAMES.SKIP_CONFIRM_IMPORT]);
+    const [searchParams, setSearchParams] = useSearchParams();
     const lastBrushState = useRef<{ stateId: number, coords: [Position] } | null>(null);
 
     let zoomPanTimeout: any = null;
@@ -473,11 +476,13 @@ const ViewportMap = (props: Props) => {
 
     const handleZoomPan = () => {
         console.log('Zooming or Panning...');
+        
         // Clear the previous timeout if the zoom continues
         if (zoomPanTimeout) clearTimeout(zoomPanTimeout);
         // Set a new timeout to detect when zooming has stopped
         zoomPanTimeout = setTimeout(() => {
             console.log('Zooming or Panning stopped.');
+            setBoundsQuery();
             renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
                 console.log("Ground truths rendered.");
             });
@@ -496,6 +501,48 @@ const ViewportMap = (props: Props) => {
                 return 1 - Math.pow(1 - t, 2);
             }
         })
+    }
+
+    /**
+     * Set the view (image bounds) of the current image as a
+     * query string parameter.
+     */
+    const setBoundsQuery = () => {
+        var bounds, left, right, top, bottom, rotation;
+        const map = geojs_map.current;
+        if (map && props.currentImage) {
+            bounds = map.bounds();
+            rotation = (map.rotation() * 180 / Math.PI).toFixed();
+            left = bounds.left.toFixed();
+            right = bounds.right.toFixed();
+            top = bounds.top.toFixed();
+            bottom = bounds.bottom.toFixed();
+            setSearchParams({
+                bounds: [
+                    left, top, right, bottom, rotation
+                ].join(','),
+            }, { replace: true });
+        }
+    }
+
+    /**
+     * Get the view from the query string and set it on the image.
+     */
+    const setImageBounds = () => {
+        const boundsstring = searchParams.get('bounds');
+        const map = geojs_map.current;
+        if (!boundsstring || !map) {
+            return;
+        }
+        const bounds = boundsstring.split(',');
+        map.bounds({
+            left: parseFloat(bounds[0]),
+            top: parseFloat(bounds[1]),
+            right: parseFloat(bounds[2]),
+            bottom: parseFloat(bounds[3])
+        });
+        var rotation = parseFloat(bounds[4]) || 0;
+        map.rotation(rotation * Math.PI / 180);
     }
 
     const initializeMap = () => {
@@ -569,6 +616,7 @@ const ViewportMap = (props: Props) => {
             console.error("Failed to fetch image metadata:", error);
         }
         geojs_map.current = map;
+        setImageBounds();
         return null;
     }
 
@@ -599,6 +647,7 @@ const ViewportMap = (props: Props) => {
         });
         map.geoOn(geo.event.zoom, handleZoomPan);
         map.geoOn(geo.event.pan, handleZoomPan);
+        map.geoOn(geo.event.transition, handleZoomPan);
 
         return () => {
             // Cleanup event handlers on unmount
@@ -613,6 +662,7 @@ const ViewportMap = (props: Props) => {
             map.geoOff(geo.event.mousemove);
             map.geoOff(geo.event.zoom);
             map.geoOff(geo.event.pan);
+            map.geoOff(geo.event.transition);
         };
     }, [props.currentImage, props.currentAnnotationClass, props.currentTool, props.currentAnnotation, props.gts, props.ctrlHeld]);
 
@@ -759,7 +809,6 @@ const ViewportMap = (props: Props) => {
         const annotationId = currentState?.id;
         const prevAnnotationId = prevState?.id;
         const layer = geojs_map.current?.layers()[LAYER_KEYS.GT];
-
         // If the current annotation is associated with a tile feature, "redraw" the feature.
         if (tileIdIsValid(tile_id)) {
             const feature = getTileFeatureById(layer, tile_id);
@@ -786,6 +835,12 @@ const ViewportMap = (props: Props) => {
         }
 
     }, [props.currentAnnotation])
+
+    useEffect(() => {
+        const x = props.selectedPred?.currentState?.parsedCentroid?.coordinates[0];
+        const y = props.selectedPred?.currentState?.parsedCentroid?.coordinates[1];
+        if (x && y) translateMap(x, y);
+    }, [props.selectedPred]);
 
     // When the highlighted predictions change, redraw the features
     useEffect(() => {

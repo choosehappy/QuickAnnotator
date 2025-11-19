@@ -18,8 +18,6 @@ import Legend from '../components/legend.tsx';
 import NewClassModal from '../components/newClassModal.tsx';
 import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation, DataItem, IdNameElement } from "../types.ts";
 import AnnotationExportModal from '../components/annotationExportModal.tsx';
-import { propTypes } from 'react-bootstrap/esm/Image';
-import { CookiesProvider } from 'react-cookie';
 import { useHotkeys } from 'react-hotkeys-hook';
 
 const AnnotationPage = () => {
@@ -32,6 +30,7 @@ const AnnotationPage = () => {
     const [currentTool, setCurrentTool] = useState<string | null>('0');
     const [ctrlHeld, setCtrlHeld] = useState(false);
     const [currentAnnotation, setCurrentAnnotation] = useState<CurrentAnnotation | null>(null);
+    const [selectedPred, setSelectedPred] = useState<CurrentAnnotation | null>(null);
     const [highlightedPreds, setHighlightedPreds] = useState<Annotation[] | null>(null);
     const prevCurrentAnnotation = useRef<CurrentAnnotation | null>(null);
     const [activeModal, setActiveModal] = useState<number | null>(null);
@@ -205,6 +204,8 @@ const AnnotationPage = () => {
                                                     setCurrentAndPreviousAnnotation, 
                                                     pushAnnotationStateToUndoStack,
                                                     prevCurrentAnnotation,
+                                                    selectedPred,
+                                                    setSelectedPred,
                                                     highlightedPreds,
                                                     setHighlightedPreds,
                                                     activeModal,
@@ -224,7 +225,7 @@ const AnnotationPage = () => {
                                     {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, annotationClasses, setActiveModal }}
                                 />
                                 <PredictionsPane
-                                    {...{ preds, setPreds, currentAnnotation, annotationClasses }}
+                                    {...{ preds, setPreds, selectedPred, setSelectedPred, annotationClasses}}
                                 />
                             </Stack>
                         </Col>
