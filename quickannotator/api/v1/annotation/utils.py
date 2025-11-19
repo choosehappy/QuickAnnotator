@@ -1,5 +1,6 @@
 #%%
 import threading
+from typing import Callable
 import ray
 import time
 import os
@@ -22,6 +23,7 @@ from quickannotator.db.crud.annotation_class import get_annotation_class_by_name
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 from tqdm import tqdm
 from shapely.geometry import shape
+import shapely
 from shapely.geometry.base import BaseGeometry
 from shapely.geometry import Polygon, MultiPolygon
 from werkzeug.datastructures import FileStorage
@@ -268,60 +270,53 @@ class GeometryOperation:
     """
 
     @staticmethod
-    def union(poly1: Polygon, poly2: Polygon) -> BaseGeometry:
+    def apply_operation(poly1: Polygon, poly2: Polygon,
+                        operation: Callable[[BaseGeometry, BaseGeometry], BaseGeometry],
+                        multipoly_func=constants.MultiPolygonToPolygonFuncs.MAX) -> BaseGeometry:
         """
-        Perform a union operation on two polygons.
+        Apply a generic binary geometric operation to two polygons.
 
         Args:
             poly1 (Polygon): The first polygon.
             poly2 (Polygon): The second polygon.
+            operation (Callable[[BaseGeometry, BaseGeometry], BaseGeometry]):
+                A callable that accepts (poly1, poly2) and returns a geometry (e.g. lambda a,b: a.union(b)).
+            multipoly_func (Enum, optional): Enum whose .value is the name of a builtin function
+                used to collapse a MultiPolygon to a single Polygon (e.g. 'max' or 'min').
 
         Returns:
-            BaseGeometry: The resulting geometry after the union operation.
-
-        Raises:
-            ValueError: If either of the input polygons is not valid.
+            BaseGeometry | None: Resulting geometry, or None if the result is empty.
         """
-        if not poly1.is_valid:
-            raise ValueError("First polygon is not valid")
-        if not poly2.is_valid:
-            raise ValueError("Second polygon is not valid")
-        result = poly1.union(poly2)
+        result = operation(shapely.make_valid(poly1), shapely.make_valid(poly2))
+
+        if result is None:
+            return None
+        if getattr(result, "is_empty", False):
+            return None
+        if not getattr(result, "is_valid", True):
+            logger.warning("Resulting geometry is not valid after operation")
+
+        if getattr(result, "geom_type", None) == 'MultiPolygon':
+            try:
+                func = getattr(builtins, multipoly_func.value)
+            except AttributeError:
+                raise ValueError(f"Unsupported function for handling multipolygons: {multipoly_func.value}")
+
+            # collapse MultiPolygon to a single Polygon using the chosen builtin function
+            result = func(result.geoms, key=lambda g: g.area)
 
         return result
 
     @staticmethod
-    def difference(poly1: Polygon, poly2: Polygon, multipoly_func=constants.MultiPolygonToPolygonFuncs.MAX) -> Polygon:
+    def union(poly1: Polygon, poly2: Polygon, multipoly_func=constants.MultiPolygonToPolygonFuncs.MAX) -> BaseGeometry:
         """
-        Perform a difference operation between two polygons.
-
-        Args:
-            poly1 (Polygon): The first polygon.
-            poly2 (Polygon): The second polygon to subtract from the first.
-
-        Returns:
-            Polygon: The resulting polygon after the difference operation, or None if the result is empty.
-
-        Raises:
-            ValueError: If either of the input polygons is not valid or if the resulting polygon is invalid.
+        Convenience wrapper for union operation.
         """
-        if not poly1.is_valid:
-            raise ValueError("First polygon is not valid")
-        if not poly2.is_valid:
-            raise ValueError("Second polygon is not valid")
-        result = poly1.difference(poly2)
+        return GeometryOperation.apply_operation(poly1, poly2, lambda a, b: a.union(b), multipoly_func)
 
-        if result.is_empty:
-            return None
-        if not result.is_valid:
-            raise ValueError("Resulting polygon is not valid after difference operation")
-        if result.geom_type == 'MultiPolygon':
-            # If the result is a MultiPolygon, return the largest polygon by area
-            try:  
-                func = getattr(builtins, multipoly_func.value)  
-            except AttributeError:  
-                raise ValueError(f"Unsupported function for handling multipolygons: {multipoly_func.value}")  
-
-            result = func(result.geoms, key=lambda g: g.area)
-
-        return result
+    @staticmethod
+    def difference(poly1: Polygon, poly2: Polygon, multipoly_func=constants.MultiPolygonToPolygonFuncs.MAX) -> BaseGeometry:
+        """
+        Convenience wrapper for difference operation.
+        """
+        return GeometryOperation.apply_operation(poly1, poly2, lambda a, b: a.difference(b), multipoly_func)

@@ -105,12 +105,12 @@ class FileUpload(MethodView):
                 import_annotation_from_json(project_id, file)
             # handle tsv file
             if file_ext in TABULAR_extensions:
-                actor_ids = import_from_tabular(project_id, file)
-                resp['actor_ids'] = actor_ids
+                ref = import_from_tabular(project_id, file)
+                resp['ray_task_id'] = ref.task_id().hex()
             
             return resp, 200
         else:
-            abort(404, message="No project id foundin Args")
+            abort(404, message="No project id found in Args")
     
 @bp.route('/<int:image_id>/<int:file_type>/file', endpoint="file")
 class ImageFile(MethodView):
