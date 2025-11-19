@@ -79,11 +79,10 @@ class SearchAnnotationClass(MethodView):
     @bp.response(200, server_models.AnnClassRespSchema(many=True))
     def get(self, args):
         """     search for an AnnotationClass by name or project_id     """
-        if 'name' in args:
-            result = [get_annotation_class_by_name(args['name'])]
+        if 'name' in args and 'project_id' in args:
+            result = [get_annotation_class_by_name(args['project_id'], args['name'])]
         elif 'project_id' in args:
-            result = [get_annotation_class_by_id(constants.MASK_CLASS_ID)]  # Always include the mask class
-            result.extend(get_all_annotation_classes_for_project(args['project_id']))
+            result = get_all_annotation_classes_for_project(args['project_id'])
         else:
             result = get_all_annotation_classes()
 

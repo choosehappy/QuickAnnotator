@@ -8,7 +8,7 @@ license = {file = "LICENSE.txt"}
 version = "0.1.0"
 authors = [{name = "Andrew Janowczyk"}]
 maintainers = [{name = "Jackson Jacobs"}, {name = "Nan Li"}]
-description = "Quick Annotator is an open-source digital pathology annotation tool."
+description = "QuickAnnotator is an open-source digital pathology annotation tool."
 readme = {file = "README.md", content-type = "text/markdown"}
 classifiers = [
     "Intended Audience :: Science/Research",
@@ -56,8 +56,8 @@ dependencies = [
     "sqlalchemy~=2.0.35",
     "tensorboard~=2.19.0",
     "torchsummary~=1.5.1",
+    "orjson",
     "tqdm>=4.67.1",
-    "ujson>=5.11.0",
     "umap-learn==0.5.1",
     "waitress~=3.0.0",
     "werkzeug~=3.0.4",

@@ -2,7 +2,7 @@
 type ApiResponse<T> = Promise<T>;
 import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, TileIds, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileIdsByPolygonArgs, PostAnnClassArgs } from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
-import { API_URI } from "./config.ts";
+import { API_URI, POLYGON_OPERATIONS } from "./config.ts";
 
 interface FetchOptions extends RequestInit {
     headers?: HeadersInit;
@@ -40,7 +40,7 @@ export const post = async <U, T>(url: string, data: U, options: FetchOptions = {
 };
 
 // PUT request method
-export const put = async <T, U>(url: string, data: U, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
+export const put = async <U, T>(url: string, data: U, options: FetchOptions = {}): ApiResponse<{ data: T, status: number }> => {
     const response = await fetch(`${API_URL}${url}`, {
         method: 'PUT',
         headers: {
@@ -224,7 +224,7 @@ export const fetchTile = async (image_id: number, annotation_class_id: number, t
     return await get<Tile>(`/tile?${query}`);
 }
 
-export const operateOnAnnotation = async (annotation: Annotation, polygon2: Polygon, operation: number) => {
+export const operateOnAnnotation = async (annotation: Annotation, polygon2: Polygon, operation: POLYGON_OPERATIONS) => {
     const { annotation_class_id, ...rest } = annotation;
     const requestBody: PostOperationArgs = {
         ...rest,
@@ -332,8 +332,29 @@ export const exportAnnotationsToDSA = async (
 
     return response.data;
 };
+
+
+
 export const getAnnotationPageURL = (project_id: number, image_id: number) => `/project/${project_id}/annotate/${image_id}`
 
 export const getImageThumbnailURL = (image_id: number) =>`/api/v1/image/${image_id}/1/file`
 
-export const UploadImageURL = () =>`/api/v1/image/upload`
+export const UploadImageURL = () =>`/api/v1/image/upload`;
+
+// Ray cluster / task helpers
+// Fetch a single Ray task by its task id
+export const fetchRayTaskById = async (task_id: string) => {
+    return await get<any>(`/ray/task/${task_id}`);
+};
+
+// List Ray tasks using RayClusterStateFilters. The server expects a JSON body
+// with a `ray_cluster_filters` array. Returns an array of task state objects.
+export const searchRayTasks = async (ray_cluster_filters: any[] = []) => {
+    const requestBody = { ray_cluster_filters };
+    return await post<typeof requestBody, any[]>(`/ray/task`, requestBody);
+};
+
+export const getChildRayTasks = async (parent_task_id: string) => {
+    const filters = [["parent_task_id", "=", parent_task_id], ["type", "=", "ACTOR_TASK"]];
+    return await searchRayTasks(filters);
+}

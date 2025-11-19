@@ -18,16 +18,7 @@ import Legend from '../components/legend.tsx';
 import NewClassModal from '../components/newClassModal.tsx';
 import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation, DataItem, IdNameElement } from "../types.ts";
 import AnnotationExportModal from '../components/annotationExportModal.tsx';
-import { propTypes } from 'react-bootstrap/esm/Image';
-import { CookiesProvider } from 'react-cookie';
-
-function usePrevious<T>(value: T): T | undefined {
-    const ref = useRef<T>();
-    useEffect(() => {
-        ref.current = value;
-    }, [value]);
-    return ref.current;
-}
+import { useHotkeys } from 'react-hotkeys-hook';
 
 const AnnotationPage = () => {
     const { projectid, imageid } = useParams();
@@ -37,14 +28,44 @@ const AnnotationPage = () => {
     const [gts, setGts] = useState<Annotation[]>([]);
     const [preds, setPreds] = useState<Annotation[]>([]);
     const [currentTool, setCurrentTool] = useState<string | null>('0');
-    const [action, setAction] = useState<string | null>(null);
+    const [ctrlHeld, setCtrlHeld] = useState(false);
     const [currentAnnotation, setCurrentAnnotation] = useState<CurrentAnnotation | null>(null);
     const [selectedPred, setSelectedPred] = useState<CurrentAnnotation | null>(null);
-    const [highlightedPreds, setHighlightedPreds] = useState<Annotation[] | null>(null); // TODO: should just be a list of annotations
-    const prevCurrentAnnotation = usePrevious<CurrentAnnotation | null>(currentAnnotation);
+    const [highlightedPreds, setHighlightedPreds] = useState<Annotation[] | null>(null);
+    const prevCurrentAnnotation = useRef<CurrentAnnotation | null>(null);
     const [activeModal, setActiveModal] = useState<number | null>(null);
     const [mouseCoords, setMouseCoords] = useState<{ x: number, y: number }>({x: 0, y: 0});
     const [annotationClasses, setAnnotationClasses] = useState<AnnotationClass[]>([]);
+
+    function setCurrentAndPreviousAnnotation(newAnnotation: Annotation | null) {    // NOTE: Consider making this a custom hook if the pattern is used elsewhere
+        setCurrentAnnotation((currAnn: CurrentAnnotation | null) => {
+            const prevAnnotationId = currAnn?.currentState ?? null;
+            const newAnnotationId = newAnnotation?.id ?? null;
+
+            // If the user clicked away from an annotation update currentAnnotation to null
+            if (newAnnotation === null) {
+                prevCurrentAnnotation.current = currAnn;
+                return null;
+            }
+
+            // If the user clicked on a different annotation, create a new CurrentAnnotation and save the last one to prevCurrentAnnotation
+            if (newAnnotationId !== prevAnnotationId) {
+                prevCurrentAnnotation.current = currAnn;
+                return new CurrentAnnotation(newAnnotation);
+            } else {
+                return currAnn;
+            }
+        })
+    }
+
+    function pushAnnotationStateToUndoStack(annotation: Annotation) {
+        setCurrentAnnotation((currAnn: CurrentAnnotation | null) => {
+            if (currAnn === null) return null;
+            else {
+                return currAnn.addAnnotation(annotation);
+            }
+        });
+    }
 
     function handleConfirmImport() {
         // Set activeModal to null
@@ -93,6 +114,15 @@ const AnnotationPage = () => {
         setActiveModal(null);
     }
 
+
+    // useHotkeys('ctrl', () => setCtrlHeld(true), { keydown: true, keyup: false });
+    // useHotkeys('ctrl', () => setCtrlHeld(false), { keydown: false, keyup: true });
+    useHotkeys('1', () => setCurrentTool(TOOLBAR_KEYS.POINTER), { keydown: true });
+    useHotkeys('2', () => setCurrentTool(TOOLBAR_KEYS.IMPORT), { keydown: true });
+    useHotkeys('3', () => setCurrentTool(TOOLBAR_KEYS.BRUSH), { keydown: true });
+    // useHotkeys('4', () => setCurrentTool(TOOLBAR_KEYS.WAND), { keydown: true });
+    useHotkeys('5', () => setCurrentTool(TOOLBAR_KEYS.POLYGON), { keydown: true });
+
     useEffect(() => {
         if (projectid && imageid) {
             fetchProject(parseInt(projectid)).then((resp) => {
@@ -106,7 +136,8 @@ const AnnotationPage = () => {
 
         searchAnnotationClasses(Number(projectid)).then((resp) => {
             setAnnotationClasses(resp.data);
-            setCurrentAnnotationClass(resp.data.find((c) => c.id === DEFAULT_CLASS_ID) || null); // Set the current annotation class to the default one
+            const defaultClass = resp.data.find((c) => c.id === DEFAULT_CLASS_ID);
+            setCurrentAnnotationClass(defaultClass || null); // Set the current annotation class to the default one
         });
         
     }, [])
@@ -155,9 +186,8 @@ const AnnotationPage = () => {
                                     zIndex: 10,
                                 }}>
                                     <Toolbar {...{ currentTool, 
-                                                setCurrentTool, 
-                                                action, 
-                                                setAction }} />
+                                                setCurrentTool,
+                                                ctrlHeld }} />
                                 </Card.Header>
                                 <Card.Body style={{ padding: "0px" }}>
                                     <ViewportMap {...{ currentImage, 
@@ -168,8 +198,11 @@ const AnnotationPage = () => {
                                                     setPreds, 
                                                     currentTool, 
                                                     setCurrentTool,
+                                                    ctrlHeld,
+                                                    setCtrlHeld,
                                                     currentAnnotation, 
-                                                    setCurrentAnnotation, 
+                                                    setCurrentAndPreviousAnnotation, 
+                                                    pushAnnotationStateToUndoStack,
                                                     prevCurrentAnnotation,
                                                     selectedPred,
                                                     setSelectedPred,

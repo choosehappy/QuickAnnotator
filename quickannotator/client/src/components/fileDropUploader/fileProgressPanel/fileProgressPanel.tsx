@@ -1,34 +1,24 @@
-
-import { useEffect, useState } from "react";
-import { UploadedFiles } from "../../types.ts";
-import Dropzone from 'react-dropzone';
-import { useDropzone } from 'react-dropzone';
-import { CloudArrowUp } from 'react-bootstrap-icons';
-import { uploadFiles } from '../../helpers/api.ts';
-import Alert from 'react-bootstrap/Alert';
-import CloseButton from 'react-bootstrap/CloseButton';
 import ProgressBar from 'react-bootstrap/ProgressBar';
 import './fileProgressPanel.css'
-import { FileEarmarkText, FileEarmarkImage, Check, X } from 'react-bootstrap-icons';
+import { FileEarmarkText, FileEarmarkImage, Check, X, Exclamation } from 'react-bootstrap-icons';
+import { UploadStatus } from '../../../types.ts';
+import { Spinner } from 'react-bootstrap';
 
 interface Props {
     name: string
-    path: string
-    status: number
+    status: UploadStatus
     progress: number
     removeHandler: (file_name: string) => void;
-}
-// status -> 0 - selected, 1 - uploading, 2 - done
-interface Props {
-    // gts: Annotation[];
-    // setGts: (gts: Annotation[]) => void;
-    // currentAnnotation: CurrentAnnotation
 }
 
 const WSI_FILES_EXT: string[] = ['svs', 'tif', 'dcm', 'ndpi', 'vms', 'vmu', 'scn']
 
 const isWSIFile = (file_name: string) => {
-    const file_ext: string = file_name.split('.').pop();
+    const file_ext: string | undefined = file_name.split('.').pop();
+    if (!file_ext) {
+        console.log("File extension could not be determined.");
+        return false;
+    }
     return WSI_FILES_EXT.includes(file_ext)
 }
 
@@ -45,14 +35,20 @@ const FileProgressPanel = (props: Props) => {
                         <ProgressBar now={props.progress} label={`${props.progress}%`} />
                     </div>
                     <div className="check-circle">
-                        {props.status === 0 ? (
+                        {props.status === UploadStatus.selected ? (
                             <X onClick={(e) => {
                                 e.stopPropagation();
                                 props.removeHandler(props.name)
                             }} />
-                            ): props.status === 1 ? (
-                                `${props.progress}%`
-                            ) : <Check onClick={(e) => {e.stopPropagation();}}/>}
+                        ) : props.status === UploadStatus.pending ? (
+                            <Spinner animation="border" size="sm" role="status">
+                                <span className="visually-hidden">Loading...</span>
+                            </Spinner>
+                        ) : props.status === UploadStatus.error ? (
+                            <Exclamation className="failure-icon" />
+                        ) : (
+                            <Check onClick={(e) => { e.stopPropagation(); }} />
+                        )}
                     </div>
                     
 

@@ -1,26 +1,26 @@
 from flask_smorest import abort
+
 from flask.views import MethodView
-from flask import current_app, request, send_from_directory, send_file
+from flask import request, send_from_directory, send_file
 from sqlalchemy import func
-from quickannotator.constants import ImageType, AnnotationFileFormats
+import quickannotator.constants as constants
+import quickannotator.db.models as db_models
 from quickannotator.db import db_session
 from quickannotator.db.fsmanager import fsmanager
+from quickannotator.db.crud.image import get_image_by_id
+from quickannotator.api.v1.annotation.utils import import_annotation_from_json
+from quickannotator.api.v1.image.utils import delete_image_and_related_data, import_image_from_wsi
+from quickannotator.api.v1.project.utils import import_from_tabular
 import large_image
-import openslide as ops
 import os
 import io
 
-from quickannotator.db.crud.image import get_image_by_id
-import shutil
-import quickannotator.db.models as db_models
+import logging
 from . import models as server_models
 from flask_smorest import Blueprint
-from quickannotator.db.crud.annotation import AnnotationStore
-from quickannotator.db.crud.image import add_image_by_path
-from quickannotator.api.v1.image.utils import delete_image_and_related_data, import_geojson_annotation_file
+logger = logging.getLogger(constants.LoggerNames.FLASK.value)
 
 bp = Blueprint('image', __name__, description='Image operations')
-
 @bp.route('/', endpoint="image")
 class Image(MethodView):
     @bp.arguments(server_models.GetImageArgsSchema, location='query')
@@ -81,10 +81,7 @@ class ImageSearch(MethodView):
 WSI_extensions = ['svs', 'tif','dcm','vms', 'vmu', 'ndpi',
                   'scn', 'mrxs','tiff','svslide','bif','czi']
 JSON_extensions = ['json','geojson']
-
-def import_annotations(image_id: int, annot_file_path):
-    store = AnnotationStore(image_id, 1, is_gt=True, create_table=True)
-    import_geojson_annotation_file(image_id, 1, isgt=True, filepath=annot_file_path)
+TABULAR_extensions = ['tsv']
 
 @bp.route('/upload')
 class FileUpload(MethodView):
@@ -95,67 +92,36 @@ class FileUpload(MethodView):
         file = request.files['file']
         project_id = args["project_id"]
         if file and project_id:
-            # filename = secure_filename(file.filename)
             filename = file.filename
-
-            # TODO: add filename validation and reject if it is not valid
-
             # get file extension
             file_basename, file_ext = os.path.splitext(filename)
-            file_ext = file_ext[1:]
+            file_ext = str(file_ext[1:]).lower()
+            resp = {'type':file_ext, 'name': filename}
             # handle image file
             if file_ext in WSI_extensions:
-                temp_path = fsmanager.nas_write.get_temp_image_path(relative=False)
-                temp_filepath = os.path.join(temp_path,filename)
-
-                # save image to temp folder
-                os.makedirs(temp_path, exist_ok=True)
-                file.save(temp_filepath)
-                
-                # read image info and insert to image table
-                new_image = add_image_by_path(project_id, temp_filepath)
-                # move the actual slides file and update the slide path after create image in DB
-                # image = db_session.query(db_models.Image).filter_by(name=name, path=temp_slide_path).first()
-                image_id = new_image.id
-                slide_folder_path = fsmanager.nas_write.get_project_image_path(project_id, image_id, relative=False)
-                image_full_path = os.path.join(slide_folder_path, filename)
-                # move image file to img_{id} folder
-                os.makedirs(slide_folder_path, exist_ok=True)
-                shutil.move(temp_filepath, image_full_path)
-
-                new_image.path = image_full_path
-                db_session.add(new_image)
-                db_session.commit()
-
-                # import annotation if it exist in temp dir
-                for format in AnnotationFileFormats:
-                    temp_image_path = fsmanager.nas_write.get_temp_image_path(relative=False)
-                    annot_filepath = os.path.join(temp_image_path, f'{file_basename}_annotations.{format.value}')
-                    # for geojson
-                    if os.path.exists(annot_filepath):
-                        import_annotations(image_id, annot_filepath)
+                import_image_from_wsi(project_id, file)
             # handle annotation file
             if file_ext in JSON_extensions:
-                temp_image_path = fsmanager.nas_write.get_temp_image_path(relative=False)
-                annot_filepath = os.path.join(temp_image_path, filename)
-
-                # save annot to temp folder
-                os.makedirs(temp_image_path, exist_ok=True)
-                file.save(annot_filepath)
-            return {'name':filename}, 200
+                import_annotation_from_json(project_id, file)
+            # handle tsv file
+            if file_ext in TABULAR_extensions:
+                ref = import_from_tabular(project_id, file)
+                resp['ray_task_id'] = ref.task_id().hex()
+            
+            return resp, 200
         else:
-            abort(404, message="No project id foundin Args")
+            abort(404, message="No project id found in Args")
     
 @bp.route('/<int:image_id>/<int:file_type>/file', endpoint="file")
 class ImageFile(MethodView):
     def get(self, image_id, file_type):
         """     returns an Image file   """
         result = db_session.query(db_models.Image).filter(db_models.Image.id == image_id).first()
-        full_path = os.path.join(current_app.root_path, result.path)
+        full_path = fsmanager.nas_read.relative_to_global(result.path)
 
-        if file_type == ImageType.IMAGE:
+        if file_type == constants.ImageType.IMAGE:
             return send_from_directory(full_path, result['name'])
-        elif file_type == ImageType.THUMBNAIL:
+        elif file_type == constants.ImageType.THUMBNAIL:
             slide = large_image.open(full_path)
             thumbnail, mimeType = slide.getThumbnail(format='PNG',width=256,height=256)
             # Save thumbnail to bytes buffer
@@ -177,10 +143,10 @@ class ImageFile(MethodView):
 
         result = get_image_by_id(image_id)
 
-        if file_type == ImageType.IMAGE:
+        if file_type == constants.ImageType.IMAGE:
             # TODO implement image file deletion
             pass
-        elif file_type == ImageType.THUMBNAIL:
+        elif file_type == constants.ImageType.THUMBNAIL:
             # TODO implement thumbnail file deletion
             pass
         return {}, 204

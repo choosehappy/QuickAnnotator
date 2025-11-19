@@ -98,7 +98,6 @@ def run_inference(device, model, tiles):
         outputs = model(io_images)  #output at target magnification level!
         outputs = torch.sigmoid(outputs) #BCEWithLogitsLoss needs a sigmoid at the end
         outputs = outputs[:, :, 32:-32, 32:-32]
-        # breakpoint()
 
         for j, output in enumerate(outputs):
             #---

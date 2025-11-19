@@ -152,9 +152,37 @@ export type OutletContextType = {
     setCurrentImage: (image: Image | null) => void;
 }
 
+export type ToolbarButton = {
+        icon: JSX.Element;
+        disabled: boolean;
+        title: string;
+        shortcut: string;
+        content: PopoverData;
+};
+
 export enum ExportFormat {
     GEOJSON = "geojson",
     TSV = "tsv"
+}
+
+export enum UploadStatus {
+    selected = 0,
+    uploading = 1,
+    pending = 2,
+    error = 3,
+    done = 4,
+}
+
+export type UploadFileStore = {
+    [fileName: string]: {
+        progress: number;
+        status: UploadStatus;
+    };
+}
+
+export type DropzoneFile = {
+    file: File;
+    status: UploadStatus;
 }
 
 export class CurrentAnnotation {
@@ -170,9 +198,12 @@ export class CurrentAnnotation {
         return this.undoStack.at(-1);
     }
 
-    addAnnotation(annotation: Annotation) {
-        this.undoStack.push(annotation);
-        this.redoStack = [];
+    // Note that useState objects cannot be mutated directly, so we have to return a new object.
+    addAnnotation(annotation: Annotation): CurrentAnnotation {
+        const newCurrentAnnotation = new CurrentAnnotation(this.undoStack[0]);
+        newCurrentAnnotation.undoStack = [...this.undoStack, annotation];
+        newCurrentAnnotation.redoStack = [];
+        return newCurrentAnnotation;
     }
 
     undo() {
@@ -204,6 +235,12 @@ export interface ModalData {
     title: string;
     description: string;
 }
+
+export interface PopoverData {
+    title: string;
+    description: string;
+}
+
 export class DataItem {
     id: number;
     name: string;

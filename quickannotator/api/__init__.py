@@ -1,7 +1,7 @@
 from flask_smorest import Api
 
 def init_api(app, version):
-    from .v1 import annotation, annotation_class, project, image, notification, setting, tile, misc
+    from .v1 import annotation, annotation_class, project, image, notification, setting, tile, misc, ray
     app.config[f"{version.upper()}_API_TITLE"] = "QuickAnnotator_API"
     app.config[f"{version.upper()}_API_VERSION"] = version
     app.config[f"{version.upper()}_OPENAPI_VERSION"] = "3.0.2"
@@ -18,6 +18,7 @@ def init_api(app, version):
         (setting.bp, "/setting"),
         (tile.bp, "/tile"),
         (misc.bp, "/misc"),
+        (ray.bp, "/ray"),
     ]
 
     prefix = app.config[f"{version.upper()}_OPENAPI_URL_PREFIX"]
