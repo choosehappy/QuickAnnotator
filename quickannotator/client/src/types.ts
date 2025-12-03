@@ -84,7 +84,7 @@ export interface QueryAnnsByPolygonArgs {
     is_gt: boolean;
 }
 
-export interface SearchTileIdsByPolygonArgs {
+export interface SearchTileRefsByPolygonArgs {
     polygon: string;
     hasgt: boolean;
 }
@@ -129,9 +129,14 @@ export interface Project {
     datetime: Date;
 }
 
-export interface TileIds {
+export interface GetAnnsForTileIdsArgs {
     tile_ids: number[];
     is_gt: boolean;
+}
+
+export interface TileRef {
+    tile_id: number;
+    downsampled_tile_id: number;
 }
 
 export interface Tile {
