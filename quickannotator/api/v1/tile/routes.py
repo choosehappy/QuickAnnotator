@@ -75,7 +75,7 @@ class TileBoundingBox(MethodView):
 @bp.route('/<int:image_id>/<int:annotation_class_id>/search/bbox')
 class TileIdSearchByBbox(MethodView):
     @bp.arguments(server_models.SearchTileArgsSchema, location='query')
-    @bp.response(200, server_models.TileIdRespSchema)
+    @bp.response(200, server_models.TileRefRespSchema(many=True))
     def get(self, args, image_id, annotation_class_id):
         """     get all Tiles within a bounding box
         """
@@ -94,16 +94,18 @@ class TileIdSearchByBbox(MethodView):
             tiles = tilestore.get_tiles_by_tile_ids(image_id, annotation_class_id, tile_ids_in_bbox_and_mask, hasgt=True)
             tile_ids_in_bbox_and_mask = [tile.tile_id for tile in tiles]
 
-        return {"tile_ids": tile_ids_in_bbox_and_mask}, 200
-    
+        tile_refs = [{"tile_id": tile_id, "downsampled_tile_id": tilespace.downsample_tile_id(tile_id, args.get('downsample_level', 0))} for tile_id in tile_ids_in_bbox_and_mask]
+        return tile_refs, 200
+
 @bp.route('/<int:image_id>/<int:annotation_class_id>/search/polygon')
 class TileIdSearchByPolygon(MethodView):
     @bp.arguments(server_models.SearchTileByPolygonArgsSchema, location='json')
-    @bp.response(200, server_models.TileIdRespSchema)
+    @bp.response(200, server_models.TileRefRespSchema(many=True))
     def post(self, args, image_id, annotation_class_id):
         """     get all Tiles within a polygon
         """
         tilestore = TileStoreFactory.get_tilestore()
+        tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
         tiles_in_polygon, _, _ = tilestore.get_tile_ids_intersecting_polygons(image_id, annotation_class_id, [args['polygon']], mask_dilation=1)
 
         if annotation_class_id != MASK_CLASS_ID:
@@ -116,17 +118,17 @@ class TileIdSearchByPolygon(MethodView):
             tiles = tilestore.get_tiles_by_tile_ids(image_id, annotation_class_id, tile_ids_in_poly_and_mask, hasgt=True)
             tile_ids_in_poly_and_mask = [tile.tile_id for tile in tiles]
 
-        return {"tile_ids": tile_ids_in_poly_and_mask}, 200
+        tile_refs = [{"tile_id": tile_id, "downsampled_tile_id": tilespace.downsample_tile_id(tile_id, args.get('downsample_level', 0))} for tile_id in tile_ids_in_poly_and_mask]
+        return tile_refs, 200
 
-    
 @bp.route('/<int:image_id>/<int:annotation_class_id>/search/coordinates')
 class TileIdSearchByCoordinates(MethodView):
     @bp.arguments(server_models.SearchTileByCoordinatesArgsSchema, location='query')
-    @bp.response(200, server_models.TileIdRespSchema)
+    @bp.response(200, server_models.TileRefRespSchema)
     def get(self, args, image_id, annotation_class_id):
         """     get a Tile for a given point
         """
         tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
         tile_id = tilespace.point_to_tileid(args['x'], args['y'])
-        return {"tile_ids": [tile_id]}, 200
-        
+        tile_ref = {"tile_id": tile_id, "downsampled_tile_id": tilespace.downsample_tile_id(tile_id, args.get('downsample_level', 0))}
+        return tile_ref, 200

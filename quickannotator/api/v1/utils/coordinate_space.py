@@ -173,7 +173,65 @@ class TileSpace:
 
         return (x1, y1, x2, y2)
 
+    def get_resampled_tilespace(self, level: int, upsample: bool = False) -> 'TileSpace':
+        """
+        Get a resampled TileSpace based on the specified level and mode (upsample or downsample).
+        Args:
+            level (int): The level of resampling to apply.
+            upsample (bool): If True, perform upsampling; otherwise, perform downsampling.
+        Returns:
+            TileSpace: A new TileSpace instance representing the resampled space.
+        """
+
+        if level < 0:
+            raise ValueError("Resample level must be non-negative.")
+
+        if upsample:
+            factor = 2 ** level
+            if self.ts % factor != 0:
+                raise ValueError("Upsample level must result in an even factor of the tile size.")
+            new_tilesize = self.ts // factor
+        else:
+            new_tilesize = self.ts * (2 ** level)
+
+        return TileSpace(new_tilesize, self.w, self.h)
+    
+    def downsample_tile_id(self, tile_id: int, downsample_level: int) -> int:
+        """
+        Map a tile ID from the current TileSpace to a downsampled TileSpace.
+        Args:
+            tile_id (int): The tile ID in the current TileSpace.
+            downsample_level (int): The level of downsampling to apply. Zero means no downsampling.
+        Returns:
+
+            int: The corresponding tile ID in the downsampled TileSpace.
+        """
+        
+        if downsample_level == 0:
+            return tile_id
+        downsampled_ts = self.get_downsampled_tilespace(downsample_level)
+        x, y = self.tileid_to_point(tile_id)
+        new_tile_id = downsampled_ts.point_to_tileid(x, y)
+        return new_tile_id
+    
+    
+
 def get_tilespace(image_id: int, annotation_class_id: int, in_work_mag: bool=True) -> TileSpace:
+    """
+    Calculate and return the tile space for a given image and annotation class.
+    Args:
+        image_id (int): The ID of the image for which the tile space is being calculated.
+        annotation_class_id (int): The ID of the annotation class associated with the image.
+        in_work_mag (bool, optional): A flag indicating whether to calculate the tile space 
+            in working magnification. Defaults to True.
+    Returns:
+        TileSpace: An object representing the tile space, which includes the tile size, 
+        image width, and image height in either working or base magnification.
+    Notes:
+        - If `in_work_mag` is True, the tile space is calculated in working magnification.
+        - If `in_work_mag` is False, the tile space is calculated in the base magnification of the image.
+    """
+    
     image = get_image_by_id(image_id)
     annotation_class = get_annotation_class_by_id(annotation_class_id)
     r = base_to_work_scaling_factor(image_id, annotation_class_id)
