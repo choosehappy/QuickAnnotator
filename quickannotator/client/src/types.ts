@@ -41,6 +41,16 @@ export interface AnnotationResponse {
     datetime: Date;
 }
 
+export interface FeatureProps {
+    featureId: number;
+    tileIds?: number[];
+}
+
+export enum PredFeatureType {
+    annotation = "annotation",
+    pending = "pending",
+}
+
 export class Annotation {
     id: number;
     annotation_class_id: number;
