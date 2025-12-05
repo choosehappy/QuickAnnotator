@@ -41,6 +41,23 @@ class TileSpace:
         self.row_count = math.ceil(self.h / self.ts)
         self.col_count = math.ceil(self.w / self.ts)
 
+    def shape(self) -> tuple:
+        """
+        Get the shape of the tile space as (rows, columns).
+        Returns:
+            tuple: A tuple containing the number of rows and columns in the tile space.
+        """
+        return (self.row_count, self.col_count)
+    
+
+    def tile_count(self) -> int:
+        """
+        Get the total number of tiles in the tile space.
+        Returns:
+            int: The total number of tiles.
+        """
+        return self.row_count * self.col_count
+
     def get_tile_ids_within_bbox(self, bbox: list[float]) -> list:
         """
         Get the tile IDs within a specified bounding box.
@@ -111,6 +128,9 @@ class TileSpace:
             tuple: A tuple (x, y) representing the coordinates of the tile
         """
 
+        if not (0 <= tile_id < self.tile_count()):
+            raise ValueError(f"Tile ID {tile_id} is out of range (0 to {self.tile_count() - 1})")
+
         row, col = self.tileid_to_rc(tile_id)
         x = col * self.ts
         y = row * self.ts
@@ -126,6 +146,10 @@ class TileSpace:
             int: The tile ID corresponding to the given row and column.
         """
 
+        if not (0 <= row < self.row_count and 0 <= col < self.col_count):
+            raise ValueError(f"Row {row} or Column {col} is out of range "
+                             f"(Rows: 0 to {self.row_count - 1}, Columns: 0 to {self.col_count - 1})")
+
         tile_id = row * self.col_count + col
         return tile_id
 
@@ -137,6 +161,9 @@ class TileSpace:
         Returns:
             tuple: A tuple containing the row and column indices (row, col).
         """
+
+        if not (0 <= tile_id < self.tile_count()):
+            raise ValueError(f"Tile ID {tile_id} is out of range (0 to {self.tile_count() - 1})")
 
         row = tile_id // self.col_count
         col = tile_id % self.col_count
@@ -152,8 +179,7 @@ class TileSpace:
             list: A list of integers representing the tile IDs.
         """
 
-        total_tiles = self.col_count * self.row_count
-        return list(range(total_tiles))
+        return list(range(self.tile_count()))
     
     def get_all_tile_coordinates_for_image(self) -> list:
         """
@@ -165,8 +191,7 @@ class TileSpace:
             list: A list of tuples representing the coordinates of each tile.
         """
 
-        total_tiles = self.col_count * self.row_count
-        coordinates = [self.tileid_to_point(tile_id) for tile_id in range(total_tiles)]
+        coordinates = [self.tileid_to_point(tile_id) for tile_id in self.get_all_tile_ids_for_image()]
         return coordinates
     
     def get_all_tile_rc_for_image(self) -> list:
@@ -179,8 +204,7 @@ class TileSpace:
             list: A list of tuples representing the row and column indices of each tile.
         """
 
-        total_tiles = self.col_count * self.row_count
-        rc_indices = [self.tileid_to_rc(tile_id) for tile_id in range(total_tiles)]
+        rc_indices = [self.tileid_to_rc(tile_id) for tile_id in self.get_all_tile_ids_for_image()]
         return rc_indices
 
     def get_bbox_for_tile(self, tile_id: int) -> tuple:

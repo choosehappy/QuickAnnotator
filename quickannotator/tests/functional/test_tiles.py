@@ -221,3 +221,38 @@ def test_predict_tile(test_client, seed, db_session):
     assert data['image_id'] == image_id
     assert data['tile_id'] == tile_id
     assert data['pred_status'] == TileStatus.STARTPROCESSING
+
+
+def test_search_tiles_with_downsample_level(test_client, seed, annotations_seed, db_session):
+    """
+    GIVEN a test client and tiles within a specific bounding box
+    WHEN the client requests the tiles within the bounding box using a GET request with a downsample_level
+    THEN the response should have a status code of 200 and the returned data should include downsampled_tile_id values
+    """
+
+    # Arrange
+    annotation_class_id = 2
+    image_id = 1
+    bbox = {'x1': 0, 'y1': 0, 'x2': 100, 'y2': 100}
+    hasgt = True
+    downsample_level = 2
+
+    # Act
+    params = {
+        'x1': bbox['x1'],
+        'y1': bbox['y1'],
+        'x2': bbox['x2'],
+        'y2': bbox['y2'],
+        'hasgt': hasgt,
+        'downsample_level': downsample_level
+    }
+    response = test_client.get(f'/api/v1/tile/{image_id}/{annotation_class_id}/search/bbox', query_string=params)
+
+    # Assert
+    assert response.status_code == 200
+    data = response.get_json()
+    assert isinstance(data, list)
+    assert len(data) > 0
+    assert all('tile_id' in tile for tile in data)
+    assert all('downsampled_tile_id' in tile for tile in data)
+    assert all(tile['downsampled_tile_id'] is not None for tile in data)
