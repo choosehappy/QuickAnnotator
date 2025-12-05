@@ -46,7 +46,7 @@ def test_nas_write_class_checkpoint_path(fs_manager):
 
 def test_nas_write_temp_image_path(fs_manager):
     expected_path = os.path.join(fs_manager.nas_write.full_path, "temp")
-    assert fs_manager.nas_write.get_temp_image_path() == expected_path
+    assert fs_manager.nas_write.get_temp_path() == expected_path
 
 def test_nas_high_speed_model_path(fs_manager):
     annotation_class_id = 4
