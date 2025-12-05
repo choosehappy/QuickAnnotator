@@ -38,6 +38,8 @@ class TileSpace:
         self.ts = tilesize
         self.w = image_width
         self.h = image_height
+        self.row_count = math.ceil(self.h / self.ts)
+        self.col_count = math.ceil(self.w / self.ts)
 
     def get_tile_ids_within_bbox(self, bbox: list[float]) -> list:
         """
@@ -65,7 +67,6 @@ class TileSpace:
             raise ValueError(f"Bounding box coordinates must be monotonically increasing: {bbox}")
 
         # Calculate the number of tiles per row
-        tiles_per_row = math.ceil(self.w / self.ts)
 
         # Determine the tile range
         start_col = int(x1 // self.ts)
@@ -77,7 +78,7 @@ class TileSpace:
         cols, rows = np.meshgrid(np.arange(start_col, end_col + 1), np.arange(start_row, end_row + 1))
 
         # Flatten the mesh grid and calculate tile IDs
-        tile_ids = (rows * tiles_per_row + cols).flatten().tolist()
+        tile_ids = (rows * self.col_count + cols).flatten().tolist()
 
         return tile_ids
 
@@ -125,7 +126,7 @@ class TileSpace:
             int: The tile ID corresponding to the given row and column.
         """
 
-        tile_id = row * math.ceil(self.w / self.ts) + col
+        tile_id = row * self.col_count + col
         return tile_id
 
     def tileid_to_rc(self, tile_id: int) -> tuple:
@@ -137,9 +138,8 @@ class TileSpace:
             tuple: A tuple containing the row and column indices (row, col).
         """
 
-        tiles_per_row = math.ceil(self.w / self.ts)
-        row = tile_id // tiles_per_row
-        col = tile_id % tiles_per_row
+        row = tile_id // self.col_count
+        col = tile_id % self.col_count
         return (row, col)
 
     def get_all_tile_ids_for_image(self) -> list:
@@ -152,8 +152,36 @@ class TileSpace:
             list: A list of integers representing the tile IDs.
         """
 
-        total_tiles = math.ceil(self.w / self.ts) * math.ceil(self.h / self.ts)
+        total_tiles = self.col_count * self.row_count
         return list(range(total_tiles))
+    
+    def get_all_tile_coordinates_for_image(self) -> list:
+        """
+        Calculate and return a list of all tile coordinates for the image.
+        The method computes the total number of tiles required to cover the image
+        based on the image width (self.w), image height (self.h), and tile size (self.ts).
+        It then returns a list of tuples representing the coordinates (x, y) of each tile.
+        Returns:
+            list: A list of tuples representing the coordinates of each tile.
+        """
+
+        total_tiles = self.col_count * self.row_count
+        coordinates = [self.tileid_to_point(tile_id) for tile_id in range(total_tiles)]
+        return coordinates
+    
+    def get_all_tile_rc_for_image(self) -> list:
+        """
+        Calculate and return a list of all tile row and column indices for the image.
+        The method computes the total number of tiles required to cover the image
+        based on the image width (self.w), image height (self.h), and tile size (self.ts).
+        It then returns a list of tuples representing the row and column indices (row, col) of each tile.
+        Returns:
+            list: A list of tuples representing the row and column indices of each tile.
+        """
+
+        total_tiles = self.col_count * self.row_count
+        rc_indices = [self.tileid_to_rc(tile_id) for tile_id in range(total_tiles)]
+        return rc_indices
 
     def get_bbox_for_tile(self, tile_id: int) -> tuple:
         """
@@ -209,7 +237,7 @@ class TileSpace:
         
         if downsample_level == 0:
             return tile_id
-        downsampled_ts = self.get_downsampled_tilespace(downsample_level)
+        downsampled_ts = self.get_resampled_tilespace(downsample_level)
         x, y = self.tileid_to_point(tile_id)
         new_tile_id = downsampled_ts.point_to_tileid(x, y)
         return new_tile_id
