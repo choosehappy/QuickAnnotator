@@ -108,3 +108,10 @@ def test_get_all_tile_rc_for_image(fake_ann_class_tilespace):
         for tile_id in fake_ann_class_tilespace.get_all_tile_ids_for_image()
     ]
     assert expected_rc_indices == actual_rc_indices
+
+def test_upsample_tile_id(fake_ann_class_tilespace):
+    # Test case 1
+    tile_id = 0
+    upsample_level = 1
+    expected_tile_ids = [0, 1, 37, 38]
+    assert fake_ann_class_tilespace.upsample_tile_id(tile_id, upsample_level) == expected_tile_ids

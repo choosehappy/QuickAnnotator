@@ -1,3 +1,4 @@
+from itertools import product
 import large_image
 import os
 import numpy as np
@@ -250,21 +251,43 @@ class TileSpace:
     
     def downsample_tile_id(self, tile_id: int, downsample_level: int) -> int:
         """
-        Map a tile ID from the current TileSpace to a downsampled TileSpace.
+        Map a tile ID from the current TileSpace to a downsampled TileSpace using row and column indices.
         Args:
             tile_id (int): The tile ID in the current TileSpace.
             downsample_level (int): The level of downsampling to apply. Zero means no downsampling.
         Returns:
-
             int: The corresponding tile ID in the downsampled TileSpace.
         """
         
         if downsample_level == 0:
             return tile_id
         downsampled_ts = self.get_resampled_tilespace(downsample_level)
-        x, y = self.tileid_to_point(tile_id)
-        new_tile_id = downsampled_ts.point_to_tileid(x, y)
+        row, col = self.tileid_to_rc(tile_id)
+        downsampled_row = row // (2 ** downsample_level)
+        downsampled_col = col // (2 ** downsample_level)
+        new_tile_id = downsampled_ts.rc_to_tileid(downsampled_row, downsampled_col)
         return new_tile_id
+    
+    def upsample_tile_id(self, tile_id: int, upsample_level: int) -> list[int]:
+        """
+        Map a tile ID from the current TileSpace to multiple tile IDs in an upsampled TileSpace using row and column indices.
+        Args:
+            tile_id (int): The tile ID in the current TileSpace.
+            upsample_level (int): The level of upsampling to apply. Zero means no upsampling.
+        Returns:
+            list[int]: A list of corresponding tile IDs in the upsampled TileSpace.
+        """
+
+        if upsample_level == 0:
+            return [tile_id]
+        upsampled_ts = self.get_resampled_tilespace(upsample_level, upsample=True)
+        row, col = self.tileid_to_rc(tile_id)
+        factor = 2 ** upsample_level
+        tile_ids = []
+        rows = np.arange(row * factor, (row + 1) * factor)
+        cols = np.arange(col * factor, (col + 1) * factor)
+        tile_ids = [upsampled_ts.rc_to_tileid(r, c) for r, c in product(rows, cols)]
+        return tile_ids
     
     
 

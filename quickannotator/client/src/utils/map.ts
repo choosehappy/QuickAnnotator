@@ -3,12 +3,12 @@ import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson
 import { Annotation, AnnotationClass, FeatureProps, PredFeatureType, TileRef } from "../types";
 import { UI_SETTINGS } from "../helpers/config";
 
-export const computeTilesToRender = (oldTileIds: number[], newTileIds: number[]) => {
-    const a = new Set(oldTileIds)
-    const b = new Set(newTileIds)
-    const tilesToRemove = new Set([...a].filter(x => !b.has(x)));
-    const tilesToRender = new Set([...b].filter(x => !a.has(x)));
-    return { tilesToRemove, tilesToRender }
+export const computeFeaturesToRender = (oldFeatureIds: number[], newFeatureIds: number[]) => {
+    const a = new Set(oldFeatureIds)
+    const b = new Set(newFeatureIds)
+    const featuresToRemove = new Set([...a].filter(x => !b.has(x)));
+    const featuresToRender = new Set([...b].filter(x => !a.has(x)));
+    return { featuresToRemove, featuresToRender }
 }
 
 export function getFeatIdsRendered(layer: geo.layer, type: PredFeatureType) {
@@ -191,6 +191,17 @@ export function getScaledSize(geojs_map: geo.map, size: number): number {
     const scaleFactor = Math.pow(2, currentZoom);  
     return size / scaleFactor * geojs_map.unitsPerPixel();  // Scale the size based on the current zoom level
 }
+
+export function getTileDownsampleLevel(geojs_map: geo.map): number {
+    const currentZoom = geojs_map.zoom();
+    const zoomRange = geojs_map.zoomRange();
+    const numLevels = 3;
+    const downsampleLevel = Math.min(Math.max(Math.floor((zoomRange.max - currentZoom) / ((zoomRange.max - zoomRange.min) / numLevels)), 0), numLevels - 1);
+    return downsampleLevel;
+}
+
+// TODO: define function to get the polygon downsample value based on zoom level
+
 
 export function createCirclePolygon(x: number, y: number, size: number, layer: geo.layer, pixelTolerance: number): geo.annotation.circleAnnotation {
     const circle = geo.annotation.circleAnnotation({

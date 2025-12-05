@@ -233,9 +233,9 @@ def test_search_tiles_with_downsample_level(test_client, seed, annotations_seed,
     # Arrange
     annotation_class_id = 2
     image_id = 1
-    bbox = {'x1': 0, 'y1': 0, 'x2': 100, 'y2': 100}
-    hasgt = True
-    downsample_level = 2
+    bbox = {'x1': 0, 'y1': 0, 'x2': 40000, 'y2': 40000}
+    hasgt = False
+    downsample_level = 1
 
     # Act
     params = {
@@ -252,7 +252,7 @@ def test_search_tiles_with_downsample_level(test_client, seed, annotations_seed,
     assert response.status_code == 200
     data = response.get_json()
     assert isinstance(data, list)
-    assert len(data) > 0
     assert all('tile_id' in tile for tile in data)
     assert all('downsampled_tile_id' in tile for tile in data)
-    assert all(tile['downsampled_tile_id'] is not None for tile in data)
+    assert [tile['downsampled_tile_id'] for tile in data] == [0, 0, 1, 10, 10, 0, 1]
+    assert [tile['tile_id'] for tile in data] == [0, 1, 2, 38, 39, 20, 21]

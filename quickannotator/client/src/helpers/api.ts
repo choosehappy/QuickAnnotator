@@ -198,13 +198,14 @@ export const deleteAnnotationClass = async (annotation_class_id: number) => {
 }
 
 // Search tile IDs by bounding box
-export const searchTileRefsByBbox = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number, hasgt=false) => {
+export const searchTileRefsByBbox = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number, hasgt=false, downsample_level=0) => {
     const query = new URLSearchParams({
         hasgt: hasgt.toString(),
         x1: x1.toString(),
         y1: y1.toString(),
         x2: x2.toString(),
         y2: y2.toString(),
+        downsample_level: downsample_level.toString(),
     });
 
     return await get<TileRef[]>(`/tile/${image_id}/${annotation_class_id}/search/bbox?${query}`);
@@ -225,7 +226,7 @@ export const fetchTile = async (image_id: number, annotation_class_id: number, t
 }
 
 export const operateOnAnnotation = async (annotation: Annotation, polygon2: Polygon, operation: POLYGON_OPERATIONS) => {
-    const { annotation_class_id, ...rest } = annotation;
+    const { annotation_class_id, featureId,...rest } = annotation;
     const requestBody: PostOperationArgs = {
         ...rest,
         polygon2: JSON.stringify(polygon2),

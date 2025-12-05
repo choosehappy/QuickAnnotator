@@ -60,8 +60,9 @@ export class Annotation {
     area: number;
     custom_metrics: { [key: string]: unknown }
     datetime: Date;
+    featureId: number | null;
 
-    constructor(annotation: AnnotationResponse, annotation_class_id: number) {
+    constructor(annotation: AnnotationResponse, annotation_class_id: number, featureId: number | null) {
         this.id = annotation.id;
         this.tile_id = annotation.tile_id;
         this.annotation_class_id = annotation_class_id;
@@ -70,6 +71,7 @@ export class Annotation {
         this.area = annotation.area;
         this.custom_metrics = annotation.custom_metrics;
         this.datetime = annotation.datetime;
+        this.featureId = featureId;
     }
 
     setTileId(tile_id: number | null) {

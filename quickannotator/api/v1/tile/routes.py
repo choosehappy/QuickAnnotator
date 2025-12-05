@@ -6,6 +6,7 @@ import quickannotator.db.models as db_models
 from . import models as server_models
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace
 from flask_smorest import Blueprint
+import numpy as np
 
 bp = Blueprint('tile', __name__, description="Tile operations")
 
@@ -79,9 +80,13 @@ class TileIdSearchByBbox(MethodView):
     def get(self, args, image_id, annotation_class_id):
         """     get all Tiles within a bounding box
         """
+        downsample_level = args.get('downsample_level', 0)
         tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
+        downsampled_tilespace = tilespace.get_resampled_tilespace(downsample_level)
         tilestore = TileStoreFactory.get_tilestore()
-        tile_ids_in_bbox = tilespace.get_tile_ids_within_bbox((args['x1'], args['y1'], args['x2'], args['y2']))
+        
+        downsampled_tile_ids_in_bbox = downsampled_tilespace.get_tile_ids_within_bbox((args['x1'], args['y1'], args['x2'], args['y2']))
+        tile_ids_in_bbox = np.array([tilespace.upsample_tile_id(tile_id, downsample_level) for tile_id in downsampled_tile_ids_in_bbox]).flatten().tolist()
 
         if annotation_class_id != MASK_CLASS_ID:
             tile_ids_in_mask, _, _ = tilestore.get_tile_ids_intersecting_mask(image_id, annotation_class_id)
@@ -94,7 +99,7 @@ class TileIdSearchByBbox(MethodView):
             tiles = tilestore.get_tiles_by_tile_ids(image_id, annotation_class_id, tile_ids_in_bbox_and_mask, hasgt=True)
             tile_ids_in_bbox_and_mask = [tile.tile_id for tile in tiles]
 
-        tile_refs = [{"tile_id": tile_id, "downsampled_tile_id": tilespace.downsample_tile_id(tile_id, args.get('downsample_level', 0))} for tile_id in tile_ids_in_bbox_and_mask]
+        tile_refs = [{"tile_id": tile_id, "downsampled_tile_id": tilespace.downsample_tile_id(tile_id, downsample_level)} for tile_id in tile_ids_in_bbox_and_mask]
         return tile_refs, 200
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>/search/polygon')
