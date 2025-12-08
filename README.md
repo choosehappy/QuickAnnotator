@@ -1,71 +1,36 @@
-# Installation
-**General Prerequisites**
+# QuickAnnotator
+QuickAnnotator is an open-source web application designed for efficient digital pathology image annotation.
 
-Ensure the following prerequisites are met on your machine:
-- [Docker](https://docs.docker.com/get-docker/) Install Docker desktop for Windows, MacOS or Linux. For Linux, you can alternatively install [docker engine](https://docs.docker.com/engine/install/).
-- [NVIDIA Driver](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/)
-- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
-  
-## 1. Quick Start
-The following instructions detail how to install QuickAnnotator on a single node (e.g., a laptop with GPU support).
+## Getting Started
+To get started with QuickAnnotator, please refer to the [installation guide](https://quickannotator.readthedocs.io/en/latest/installation.html) in the documentation.
 
-
-
-### 1.1. Installation Steps
-1. Download the docker compose file from the QuickAnnotator repository:
-    ```bash
-    curl -O https://raw.githubusercontent.com/choosehappy/QuickAnnotator/main/deployment/docker-compose.yaml
-    ```
-
-2. Run the docker compose file:
-    ```bash
-    docker compose -f docker-compose.yaml up -d
-    ```
-
-## 2. Multi-node Deployment
-Ray cluster launcher is used for multi-node deployments.
-### 2.1. Additional Prerequisites
-- Each worker node must match the general prerequisites listed above.
-- The machine running `ray up` must have passwordless SSH access to all cluster nodes.
-- All machines must have a two NAS shares mounted within the `Quickannotator/quickannotator/mounts` directory:
-   1. `nas_read`: A share with at least read access.
-   2. `nas_write`: A share with read and write access.
-
-### 2.2. Installation Steps
-1. Clone the git repository and checkout the v2.0 branch:
-    ```bash
-    git clone https://github.com/choosehappy/QuickAnnotator.git
-    cd QuickAnnotator
-    git checkout v2.0
-    ```
-
-2. Configure the `deployment/multi_node_cluster_config.yaml` file to specify the head and worker nodes of your ray cluster. See the [ray cluster launcher documentation](https://docs.ray.io/en/latest/cluster/vms/user-guides/launching.html) for more details. 
-    > All lines with the comment `CHANGE ME` must be configured.
-
-3. Install ray cluster launcher
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r deployment/requirements.txt
-    ```
+## Key Features
+- **User-Friendly Interface**: Intuitive design for easy navigation and annotation of large images.
+- **Multi-Format Support**: Compatible with various image formats commonly used in pathology.
+- **Active Deep Learning**: QA features a deep learning model which predicts annotations as you annotate. The model improves over time as more annotations are added.
+- **Dockerized Deployment**: Easy to set up and deploy using Docker containers.
 
 
-4. Run ray cluster launcher to start a ray cluster and deploy QuickAnnotator:
-    ```bash
-    ray up -y deployment/multi_node_cluster_config.yaml
-    ```
+## Contributing
+Contributions are welcome! Feel free to fork the repository, make improvements, and submit pull requests.
 
+## License
+QuickAnnotator is provided under the [MIT License](https://opensource.org/licenses/MIT).
 
-## 3. For Developers
-### 3.1. Additional Prerequisites
-- VS Code with the devcontainers extension installed.
+## Links
+- Documentation: [https://quickannotator.readthedocs.io](https://quickannotator.readthedocs.io)
+- Docker Hub: [https://hub.docker.com/r/histotools/quickannotator](https://hub.docker.com/r/histotools/quickannotator)
 
-### 3.2. Installation Steps
-1. Clone the git repository and checkout the v2.0 branch:
-    ```bash
-    git clone https://github.com/choosehappy/QuickAnnotator.git
-    cd QuickAnnotator
-    git checkout v2.0
-    ```
-2. Within VS Code, open the cloned repository and click on the "Reopen in Container" button to build the devcontainer. This will create a docker container with all the necessary dependencies to run QuickAnnotator.
-![image](https://github.com/user-attachments/assets/b776577f-a4c2-4eb8-858c-c603ac20cc6d)
+## Citation
+Read the related paper in Journal of Pathology - Clinical Research: [Quick Annotator: an open-source digital pathology based rapid image annotation tool](https://onlinelibrary.wiley.com/doi/full/10.1002/cjp2.229)
+
+Please use below to cite this paper if you find this repository useful or if you use the software shared here in your research.
+```
+  @misc{miao2021quick,
+      title={Quick Annotator: an open-source digital pathology based rapid image annotation tool}, 
+      author={Runtian Miao and Robert Toth and Yu Zhou and Anant Madabhushi and Andrew Janowczyk},
+      year={2021},
+      journal = {The Journal of Pathology: Clinical Research},
+      issn = {2056-4538}
+  }
+```
