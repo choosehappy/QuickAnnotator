@@ -22,4 +22,5 @@ QuickAnnotator is provided under the [MIT License](https://opensource.org/licens
 installation
 usage
 unit_testing
+developer_guide
 ```
