@@ -79,6 +79,24 @@ Geojson features also support properties, however QuickAnnotator currently ignor
 
 <iframe width="100%" height="560" src="https://www.youtube.com/embed/wtL5vK_tj4c?si=xqfAk2AV0UaL_W33" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-## 6. Adding annotation classes
+## 6. Using Deep Learning Assistance
+QuickAnnotator's deep learning model will automatically start learning from your manual annotations and provide annotation suggestions as you work. To accept a suggested annotation, use the "Import Predictions" button from the toolbar. You can control whether to click or lasso select suggested annotations using the CTRL key.
 
-## 7. Exporting annotations
+```{note}
+Video tutorial coming soon!
+```
+
+## 7. Adding annotation classes
+<iframe width="100%" height="560" src="https://www.youtube.com/embed/9N1PoJS4lkg?si=KNuph7N-zQYdn8o8" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+## 8. Exporting annotations
+QuickAnnotator provides multiple options for exporting annotations.
+
+### 8.1. Save Locally
+<iframe width="100%" height="560" src="https://www.youtube.com/embed/20r5xQaZ-6k?si=H2LWvHclC-RGTMvx" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+### 8.2. Push to Digital Slide Archive (DSA)
+
+```{note}
+Video tutorial coming soon!
+```
