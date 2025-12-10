@@ -1,11 +1,14 @@
 # Welcome to QuickAnnotator's Documentation!
-QuickAnnotator is an open-source web application designed for efficient digital pathology image annotation.
+QuickAnnotator is an open-source web application designed for efficient digital pathology image annotation. This documentation provides comprehensive guides on installation, usage, and development of QuickAnnotator. 
+
+Where applicable, video tutorials from our [YouTube playlist](https://www.youtube.com/playlist?list=PLOk1nLH1Kl25qhN7j8_cdhVyqCN9P3OGy) are embedded for further clarity.
 
 ## Key Features
 - **User-Friendly Interface**: Intuitive design for easy navigation and annotation of large images.
 - **Multi-Format Support**: Compatible with various image formats commonly used in pathology.
 - **Active Deep Learning**: QA features a deep learning model which predicts annotations as you annotate. The model improves over time as more annotations are added.
 - **Dockerized Deployment**: Easy to set up and deploy using Docker containers.
+- **Compatible with the Digital Slide Archive (DSA)**: Annotations in QuickAnnotator can be easily exported to a DSA instance.
 
 
 ## Contributing
