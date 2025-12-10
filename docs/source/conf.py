@@ -1,5 +1,6 @@
 from pathlib import Path
 import toml
+from setuptools_scm import get_version
 
 # Configuration file for the Sphinx documentation builder.
 #
@@ -15,7 +16,7 @@ author = 'Jackson Jacobs, Fan Fan, Laura Barisoni, Andrew Janowczyk'
 pyproject_path = "../../pyproject.toml"
 pyproject_data = toml.load(pyproject_path)
 
-release = pyproject_data["project"]["version"]
+release = get_version()
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

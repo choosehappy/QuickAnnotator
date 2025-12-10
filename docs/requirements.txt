@@ -5,3 +5,4 @@ furo
 sphinx_design
 myst-parser
 toml
+setuptools_scm
