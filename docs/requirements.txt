@@ -4,3 +4,4 @@ sphinx-rtd-theme
 furo
 sphinx_design
 myst-parser
+toml

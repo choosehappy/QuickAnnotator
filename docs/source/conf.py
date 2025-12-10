@@ -1,3 +1,6 @@
+from pathlib import Path
+import toml
+
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -9,7 +12,10 @@
 project = 'QuickAnnotator'
 copyright = '2025, Jackson Jacobs, Fan Fan, Laura Barisoni, Andrew Janowczyk'
 author = 'Jackson Jacobs, Fan Fan, Laura Barisoni, Andrew Janowczyk'
-release = '2.0'
+pyproject_path = "../../pyproject.toml"
+pyproject_data = toml.load(pyproject_path)
+
+release = pyproject_data["project"]["version"]
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
