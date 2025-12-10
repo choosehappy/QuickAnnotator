@@ -1,0 +1,8 @@
+sphinx
+sphinx-autobuild
+sphinx-rtd-theme
+furo
+sphinx_design
+myst-parser
+toml
+setuptools_scm

@@ -18,7 +18,7 @@ enum ExportFormat {
 }
 
 const exportOptionsLabels = {
-    [ExportOption.SERVER]: "Save remotely",
+    [ExportOption.SERVER]: "Save locally",
     [ExportOption.DSA]: "Push to Digital Slide Archive",
 };
 
