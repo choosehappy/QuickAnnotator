@@ -80,7 +80,7 @@ packages = ["quickannotator"]
 [tool.setuptools_scm]
 write_to = "quickannotator/_version.py"
 version_scheme = "post-release"
-local_scheme = "no-local-version"
+local_scheme = "node-and-date"
 
 # ----------------------------------------------------------------------------------
 [tool.pytest.ini_options]

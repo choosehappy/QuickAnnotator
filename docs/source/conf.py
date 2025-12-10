@@ -1,5 +1,4 @@
 from pathlib import Path
-import toml
 from setuptools_scm import get_version
 
 # Configuration file for the Sphinx documentation builder.
@@ -13,10 +12,8 @@ from setuptools_scm import get_version
 project = 'QuickAnnotator'
 copyright = '2025, Jackson Jacobs, Fan Fan, Laura Barisoni, Andrew Janowczyk'
 author = 'Jackson Jacobs, Fan Fan, Laura Barisoni, Andrew Janowczyk'
-pyproject_path = "../../pyproject.toml"
-pyproject_data = toml.load(pyproject_path)
 
-release = get_version()
+release = get_version(relative_to=Path(__file__).parent.parent.parent)
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
