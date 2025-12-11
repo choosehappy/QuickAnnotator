@@ -56,7 +56,7 @@ export const redrawTileFeature = (feature: any, options = {}, data?: any[]) => {
     console.log(`redrew feature ${feature}`)
     feature.modified();
     feature.draw(options);
-}   
+}
 
 export class TileRefStore implements Iterable<[number, TileRef[]]> {
     private groups: Map<number, TileRef[]>;
@@ -120,9 +120,9 @@ export const createGTTileFeature = (featureProps: FeatureProps, annotations: Ann
     feature.draw = (options = { currentAnnotationId: null }) => {
         if (options.currentAnnotationId) {
             feature.style('strokeColor', (point: number[], pointIdx: number, ann: Annotation, annIdx: number) => {
-                return ann.id === options.currentAnnotationId? 'black' : 'white';
+                return ann.id === options.currentAnnotationId ? 'black' : 'white';
             });
-        } else  {
+        } else {
             feature.style('strokeColor', 'white');
         }
         originalDraw.call(feature);
@@ -187,8 +187,8 @@ export const createPendingTileFeature = (featureProps: any, polygons: Polygon[],
 }
 
 export function getScaledSize(geojs_map: geo.map, size: number): number {
-    const currentZoom = geojs_map.zoom();  
-    const scaleFactor = Math.pow(2, currentZoom);  
+    const currentZoom = geojs_map.zoom();
+    const scaleFactor = Math.pow(2, currentZoom);
     return size / scaleFactor * geojs_map.unitsPerPixel();  // Scale the size based on the current zoom level
 }
 
@@ -206,6 +206,10 @@ export function getTileDownsampleLevel(geojs_map: geo.map): number {
     return idx === -1 ? zoomThresholds.length - 1 : idx;
 }
 
+export function getPolygonSimplifyTolerance(geojs_map: geo.map): number {
+    return getTileDownsampleLevel(geojs_map) * 10;
+}
+
 export function getZoomThresholds(minZoom: number, maxZoom: number): number[] {
     const thresholds: number[] = [];
     const step = (maxZoom - minZoom) / NUM_LEVELS_FOR_DOWNSAMPLE;
@@ -216,6 +220,8 @@ export function getZoomThresholds(minZoom: number, maxZoom: number): number[] {
 
     return thresholds;
 }
+
+
 
 // TODO: define function to get the polygon downsample value based on zoom level
 

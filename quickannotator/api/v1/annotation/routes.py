@@ -37,7 +37,7 @@ class Annotation(MethodView):
         """
         in_work_mag = False
 
-        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=in_work_mag)
+        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=in_work_mag, simplify_tolerance=args.get('simplify_tolerance', 0.0))
         result: db_models.Annotation = store.get_annotation_by_id(args['annotation_id'])
         return result, 200
 
@@ -117,7 +117,7 @@ class AnnotationByTileIds(MethodView):
         """
         in_work_mag = False
 
-        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=in_work_mag)
+        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=in_work_mag, simplify_tolerance=args.get('simplify_tolerance', 0.0))
         anns = store.get_annotations_for_tiles(args['tile_ids'])
 
         return anns, 200
@@ -131,7 +131,7 @@ class AnnotationsWithinPolygon(MethodView):
         """
         in_work_mag = False
 
-        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=in_work_mag)
+        store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=in_work_mag, simplify_tolerance=args.get('simplify_tolerance', 0.0))
         anns = store.get_annotations_within_poly(shape(args['polygon']))
         return anns, 200
 

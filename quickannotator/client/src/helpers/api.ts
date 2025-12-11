@@ -114,25 +114,31 @@ export const removeProject = async (project_id: number) => {
 
 
 // Fetch annotations
-export const fetchAllAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean) => {
-    return await get<AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/search?is_gt=${is_gt}`);
-}
+export const fetchAllAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean, simplify_tolerance = 0.0) => {
+    const query = new URLSearchParams({
+        is_gt: is_gt.toString(),
+        simplify_tolerance: simplify_tolerance.toString(),
+    });
+    return await get<AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/search?${query}`);
+};
 
-export const spatialSearchAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean, x1: number, y1: number, x2: number, y2: number) => {
+export const spatialSearchAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean, x1: number, y1: number, x2: number, y2: number, simplify_tolerance = 0.0) => {
     const query = new URLSearchParams({
         is_gt: is_gt.toString(),
         x1: x1.toString(),
         y1: y1.toString(),
         x2: x2.toString(),
         y2: y2.toString(),
+        simplify_tolerance: simplify_tolerance.toString(),
     });
     return await get<AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/search?${query}`);
-}
+};
 
-export const getAnnotationsForTileIds = async (image_id: number, annotation_class_id: number, tile_ids: number[], is_gt: boolean) => {
+export const getAnnotationsForTileIds = async (image_id: number, annotation_class_id: number, tile_ids: number[], is_gt: boolean, simplify_tolerance = 0.0) => {
     const requestBody: GetAnnsForTileIdsArgs = {
         tile_ids: tile_ids,
         is_gt: is_gt,
+        simplify_tolerance: simplify_tolerance,
     };
 
     return await post<GetAnnsForTileIdsArgs, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/tileids`, requestBody);
@@ -236,10 +242,11 @@ export const operateOnAnnotation = async (annotation: Annotation, polygon2: Poly
     return await post<PostOperationArgs, AnnotationResponse>(`/annotation/operation`, requestBody);
 }
 
-export const getAnnotationsWithinPolygon = async (image_id: number, annotation_class_id: number, is_gt: boolean, polygon: Polygon) => {
+export const getAnnotationsWithinPolygon = async (image_id: number, annotation_class_id: number, is_gt: boolean, polygon: Polygon, simplify_tolerance = 0.0) => {
     const requestBody: QueryAnnsByPolygonArgs = {
         is_gt: is_gt,
         polygon: JSON.stringify(polygon),
+        simplify_tolerance: simplify_tolerance,
     };
 
     return await post<QueryAnnsByPolygonArgs, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/withinpoly`, requestBody);

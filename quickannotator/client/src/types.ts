@@ -94,6 +94,7 @@ export interface PostAnnsArgs {
 export interface QueryAnnsByPolygonArgs {
     polygon: string;
     is_gt: boolean;
+    simplify_tolerance?: number;
 }
 
 export interface SearchTileRefsByPolygonArgs {
@@ -144,6 +145,7 @@ export interface Project {
 export interface GetAnnsForTileIdsArgs {
     tile_ids: number[];
     is_gt: boolean;
+    simplify_tolerance?: number;
 }
 
 export interface TileRef {
