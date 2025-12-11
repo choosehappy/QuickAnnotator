@@ -109,9 +109,35 @@ def test_get_all_tile_rc_for_image(fake_ann_class_tilespace):
     ]
     assert expected_rc_indices == actual_rc_indices
 
-def test_upsample_tile_id(fake_ann_class_tilespace):
-    # Test case 1
-    tile_id = 0
+def test_upsample_tile_id(manual_test_tilespace):
+    # Test case 1: Upsample a tile at the top-left corner
+    tile_id = 0  # Top-left corner
     upsample_level = 1
-    expected_tile_ids = [0, 1, 37, 38]
-    assert fake_ann_class_tilespace.upsample_tile_id(tile_id, upsample_level) == expected_tile_ids
+    expected_tile_ids = [0, 1, 5, 6]  # Based on 3x3 tilespace
+    assert manual_test_tilespace.upsample_tile_id(tile_id, upsample_level) == expected_tile_ids
+
+
+def test_upsample_tile_id_additional_cases(manual_test_tilespace):
+    # Test case 2: Upsample a tile in the middle of the tilespace
+    tile_id = 4  # Middle tile (row=1, col=1 in 3x3 grid)
+    upsample_level = 1
+    expected_tile_ids = [12, 13, 17, 18]  # Based on 3x3 tilespace
+    assert manual_test_tilespace.upsample_tile_id(tile_id, upsample_level) == expected_tile_ids
+
+    # Test case 3: Upsample a tile at the right edge of the tilespace
+    tile_id = 2  # (row=0, col=2 in 3x3 grid)
+    upsample_level = 1
+    expected_tile_ids = [4, 9]  # Only 2 tiles at the right edge
+    assert manual_test_tilespace.upsample_tile_id(tile_id, upsample_level) == expected_tile_ids
+
+    # Test case 4: Upsample a tile at the bottom edge of the tilespace
+    tile_id = 6  # (row=2, col=0 in 3x3 grid)
+    upsample_level = 1
+    expected_tile_ids = [20, 21]  # Only 2 tiles at the bottom edge
+    assert manual_test_tilespace.upsample_tile_id(tile_id, upsample_level) == expected_tile_ids
+
+    # Test case 5: Upsample a tile at the bottom-right corner of the tilespace
+    tile_id = 8  # (row=2, col=2 in 3x3 grid)
+    upsample_level = 1
+    expected_tile_ids = [24]  # Only 1 tile at the bottom-right corner
+    assert manual_test_tilespace.upsample_tile_id(tile_id, upsample_level) == expected_tile_ids

@@ -288,10 +288,10 @@ class TileSpace:
         upsampled_ts = self.get_resampled_tilespace(upsample_level, upsample=True)
 
         upsample_row_start = row * factor
-        upsample_row_end = min((row + 1) * factor, upsampled_ts.row_count - 1)
+        upsample_row_end = min((row + 1) * factor, upsampled_ts.row_count)
 
         upsample_col_start = col * factor
-        upsample_col_end = min((row + 1) * factor, upsampled_ts.col_count - 1)
+        upsample_col_end = min((col + 1) * factor, upsampled_ts.col_count)
         rows = np.arange(upsample_row_start, upsample_row_end)
         cols = np.arange(upsample_col_start, upsample_col_end)
 
