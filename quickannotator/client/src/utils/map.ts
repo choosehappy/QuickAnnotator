@@ -1,7 +1,7 @@
 import geo from "geojs"
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 import { Annotation, AnnotationClass, FeatureProps, PredFeatureType, TileRef } from "../types";
-import { UI_SETTINGS } from "../helpers/config";
+import { MAX_ZOOM_FOR_DOWNSAMPLE, NUM_LEVELS_FOR_DOWNSAMPLE, UI_SETTINGS } from "../helpers/config";
 
 export const computeFeaturesToRender = (oldFeatureIds: number[], newFeatureIds: number[]) => {
     const a = new Set(oldFeatureIds)
@@ -194,10 +194,27 @@ export function getScaledSize(geojs_map: geo.map, size: number): number {
 
 export function getTileDownsampleLevel(geojs_map: geo.map): number {
     const currentZoom = geojs_map.zoom();
-    const zoomRange = geojs_map.zoomRange();
-    const numLevels = 3;
-    const downsampleLevel = Math.min(Math.max(Math.floor((zoomRange.max - currentZoom) / ((zoomRange.max - zoomRange.min) / numLevels)), 0), numLevels - 1);
-    return downsampleLevel;
+    console.log(`currentZoom: ${currentZoom}`);
+    const zoomThresholds = getZoomThresholds(geojs_map.zoomRange().min, MAX_ZOOM_FOR_DOWNSAMPLE);
+    console.log(`zoomThresholds: ${zoomThresholds}`);
+
+    // For descending thresholds:
+    // - If currentZoom > threshold[0], return 0
+    // - If between threshold[i] and threshold[i+1], return i
+    // - If <= last threshold, return zoomThresholds.length - 1
+    const idx = zoomThresholds.findIndex((th) => currentZoom > th);
+    return idx === -1 ? zoomThresholds.length - 1 : idx;
+}
+
+export function getZoomThresholds(minZoom: number, maxZoom: number): number[] {
+    const thresholds: number[] = [];
+    const step = (maxZoom - minZoom) / NUM_LEVELS_FOR_DOWNSAMPLE;
+
+    for (let i = 0; i < NUM_LEVELS_FOR_DOWNSAMPLE; i++) {
+        thresholds.push(maxZoom - step * i);
+    }
+
+    return thresholds;
 }
 
 // TODO: define function to get the polygon downsample value based on zoom level

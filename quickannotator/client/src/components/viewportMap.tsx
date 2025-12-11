@@ -4,7 +4,7 @@ import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs
 import { searchTileRefsByBbox, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileRefsWithinPolygon, fetchTileBoundingBox, fetchImageMetadata } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 
-import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID, COOKIE_NAMES, POLYGON_OPERATIONS, POLYGON_CREATE_STYLE, POLYGON_CREATE_STYLE_SECONDARY, IMPORT_CREATE_STYLE, BRUSH_CREATE_STYLE, BRUSH_CREATE_STYLE_SECONDARY, BRUSH_SIZE, UI_SETTINGS } from "../helpers/config.ts";
+import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID, COOKIE_NAMES, POLYGON_OPERATIONS, POLYGON_CREATE_STYLE, POLYGON_CREATE_STYLE_SECONDARY, IMPORT_CREATE_STYLE, BRUSH_CREATE_STYLE, BRUSH_CREATE_STYLE_SECONDARY, BRUSH_SIZE, UI_SETTINGS, MAX_ZOOM } from "../helpers/config.ts";
 
 import { computeFeaturesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered, tileIdIsValid, getScaledSize, createCirclePolygon, createConnectingRectangle, TileRefStore, getTileFeatureByTileId, removeFeatureById, getTileDownsampleLevel } from '../utils/map.ts';
 import { useCookies } from 'react-cookie';
@@ -556,7 +556,7 @@ const ViewportMap = (props: Props) => {
         const params = geo.util.pixelCoordinateParams(
             viewRef.current, img.base_width, img.base_height, img.dz_tilesize, img.dz_tilesize);
 
-        const map = geo.map({ ...params.map, max: 20 });
+        const map = geo.map({ ...params.map, max: MAX_ZOOM });
         const interactor = map.interactor();
 
         // Disable hotkeys for zooming to prevent conflicts with annotation tools

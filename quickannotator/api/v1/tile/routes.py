@@ -59,6 +59,7 @@ class TileBoundingBox(MethodView):
     def get(self, args, image_id, annotation_class_id):
         """     get the bounding box for a given tile as a GeoJSON polygon
         """
+        # TODO: support downsample level arg
         tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
         bbox = tilespace.get_bbox_for_tile(args['tile_id'])
         geojson_polygon = {
