@@ -86,7 +86,7 @@ class TileIdSearchByBbox(MethodView):
         tilestore = TileStoreFactory.get_tilestore()
         
         downsampled_tile_ids_in_bbox = downsampled_tilespace.get_tile_ids_within_bbox((args['x1'], args['y1'], args['x2'], args['y2']))
-        tile_ids_in_bbox = np.array([tilespace.upsample_tile_id(tile_id, downsample_level) for tile_id in downsampled_tile_ids_in_bbox]).flatten().tolist()
+        tile_ids_in_bbox = np.array([downsampled_tilespace.upsample_tile_id(tile_id, downsample_level) for tile_id in downsampled_tile_ids_in_bbox]).flatten().tolist()
 
         if annotation_class_id != MASK_CLASS_ID:
             tile_ids_in_mask, _, _ = tilestore.get_tile_ids_intersecting_mask(image_id, annotation_class_id)

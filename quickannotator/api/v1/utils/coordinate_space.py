@@ -245,6 +245,7 @@ class TileSpace:
                 raise ValueError("Upsample level must result in an even factor of the tile size.")
             new_tilesize = self.ts // factor
         else:
+
             new_tilesize = self.ts * (2 ** level)
 
         return TileSpace(new_tilesize, self.w, self.h)
@@ -280,12 +281,21 @@ class TileSpace:
 
         if upsample_level == 0:
             return [tile_id]
-        upsampled_ts = self.get_resampled_tilespace(upsample_level, upsample=True)
         row, col = self.tileid_to_rc(tile_id)
         factor = 2 ** upsample_level
         tile_ids = []
-        rows = np.arange(row * factor, (row + 1) * factor)
-        cols = np.arange(col * factor, (col + 1) * factor)
+
+        upsampled_ts = self.get_resampled_tilespace(upsample_level, upsample=True)
+
+        upsample_row_start = row * factor
+        upsample_row_end = min((row + 1) * factor, upsampled_ts.row_count - 1)
+
+        upsample_col_start = col * factor
+        upsample_col_end = min((row + 1) * factor, upsampled_ts.col_count - 1)
+        rows = np.arange(upsample_row_start, upsample_row_end)
+        cols = np.arange(upsample_col_start, upsample_col_end)
+
+
         tile_ids = [upsampled_ts.rc_to_tileid(r, c) for r, c in product(rows, cols)]
         return tile_ids
     
