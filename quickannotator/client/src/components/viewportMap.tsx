@@ -806,6 +806,7 @@ const ViewportMap = (props: Props) => {
         console.log("Current annotation changed.");
         const currentState = props.currentAnnotation?.currentState;
         const prevState = props.prevCurrentAnnotation?.current?.currentState;
+        const changesMade = props.prevCurrentAnnotation?.current?.hasChanges();
         const featureId = currentState?.featureId;
         const prevFeatureId = prevState?.featureId;
         const annotationId = currentState?.id;
@@ -830,7 +831,7 @@ const ViewportMap = (props: Props) => {
         }
 
         // TODO: PUT is called even when the annotation has been deleted. The PUT fails, which is fine, but it's not efficient.
-        if (prevAnnotationId && prevAnnotationId !== annotationId && props.currentImage && props.currentAnnotationClass) {
+        if (prevAnnotationId && prevAnnotationId !== annotationId && changesMade && props.currentImage && props.currentAnnotationClass) {
             putAnnotation(props.currentImage.id, props.currentAnnotationClass.id, prevState).then(() => {
                 console.log("Annotation updated.")
             });
