@@ -1,6 +1,6 @@
 // Generic response type
 type ApiResponse<T> = Promise<T>;
-import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, GetAnnsForTileIdsArgs, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileRefsByPolygonArgs, TileRef} from "../types.ts";
+import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, GetAnnsForTileIdsArgs, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileRefsByPolygonArgs, TileRef, PredictTilesRequest} from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
 import { API_URI, POLYGON_OPERATIONS } from "./config.ts";
 
@@ -253,9 +253,9 @@ export const getAnnotationsWithinPolygon = async (image_id: number, annotation_c
 }
 
 
-export const predictTile = async (image_id: number, annotation_class_id: number, tile_id: number) => {
-    const query = new URLSearchParams({ tile_id: tile_id.toString() });
-    return await post<null, Tile>(`/tile/${image_id}/${annotation_class_id}/predict?${query}`, null);
+export const predictTiles = async (image_id: number, annotation_class_id: number, tile_ids: number[]) => {
+    const requestBody: PredictTilesRequest = { tile_ids };
+    return await post<PredictTilesRequest, Tile[]>(`/tile/${image_id}/${annotation_class_id}/predict`, requestBody);
 }
 
 export const fetchTileBoundingBox = async (image_id: number, annotation_class_id: number, tile_id: number) => {

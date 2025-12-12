@@ -279,3 +279,7 @@ export class DataItem {
         this.selected = !this.selected;
     }
 }
+
+export interface PredictTilesRequest {
+    tile_ids: number[];
+}

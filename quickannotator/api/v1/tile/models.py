@@ -31,8 +31,8 @@ class GetTileArgsSchema(BaseTileArgsSchema):
     tile_id = fields.Int(description="ID of the tile")
     
 
-class PostTileArgsSchema(GetTileArgsSchema):
-    pass
+class PostTileArgsSchema(Schema):
+    tile_ids = fields.List(fields.Int(), required=True, description="List of tile IDs to process")
 
 
 class SearchTileArgsSchema(BaseTileArgsSchema):

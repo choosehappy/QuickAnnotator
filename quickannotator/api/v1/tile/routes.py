@@ -33,22 +33,22 @@ class Tile(MethodView):
         return {}, 204
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>/predict')
-class PredictTile(MethodView):
-    @bp.arguments(server_models.PostTileArgsSchema, location='query')
-    @bp.response(200, server_models.TileRespSchema, description="Staged tile for DL processing")
+class PredictTiles(MethodView):
+    @bp.arguments(server_models.PostTileArgsSchema, location='json')
+    @bp.response(200, server_models.TileRespSchema(many=True), description="Staged tile for DL processing")
     def post(self, args, image_id, annotation_class_id):
         """     stage a tile for DL processing     """
         tilestore: TileStore = TileStoreFactory.get_tilestore()
         result = tilestore.upsert_pred_tiles(
             image_id=image_id,
             annotation_class_id=annotation_class_id,
-            tile_ids=[args['tile_id']],
+            tile_ids=args['tile_ids'],
             pred_status=TileStatus.STARTPROCESSING,
             process_owns_tile=False
         )
 
         if len(result) > 0:
-            return result[0], 200
+            return result, 200
         else:
             return {"message": "Failed to stage tile for processing"}, 400
 
