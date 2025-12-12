@@ -338,9 +338,6 @@ def base_to_work_scaling_factor(image_id: int, annotation_class_id: int) -> floa
     Returns:
         float: The scale factor to apply to the annotations.
     """
-    relative_path = get_image_by_id(image_id).path
-    full_path = fsmanager.nas_read.relative_to_global(relative_path)
-    ts = large_image.getTileSource(full_path)
-    base_mag = float(ts.getMetadata()['magnification'])
+    base_mag = float(get_image_by_id(image_id).base_mag)
     work_mag = float(get_annotation_class_by_id(annotation_class_id).work_mag)
     return work_mag / base_mag

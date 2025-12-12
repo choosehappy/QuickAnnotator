@@ -408,8 +408,8 @@ def build_annotation_table_name(image_id: int, annotation_class_id: int, is_gt: 
 
 def create_dynamic_model(table_name, base=Base):
 
-    # if not table_exists(table_name):
-    #     return
+    if not table_exists(table_name):
+        return
 
     class DynamicAnnotation(base):
         __tablename__ = table_name

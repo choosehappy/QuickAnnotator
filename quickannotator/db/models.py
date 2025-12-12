@@ -53,6 +53,7 @@ class Image(Base):
     path = Column(Text)
     base_height = Column(Integer)
     base_width = Column(Integer)
+    base_mag = Column(Float)
     dz_tilesize = Column(Integer)
     embedding_coord = Column(Geometry('POINT'))
     group_id = Column(Integer)
