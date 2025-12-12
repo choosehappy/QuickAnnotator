@@ -6,3 +6,5 @@ services:
     image: histotools/quickannotator:local
     volumes:
       - ..:/opt/QuickAnnotator
+    cap_add:
+      - SYS_PTRACE

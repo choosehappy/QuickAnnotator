@@ -1,6 +1,6 @@
 from itertools import product
 from sqlalchemy.orm import Query
-from sqlalchemy import func, Table, MetaData
+from sqlalchemy import func, Table, MetaData, inspect
 import sqlalchemy
 from quickannotator import constants
 from quickannotator.db.crud.image import get_image_by_id
@@ -408,8 +408,8 @@ def build_annotation_table_name(image_id: int, annotation_class_id: int, is_gt: 
 
 def create_dynamic_model(table_name, base=Base):
 
-    if not table_exists(table_name):
-        return
+    # if not table_exists(table_name):
+    #     return
 
     class DynamicAnnotation(base):
         __tablename__ = table_name
@@ -425,9 +425,8 @@ def table_exists(table_name: str) -> bool:
     Returns:
         bool: True if the table exists, False otherwise.
     """
-    metadata = MetaData()
-    metadata.reflect(bind=engine)
-    return table_name in metadata.tables
+    inspector = inspect(engine)
+    return table_name in inspector.get_table_names()
 
 
 def build_export_filepath(image_id: int, annotation_class_id: int, is_gt: bool, extension: constants.ExportFormatExtensions, relative: bool, timestamp: datetime = None) -> str:

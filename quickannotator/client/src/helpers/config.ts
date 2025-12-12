@@ -44,7 +44,7 @@ export const RENDER_DELAY = 100; // ms  TODO: app setting
 export const MAP_TRANSLATION_DELAY = 500; // ms TODO: app setting
 export const MAX_ZOOM = 20;
 export const MAX_ZOOM_FOR_DOWNSAMPLE = 8; // Max zoom level to apply tile downsampling
-export const NUM_LEVELS_FOR_DOWNSAMPLE = 3; // Number of downsample levels
+export const NUM_LEVELS_FOR_DOWNSAMPLE = 5; // Number of downsample levels
 
 export const MODAL_DATA: { [key: string]: ModalData } = {
     IMPORT_CONF: {

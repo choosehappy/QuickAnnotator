@@ -107,7 +107,8 @@ class Annotation(MethodView):
         else:
             return {"message": "Annotation not found"}, 404
 
-
+import cProfile
+import pstats
 @bp.route('/<int:image_id>/<int:annotation_class_id>/tileids')
 class AnnotationByTileIds(MethodView):
     @bp.arguments(server_models.GetAnnByTileIdsArgsSchema, location='json')
@@ -116,9 +117,16 @@ class AnnotationByTileIds(MethodView):
         """     get all annotations for a given tile
         """
         in_work_mag = False
-
+        pr = cProfile.Profile()
+        pr.enable()
         store = AnnotationStore(image_id, annotation_class_id, args['is_gt'], in_work_mag=in_work_mag, simplify_tolerance=args.get('simplify_tolerance', 0.0))
+        pr.disable()
         anns = store.get_annotations_for_tiles(args['tile_ids'])
+
+        profile_file = "/tmp/annotation_tileids_profile.prof"  # Change the path as needed
+        ps = pstats.Stats(pr)
+        ps.sort_stats("cumulative")  # Sort by cumulative time
+        ps.dump_stats(profile_file)
 
         return anns, 200
     
