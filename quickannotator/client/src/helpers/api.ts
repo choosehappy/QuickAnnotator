@@ -366,3 +366,14 @@ export const getChildRayTasks = async (parent_task_id: string) => {
     const filters = [["parent_task_id", "=", parent_task_id], ["type", "=", "ACTOR_TASK"]];
     return await searchRayTasks(filters);
 }
+
+export const searchTileByCoordinates = async (image_id: number, annotation_class_id: number, x: number, y: number, downsample_level = 0): ApiResponse<{ data: TileRef }> => {
+    const query = new URLSearchParams({
+        x: x.toString(),
+        y: y.toString(),
+        downsample_level: downsample_level.toString(),
+    });
+    return get<TileRef>(
+        `/tile/${image_id}/${annotation_class_id}/search/coordinates?${query}`
+    );
+};

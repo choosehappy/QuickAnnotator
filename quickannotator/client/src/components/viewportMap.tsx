@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, act } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse, TileRef, PredFeatureType } from "../types.ts"
-import { searchTileRefsByBbox, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileRefsWithinPolygon, fetchTileBoundingBox, fetchImageMetadata } from "../helpers/api.ts";
+import { searchTileRefsByBbox, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileRefsWithinPolygon, fetchTileBoundingBox, fetchImageMetadata, searchTileByCoordinates } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 
 import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID, COOKIE_NAMES, POLYGON_OPERATIONS, POLYGON_CREATE_STYLE, POLYGON_CREATE_STYLE_SECONDARY, IMPORT_CREATE_STYLE, BRUSH_CREATE_STYLE, BRUSH_CREATE_STYLE_SECONDARY, BRUSH_SIZE, UI_SETTINGS, MAX_ZOOM } from "../helpers/config.ts";
@@ -325,14 +325,15 @@ const ViewportMap = (props: Props) => {
             return;
         }
 
-        postAnnotations(currentImage.id, currentAnnotationClass.id, [newPolygon]).then((resp) => {
+        postAnnotations(currentImage.id, currentAnnotationClass.id, [newPolygon]).then(async (resp) => {
             if (resp.status === 200) {
-                // TODO: get feature id from backend
-                const featureId = null;
-                if (!tileIdIsValid(featureId)) return;
+                const centroid = newPolygon.coordinates[0][0]; // Directly access the coordinates
+                const tileResp = await searchTileByCoordinates(currentImage.id, currentAnnotationClass.id, centroid[0], centroid[1]);
+                const featureId = tileResp.data.downsampled_tile_id;
+                if (featureId === null || !tileIdIsValid(featureId)) return;
                 const annotation = new Annotation(resp.data[0], currentAnnotationClass.id, featureId);
                 const tileId = annotation.tile_id;
-                if (!tileIdIsValid(tileId)) return;
+                if (tileId === null || !tileIdIsValid(tileId)) return;
                 const layer = geojs_map.current.layers()[LAYER_KEYS.GT];
                 let feature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
                 if (feature) {  // Feature already exists, just update its data.
@@ -340,7 +341,7 @@ const ViewportMap = (props: Props) => {
                     const updatedData = data.concat(annotation);
                     redrawTileFeature(feature, {}, updatedData);
                 } else {    // Create a new feature for the tile.
-                    feature = createGTTileFeature({ featureId: featureId, tileIds: [tileId] }, [annotation], layer, currentAnnotationClass);    // TODO: fix this
+                    feature = createGTTileFeature({ featureId: featureId, tileIds: [tileId] }, [annotation], layer, currentAnnotationClass);
                     feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
                 }
                 props.setGts((prev: Annotation[]) => prev.concat(annotation));
@@ -414,22 +415,14 @@ const ViewportMap = (props: Props) => {
                 }
             }
         } else if (currentTool === TOOLBAR_KEYS.IMPORT) {
-            const resp = await getAnnotationsWithinPolygon(currentImage.id, currentAnnotationClass.id, false, polygon);
+            const resp = await getAnnotationsWithinPolygon(currentImage.id, currentAnnotationClass.id, false, polygon); // We don't want to simplify imported annotations
             if (resp.status === 200) {
                 // In this case we set the annotation's featureId to null since we don't need to redraw specific tiles.
                 const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentAnnotationClass.id, null));
                 if (anns.length === 0) {
                     alert("No annotations selected within the lasso. Please try again.");
                 }
-                // Get the ids for the features to redraw
-                // const tilesResp = await searchTilesWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon, false);
-                // if (tilesResp.status === 200) {
-                //     const tileIds = tilesResp.data.tile_ids;
-                //     featureIdsToUpdate.current = tileIds;
-                //     props.setHighlightedPreds(anns);
-                //     props.setActiveModal(MODAL_DATA.IMPORT_CONF.id);
-                // } else {
-                // Get the ids for the features to redraw
+                
                 setHighlightedPreds(anns);
                 const tilesResp = await searchTileRefsWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon, false);
                 if (tilesResp.status === 200) {
