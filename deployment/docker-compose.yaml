@@ -2,7 +2,7 @@ name: quickannotator_services
 
 services:
   postgis:
-    image: postgis/postgis:latest@sha256:d17234f17ac33553ac15fbe6d1040648f71c79eafa85fbc0fe2f82c89cb1ca17
+    image: postgis/postgis:16-3.5
     container_name: qa_postgis
     environment:
       POSTGRES_USER: admin
@@ -17,7 +17,7 @@ services:
       - qa_net
 
   grafana:
-    image: grafana/grafana:latest@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb
+    image: grafana/grafana:12.4.0-20151846001
     container_name: qa_grafana
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
