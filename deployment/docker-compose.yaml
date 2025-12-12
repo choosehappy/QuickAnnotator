@@ -2,8 +2,12 @@ name: quickannotator_services
 
 services:
   postgis:
-    image: postgis/postgis:latest
+    image: postgis/postgis:latest@sha256:d17234f17ac33553ac15fbe6d1040648f71c79eafa85fbc0fe2f82c89cb1ca17
     container_name: qa_postgis
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: qa_postgis_db
     ports:
       - "5432:5432"
     volumes:
@@ -13,7 +17,7 @@ services:
       - qa_net
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:latest@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb
     container_name: qa_grafana
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
