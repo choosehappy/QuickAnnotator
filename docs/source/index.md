@@ -1,14 +1,14 @@
-# QuickAnnotator
-QuickAnnotator is an open-source web application designed for efficient digital pathology image annotation.
+# Welcome to QuickAnnotator's Documentation!
+QuickAnnotator is an open-source web application designed for efficient digital pathology image annotation. This documentation provides comprehensive guides on installation, usage, and development of QuickAnnotator. 
 
-## Getting Started
-To get started with QuickAnnotator, please refer to the [installation guide](https://quickannotator.readthedocs.io/en/latest/installation.html) in the documentation.
+Where applicable, video tutorials from our [YouTube playlist](https://www.youtube.com/playlist?list=PLOk1nLH1Kl25qhN7j8_cdhVyqCN9P3OGy) are embedded for further clarity.
 
 ## Key Features
 - **User-Friendly Interface**: Intuitive design for easy navigation and annotation of large images.
 - **Multi-Format Support**: Compatible with various image formats commonly used in pathology.
 - **Active Deep Learning**: QA features a deep learning model which predicts annotations as you annotate. The model improves over time as more annotations are added.
 - **Dockerized Deployment**: Easy to set up and deploy using Docker containers.
+- **Compatible with the Digital Slide Archive (DSA)**: Annotations in QuickAnnotator can be easily exported to a DSA instance.
 
 
 ## Contributing
@@ -18,7 +18,7 @@ Contributions are welcome! Feel free to fork the repository, make improvements, 
 QuickAnnotator is provided under the [MIT License](https://opensource.org/licenses/MIT).
 
 ## Links
-- Documentation: [https://quickannotator.readthedocs.io](https://quickannotator.readthedocs.io)
+- Github: [https://github.com/choosehappy/QuickAnnotator](https://github.com/choosehappy/QuickAnnotator)
 - Docker Hub: [https://hub.docker.com/r/histotools/quickannotator](https://hub.docker.com/r/histotools/quickannotator)
 
 ## Citation
@@ -33,4 +33,16 @@ Please use below to cite this paper if you find this repository useful or if you
       journal = {The Journal of Pathology: Clinical Research},
       issn = {2056-4538}
   }
+```
+
+---
+
+```{toctree}
+:maxdepth: 2
+:caption: Contents:
+
+installation
+usage
+unit_testing
+developer_guide
 ```

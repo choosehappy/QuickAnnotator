@@ -5,7 +5,6 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "quickannotator"
 license = {file = "LICENSE.txt"}
-version = "0.1.0"
 authors = [{name = "Andrew Janowczyk"}]
 maintainers = [{name = "Jackson Jacobs"}, {name = "Nan Li"}]
 description = "QuickAnnotator is an open-source digital pathology annotation tool."
@@ -26,6 +25,7 @@ classifiers = [
     "Topic :: Utilities",
     "Operating System :: Unix"
 ]
+dynamic = ["version"]  # ← version comes from setuptools_scm
 
 requires-python = ">=3.10"
 dependencies = [
@@ -78,7 +78,9 @@ packages = ["quickannotator"]
 
 # ----------------------------------------------------------------------------------
 [tool.setuptools_scm]
-version_file = "quickannotator/_version.py"
+write_to = "quickannotator/_version.py"
+version_scheme = "post-release"
+local_scheme = "node-and-date"
 
 # ----------------------------------------------------------------------------------
 [tool.pytest.ini_options]
