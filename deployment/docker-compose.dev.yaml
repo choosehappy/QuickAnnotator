@@ -1,5 +1,7 @@
 services:
   qa:
+    env_file:
+      - .env
     build:
       context: ..
       dockerfile: deployment/Dockerfile
