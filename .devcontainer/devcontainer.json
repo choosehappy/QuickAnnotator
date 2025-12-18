@@ -12,6 +12,12 @@
 	"forwardPorts": [5000, 5173, 8265, 6006],
 	"updateRemoteUserUID": false,
 
+	// NOTE: Set the GID (id -g) of your local user to match
+	// the user in the container for proper file permissions
+	"containerEnv": {
+		"GID": "1000"
+	},
+
 	// Add VS Code extensions
 	"customizations": {
 		"vscode": {

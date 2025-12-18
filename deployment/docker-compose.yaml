@@ -46,7 +46,9 @@ services:
       - "5173:5173"
       - "8265:8265"
       - "6006:6006"
-    command: /bin/bash
+    command: >
+      tmux new-session -d -s server "quickannotator" &&
+      tmux new-session -d -s ui "npm run dev"
     stdin_open: true
     tty: true
     shm_size: '12gb'
