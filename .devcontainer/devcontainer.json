@@ -19,6 +19,6 @@
 		}
 	},
 
-	"postCreateCommand": "sudo chown -R ray:1000 /opt/QuickAnnotator/quickannotator/mounts && uv pip install -e ."
+	"postCreateCommand": "uv pip install -e ."
 
 }
