@@ -37,7 +37,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
 
 # Install node and npm
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-RUN apt-get install -y nodejs
+RUN apt-get install -y nodejs && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 RUN chown ray:users /opt
 
