@@ -2,6 +2,10 @@
 We provide a step-by-step user manual here.
 
 ## 1. Running QuickAnnotator
+```{note}
+If you followed the "quick start" or "multi-node deployment" installation guides, the QuickAnnotator server and user interface are already running in the background.
+```
+
 After installation, open a terminal session within the QuickAnnotator docker container and run the following command to start QuickAnnotator:
 ```bash
 quickannotator
