@@ -18,7 +18,6 @@
 		  "extensions": ["ms-python.python", "alexcvzz.vscode-sqlite", "ms-toolsai.jupyter", "anyscalecompute.ray-distributed-debugger"]
 		}
 	},
-
 	"postCreateCommand": "uv pip install -e ."
 
 }
