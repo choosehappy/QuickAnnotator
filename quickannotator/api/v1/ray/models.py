@@ -30,3 +30,6 @@ class RayTaskState(Schema):
 
 class GetRayTasksArgsSchema(Schema):
     by_parent_task_id = fields.Str(required=False, description="Parent task ID to filter tasks by.")
+
+class SetEnableDLArgsSchema(Schema):
+    value = fields.Bool(required=True, description="Boolean value to enable (true) or disable (false) deep learning training.")

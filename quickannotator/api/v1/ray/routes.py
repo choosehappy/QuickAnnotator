@@ -4,9 +4,11 @@ from quickannotator import constants
 from quickannotator.api.v1.ray.utils import convert_ray_task_to_dict
 from . import models as server_models
 from flask.views import MethodView
+import ray
 from ray.util.state.common import TaskState
 from ray.util import state
 from ray.util.state.exception import ServerUnavailable
+from quickannotator.db.crud.annotation_class import build_actor_name
 
 bp = Blueprint('ray', __name__, description='Ray operations')
 
@@ -50,3 +52,31 @@ class RayTasksResource(MethodView):
             return task_states, 200
         except ServerUnavailable as e:
             return abort(500, message=f"Error retrieving tasks: {str(e)}")
+
+@bp.route('/<annotation_class_id>/train/', endpoint='set_enable_dl')
+class SetEnableDLResource(MethodView):
+    @bp.arguments(server_models.SetEnableDLArgsSchema, location='query')
+    @bp.response(200)
+    @bp.alt_response(404, schema=error_handler.ErrorSchema)
+    @bp.alt_response(408, schema=error_handler.ErrorSchema)
+    @bp.alt_response(500, schema=error_handler.ErrorSchema)
+    def post(self, args, annotation_class_id):
+        """
+        Handle POST requests to enable or disable deep learning training for a specific annotation class.
+        """
+        try:
+            actor_name = build_actor_name(int(annotation_class_id))
+            try:
+                actor = ray.get_actor(actor_name)
+            except ValueError:
+                return abort(404, message="Actor not found")
+            
+            ref = actor.set_enable_training.remote(args['value'])
+            try:
+                ray.get(ref, timeout=10)  # wait for completion with a timeout
+            except ray.exceptions.GetTimeoutError:
+                return abort(408, message="Request timed out while waiting for actor response")
+            
+            return {}, 200
+        except Exception as e:
+            return abort(500, message=f"Error setting deep learning training: {str(e)}")
