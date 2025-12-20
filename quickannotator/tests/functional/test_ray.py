@@ -70,3 +70,40 @@ def test_ray_list_and_get_tasks(test_client):
 
     # Shutdown ray for cleanliness
     ray.shutdown()
+
+@pytest.mark.functional
+def test_set_enable_dl(test_client, mocker):
+    """Test the /api/v1/ray/<annotation_class_id>/train endpoint."""
+    annotation_class_id = "123"
+
+    # Mock build_actor_name to return a predictable actor name
+    mocker.patch(
+        "quickannotator.db.crud.annotation_class.build_actor_name",
+        return_value="test_actor_name"
+    )
+
+    # 1) Test successful training enable/disable
+    mock_actor = mocker.MagicMock()
+    mock_actor.set_enable_training.remote.return_value = "mock_ref"
+    mocker.patch("ray.get_actor", return_value=mock_actor)
+    mocker.patch("ray.get", return_value=None)  # Simulate successful completion
+
+    resp = test_client.post(f"/api/v1/ray/{annotation_class_id}/train", query_string={"value": True})
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data == {}  # The endpoint returns an empty JSON object on success
+
+    # 2) Test actor not found (404)
+    mocker.patch("ray.get_actor", side_effect=ValueError("Actor not found"))
+    resp = test_client.post(f"/api/v1/ray/{annotation_class_id}/train", query_string={"value": True})
+    assert resp.status_code == 404
+    data = resp.get_json()
+    assert data["message"] == "Actor not found"
+
+    # 3) Test timeout while waiting for ray.get (408)
+    mocker.patch("ray.get_actor", return_value=mock_actor)
+    mocker.patch("ray.get", side_effect=ray.exceptions.GetTimeoutError("Timeout occurred"))
+    resp = test_client.post(f"/api/v1/ray/{annotation_class_id}/train", query_string={"value": True})
+    assert resp.status_code == 408
+    data = resp.get_json()
+    assert data["message"] == "Request timed out while waiting for actor response"
