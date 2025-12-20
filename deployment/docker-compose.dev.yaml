@@ -1,15 +1,12 @@
 services:
   qa:
-    env_file:
-      - .env
+    user: root
     build:
       context: ..
       dockerfile: deployment/Dockerfile
     image: histotools/quickannotator:local
     command: 
       /bin/bash
-    group_add:
-      - ${GID}
     volumes:
       - ..:/opt/QuickAnnotator
     cap_add:
