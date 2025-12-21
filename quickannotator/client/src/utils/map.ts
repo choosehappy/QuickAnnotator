@@ -88,6 +88,10 @@ export class TileRefStore implements Iterable<[number, TileRef[]]> {
         return this.groups;
     }
 
+    getAllGroupIds(): number[] {
+        return Array.from(this.groups.keys());
+    }
+
     [Symbol.iterator](): Iterator<[number, TileRef[]]> {
         return this.groups.entries();
     }
