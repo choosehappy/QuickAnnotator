@@ -20,12 +20,14 @@ class ExportServerRespSchema(ActorRespSchema):
     """     Download link schema      """
     filepaths = fields.List(fields.Str())
 
+class GetAnnBaseArgsSchema(Schema):
+    simplify_tolerance = fields.Float(required=False, missing=0.0)
 
-class GetAnnArgsSchema(Schema):
+class GetAnnArgsSchema(GetAnnBaseArgsSchema):
     is_gt = fields.Bool(required=True)
     annotation_id = fields.Int(required=True)
 
-class GetAnnSearchArgsSchema(Schema):
+class GetAnnSearchArgsSchema(GetAnnBaseArgsSchema):
     is_gt = fields.Bool(required=True)
     x1 = fields.Int(required=False)
     y1 = fields.Int(required=False)
@@ -33,11 +35,11 @@ class GetAnnSearchArgsSchema(Schema):
     y2 = fields.Int(required=False)
     polygon = db_models.GeometryField(required=False)
 
-class GetAnnWithinPolyArgsSchema(Schema):
+class GetAnnWithinPolyArgsSchema(GetAnnBaseArgsSchema):
     is_gt = fields.Bool(required=True)
     polygon = db_models.GeometryField(required=True)
 
-class GetAnnByTileIdsArgsSchema(Schema):
+class GetAnnByTileIdsArgsSchema(GetAnnBaseArgsSchema):
     tile_ids = fields.List(fields.Int(), required=True)
     is_gt = fields.Bool(required=True)
 
