@@ -162,6 +162,7 @@ export interface Tile {
     pred_datetime: Date | null;
     gt_counter: number | null;
     gt_datetime: Date | null;
+    bbox_polygon?: Polygon;     // Optional, may not be included in all responses
 }
 
 export type OutletContextType = {
@@ -282,4 +283,5 @@ export class DataItem {
 
 export interface PredictTilesRequest {
     tile_ids: number[];
+    include_bbox?: boolean;
 }

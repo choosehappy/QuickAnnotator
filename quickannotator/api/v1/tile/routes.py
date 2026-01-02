@@ -35,7 +35,7 @@ class Tile(MethodView):
 @bp.route('/<int:image_id>/<int:annotation_class_id>/predict')
 class PredictTiles(MethodView):
     @bp.arguments(server_models.PostTileArgsSchema, location='json')
-    @bp.response(200, server_models.TileRespSchema(many=True), description="Staged tile for DL processing")
+    @bp.response(200, server_models.PredictTileRespSchema(many=True), description="Staged tile for DL processing")
     def post(self, args, image_id, annotation_class_id):
         """     stage a tile for DL processing     """
         tilestore: TileStore = TileStoreFactory.get_tilestore()
@@ -47,32 +47,55 @@ class PredictTiles(MethodView):
             process_owns_tile=False
         )
 
-        if len(result) > 0:
-            return result, 200
+        tilespace = None
+        if args['include_bbox']:
+            tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
+
+        mapped_result = []
+        for tile in result:
+            tile_dict = dict(tile._mapping)
+            if args['include_bbox']:
+                bbox = tilespace.get_bbox_for_tile(tile.tile_id)
+                tile_dict['bbox_polygon'] = {
+                    "type": "Polygon",
+                    "coordinates": [[
+                        [bbox[0], bbox[1]],
+                        [bbox[2], bbox[1]],
+                        [bbox[2], bbox[3]],
+                        [bbox[0], bbox[3]],
+                        [bbox[0], bbox[1]]
+                    ]]
+                }
+            mapped_result.append(tile_dict)
+
+        if len(mapped_result) > 0:
+            return mapped_result, 200
         else:
             return {"message": "Failed to stage tile for processing"}, 400
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>/bbox')
 class TileBoundingBox(MethodView):
-    @bp.arguments(server_models.GetTileArgsSchema, location='query')
-    @bp.response(200, server_models.TileBoundingBoxRespSchema)
-    def get(self, args, image_id, annotation_class_id):
-        """     get the bounding box for a given tile as a GeoJSON polygon
+    @bp.arguments(server_models.PostTileArgsSchema, location='json')
+    @bp.response(200, server_models.TileBoundingBoxRespSchema(many=True))
+    def post(self, args, image_id, annotation_class_id):
+        """     get the bounding boxes for given tiles as GeoJSON polygons
         """
-        # TODO: support downsample level arg
         tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
-        bbox = tilespace.get_bbox_for_tile(args['tile_id'])
-        geojson_polygon = {
-            "type": "Polygon",
-            "coordinates": [[
-                [bbox[0], bbox[1]],
-                [bbox[2], bbox[1]],
-                [bbox[2], bbox[3]],
-                [bbox[0], bbox[3]],
-                [bbox[0], bbox[1]]
-            ]]
-        }
-        return {'bbox_polygon': geojson_polygon}, 200
+        bboxes = []
+        for tile_id in args['tile_ids']:
+            bbox = tilespace.get_bbox_for_tile(tile_id)
+            geojson_polygon = {
+                "type": "Polygon",
+                "coordinates": [[
+                    [bbox[0], bbox[1]],
+                    [bbox[2], bbox[1]],
+                    [bbox[2], bbox[3]],
+                    [bbox[0], bbox[3]],
+                    [bbox[0], bbox[1]]
+                ]]
+            }
+            bboxes.append({"tile_id": tile_id, "bbox_polygon": geojson_polygon})
+        return bboxes, 200
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>/search/bbox')
 class TileIdSearchByBbox(MethodView):
@@ -85,8 +108,8 @@ class TileIdSearchByBbox(MethodView):
         tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id, in_work_mag=False)
         downsampled_tilespace = tilespace.get_resampled_tilespace(downsample_level)
         tilestore = TileStoreFactory.get_tilestore()
-        
-        downsampled_tile_ids_in_bbox = downsampled_tilespace.get_tile_ids_within_bbox((args['x1'], args['y1'], args['x2'], args['y2']))
+        bbox: list[float] = [args['x1'], args['y1'], args['x2'], args['y2']]
+        downsampled_tile_ids_in_bbox = downsampled_tilespace.get_tile_ids_within_bbox(bbox)
         tile_ids_in_bbox = np.concatenate([downsampled_tilespace.upsample_tile_id(tile_id, downsample_level) for tile_id in downsampled_tile_ids_in_bbox]).tolist()
 
         if annotation_class_id != MASK_CLASS_ID:

@@ -1,7 +1,7 @@
 import geo from "geojs"
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
-import { Annotation, AnnotationClass, FeatureProps, PredFeatureType, TileRef } from "../types";
-import { MAX_ZOOM_FOR_DOWNSAMPLE, NUM_LEVELS_FOR_DOWNSAMPLE, UI_SETTINGS } from "../helpers/config";
+import { Annotation, AnnotationClass, FeatureProps, PredFeatureType, Tile, TileRef } from "../types";
+import { MAX_ZOOM_FOR_DOWNSAMPLE, NUM_LEVELS_FOR_DOWNSAMPLE, TILE_STATUS, UI_SETTINGS } from "../helpers/config";
 
 export const computeFeaturesToRender = (oldFeatureIds: number[], newFeatureIds: number[]) => {
     const a = new Set(oldFeatureIds)
@@ -173,6 +173,45 @@ export const createPredTileFeature = (featureProps: any, annotations: Annotation
     return feature;
 }
 
+export const createTileStatusFeature = (featureProps: any, tiles: Tile[], layer: any) => {
+    const feature = layer.createFeature('polygon');
+    featureProps.type = 'annotation'
+    feature.props = featureProps;
+    feature
+        .position((d: Position) => ({ x: d[0], y: d[1] }))
+        .polygon((t: Tile) => t.bbox_polygon?.coordinates[0])
+        .data(tiles)
+        .style('fill', true)
+        .style('fillColor', (t: Tile) => {
+            switch (t.pred_status) {
+                case TILE_STATUS.STARTPROCESSING:
+                    return UI_SETTINGS.startProcessingTileFillColor;
+                case TILE_STATUS.PROCESSING:
+                    return UI_SETTINGS.processingTileFillColor;
+                case TILE_STATUS.DONEPROCESSING:
+                    return UI_SETTINGS.doneProcessingTileFillColor;
+                default:
+                    return UI_SETTINGS.unseenTileFillColor;
+            }
+        })
+        .style('fillOpacity', UI_SETTINGS.processingTileFillOpacity)
+        .style('uniformPolygon', true)
+    console.log('Drew tile status polygons.')
+    feature.draw();
+    return feature;
+}
+
+export const updateTileStatusFeature = (feature: any, tiles: Tile[]) => {
+    if (!feature) {
+        console.warn('Cannot update tile status feature, it is undefined.');
+        return;
+    }
+    feature.data(tiles);
+    feature.modified();
+    feature.draw();
+}
+
+// TODO: remove
 export const createPendingTileFeature = (featureProps: any, polygons: Polygon[], layer: any) => {
     const feature = layer.createFeature('polygon');
     featureProps.type = 'pending';
@@ -182,8 +221,8 @@ export const createPendingTileFeature = (featureProps: any, polygons: Polygon[],
         .polygon((p: Polygon) => p.coordinates[0])
         .data(polygons)
         .style('fill', true)
-        .style('fillColor', UI_SETTINGS.pendingTileFillColor)
-        .style('fillOpacity', UI_SETTINGS.pendingTileFillOpacity)
+        .style('fillColor', UI_SETTINGS.processingTileFillColor)
+        .style('fillOpacity', UI_SETTINGS.processingTileFillOpacity)
         .style('uniformPolygon', true)
     console.log('Drew pending polygon.')
     feature.draw();
@@ -224,11 +263,6 @@ export function getZoomThresholds(minZoom: number, maxZoom: number): number[] {
 
     return thresholds;
 }
-
-
-
-// TODO: define function to get the polygon downsample value based on zoom level
-
 
 export function createCirclePolygon(x: number, y: number, size: number, layer: geo.layer, pixelTolerance: number): geo.annotation.circleAnnotation {
     const circle = geo.annotation.circleAnnotation({

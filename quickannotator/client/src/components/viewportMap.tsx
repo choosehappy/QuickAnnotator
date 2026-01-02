@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useRef, useCallback, act } from 'react';
 import geo from "geojs"
-import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse, TileRef, PredFeatureType } from "../types.ts"
-import { searchTileRefsByBbox, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, getAnnotationsWithinPolygon, searchTileRefsWithinPolygon, fetchTileBoundingBox, fetchImageMetadata, searchTileByCoordinates, predictTiles } from "../helpers/api.ts";
+import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse, TileRef, PredFeatureType, TileWithBbox } from "../types.ts"
+import { searchTileRefsByBbox, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, getAnnotationsWithinPolygon, searchTileRefsWithinPolygon, fetchTileBoundingBoxes, fetchImageMetadata, searchTileByCoordinates, predictTiles } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 
 import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID, COOKIE_NAMES, POLYGON_OPERATIONS, POLYGON_CREATE_STYLE, POLYGON_CREATE_STYLE_SECONDARY, IMPORT_CREATE_STYLE, BRUSH_CREATE_STYLE, BRUSH_CREATE_STYLE_SECONDARY, BRUSH_SIZE, UI_SETTINGS, MAX_ZOOM } from "../helpers/config.ts";
 
-import { computeFeaturesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered, tileIdIsValid, getScaledSize, createCirclePolygon, createConnectingRectangle, TileRefStore, getTileFeatureByTileId, removeFeatureById, getTileDownsampleLevel, getPolygonSimplifyTolerance } from '../utils/map.ts';
+import { computeFeaturesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered, tileIdIsValid, getScaledSize, createCirclePolygon, createConnectingRectangle, TileRefStore, getTileFeatureByTileId, removeFeatureById, getTileDownsampleLevel, getPolygonSimplifyTolerance, createTileStatusFeature } from '../utils/map.ts';
 import { useCookies } from 'react-cookie';
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useHotkeys, isHotkeyPressed } from 'react-hotkeys-hook';
@@ -87,10 +87,26 @@ const ViewportMap = (props: Props) => {
         return annotations;
     }
 
-    // const computeTileStatusFeature = () => {
-    // }
+    const computeTileStatusFeature = async (layer: any, featureId: number, tileIds: number[]) => {
+        // Get tile statuses using the predictTiles API method
+        const tileResp = await predictTiles(props.currentImage.id, props.currentAnnotationClass.id, tileIds, true);
+        if (tileResp.status !== 200) {
+            console.error(`Error predicting tiles for feature ${featureId}`);
+        }
 
-    const viewportRender = async (activeCallRef: React.MutableRefObject<number>) => {
+        // Check for existing feature
+        const existingFeature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
+        if (existingFeature) {
+            redrawTileFeature(existingFeature, { featureId: featureId, tileIds: tileIds}, tileResp.data);
+        } else {
+            createTileStatusFeature({ featureId: featureId, tileIds: tileIds }, tileResp.data, layer);
+        }
+
+        // Create a feature in the layer displaying the tile statuses with of all tiles
+        return false;
+    }
+
+    const viewportRender = async (activeCallRef: React.MutableRefObject<number>, renderGts: boolean, renderPreds: boolean, renderTileStatus: boolean) => {
         const currentCallToken = ++activeCallRef.current;
         // Safeguards against invalid application state.
         if (!props.currentImage) {
@@ -120,7 +136,12 @@ const ViewportMap = (props: Props) => {
             downsampleLevel.current = newDownsampleLevel;
             layers[LAYER_KEYS.GT].clear();
             layers[LAYER_KEYS.PRED].clear();
+            layers[LAYER_KEYS.TILE_STATUS].clear();
         }
+
+        if (!renderGts) layers[LAYER_KEYS.GT].clear();
+        if (!renderPreds) layers[LAYER_KEYS.PRED].clear();
+        if (!renderTileStatus) layers[LAYER_KEYS.TILE_STATUS].clear();
 
         // Get all tile features within bounds
         const resp = await searchTileRefsByBbox(props.currentImage.id, props.currentAnnotationClass.id, x1, y1, x2, y2, false, newDownsampleLevel);
@@ -147,6 +168,14 @@ const ViewportMap = (props: Props) => {
             removeFeatureById(predLayer, featureId, PredFeatureType.annotation);
         });
 
+        // Tile Status features should be removed if they are off screen
+        const tileStatusLayer = layers[LAYER_KEYS.TILE_STATUS];
+        const tileStatusFeaturesRendered = getFeatIdsRendered(tileStatusLayer, PredFeatureType.annotation);
+        const { featuresToRemove: tileStatusFeaturesToRemove } = computeFeaturesToRender(tileStatusFeaturesRendered, tileRefStore.getAllGroupIds());
+        tileStatusFeaturesToRemove.forEach((featureId) => {
+            removeFeatureById(tileStatusLayer, featureId, PredFeatureType.annotation);
+        });
+
         // Loop through each tile feature
         for (const group of tileRefStore) {
             // If a newer call has been made, abort this one.
@@ -158,13 +187,22 @@ const ViewportMap = (props: Props) => {
             const tileIds = tileRefs.map(tr => tr.tile_id);
 
             // Ground Truths
-            gtAnns = gtAnns.concat(await processGTFeature(gtLayer, featureId, tileIds, gtFeaturesToRender));
+            if (renderGts) {
+                gtAnns = gtAnns.concat(await processGTFeature(gtLayer, featureId, tileIds, gtFeaturesToRender));
+                props.setGts(gtAnns);
+            }
 
             // Predictions
-            predAnns = predAnns.concat(await processPredFeature(layers[LAYER_KEYS.PRED], featureId, tileIds));
-            
+            if (renderPreds) {
+                predAnns = predAnns.concat(await processPredFeature(layers[LAYER_KEYS.PRED], featureId, tileIds));
+                props.setPreds(predAnns);
+            }
 
             // Tile Status
+            if (renderTileStatus) {
+                await computeTileStatusFeature(layers[LAYER_KEYS.TILE_STATUS], featureId, tileIds);
+            }
+
         }
     }
 
@@ -261,6 +299,7 @@ const ViewportMap = (props: Props) => {
             console.error("Error: geojs_map is not initialized.");
             return;
         }
+        if (!props.currentImage || !props.currentAnnotationClass || props.currentAnnotationClass.id === MASK_CLASS_ID || !geojs_map.current) return;
 
         const bounds = geojs_map.current.bounds();
         const x1 = bounds.left;
@@ -680,12 +719,8 @@ const ViewportMap = (props: Props) => {
         zoomPanTimeout = setTimeout(() => {
             console.log('Zooming or Panning stopped.');
             setBoundsQuery();
-            renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
-                console.log("Ground truths rendered.");
-            });
-
-            renderPredAnnotations(activeRenderPredictionsCall).then(() => {
-                console.log("Predictions rendered.");
+            viewportRender(activeRenderGroundTruthsCall, true, true, true).then(() => {   // TODO: rename active variable
+                console.log("Viewport render complete.");
             });
         }, RENDER_DELAY); // Adjust this timeout duration as needed
     };
@@ -772,8 +807,9 @@ const ViewportMap = (props: Props) => {
         params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
         console.log("OSM layer loaded.");
 
-        const groundTruthLayer = map.createLayer('feature', { features: ['polygon'] });
-        const predictionsLayer = map.createLayer('feature', { features: ['polygon'] });
+        const groundTruthLayer = map.createLayer('feature', { features: ['polygon'], renderer: 'webgl' });
+        const predictionsLayer = map.createLayer('feature', { features: ['polygon'], renderer: 'webgl' });
+        const tileStatusLayer = map.createLayer('feature', { features: ['quad'], renderer: 'webgl' })
 
         map.createLayer('osm', { ...params.layer, zIndex: 0 })
 
@@ -880,15 +916,19 @@ const ViewportMap = (props: Props) => {
         props.setGts([]);
         props.setPreds([]);
 
-        renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
-            console.log("Ground truths rendered on initial load.");
-        })
+        viewportRender(activeRenderGroundTruthsCall, true, true, true).then(() => {
+            console.log("Viewport render on annotation class change complete.");
+        });
+
+        // renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
+        //     console.log("Ground truths rendered on initial load.");
+        // })
 
         const interval = setInterval(() => {
             // console.log("Interval triggered.");
             if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
-                renderPredAnnotations(activeRenderPredictionsCall).then(() => {
-                    console.log("Predictions rendered.");
+                viewportRender(activeRenderGroundTruthsCall, false, true, true).then(() => {
+                    console.log("Completed viewport render triggered by interval.");
                 });
             }
         }, RENDER_PREDICTIONS_INTERVAL);

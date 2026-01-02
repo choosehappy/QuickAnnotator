@@ -9,12 +9,12 @@ class TileRespSchema(SQLAlchemyAutoSchema):
         include_fk = True
 
 
-class PredictTileRespSchema(Schema):
-    object_ref = fields.Str()
-    message = fields.Str()
+class PredictTileRespSchema(TileRespSchema):
+    bbox_polygon = db_models.GeometryField(metadata={"description": "Bounding box polygon of the tile. Present only if include_bbox is True."})
 
 
 class TileBoundingBoxRespSchema(Schema):
+    tile_id = fields.Int()
     bbox_polygon = db_models.GeometryField()
 
 
@@ -33,7 +33,7 @@ class GetTileArgsSchema(BaseTileArgsSchema):
 
 class PostTileArgsSchema(Schema):
     tile_ids = fields.List(fields.Int(), required=True, description="List of tile IDs to process")
-
+    include_bbox = fields.Bool(required=False, missing=False, description="Whether to include bounding box polygons in the response")
 
 class SearchTileArgsSchema(BaseTileArgsSchema):
     hasgt = fields.Bool(required=True, description="Filter by tiles which have ground truths saved")

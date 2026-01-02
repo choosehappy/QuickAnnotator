@@ -208,7 +208,7 @@ class TileSpace:
         rc_indices = [self.tileid_to_rc(tile_id) for tile_id in self.get_all_tile_ids_for_image()]
         return rc_indices
 
-    def get_bbox_for_tile(self, tile_id: int) -> tuple:
+    def get_bbox_for_tile(self, tile_id: int) -> tuple[float, float, float, float]:
         """
         Calculate the bounding box coordinates for a given tile.
         Args:

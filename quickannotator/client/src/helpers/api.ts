@@ -1,6 +1,6 @@
 // Generic response type
 type ApiResponse<T> = Promise<T>;
-import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, GetAnnsForTileIdsArgs, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileRefsByPolygonArgs, TileRef, PredictTilesRequest} from "../types.ts";
+import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, GetAnnsForTileIdsArgs, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileRefsByPolygonArgs, TileRef, PredictTilesRequest, TileWithBbox} from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
 import { API_URI, POLYGON_OPERATIONS } from "./config.ts";
 
@@ -253,14 +253,9 @@ export const getAnnotationsWithinPolygon = async (image_id: number, annotation_c
 }
 
 
-export const predictTiles = async (image_id: number, annotation_class_id: number, tile_ids: number[]) => {
-    const requestBody: PredictTilesRequest = { tile_ids };
-    return await post<PredictTilesRequest, Tile[]>(`/tile/${image_id}/${annotation_class_id}/predict`, requestBody);
-}
-
-export const fetchTileBoundingBox = async (image_id: number, annotation_class_id: number, tile_id: number) => {
-    const query = new URLSearchParams({ tile_id: tile_id.toString() });
-    return await get<{ bbox_polygon: Polygon }>(`/tile/${image_id}/${annotation_class_id}/bbox?${query}`);
+export const predictTiles = async (image_id: number, annotation_class_id: number, tile_ids: number[], include_bbox = false) => {
+    const requestBody: PredictTilesRequest = { tile_ids, include_bbox };
+    return await post<PredictTilesRequest, Tile[] | TileWithBbox[]>(`/tile/${image_id}/${annotation_class_id}/predict`, requestBody);
 }
 
 // Fetch a new color for a project
@@ -375,5 +370,13 @@ export const searchTileByCoordinates = async (image_id: number, annotation_class
     });
     return get<TileRef>(
         `/tile/${image_id}/${annotation_class_id}/search/coordinates?${query}`
+    );
+};
+
+export const fetchTileBoundingBoxes = async (image_id: number, annotation_class_id: number, tile_ids: number[]) => {
+    const requestBody = { tile_ids };
+    return await post<{ tile_ids: number[] }, { tile_id: number; bbox_polygon: any }[]>(
+        `/tile/${image_id}/${annotation_class_id}/bbox`,
+        requestBody
     );
 };

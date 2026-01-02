@@ -21,6 +21,7 @@ export enum INTERACTION_MODE {
 export enum LAYER_KEYS {
     GT = 0,
     PRED,
+    TILE_STATUS,
     OSM,
     ANN,
     BRUSH,
@@ -113,8 +114,14 @@ export const UI_SETTINGS = {
     gtStrokeWidth: 2,
     predOpacity: 0.5,
     highlightedPredColor: 'red',
-    pendingTileFillColor: 'grey',
-    pendingTileFillOpacity: 0.5,
+    processingTileFillColor: 'grey',
+    processingTileFillOpacity: 0.5,
+    startProcessingTileFillColor: 'yellow',
+    startProcessingTileFillOpacity: 0.5,
+    unseenTileFillColor: 'black',
+    unseenTileFillOpacity: 0.5,
+    doneProcessingTileFillColor: 'green',
+    doneProcessingTileFillOpacity: 0.5,
     continuousCloseProximity: true, // NOTE: int values do not seem to have an effect.
     finalPointProximity: 1000,
 }

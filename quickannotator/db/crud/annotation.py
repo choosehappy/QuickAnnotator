@@ -130,7 +130,6 @@ class AnnotationStore:
         self.query = get_annotation_query(self.model, 1/self.scaling_factor, mode, self.simplify_tolerance)
 
     # CREATE
-    # TODO: consider adding optional parameter to allow tileids to be passed in.
     def insert_annotations(self, polygons: List[BaseGeometry], tile_ids: List[int] | int=None) -> List[db_models.Annotation]:
         # Initial validation
         if len(polygons) == 0:
