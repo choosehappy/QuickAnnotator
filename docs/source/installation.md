@@ -66,6 +66,13 @@ Ray cluster launcher is used for multi-node deployments.
     git clone https://github.com/choosehappy/QuickAnnotator.git
     cd QuickAnnotator
     git checkout v2.0
+    chmod -R g+rw .
     ```
-2. Within VS Code, open the cloned repository and click on the "Reopen in Container" button to build the devcontainer. This will create a docker container with all the necessary dependencies to run QuickAnnotator.
+
+```{note}
+The command `chmod -R g+rw .` ensures that both the host and the docker container users have access to the repository files.
+```
+
+2. Set your env variables in the `deployment/dev.env` file.
+3. Within VS Code, open the cloned repository and click on the "Reopen in Container" button to build the devcontainer. This will create a docker container with all the necessary dependencies to run QuickAnnotator.
 ![image](https://github.com/user-attachments/assets/b776577f-a4c2-4eb8-858c-c603ac20cc6d)

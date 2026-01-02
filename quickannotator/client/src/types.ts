@@ -41,6 +41,16 @@ export interface AnnotationResponse {
     datetime: Date;
 }
 
+export interface FeatureProps {
+    featureId: number;
+    tileIds?: number[];
+}
+
+export enum PredFeatureType {
+    annotation = "annotation",
+    pending = "pending",
+}
+
 export class Annotation {
     id: number;
     annotation_class_id: number;
@@ -50,8 +60,9 @@ export class Annotation {
     area: number;
     custom_metrics: { [key: string]: unknown }
     datetime: Date;
+    featureId: number | null;
 
-    constructor(annotation: AnnotationResponse, annotation_class_id: number) {
+    constructor(annotation: AnnotationResponse, annotation_class_id: number, featureId: number | null) {
         this.id = annotation.id;
         this.tile_id = annotation.tile_id;
         this.annotation_class_id = annotation_class_id;
@@ -60,6 +71,7 @@ export class Annotation {
         this.area = annotation.area;
         this.custom_metrics = annotation.custom_metrics;
         this.datetime = annotation.datetime;
+        this.featureId = featureId;
     }
 
     setTileId(tile_id: number | null) {
@@ -82,9 +94,10 @@ export interface PostAnnsArgs {
 export interface QueryAnnsByPolygonArgs {
     polygon: string;
     is_gt: boolean;
+    simplify_tolerance?: number;
 }
 
-export interface SearchTileIdsByPolygonArgs {
+export interface SearchTileRefsByPolygonArgs {
     polygon: string;
     hasgt: boolean;
 }
@@ -129,9 +142,15 @@ export interface Project {
     datetime: Date;
 }
 
-export interface TileIds {
+export interface GetAnnsForTileIdsArgs {
     tile_ids: number[];
     is_gt: boolean;
+    simplify_tolerance?: number;
+}
+
+export interface TileRef {
+    tile_id: number;
+    downsampled_tile_id: number;
 }
 
 export interface Tile {
@@ -143,6 +162,7 @@ export interface Tile {
     pred_datetime: Date | null;
     gt_counter: number | null;
     gt_datetime: Date | null;
+    bbox_polygon?: Polygon;     // Optional, may not be included in all responses
 }
 
 export type OutletContextType = {
@@ -196,6 +216,10 @@ export class CurrentAnnotation {
 
     get currentState() {
         return this.undoStack.at(-1);
+    }
+
+    hasChanges() {
+        return this.undoStack.length > 1;
     }
 
     // Note that useState objects cannot be mutated directly, so we have to return a new object.
@@ -255,4 +279,9 @@ export class DataItem {
     toggleSelected() {
         this.selected = !this.selected;
     }
+}
+
+export interface PredictTilesRequest {
+    tile_ids: number[];
+    include_bbox?: boolean;
 }

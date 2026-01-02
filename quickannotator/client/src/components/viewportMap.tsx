@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useRef, useCallback, act } from 'react';
 import geo from "geojs"
-import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse } from "../types.ts"
-import { searchTileIds, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, predictTile, getAnnotationsWithinPolygon, searchTileIdsWithinPolygon, fetchTileBoundingBox, fetchImageMetadata } from "../helpers/api.ts";
+import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse, TileRef, PredFeatureType, TileWithBbox } from "../types.ts"
+import { searchTileRefsByBbox, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, getAnnotationsWithinPolygon, searchTileRefsWithinPolygon, fetchTileBoundingBoxes, fetchImageMetadata, searchTileByCoordinates, predictTiles } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 
-import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID, COOKIE_NAMES, POLYGON_OPERATIONS, POLYGON_CREATE_STYLE, POLYGON_CREATE_STYLE_SECONDARY, IMPORT_CREATE_STYLE, BRUSH_CREATE_STYLE, BRUSH_CREATE_STYLE_SECONDARY, BRUSH_SIZE, UI_SETTINGS } from "../helpers/config.ts";
+import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID, COOKIE_NAMES, POLYGON_OPERATIONS, POLYGON_CREATE_STYLE, POLYGON_CREATE_STYLE_SECONDARY, IMPORT_CREATE_STYLE, BRUSH_CREATE_STYLE, BRUSH_CREATE_STYLE_SECONDARY, BRUSH_SIZE, UI_SETTINGS, MAX_ZOOM } from "../helpers/config.ts";
 
-import { computeTilesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered, tileIdIsValid, getScaledSize, createCirclePolygon, createConnectingRectangle } from '../utils/map.ts';
+import { computeFeaturesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered, tileIdIsValid, getScaledSize, createCirclePolygon, createConnectingRectangle, TileRefStore, getTileFeatureByTileId, removeFeatureById, getTileDownsampleLevel, getPolygonSimplifyTolerance, createTileStatusFeature } from '../utils/map.ts';
 import { useCookies } from 'react-cookie';
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useHotkeys, isHotkeyPressed } from 'react-hotkeys-hook';
@@ -46,8 +46,166 @@ const ViewportMap = (props: Props) => {
     const [cookies, setCookies] = useCookies([COOKIE_NAMES.SKIP_CONFIRM_IMPORT]);
     const [searchParams, setSearchParams] = useSearchParams();
     const lastBrushState = useRef<{ stateId: number, coords: [Position] } | null>(null);
+    const downsampleLevel = useRef<number>(0);
 
     let zoomPanTimeout: any = null;
+
+    const processGTFeature = async (layer: any, featureId: number, tileIds: number[], gtFeaturesToRender: Set<number>): Promise<Annotation[]> => {
+        const shouldRenderFeature = gtFeaturesToRender.has(featureId);
+        const shouldUpdateFeature = featureIdsToUpdate.current.includes(featureId);
+        let annotations: Annotation[] = [];
+        if (shouldRenderFeature || shouldUpdateFeature) {
+            const resp = await getAnnotationsForTileIds(props.currentImage.id, props.currentAnnotationClass.id, tileIds, true, getPolygonSimplifyTolerance(geojs_map.current));
+            annotations = resp.data.map(annResp => new Annotation(annResp, props.currentAnnotationClass.id, featureId));
+
+            if (shouldRenderFeature) {
+                const feature = createGTTileFeature({ featureId: featureId, tileIds: tileIds }, annotations, layer, props.currentAnnotationClass, props.currentAnnotation?.currentState?.id);
+                feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
+            } else {
+                const webGLFeature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
+                redrawTileFeature(webGLFeature, {}, annotations);
+            }
+        } else {
+            const webGLFeature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
+            annotations = webGLFeature.data();
+        }
+        return annotations;
+    }
+
+    const processPredFeature = async (layer: any, featureId: number, tileIds: number[]): Promise<Annotation[]> => {
+        const annsResp = await getAnnotationsForTileIds(props.currentImage.id, props.currentAnnotationClass.id, tileIds, false, getPolygonSimplifyTolerance(geojs_map.current));
+        const annotations = annsResp.data.map(annResp => new Annotation(annResp, props.currentAnnotationClass.id, featureId));
+
+        const existingFeature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
+
+        if (existingFeature) {
+            redrawTileFeature(existingFeature, { featureId: featureId, tileIds: tileIds}, annotations);
+        } else {
+            const feature = createPredTileFeature({ featureId: featureId, tileIds: tileIds }, annotations, layer, props.currentAnnotationClass);
+        }
+
+        return annotations;
+    }
+
+    const computeTileStatusFeature = async (layer: any, featureId: number, tileIds: number[]) => {
+        // Get tile statuses using the predictTiles API method
+        const tileResp = await predictTiles(props.currentImage.id, props.currentAnnotationClass.id, tileIds, true);
+        if (tileResp.status !== 200) {
+            console.error(`Error predicting tiles for feature ${featureId}`);
+        }
+
+        // Check for existing feature
+        const existingFeature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
+        if (existingFeature) {
+            redrawTileFeature(existingFeature, { featureId: featureId, tileIds: tileIds}, tileResp.data);
+        } else {
+            createTileStatusFeature({ featureId: featureId, tileIds: tileIds }, tileResp.data, layer);
+        }
+
+        // Create a feature in the layer displaying the tile statuses with of all tiles
+        return false;
+    }
+
+    const viewportRender = async (activeCallRef: React.MutableRefObject<number>, renderGts: boolean, renderPreds: boolean, renderTileStatus: boolean) => {
+        const currentCallToken = ++activeCallRef.current;
+        // Safeguards against invalid application state.
+        if (!props.currentImage) {
+            console.error("Error: currentImage is not defined.");
+            return;
+        }
+        if (!props.currentAnnotationClass) {
+            console.error("Error: currentAnnotationClass is not defined.");
+            return;
+        }
+        if (!geojs_map.current) {
+            console.error("Error: geojs_map is not initialized.");
+            return;
+        }
+
+        // Get map bounds
+        const bounds = geojs_map.current.bounds();
+        const x1 = bounds.left;
+        const y1 = Math.abs(bounds.top);
+        const x2 = bounds.right;
+        const y2 = Math.abs(bounds.bottom);
+        const newDownsampleLevel = getTileDownsampleLevel(geojs_map.current);
+        const layers = geojs_map.current.layers()
+
+        // Should any layers be cleared?
+        if (downsampleLevel.current !== newDownsampleLevel) {
+            downsampleLevel.current = newDownsampleLevel;
+            layers[LAYER_KEYS.GT].clear();
+            layers[LAYER_KEYS.PRED].clear();
+            layers[LAYER_KEYS.TILE_STATUS].clear();
+        }
+
+        if (!renderGts) layers[LAYER_KEYS.GT].clear();
+        if (!renderPreds) layers[LAYER_KEYS.PRED].clear();
+        if (!renderTileStatus) layers[LAYER_KEYS.TILE_STATUS].clear();
+
+        // Get all tile features within bounds
+        const resp = await searchTileRefsByBbox(props.currentImage.id, props.currentAnnotationClass.id, x1, y1, x2, y2, false, newDownsampleLevel);
+        const tileRefs: TileRef[] = resp.data;
+        const tileRefStore = new TileRefStore(tileRefs);
+
+        // Prepare annotation lists
+        let gtAnns: Annotation[] = [];
+        let predAnns: Annotation[] = [];
+
+        // Groud truth features should only be rendered if they are not already drawn.
+        const gtLayer = layers[LAYER_KEYS.GT];
+        const gtFeaturesRendered = getFeatIdsRendered(gtLayer, PredFeatureType.annotation);
+        const { featuresToRemove: gtFeaturesToRemove, featuresToRender: gtFeaturesToRender } = computeFeaturesToRender(gtFeaturesRendered, tileRefStore.getAllGroupIds());
+        gtFeaturesToRemove.forEach((featureId) => {
+            removeFeatureById(gtLayer, featureId, PredFeatureType.annotation);
+        });
+
+        // Prediction features should be removed if they are off screen
+        const predLayer = layers[LAYER_KEYS.PRED];
+        const predFeaturesRendered = getFeatIdsRendered(predLayer, PredFeatureType.annotation);
+        const { featuresToRemove: predFeaturesToRemove } = computeFeaturesToRender(predFeaturesRendered, tileRefStore.getAllGroupIds());
+        predFeaturesToRemove.forEach((featureId) => {
+            removeFeatureById(predLayer, featureId, PredFeatureType.annotation);
+        });
+
+        // Tile Status features should be removed if they are off screen
+        const tileStatusLayer = layers[LAYER_KEYS.TILE_STATUS];
+        const tileStatusFeaturesRendered = getFeatIdsRendered(tileStatusLayer, PredFeatureType.annotation);
+        const { featuresToRemove: tileStatusFeaturesToRemove } = computeFeaturesToRender(tileStatusFeaturesRendered, tileRefStore.getAllGroupIds());
+        tileStatusFeaturesToRemove.forEach((featureId) => {
+            removeFeatureById(tileStatusLayer, featureId, PredFeatureType.annotation);
+        });
+
+        // Loop through each tile feature
+        for (const group of tileRefStore) {
+            // If a newer call has been made, abort this one.
+            if (currentCallToken !== activeCallRef.current) return;
+
+            // Get info about the current group
+            const featureId = group[0];
+            const tileRefs = group[1];
+            const tileIds = tileRefs.map(tr => tr.tile_id);
+
+            // Ground Truths
+            if (renderGts) {
+                gtAnns = gtAnns.concat(await processGTFeature(gtLayer, featureId, tileIds, gtFeaturesToRender));
+                props.setGts(gtAnns);
+            }
+
+            // Predictions
+            if (renderPreds) {
+                predAnns = predAnns.concat(await processPredFeature(layers[LAYER_KEYS.PRED], featureId, tileIds));
+                props.setPreds(predAnns);
+            }
+
+            // Tile Status
+            if (renderTileStatus) {
+                await computeTileStatusFeature(layers[LAYER_KEYS.TILE_STATUS], featureId, tileIds);
+            }
+
+        }
+    }
+
 
     const renderGTAnnotations = async (
         activeCallRef: React.MutableRefObject<number>
@@ -72,34 +230,50 @@ const ViewportMap = (props: Props) => {
         const y1 = Math.abs(bounds.top);
         const x2 = bounds.right;
         const y2 = Math.abs(bounds.bottom);
-
+        const newDownsampleLevel = getTileDownsampleLevel(geojs_map.current);
+        console.log(`Determined downsample level: ${newDownsampleLevel}`);
         const currentCallToken = ++activeCallRef.current;
-        const resp = await searchTileIds(props.currentImage.id, props.currentAnnotationClass.id, x1, y1, x2, y2, true);
-        const tileIds = resp.data.tile_ids;
+        const resp = await searchTileRefsByBbox(props.currentImage.id, props.currentAnnotationClass.id, x1, y1, x2, y2, true, newDownsampleLevel);
+        const tileRefStore = new TileRefStore(resp.data);
+        const featureIds = resp.data.map(tile_ref => tile_ref.downsampled_tile_id);
         const layer = geojs_map.current.layers()[LAYER_KEYS.GT];
-        const tilesRendered = getFeatIdsRendered(layer, 'annotation');
-        const { tilesToRemove, tilesToRender } = computeTilesToRender(tilesRendered, tileIds);
+        let featsToRender = new Set<number>();
 
-        tilesToRemove.forEach((tile_id) => {
-            removeFeatureById(layer, tile_id);
-        });
+
+        if (downsampleLevel.current !== newDownsampleLevel) {
+            downsampleLevel.current = newDownsampleLevel;
+            featsToRender = new Set(featureIds);
+            layer.clear();
+        } else {
+            const featuresRendered = getFeatIdsRendered(layer, PredFeatureType.annotation);
+            const { featuresToRemove, featuresToRender } = computeFeaturesToRender(featuresRendered, featureIds);
+            featsToRender = featuresToRender;
+            featuresToRemove.forEach((featureId) => {
+                removeFeatureById(layer, featureId, PredFeatureType.annotation);
+            });
+        }
+
+
 
         let anns: Annotation[] = [];
-        for (const tileId of tileIds) {
-            if (tilesToRender.has(tileId)) {
+        for (const group of tileRefStore) {
+            const featureId = group[0];
+            const tileRefs = group[1];
+            const tileIds = tileRefs.map(tr => tr.tile_id);
+            if (featsToRender.has(featureId)) {
                 if (currentCallToken !== activeCallRef.current) return;
-                console.log(`Processing tile ${tileId}`);
-                const resp = await getAnnotationsForTileIds(props.currentImage.id, props.currentAnnotationClass.id, [tileId], true);
-                const annotations = resp.data.map(annResp => new Annotation(annResp, props.currentAnnotationClass.id));
+                console.log(`Processing feature ${featureId}`);
+                const resp = await getAnnotationsForTileIds(props.currentImage.id, props.currentAnnotationClass.id, tileIds, true, getPolygonSimplifyTolerance(geojs_map.current));
+                const annotations = resp.data.map(annResp => new Annotation(annResp, props.currentAnnotationClass.id, featureId));
                 if (currentCallToken !== activeCallRef.current) return;
                 anns = anns.concat(annotations);
-                const feature = createGTTileFeature({ tile_id: tileId }, annotations, layer, props.currentAnnotationClass, props.currentAnnotation?.currentState?.id,);
+                const feature = createGTTileFeature({ featureId: featureId, tileIds: tileIds }, annotations, layer, props.currentAnnotationClass, props.currentAnnotation?.currentState?.id);
                 feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
             } else {
-                const webGLFeature = getTileFeatureById(layer, tileId);
-                if (featureIdsToUpdate.current.includes(tileId)) {
-                    const resp = await getAnnotationsForTileIds(props.currentImage.id, props.currentAnnotationClass.id, [tileId], true);
-                    const data = resp.data.map(annResp => new Annotation(annResp, props.currentAnnotationClass.id));
+                const webGLFeature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
+                if (featureIdsToUpdate.current.includes(featureId)) {
+                    const resp = await getAnnotationsForTileIds(props.currentImage.id, props.currentAnnotationClass.id, [featureId], true, getPolygonSimplifyTolerance(geojs_map.current));
+                    const data = resp.data.map(annResp => new Annotation(annResp, props.currentAnnotationClass.id, featureId));
                     redrawTileFeature(webGLFeature, {}, data);
                 }
                 const data: Annotation[] = webGLFeature.data();
@@ -112,6 +286,72 @@ const ViewportMap = (props: Props) => {
     const renderPredAnnotations = async (
         activeCallRef: React.MutableRefObject<number>
     ) => {
+        // Safeguards against invalid application state.
+        if (!props.currentImage) {
+            console.error("Error: currentImage is not defined.");
+            return;
+        }
+        if (!props.currentAnnotationClass) {
+            console.error("Error: currentAnnotationClass is not defined.");
+            return;
+        }
+        if (!geojs_map.current) {
+            console.error("Error: geojs_map is not initialized.");
+            return;
+        }
+        if (!props.currentImage || !props.currentAnnotationClass || props.currentAnnotationClass.id === MASK_CLASS_ID || !geojs_map.current) return;
+
+        const bounds = geojs_map.current.bounds();
+        const x1 = bounds.left;
+        const y1 = Math.abs(bounds.top);
+        const x2 = bounds.right;
+        const y2 = Math.abs(bounds.bottom);
+        const newDownsampleLevel = getTileDownsampleLevel(geojs_map.current);
+        console.log(`Determined downsample level: ${newDownsampleLevel}`);
+        const currentCallToken = ++activeCallRef.current;
+        const resp = await searchTileRefsByBbox(props.currentImage.id, props.currentAnnotationClass.id, x1, y1, x2, y2, false, newDownsampleLevel);
+        const tileRefStore = new TileRefStore(resp.data);
+        const featureIds = resp.data.map(tile_ref => tile_ref.downsampled_tile_id);
+        const layer = geojs_map.current.layers()[LAYER_KEYS.PRED];
+
+        if (downsampleLevel.current !== newDownsampleLevel) {
+            downsampleLevel.current = newDownsampleLevel;
+            layer.clear();
+        }
+
+        let anns: Annotation[] = [];
+        for (const group of tileRefStore) {
+            const featureId = group[0];
+            const tileRefs = group[1];
+            const tileIds = tileRefs.map(tr => tr.tile_id);
+            const tileResp = await predictTiles(props.currentImage.id, props.currentAnnotationClass.id, tileIds);
+
+            if (tileResp.status !== 200) {
+                console.error(`Error predicting tiles for feature ${group[0]}`);
+                continue;
+            }
+
+            const tilesToDraw = tileResp.data.filter(tile => tile.pred_status === TILE_STATUS.DONEPROCESSING);
+            const tilesPending = tileResp.data.filter(tile => tile.pred_status !== TILE_STATUS.DONEPROCESSING);
+            if (currentCallToken !== activeCallRef.current) return;
+            const annsResp = await getAnnotationsForTileIds(props.currentImage.id, props.currentAnnotationClass.id, tilesToDraw.map(tile => tile.tile_id), false, getPolygonSimplifyTolerance(geojs_map.current));
+            const annotations = annsResp.data.map(annResp => new Annotation(annResp, props.currentAnnotationClass.id, featureId));
+            if (currentCallToken !== activeCallRef.current) return;
+            anns = anns.concat(annotations);
+
+            const feature = getTileFeatureById(layer, featureId, PredFeatureType.annotation)
+            if (feature) {
+                redrawTileFeature(feature, { featureId: featureId, tileIds: tileIds}, annotations);
+            } else {
+                const feature = createPredTileFeature({ featureId: featureId, tileIds: tileIds }, annotations, layer, props.currentAnnotationClass);
+            }
+            props.setPreds(anns);
+        };
+    }
+
+    const renderPredAnnotationsOld = async (
+        activeCallRef: React.MutableRefObject<number>
+    ) => {
         // Predicted annotations are irrelevant if the current class is the mask class
         if (!props.currentImage || !props.currentAnnotationClass || props.currentAnnotationClass.id === MASK_CLASS_ID || !geojs_map.current) return;
 
@@ -122,59 +362,65 @@ const ViewportMap = (props: Props) => {
         const y2 = Math.abs(bounds.bottom);
 
         const currentCallToken = ++activeCallRef.current;
-        const resp = await searchTileIds(props.currentImage.id, props.currentAnnotationClass.id, x1, y1, x2, y2, false);
-        const tileIds = resp.data.tile_ids;
+        const resp = await searchTileRefsByBbox(props.currentImage.id, props.currentAnnotationClass.id, x1, y1, x2, y2, false);
+        const tileRefStore = new TileRefStore(resp.data);
+        const featureIds = resp.data.map(tile_ref => tile_ref.downsampled_tile_id);
         const layer = geojs_map.current.layers()[LAYER_KEYS.PRED];
 
-        const tilesRendered = getFeatIdsRendered(layer, 'annotation');
-        const { tilesToRemove, tilesToRender } = computeTilesToRender(tilesRendered, tileIds);
+        const featuresRendered = getFeatIdsRendered(layer, PredFeatureType.annotation);
+        const { featuresToRemove, featuresToRender } = computeFeaturesToRender(featuresRendered, featureIds);
 
-        tilesToRemove.forEach((tile_id) => {
-            removeFeatureById(layer, tile_id);
+        featuresToRemove.forEach((featureId) => {
+            removeFeatureById(layer, featureId, PredFeatureType.annotation);
         });
 
         let anns: Annotation[] = [];
-        for (const tileId of tileIds) {
-            const resp = await predictTile(props.currentImage.id, props.currentAnnotationClass.id, tileId);
-            if (resp.status === 200) {
-                removeFeatureById(layer, tileId, 'pending');
-                removeFeatureById(layer, tileId, 'annotation');
-                const tile = resp.data;
-                if (tile.pred_status === TILE_STATUS.DONEPROCESSING) {  // We only want to get predicted annotations if the tile status is DONEPROCESSING. 
-                    if (currentCallToken !== activeCallRef.current) return;
-                    console.log(`Processing tile ${tileId}`);
-                    const resp = await getAnnotationsForTileIds(props.currentImage.id, props.currentAnnotationClass.id, [tileId], false);
-                    const annotations = resp.data.map(annResp => new Annotation(annResp, props.currentAnnotationClass.id));
-                    if (currentCallToken !== activeCallRef.current) return;
-                    anns = anns.concat(annotations);
-                    createPredTileFeature({ tile_id: tileId }, annotations, layer, props.currentAnnotationClass);
-                } else {
-                    // Get a polygon for the tile and plot it on the map.
-                    if (currentCallToken !== activeCallRef.current) return;
-                    const resp = await fetchTileBoundingBox(props.currentImage.id, props.currentAnnotationClass.id, tileId);
-                    if (currentCallToken !== activeCallRef.current) return;
-                    if (resp.status === 200) {
-                        const bbox_polygon = resp.data.bbox_polygon;
-                        createPendingTileFeature({ tile_id: tileId }, [bbox_polygon], layer);
+        for (const group of tileRefStore) {
+            const featureId = group[0];
+            const tileRefs = group[1];
+            const tileIds = tileRefs.map(tr => tr.tile_id);
+
+            if (featuresToRender.has(featureId)) {
+                const resp = await predictTile(props.currentImage.id, props.currentAnnotationClass.id, featureId);
+                if (resp.status === 200) {
+                    removeFeatureById(layer, featureId, PredFeatureType.pending);
+                    removeFeatureById(layer, featureId, PredFeatureType.annotation);
+                    const tile = resp.data;
+
+                    if (tile.pred_status === TILE_STATUS.DONEPROCESSING) {  // Only process tiles with DONEPROCESSING status
+                        if (currentCallToken !== activeCallRef.current) return;
+                        console.log(`Processing feature ${featureId}`);
+                        const resp = await getAnnotationsForTileIds(props.currentImage.id, props.currentAnnotationClass.id, tileIds, false);
+                        const annotations = resp.data.map(annResp => new Annotation(annResp, props.currentAnnotationClass.id, featureId));
+                        if (currentCallToken !== activeCallRef.current) return;
+                        anns = anns.concat(annotations);
+                        const feature = createPredTileFeature({ featureId: featureId, tileIds: tileIds }, annotations, layer, props.currentAnnotationClass);
+                        feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
+                    } else {
+                        // Get a polygon for the feature and plot it on the map.
+                        if (currentCallToken !== activeCallRef.current) return;
+                        const resp = await fetchTileBoundingBox(props.currentImage.id, props.currentAnnotationClass.id, featureId); // TODO: this should allow for downsampling
+                        if (currentCallToken !== activeCallRef.current) return;
+                        if (resp.status === 200) {
+                            const bbox_polygon = resp.data.bbox_polygon;
+                            createPendingTileFeature({ featureId: featureId }, [bbox_polygon], layer);
+                        }
                     }
                 }
+            } else {
+                const webGLFeature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
+                if (featureIdsToUpdate.current.includes(featureId)) {
+                    const resp = await getAnnotationsForTileIds(props.currentImage.id, props.currentAnnotationClass.id, tileIds, false);
+                    const data = resp.data.map(annResp => new Annotation(annResp, props.currentAnnotationClass.id, featureId));
+                    redrawTileFeature(webGLFeature, {}, data);
+                }
+                const data: Annotation[] = webGLFeature.data();
+                anns = anns.concat(data);
             }
             props.setPreds(anns);
         }
     };
 
-    function drawCentroids(annotations: Annotation[], map: geo.map) {
-        return;
-    }
-
-    function removeFeatureById(layer: geo.layer, featureId: number, type: string = 'annotation') {
-        const feature = getTileFeatureById(layer, featureId, type);
-        if (feature) {
-            feature.data([]);
-            layer.removeFeature(feature);
-            feature.draw();
-        }
-    }
 
     function handleMousedownOnPolygon(evt) {
         console.log("Polygon clicked.")
@@ -197,8 +443,8 @@ const ViewportMap = (props: Props) => {
 
         if (!polygonClicked.current && props.currentAnnotation) {
             const currentState = props.currentAnnotation.currentState;
-            const tile_id = currentState?.tile_id;
-            if (tileIdIsValid(tile_id)) {
+            const featureId = currentState?.featureId;
+            if (tileIdIsValid(featureId)) {
                 props.setCurrentAndPreviousAnnotation(null);
             }
         }
@@ -254,15 +500,15 @@ const ViewportMap = (props: Props) => {
             console.log("No current annotation state found.");
             return;
         }
-        const tile_id = currentState.tile_id;
+        const featureId = currentState.featureId;
 
         const annotationId = currentState.id;
 
         const layer = geojs_map.current.layers()[LAYER_KEYS.GT];
 
-        if (annotationId && props.currentImage && props.currentAnnotationClass && tileIdIsValid(tile_id)) {
+        if (annotationId && props.currentImage && props.currentAnnotationClass && tileIdIsValid(featureId)) {
             removeAnnotation(props.currentImage.id, props.currentAnnotationClass.id, annotationId, true).then(() => {
-                const feature = getTileFeatureById(layer, tile_id);
+                const feature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
                 const data = feature.data();
                 const deletedData = data.filter((d: Annotation) => d.id !== annotationId);
 
@@ -278,15 +524,12 @@ const ViewportMap = (props: Props) => {
 
     const updateAnnotation = (currentState: Annotation, newPolygon: Polygon, operation: POLYGON_OPERATIONS) => {
         const layer = geojs_map.current.layers()[LAYER_KEYS.GT];
-        const tileId = currentState.tile_id;
-        if (!tileIdIsValid(tileId)) {
-            console.log("Tile ID not found.")
-            return;
-        }
-        const feature = getTileFeatureById(layer, tileId);
+        const featureId = currentState.featureId;
+        if (!tileIdIsValid(featureId)) return;
+        const feature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
         const data = feature.data();
         operateOnAnnotation(currentState, newPolygon, operation).then((resp) => {
-            const newState = new Annotation(resp.data, currentState.annotation_class_id);
+            const newState = new Annotation(resp.data, currentState.annotation_class_id, currentState.featureId);
             if (resp.data.polygon === null) {
                 // Remove the annotation from updated data and ground truths
                 const updatedData: Annotation[] = data.filter((d: Annotation) => d.id !== currentState.id);
@@ -312,7 +555,6 @@ const ViewportMap = (props: Props) => {
                 redrawTileFeature(feature, { currentAnnotationId: currentState.id }, updatedData);
                 props.pushAnnotationStateToUndoStack(newState);
             }
-
         });
     }
 
@@ -324,22 +566,23 @@ const ViewportMap = (props: Props) => {
             return;
         }
 
-        postAnnotations(currentImage.id, currentAnnotationClass.id, [newPolygon]).then((resp) => {
+        postAnnotations(currentImage.id, currentAnnotationClass.id, [newPolygon]).then(async (resp) => {
             if (resp.status === 200) {
-                const annotation = new Annotation(resp.data[0], currentAnnotationClass.id);
-                const tile_id = annotation.tile_id;
+                const centroid = newPolygon.coordinates[0][0]; // Directly access the coordinates
+                const tileResp = await searchTileByCoordinates(currentImage.id, currentAnnotationClass.id, centroid[0], centroid[1]);
+                const featureId = tileResp.data.downsampled_tile_id;
+                if (featureId === null || !tileIdIsValid(featureId)) return;
+                const annotation = new Annotation(resp.data[0], currentAnnotationClass.id, featureId);
+                const tileId = annotation.tile_id;
+                if (tileId === null || !tileIdIsValid(tileId)) return;
                 const layer = geojs_map.current.layers()[LAYER_KEYS.GT];
-                if (!tileIdIsValid(tile_id)) {
-                    console.log("Tile ID not found.")
-                    return;
-                }
-                let feature = getTileFeatureById(layer, tile_id);
-                if (feature) {
+                let feature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
+                if (feature) {  // Feature already exists, just update its data.
                     const data = feature.data();
                     const updatedData = data.concat(annotation);
                     redrawTileFeature(feature, {}, updatedData);
-                } else {
-                    feature = createGTTileFeature({ tile_id: tile_id }, [annotation], layer, currentAnnotationClass);
+                } else {    // Create a new feature for the tile.
+                    feature = createGTTileFeature({ featureId: featureId, tileIds: [tileId] }, [annotation], layer, currentAnnotationClass);
                     feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
                 }
                 props.setGts((prev: Annotation[]) => prev.concat(annotation));
@@ -413,26 +656,19 @@ const ViewportMap = (props: Props) => {
                 }
             }
         } else if (currentTool === TOOLBAR_KEYS.IMPORT) {
-            const resp = await getAnnotationsWithinPolygon(currentImage.id, currentAnnotationClass.id, false, polygon);
+            const resp = await getAnnotationsWithinPolygon(currentImage.id, currentAnnotationClass.id, false, polygon); // We don't want to simplify imported annotations
             if (resp.status === 200) {
-                const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentAnnotationClass.id));
+                // In this case we set the annotation's featureId to null since we don't need to redraw specific tiles.
+                const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentAnnotationClass.id, null));
                 if (anns.length === 0) {
                     alert("No annotations selected within the lasso. Please try again.");
                 }
-                // Get the ids for the features to redraw
-                // const tilesResp = await searchTileIdsWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon, false);
-                // if (tilesResp.status === 200) {
-                //     const tileIds = tilesResp.data.tile_ids;
-                //     featureIdsToUpdate.current = tileIds;
-                //     props.setHighlightedPreds(anns);
-                //     props.setActiveModal(MODAL_DATA.IMPORT_CONF.id);
-                // } else {
-                // Get the ids for the features to redraw
+                
                 setHighlightedPreds(anns);
-                const tilesResp = await searchTileIdsWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon, false);
+                const tilesResp = await searchTileRefsWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon, false);
                 if (tilesResp.status === 200) {
-                    const tileIds = tilesResp.data.tile_ids;
-                    featureIdsToUpdate.current = tileIds;
+                    const featureIds = tilesResp.data.map((tile_ref: TileRef) => tile_ref.downsampled_tile_id);
+                    featureIdsToUpdate.current = featureIds;
                     if (cookies[COOKIE_NAMES.SKIP_CONFIRM_IMPORT]) {
                         postAnnotations(currentImage.id, currentAnnotationClass?.id, anns.map(ann => ann.parsedPolygon)).then(() => {
                             setHighlightedPreds(null);
@@ -476,19 +712,15 @@ const ViewportMap = (props: Props) => {
 
     const handleZoomPan = () => {
         console.log('Zooming or Panning...');
-        
+
         // Clear the previous timeout if the zoom continues
         if (zoomPanTimeout) clearTimeout(zoomPanTimeout);
         // Set a new timeout to detect when zooming has stopped
         zoomPanTimeout = setTimeout(() => {
             console.log('Zooming or Panning stopped.');
             setBoundsQuery();
-            renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
-                console.log("Ground truths rendered.");
-            });
-
-            renderPredAnnotations(activeRenderPredictionsCall).then(() => {
-                console.log("Predictions rendered.");
+            viewportRender(activeRenderGroundTruthsCall, true, true, true).then(() => {   // TODO: rename active variable
+                console.log("Viewport render complete.");
             });
         }, RENDER_DELAY); // Adjust this timeout duration as needed
     };
@@ -554,18 +786,18 @@ const ViewportMap = (props: Props) => {
         const params = geo.util.pixelCoordinateParams(
             viewRef.current, img.base_width, img.base_height, img.dz_tilesize, img.dz_tilesize);
 
-        const map = geo.map({ ...params.map, max: 20 });
+        const map = geo.map({ ...params.map, max: MAX_ZOOM });
         const interactor = map.interactor();
 
         // Disable hotkeys for zooming to prevent conflicts with annotation tools
-        const keyboardOptions = interactor.keyboard();  
-        keyboardOptions.actions['zoom.0'] = [];  
-        keyboardOptions.actions['zoom.3'] = [];  
-        keyboardOptions.actions['zoom.6'] = [];  
-        keyboardOptions.actions['zoom.9'] = [];  
-        keyboardOptions.actions['zoom.12'] = [];  
-        keyboardOptions.actions['zoom.15'] = [];  
-        keyboardOptions.actions['zoom.18'] = [];  
+        const keyboardOptions = interactor.keyboard();
+        keyboardOptions.actions['zoom.0'] = [];
+        keyboardOptions.actions['zoom.3'] = [];
+        keyboardOptions.actions['zoom.6'] = [];
+        keyboardOptions.actions['zoom.9'] = [];
+        keyboardOptions.actions['zoom.12'] = [];
+        keyboardOptions.actions['zoom.15'] = [];
+        keyboardOptions.actions['zoom.18'] = [];
         interactor.keyboard(keyboardOptions);
 
         // Disable rotation interactions
@@ -575,8 +807,9 @@ const ViewportMap = (props: Props) => {
         params.layer.url = `/api/v1/image/${img.id}/patch_file/{z}/{x}_{y}.png`;
         console.log("OSM layer loaded.");
 
-        const groundTruthLayer = map.createLayer('feature', { features: ['polygon'] });
-        const predictionsLayer = map.createLayer('feature', { features: ['polygon'] });
+        const groundTruthLayer = map.createLayer('feature', { features: ['polygon'], renderer: 'webgl' });
+        const predictionsLayer = map.createLayer('feature', { features: ['polygon'], renderer: 'webgl' });
+        const tileStatusLayer = map.createLayer('feature', { features: ['quad'], renderer: 'webgl' })
 
         map.createLayer('osm', { ...params.layer, zIndex: 0 })
 
@@ -683,20 +916,24 @@ const ViewportMap = (props: Props) => {
         props.setGts([]);
         props.setPreds([]);
 
-        renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
-            console.log("Ground truths rendered on initial load.");
-        })
+        viewportRender(activeRenderGroundTruthsCall, true, true, true).then(() => {
+            console.log("Viewport render on annotation class change complete.");
+        });
+
+        // renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
+        //     console.log("Ground truths rendered on initial load.");
+        // })
 
         const interval = setInterval(() => {
             // console.log("Interval triggered.");
             if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
-                renderPredAnnotations(activeRenderPredictionsCall).then(() => {
-                    console.log("Predictions rendered.");
+                viewportRender(activeRenderGroundTruthsCall, false, true, true).then(() => {
+                    console.log("Completed viewport render triggered by interval.");
                 });
             }
         }, RENDER_PREDICTIONS_INTERVAL);
 
-        return () => clearInterval(interval); // Cleanup on unmount
+        // return () => clearInterval(interval); // Cleanup on unmount
     }, [props.currentAnnotationClass]);
 
 
@@ -804,14 +1041,15 @@ const ViewportMap = (props: Props) => {
         console.log("Current annotation changed.");
         const currentState = props.currentAnnotation?.currentState;
         const prevState = props.prevCurrentAnnotation?.current?.currentState;
-        const tile_id = currentState?.tile_id;
-        const prevTileId = prevState?.tile_id;
+        const changesMade = props.prevCurrentAnnotation?.current?.hasChanges();
+        const featureId = currentState?.featureId;
+        const prevFeatureId = prevState?.featureId;
         const annotationId = currentState?.id;
         const prevAnnotationId = prevState?.id;
         const layer = geojs_map.current?.layers()[LAYER_KEYS.GT];
         // If the current annotation is associated with a tile feature, "redraw" the feature.
-        if (tileIdIsValid(tile_id)) {
-            const feature = getTileFeatureById(layer, tile_id);
+        if (tileIdIsValid(featureId)) {
+            const feature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
             redrawTileFeature(feature, { currentAnnotationId: currentState?.id });
             const undoStackLength = props.currentAnnotation?.undoStack.length;
 
@@ -822,13 +1060,13 @@ const ViewportMap = (props: Props) => {
         }
 
         // If the previous current annotation is associated with a tile feature, "redraw" the old tile.
-        if (tileIdIsValid(prevTileId) && prevTileId !== tile_id) {
-            const feature = getTileFeatureById(layer, prevTileId);
+        if (tileIdIsValid(prevFeatureId) && prevFeatureId !== featureId) {
+            const feature = getTileFeatureById(layer, prevFeatureId, PredFeatureType.annotation);
             redrawTileFeature(feature);
         }
 
         // TODO: PUT is called even when the annotation has been deleted. The PUT fails, which is fine, but it's not efficient.
-        if (prevAnnotationId && prevAnnotationId !== annotationId && props.currentImage && props.currentAnnotationClass) {
+        if (prevAnnotationId && prevAnnotationId !== annotationId && changesMade && props.currentImage && props.currentAnnotationClass) {
             putAnnotation(props.currentImage.id, props.currentAnnotationClass.id, prevState).then(() => {
                 console.log("Annotation updated.")
             });
@@ -849,7 +1087,7 @@ const ViewportMap = (props: Props) => {
         const predLayer = geojs_map.current.layers()[LAYER_KEYS.PRED];
         if (!predLayer) return;
         const features = predLayer.features().filter((f: any) => f.featureType === 'polygon');
-        const featuresToRedraw = features.filter((f: any) => featureIdsToUpdate.current.includes(f.props.tile_id));
+        const featuresToRedraw = features.filter((f: any) => featureIdsToUpdate.current.includes(f.props.featureId));
         const highlightedPolyIds = props.highlightedPreds ? props.highlightedPreds.map(ann => ann.id) : null;
 
         featuresToRedraw.forEach((f: any) => {
