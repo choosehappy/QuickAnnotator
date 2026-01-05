@@ -67,6 +67,10 @@ export default class ImageTable extends React.PureComponent {
 
     defineGrid() {
         const thumbnailFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
+            if (!this.props.project) {
+                console.error('No project defined for image table thumbnail formatter')
+                return ''
+            }
 
             return `<a href="..${getAnnotationPageURL(this.props.project.id,value)}"><img src='..${getImageThumbnailURL(value)}' height='64'></img></a>`
         }
