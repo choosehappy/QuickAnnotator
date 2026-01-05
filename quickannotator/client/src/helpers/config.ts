@@ -21,6 +21,7 @@ export enum INTERACTION_MODE {
 export enum LAYER_KEYS {
     GT = 0,
     PRED,
+    TILE_STATUS,
     OSM,
     ANN,
     BRUSH,
@@ -42,6 +43,9 @@ export const DEFAULT_CLASS_ID = 1;
 export const RENDER_PREDICTIONS_INTERVAL = 8000; // ms  TODO: app setting
 export const RENDER_DELAY = 100; // ms  TODO: app setting
 export const MAP_TRANSLATION_DELAY = 500; // ms TODO: app setting
+export const MAX_ZOOM = 20;
+export const MAX_ZOOM_FOR_DOWNSAMPLE = 8; // Max zoom level to apply tile downsampling
+export const NUM_LEVELS_FOR_DOWNSAMPLE = 5; // Number of downsample levels
 
 export const MODAL_DATA: { [key: string]: ModalData } = {
     IMPORT_CONF: {
@@ -110,8 +114,14 @@ export const UI_SETTINGS = {
     gtStrokeWidth: 2,
     predOpacity: 0.5,
     highlightedPredColor: 'red',
-    pendingTileFillColor: 'grey',
-    pendingTileFillOpacity: 0.5,
+    processingTileFillColor: 'yellow',
+    processingTileFillOpacity: 0.5,
+    startProcessingTileFillColor: 'gray',
+    startProcessingTileFillOpacity: 0.5,
+    unseenTileFillColor: 'red',
+    unseenTileFillOpacity: 0.5,
+    doneProcessingTileFillColor: 'green',
+    doneProcessingTileFillOpacity: 0.5,
     continuousCloseProximity: true, // NOTE: int values do not seem to have an effect.
     finalPointProximity: 1000,
 }

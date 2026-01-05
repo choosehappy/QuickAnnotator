@@ -17,6 +17,14 @@ def annotation_store(db_session, seed, annotations_seed):
     is_gt = True
     return AnnotationStore(image_id, annotation_class_id, is_gt)
 
+@pytest.fixture
+def simplify_annotation_store(db_session, seed, annotations_seed):
+    image_id = 1
+    annotation_class_id = 2
+    is_gt = True
+    simplify_tolerance = 0.1
+    return AnnotationStore(image_id, annotation_class_id, is_gt, simplify_tolerance=simplify_tolerance)
+
 
 def test_table_exists_with_existing_table(db_session, annotations_seed):
     # Arrange
@@ -565,3 +573,30 @@ def test_delete_tiles(db_session, insert_unseen_tile, insert_startprocessing_til
     # Verify that the tiles no longer exist
     assert db_session.query(models.Tile).filter_by(id=unseen_tile_id).first() is None
     assert db_session.query(models.Tile).filter_by(id=startprocessing_tile_id).first() is None
+
+
+def test_get_simplified_annotations_by_id(simplify_annotation_store):
+    # Arrange
+    polygons = [
+        Polygon([(0, 0), (9, 0), (10, 0), (10, 10), (10, 11), (0, 10), (0, 0)]),
+        Polygon([(20, 20), (29, 20), (30, 20), (30, 30), (29, 29), (20, 30), (20, 20)])
+    ]
+    expected_polygons = [
+        Polygon([[0.0, 0.0], [10.0, 0.0], [10.0, 11.0], [0.0, 10.0], [0.0, 0.0]]),
+        Polygon([[20.0, 20.0], [30.0, 20.0], [30.0, 30.0], [29.0, 29.0], [20.0, 30.0], [20.0, 20.0]])
+    ]
+    inserted_annotations = simplify_annotation_store.insert_annotations(polygons)
+    annotation_ids = [annotation.id for annotation in inserted_annotations]
+
+    # Act
+    simplified_annotations = [
+        simplify_annotation_store.get_annotation_by_id(annotation_id)
+        for annotation_id in annotation_ids
+    ]
+
+    # Assert
+    assert len(simplified_annotations) == len(expected_polygons)
+    for simplified, expected in zip(simplified_annotations, expected_polygons):
+        simplified_polygon = shape(geojson.loads(simplified.polygon))
+        assert_geojson_equal(geojson.loads(geojson.dumps(mapping(simplified_polygon))),
+                             geojson.loads(geojson.dumps(mapping(expected))))
