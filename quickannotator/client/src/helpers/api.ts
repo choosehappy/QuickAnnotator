@@ -1,6 +1,6 @@
 // Generic response type
 type ApiResponse<T> = Promise<T>;
-import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, GetAnnsForTileIdsArgs, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileRefsByPolygonArgs, TileRef, PredictTilesRequest, TileWithBbox} from "../types.ts";
+import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, GetAnnsForTileIdsArgs, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileRefsByPolygonArgs, TileRef, PredictTilesRequest} from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
 import { API_URI, POLYGON_OPERATIONS } from "./config.ts";
 
@@ -255,7 +255,7 @@ export const getAnnotationsWithinPolygon = async (image_id: number, annotation_c
 
 export const predictTiles = async (image_id: number, annotation_class_id: number, tile_ids: number[], include_bbox = false) => {
     const requestBody: PredictTilesRequest = { tile_ids, include_bbox };
-    return await post<PredictTilesRequest, Tile[] | TileWithBbox[]>(`/tile/${image_id}/${annotation_class_id}/predict`, requestBody);
+    return await post<PredictTilesRequest, Tile[]>(`/tile/${image_id}/${annotation_class_id}/predict`, requestBody);
 }
 
 // Fetch a new color for a project

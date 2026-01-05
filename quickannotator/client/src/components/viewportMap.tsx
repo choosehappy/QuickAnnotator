@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback, act } from 'react';
 import geo from "geojs"
-import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse, TileRef, PredFeatureType, TileWithBbox } from "../types.ts"
+import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse, TileRef, PredFeatureType } from "../types.ts"
 import { searchTileRefsByBbox, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, getAnnotationsWithinPolygon, searchTileRefsWithinPolygon, fetchTileBoundingBoxes, fetchImageMetadata, searchTileByCoordinates, predictTiles } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 
