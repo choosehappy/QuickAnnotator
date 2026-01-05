@@ -121,7 +121,7 @@ const ViewportMap = (props: Props) => {
         }
     }
 
-    const viewportRender = async (activeCallRef: React.MutableRefObject<number>, renderGts: boolean, renderPreds: boolean, renderTileStatus: boolean) => {
+    const viewportRender = async (activeCallRef: React.MutableRefObject<number>, renderGts: boolean, renderPreds: boolean, renderTileStatus: boolean, imageId: number, annotationClassId: number) => {
         const currentCallToken = ++activeCallRef.current;
         // Safeguards against invalid application state.
         if (!props.currentImage) {
@@ -146,16 +146,10 @@ const ViewportMap = (props: Props) => {
         const newDownsampleLevel = getTileDownsampleLevel(geojs_map.current);
         const layers = geojs_map.current.layers()
 
-        // Get current image and class IDs
-        const imageId = props.currentImage.id;
-        const annotationClassId = props.currentAnnotationClass.id;
-
         // Should any layers be cleared due to downsample level change?
         if (downsampleLevel.current !== newDownsampleLevel) {
             downsampleLevel.current = newDownsampleLevel;
-            layers[LAYER_KEYS.GT].clear();
-            layers[LAYER_KEYS.PRED].clear();
-            layers[LAYER_KEYS.TILE_STATUS].clear();
+            viewportClear(true, true, true);
         }
 
         // Get all tile features within bounds
@@ -199,6 +193,14 @@ const ViewportMap = (props: Props) => {
                 if (currentCallToken !== activeCallRef.current) return;
             }
 
+            // Tile Status
+            if (renderTileStatus && annotationClassId !== MASK_CLASS_ID) {
+                if (currentCallToken !== activeCallRef.current) return;
+                await computeTileStatusFeature(imageId, annotationClassId, layers[LAYER_KEYS.TILE_STATUS], featureId, tileIds);
+                // If a newer call has been made, abort this one.
+                if (currentCallToken !== activeCallRef.current) return;
+            }
+
             // Predictions
             if (renderPreds && annotationClassId !== MASK_CLASS_ID) {
                 if (currentCallToken !== activeCallRef.current) return;
@@ -208,13 +210,7 @@ const ViewportMap = (props: Props) => {
                 if (currentCallToken !== activeCallRef.current) return;
             }
 
-            // Tile Status
-            if (renderTileStatus && annotationClassId !== MASK_CLASS_ID) {
-                if (currentCallToken !== activeCallRef.current) return;
-                await computeTileStatusFeature(imageId, annotationClassId, layers[LAYER_KEYS.TILE_STATUS], featureId, tileIds);
-                // If a newer call has been made, abort this one.
-                if (currentCallToken !== activeCallRef.current) return;
-            }
+
         }
     }
 
@@ -733,7 +729,7 @@ const ViewportMap = (props: Props) => {
         zoomPanTimeout = setTimeout(() => {
             console.log('Zooming or Panning stopped.');
             setBoundsQuery();
-            viewportRender(activeRenderGroundTruthsCall, true, true, true).then(() => {   // TODO: rename active variable
+            viewportRender(activeRenderGroundTruthsCall, true, true, true, props.currentImage.id, props.currentAnnotationClass.id).then(() => {   // TODO: rename active variable
                 console.log("Viewport render complete.");
             });
         }, RENDER_DELAY); // Adjust this timeout duration as needed
@@ -931,20 +927,20 @@ const ViewportMap = (props: Props) => {
         props.setPreds([]);
 
         viewportClear(true, true, true);
-        viewportRender(activeRenderGroundTruthsCall, true, true, true).then(() => {
+        viewportRender(activeRenderGroundTruthsCall, true, true, true, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
             console.log("Viewport render on annotation class change complete.");
         });
 
-        // const interval = setInterval(() => {
-        //     // console.log("Interval triggered.");
-        //     if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
-        //         viewportRender(activeRenderGroundTruthsCall, true, true, true).then(() => {
-        //             console.log("Completed viewport render triggered by interval.");
-        //         });
-        //     }
-        // }, RENDER_PREDICTIONS_INTERVAL);
+        const interval = setInterval(() => {
+            // console.log("Interval triggered.");
+            if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
+                viewportRender(activeRenderGroundTruthsCall, false, true, true, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
+                    console.log("Completed viewport render triggered by interval.");
+                });
+            }
+        }, RENDER_PREDICTIONS_INTERVAL);
 
-        // return () => clearInterval(interval); // Cleanup on unmount
+        return () => clearInterval(interval); // Cleanup on unmount
     }, [props.currentAnnotationClass]);
 
 

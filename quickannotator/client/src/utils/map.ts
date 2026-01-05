@@ -182,8 +182,8 @@ export const createTileStatusFeature = (featureProps: any, tiles: Tile[], layer:
         .polygon((t: Tile) => t.bbox_polygon?.coordinates[0])
         .data(tiles)
         .style('fill', true)
-        .style('fillColor', (t: Tile) => {
-            switch (t.pred_status) {
+        .style('fillColor', (d: number, idx: number, tile: Tile, tileIdx: number) => {
+            switch (tile.pred_status) {
                 case TILE_STATUS.STARTPROCESSING:
                     return UI_SETTINGS.startProcessingTileFillColor;
                 case TILE_STATUS.PROCESSING:
