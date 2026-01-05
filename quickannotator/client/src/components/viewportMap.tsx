@@ -50,13 +50,13 @@ const ViewportMap = (props: Props) => {
 
     let zoomPanTimeout: any = null;
 
-    const processGTFeature = async (layer: any, featureId: number, tileIds: number[], gtFeaturesToRender: Set<number>): Promise<Annotation[]> => {
+    const processGTFeature = async (imageId: number, annotationClassId: number, layer: any, featureId: number, tileIds: number[], gtFeaturesToRender: Set<number>): Promise<Annotation[]> => {
         const shouldRenderFeature = gtFeaturesToRender.has(featureId);
         const shouldUpdateFeature = featureIdsToUpdate.current.includes(featureId);
         let annotations: Annotation[] = [];
         if (shouldRenderFeature || shouldUpdateFeature) {
-            const resp = await getAnnotationsForTileIds(props.currentImage.id, props.currentAnnotationClass.id, tileIds, true, getPolygonSimplifyTolerance(geojs_map.current));
-            annotations = resp.data.map(annResp => new Annotation(annResp, props.currentAnnotationClass.id, featureId));
+            const resp = await getAnnotationsForTileIds(imageId, annotationClassId, tileIds, true, getPolygonSimplifyTolerance(geojs_map.current));
+            annotations = resp.data.map(annResp => new Annotation(annResp, annotationClassId, featureId));
 
             if (shouldRenderFeature) {
                 const feature = createGTTileFeature({ featureId: featureId, tileIds: tileIds }, annotations, layer, props.currentAnnotationClass, props.currentAnnotation?.currentState?.id);
@@ -72,9 +72,9 @@ const ViewportMap = (props: Props) => {
         return annotations;
     }
 
-    const processPredFeature = async (layer: any, featureId: number, tileIds: number[]): Promise<Annotation[]> => {
-        const annsResp = await getAnnotationsForTileIds(props.currentImage.id, props.currentAnnotationClass.id, tileIds, false, getPolygonSimplifyTolerance(geojs_map.current));
-        const annotations = annsResp.data.map(annResp => new Annotation(annResp, props.currentAnnotationClass.id, featureId));
+    const processPredFeature = async (imageId: number, annotationClassId: number, layer: any, featureId: number, tileIds: number[]): Promise<Annotation[]> => {
+        const annsResp = await getAnnotationsForTileIds(imageId, annotationClassId, tileIds, false, getPolygonSimplifyTolerance(geojs_map.current));
+        const annotations = annsResp.data.map(annResp => new Annotation(annResp, annotationClassId, featureId));
 
         const existingFeature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
 
@@ -87,9 +87,9 @@ const ViewportMap = (props: Props) => {
         return annotations;
     }
 
-    const computeTileStatusFeature = async (layer: any, featureId: number, tileIds: number[]) => {
+    const computeTileStatusFeature = async (imageId: number, annotationClassId: number, layer: any, featureId: number, tileIds: number[]) => {
         // Get tile statuses using the predictTiles API method
-        const tileResp = await predictTiles(props.currentImage.id, props.currentAnnotationClass.id, tileIds, true);
+        const tileResp = await predictTiles(imageId, annotationClassId, tileIds, true);
         if (tileResp.status !== 200) {
             console.error(`Error predicting tiles for feature ${featureId}`);
         }
@@ -104,6 +104,21 @@ const ViewportMap = (props: Props) => {
 
         // Create a feature in the layer displaying the tile statuses with of all tiles
         return false;
+    }
+
+    const viewportClear = (clearGts: boolean, clearPreds: boolean, clearTileStatus: boolean) => {
+        if (geojs_map.current) {
+            const layers = geojs_map.current.layers();
+            if (clearGts) {
+                layers[LAYER_KEYS.GT].clear();
+            }
+            if (clearPreds) {
+                layers[LAYER_KEYS.PRED].clear();
+            }
+            if (clearTileStatus) {
+                layers[LAYER_KEYS.TILE_STATUS].clear();
+            }
+        }
     }
 
     const viewportRender = async (activeCallRef: React.MutableRefObject<number>, renderGts: boolean, renderPreds: boolean, renderTileStatus: boolean) => {
@@ -131,7 +146,11 @@ const ViewportMap = (props: Props) => {
         const newDownsampleLevel = getTileDownsampleLevel(geojs_map.current);
         const layers = geojs_map.current.layers()
 
-        // Should any layers be cleared?
+        // Get current image and class IDs
+        const imageId = props.currentImage.id;
+        const annotationClassId = props.currentAnnotationClass.id;
+
+        // Should any layers be cleared due to downsample level change?
         if (downsampleLevel.current !== newDownsampleLevel) {
             downsampleLevel.current = newDownsampleLevel;
             layers[LAYER_KEYS.GT].clear();
@@ -139,12 +158,8 @@ const ViewportMap = (props: Props) => {
             layers[LAYER_KEYS.TILE_STATUS].clear();
         }
 
-        if (!renderGts) layers[LAYER_KEYS.GT].clear();
-        if (!renderPreds) layers[LAYER_KEYS.PRED].clear();
-        if (!renderTileStatus) layers[LAYER_KEYS.TILE_STATUS].clear();
-
         // Get all tile features within bounds
-        const resp = await searchTileRefsByBbox(props.currentImage.id, props.currentAnnotationClass.id, x1, y1, x2, y2, false, newDownsampleLevel);
+        const resp = await searchTileRefsByBbox(imageId, annotationClassId, x1, y1, x2, y2, false, newDownsampleLevel);
         const tileRefs: TileRef[] = resp.data;
         const tileRefStore = new TileRefStore(tileRefs);
 
@@ -152,29 +167,18 @@ const ViewportMap = (props: Props) => {
         let gtAnns: Annotation[] = [];
         let predAnns: Annotation[] = [];
 
-        // Groud truth features should only be rendered if they are not already drawn.
+        // Remove off-screen features for Ground Truth, Predictions, and Tile Status layers
+        [LAYER_KEYS.PRED, LAYER_KEYS.TILE_STATUS].forEach(layerKey => {
+            const layer = layers[layerKey];
+            const featuresRendered = getFeatIdsRendered(layer, PredFeatureType.annotation);
+            const { featuresToRemove } = computeFeaturesToRender(featuresRendered, tileRefStore.getAllGroupIds());
+            featuresToRemove.forEach((featureId) => removeFeatureById(layer, featureId, PredFeatureType.annotation));
+        });
+
+        // Get features to render for Ground Truth
         const gtLayer = layers[LAYER_KEYS.GT];
         const gtFeaturesRendered = getFeatIdsRendered(gtLayer, PredFeatureType.annotation);
-        const { featuresToRemove: gtFeaturesToRemove, featuresToRender: gtFeaturesToRender } = computeFeaturesToRender(gtFeaturesRendered, tileRefStore.getAllGroupIds());
-        gtFeaturesToRemove.forEach((featureId) => {
-            removeFeatureById(gtLayer, featureId, PredFeatureType.annotation);
-        });
-
-        // Prediction features should be removed if they are off screen
-        const predLayer = layers[LAYER_KEYS.PRED];
-        const predFeaturesRendered = getFeatIdsRendered(predLayer, PredFeatureType.annotation);
-        const { featuresToRemove: predFeaturesToRemove } = computeFeaturesToRender(predFeaturesRendered, tileRefStore.getAllGroupIds());
-        predFeaturesToRemove.forEach((featureId) => {
-            removeFeatureById(predLayer, featureId, PredFeatureType.annotation);
-        });
-
-        // Tile Status features should be removed if they are off screen
-        const tileStatusLayer = layers[LAYER_KEYS.TILE_STATUS];
-        const tileStatusFeaturesRendered = getFeatIdsRendered(tileStatusLayer, PredFeatureType.annotation);
-        const { featuresToRemove: tileStatusFeaturesToRemove } = computeFeaturesToRender(tileStatusFeaturesRendered, tileRefStore.getAllGroupIds());
-        tileStatusFeaturesToRemove.forEach((featureId) => {
-            removeFeatureById(tileStatusLayer, featureId, PredFeatureType.annotation);
-        });
+        const { featuresToRender: gtFeaturesToRender } = computeFeaturesToRender(gtFeaturesRendered, tileRefStore.getAllGroupIds());
 
         // Loop through each tile feature
         for (const group of tileRefStore) {
@@ -188,25 +192,33 @@ const ViewportMap = (props: Props) => {
 
             // Ground Truths
             if (renderGts) {
-                gtAnns = gtAnns.concat(await processGTFeature(gtLayer, featureId, tileIds, gtFeaturesToRender));
+                if (currentCallToken !== activeCallRef.current) return;
+                gtAnns = gtAnns.concat(await processGTFeature(imageId, annotationClassId, gtLayer, featureId, tileIds, gtFeaturesToRender));
                 props.setGts(gtAnns);
+                // If a newer call has been made, abort this one.
+                if (currentCallToken !== activeCallRef.current) return;
             }
 
             // Predictions
-            if (renderPreds) {
-                predAnns = predAnns.concat(await processPredFeature(layers[LAYER_KEYS.PRED], featureId, tileIds));
+            if (renderPreds && annotationClassId !== MASK_CLASS_ID) {
+                if (currentCallToken !== activeCallRef.current) return;
+                predAnns = predAnns.concat(await processPredFeature(imageId, annotationClassId, layers[LAYER_KEYS.PRED], featureId, tileIds));
                 props.setPreds(predAnns);
+                // If a newer call has been made, abort this one.
+                if (currentCallToken !== activeCallRef.current) return;
             }
 
             // Tile Status
-            if (renderTileStatus) {
-                await computeTileStatusFeature(layers[LAYER_KEYS.TILE_STATUS], featureId, tileIds);
+            if (renderTileStatus && annotationClassId !== MASK_CLASS_ID) {
+                if (currentCallToken !== activeCallRef.current) return;
+                await computeTileStatusFeature(imageId, annotationClassId, layers[LAYER_KEYS.TILE_STATUS], featureId, tileIds);
+                // If a newer call has been made, abort this one.
+                if (currentCallToken !== activeCallRef.current) return;
             }
-
         }
     }
 
-
+    // TODO: Remove
     const renderGTAnnotations = async (
         activeCallRef: React.MutableRefObject<number>
     ) => {
@@ -282,7 +294,8 @@ const ViewportMap = (props: Props) => {
             props.setGts(anns);
         }
     };
-
+    
+    // TODO: Remove
     const renderPredAnnotations = async (
         activeCallRef: React.MutableRefObject<number>
     ) => {
@@ -349,6 +362,7 @@ const ViewportMap = (props: Props) => {
         };
     }
 
+    // TODO: Remove 
     const renderPredAnnotationsOld = async (
         activeCallRef: React.MutableRefObject<number>
     ) => {
@@ -672,7 +686,7 @@ const ViewportMap = (props: Props) => {
                     if (cookies[COOKIE_NAMES.SKIP_CONFIRM_IMPORT]) {
                         postAnnotations(currentImage.id, currentAnnotationClass?.id, anns.map(ann => ann.parsedPolygon)).then(() => {
                             setHighlightedPreds(null);
-                            renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
+                            renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {  // TODO: switch to viewportRender
                                 console.log("Ground truths rendered.");
                             });
                         });
@@ -916,22 +930,19 @@ const ViewportMap = (props: Props) => {
         props.setGts([]);
         props.setPreds([]);
 
+        viewportClear(true, true, true);
         viewportRender(activeRenderGroundTruthsCall, true, true, true).then(() => {
             console.log("Viewport render on annotation class change complete.");
         });
 
-        // renderGTAnnotations(activeRenderGroundTruthsCall).then(() => {
-        //     console.log("Ground truths rendered on initial load.");
-        // })
-
-        const interval = setInterval(() => {
-            // console.log("Interval triggered.");
-            if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
-                viewportRender(activeRenderGroundTruthsCall, false, true, true).then(() => {
-                    console.log("Completed viewport render triggered by interval.");
-                });
-            }
-        }, RENDER_PREDICTIONS_INTERVAL);
+        // const interval = setInterval(() => {
+        //     // console.log("Interval triggered.");
+        //     if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
+        //         viewportRender(activeRenderGroundTruthsCall, true, true, true).then(() => {
+        //             console.log("Completed viewport render triggered by interval.");
+        //         });
+        //     }
+        // }, RENDER_PREDICTIONS_INTERVAL);
 
         // return () => clearInterval(interval); // Cleanup on unmount
     }, [props.currentAnnotationClass]);
