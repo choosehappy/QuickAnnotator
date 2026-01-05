@@ -40,8 +40,7 @@ const ViewportMap = (props: Props) => {
     const viewRef = useRef(null);
     const geojs_map = useRef<geo.map | null>(null);
     const polygonClicked = useRef<Boolean>(false);  // We need this to ensure polygon clicked and background clicked are mutually exclusive, because geojs does not provide control over event propagation.
-    const activeRenderGroundTruthsCall = useRef<number>(0);
-    const activeRenderPredictionsCall = useRef<number>(0);
+    const activeViewportRenderCall = useRef<number>(0);
     const featureIdsToUpdate = useRef<number[]>([]);
     const [cookies, setCookies] = useCookies([COOKIE_NAMES.SKIP_CONFIRM_IMPORT]);
     const [searchParams, setSearchParams] = useSearchParams();
@@ -465,7 +464,7 @@ const ViewportMap = (props: Props) => {
                     if (cookies[COOKIE_NAMES.SKIP_CONFIRM_IMPORT]) {
                         postAnnotations(currentImage.id, currentAnnotationClass?.id, anns.map(ann => ann.parsedPolygon)).then(() => {
                             setHighlightedPreds(null);
-                            viewportRender(activeRenderGroundTruthsCall, true, false, false, currentImage.id, currentAnnotationClass.id).then(() => {   
+                            viewportRender(activeViewportRenderCall, true, false, false, currentImage.id, currentAnnotationClass.id).then(() => {   
                                 console.log("Viewport render complete after import.");
                             });
                         });
@@ -512,7 +511,7 @@ const ViewportMap = (props: Props) => {
         zoomPanTimeout = setTimeout(() => {
             console.log('Zooming or Panning stopped.');
             setBoundsQuery();
-            viewportRender(activeRenderGroundTruthsCall, true, true, true, props.currentImage.id, props.currentAnnotationClass.id).then(() => {   // TODO: rename active variable
+            viewportRender(activeViewportRenderCall, true, true, true, props.currentImage.id, props.currentAnnotationClass.id).then(() => {   // TODO: rename active variable
                 console.log("Viewport render complete.");
             });
         }, RENDER_DELAY); // Adjust this timeout duration as needed
@@ -710,14 +709,14 @@ const ViewportMap = (props: Props) => {
         props.setPreds([]);
 
         viewportClear(true, true, true);
-        viewportRender(activeRenderGroundTruthsCall, true, true, true, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
+        viewportRender(activeViewportRenderCall, true, true, true, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
             console.log("Viewport render on annotation class change complete.");
         });
 
         const interval = setInterval(() => {
             // console.log("Interval triggered.");
             if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
-                viewportRender(activeRenderGroundTruthsCall, false, true, true, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
+                viewportRender(activeViewportRenderCall, false, true, true, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
                     console.log("Completed viewport render triggered by interval.");
                 });
             }
