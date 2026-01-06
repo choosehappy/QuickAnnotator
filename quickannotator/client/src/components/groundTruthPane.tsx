@@ -18,7 +18,7 @@ const GroundTruthPane = (props: Props) => {
     return (
         <Card>
             <Card.Header as={'h5'} className="d-flex justify-content-between align-items-center">
-                Ground Truths
+                Ground Truths ({props.gtLayerVisible ? props.gts.length : 0})
                 <button 
                     className="btn btn-primary btn-sm" 
                     onClick={() => props.setActiveModal(MODAL_DATA.EXPORT_CONF.id)}

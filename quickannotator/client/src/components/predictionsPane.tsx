@@ -14,7 +14,9 @@ const PredictionsPane = (props: Props) => {
     const id = 'id';
     return (
         <Card>
-            <Card.Header as={'h5'}>Predictions</Card.Header>
+            <Card.Header as={'h5'}>
+                Predictions ({props.predLayerVisible ? props.preds.length : 0})
+            </Card.Header>
             {props.predLayerVisible && ( // Conditionally render Card.Body
                 <Card.Body id={id}>
                     <AnnotationList containerId={id} 
