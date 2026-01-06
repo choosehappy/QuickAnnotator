@@ -33,7 +33,7 @@ services:
     image: histotools/quickannotator:main
     container_name: qa
     volumes:
-      - /data/jjaco34/:/opt/QuickAnnotator/quickannotator/mounts/nas_read
+      - nas_read:/opt/QuickAnnotator/quickannotator/mounts/nas_read
       - nas_write:/opt/QuickAnnotator/quickannotator/mounts/nas_write
     networks:
       - qa_net
