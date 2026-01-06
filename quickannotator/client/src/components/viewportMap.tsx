@@ -197,17 +197,20 @@ const ViewportMap = (props: Props) => {
 
             // Tile Status
             if (shouldRequestPredictions) {
-            if (renderTileStatus) {
-                await withGuard(() => computeTileStatusFeature(imageId, annotationClassId, layers[LAYER_KEYS.TILE_STATUS], featureId, tileIds));
-            }
-
-            if (renderPreds) {
-                const newPreds = await withGuard(() => processPredFeature(imageId, annotationClassId, layers[LAYER_KEYS.PRED], featureId, tileIds));
-                if (newPreds) {
-                predAnns = predAnns.concat(newPreds);
-                props.setPreds(predAnns);
+                if (renderTileStatus) {
+                    await withGuard(() => computeTileStatusFeature(imageId, annotationClassId, layers[LAYER_KEYS.TILE_STATUS], featureId, tileIds));
+                } else {
+                    // Otherwise, just call predictTiles without returning anything
+                    await withGuard(() => predictTiles(imageId, annotationClassId, tileIds, false));
                 }
-            }
+
+                if (renderPreds) {
+                    const newPreds = await withGuard(() => processPredFeature(imageId, annotationClassId, layers[LAYER_KEYS.PRED], featureId, tileIds));
+                    if (newPreds) {
+                        predAnns = predAnns.concat(newPreds);
+                        props.setPreds(predAnns);
+                    }
+                }
             }
         }));
     }
@@ -703,28 +706,15 @@ const ViewportMap = (props: Props) => {
         const currentAnnotationClassId = props.currentAnnotationClass?.id;
         if (!currentAnnotationClassId) return;
 
-        // Clear all existing annotations.
+        // // Clear all existing annotations.
         props.setGts([]);
         props.setPreds([]);
 
-        viewportClear(true, true, true);
         viewportRender(props.gtLayerVisible, props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
             console.log("Viewport render on annotation class change complete.");
         });
 
-        const interval = setInterval(() => {
-            // console.log("Interval triggered.");
-            if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
-                if (props.predLayerVisible || props.tileStatusLayerVisible) {
-                    viewportRender(false, props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
-                        console.log("Completed viewport render triggered by interval.");
-                    });
-                }
-            }
-        }, RENDER_PREDICTIONS_INTERVAL);
-
-        return () => clearInterval(interval); // Cleanup on unmount
-    }, [props.currentAnnotationClass, props.gtLayerVisible, props.predLayerVisible, props.tileStatusLayerVisible    ]); // May need to add layer visisblity states here
+    }, [props.currentAnnotationClass]); // May need to add layer visisblity states here
 
 
     // Individual tool activation methods
@@ -929,6 +919,20 @@ const ViewportMap = (props: Props) => {
         if (renderGts || renderPreds || renderTileStatus) {
             viewportRender(renderGts, renderPreds, renderTileStatus, props.currentImage.id, props.currentAnnotationClass.id);
         }
+
+
+        const interval = setInterval(() => {
+            // console.log("Interval triggered.");
+            if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
+                if (props.predLayerVisible || props.tileStatusLayerVisible) {
+                    viewportRender(false, props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
+                        console.log("Completed viewport render triggered by interval.");
+                    });
+                }
+            }
+        }, RENDER_PREDICTIONS_INTERVAL);
+
+        return () => clearInterval(interval); // Cleanup on unmount
     }, [props.gtLayerVisible, props.predLayerVisible, props.tileStatusLayerVisible]);
 
     return (
