@@ -150,12 +150,6 @@ const ViewportMap = (props: Props) => {
         const newDownsampleLevel = getTileDownsampleLevel(geojs_map.current);
         const layers = geojs_map.current.layers()
 
-        // Should any layers be cleared due to downsample level change?
-        if (downsampleLevel.current !== newDownsampleLevel) {
-            downsampleLevel.current = newDownsampleLevel;
-            viewportClear(true, true, true);
-        }
-
         // Get all tile features within bounds
         const resp = await withGuard(() => searchTileRefsByBbox(imageId, annotationClassId, x1, y1, x2, y2, false, newDownsampleLevel));
         if (!resp) {
@@ -181,6 +175,11 @@ const ViewportMap = (props: Props) => {
         const gtFeaturesRendered = getFeatIdsRendered(gtLayer, PredFeatureType.annotation);
         const { featuresToRender: gtFeaturesToRender } = computeFeaturesToRender(gtFeaturesRendered, tileRefStore.getAllGroupIds());
 
+        // Should any layers be cleared due to downsample level change?
+        if (downsampleLevel.current !== newDownsampleLevel) {
+            downsampleLevel.current = newDownsampleLevel;
+            viewportClear(true, true, true);
+        }
         // Process each group in parallel
         await Promise.all(Array.from(tileRefStore).map(async (group) => {
             // Get info about the current group
