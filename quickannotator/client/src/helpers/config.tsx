@@ -334,7 +334,7 @@ export const TASK_STATE_MAP: { [key in TASK_STATE]: string } = {
 };
 
 export enum LAYER_TOGGLE_KEYS {
-    GT_LAYER = 'Ground Truth',
-    PRED_LAYER = 'Prediction',
-    TILE_STATUS_LAYER = 'Tile Status',
+    GT_LAYER = 'Ground Truth Layer',
+    PRED_LAYER = 'Prediction Layer',
+    TILE_STATUS_LAYER = 'Tile Status Layer',
 }
