@@ -242,10 +242,10 @@ const AnnotationPage = () => {
                                     {...{ currentAnnotationClass, setcurrentAnnotationClass: setCurrentAnnotationClass, setActiveModal, annotationClasses, setAnnotationClasses }}
                                 />
                                 <GroundTruthPane
-                                    {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, annotationClasses, setActiveModal }}
+                                    {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, annotationClasses, setActiveModal, gtLayerVisible }}
                                 />
                                 <PredictionsPane
-                                    {...{ preds, setPreds, selectedPred, setSelectedPred, annotationClasses}}
+                                    {...{ preds, setPreds, selectedPred, setSelectedPred, annotationClasses, predLayerVisible }}
                                 />
                             </Stack>
                         </Col>

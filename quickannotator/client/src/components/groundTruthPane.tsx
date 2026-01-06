@@ -1,7 +1,6 @@
 import Card from 'react-bootstrap/Card';
 import AnnotationList from "./annotationList.tsx";
-import { Annotation, AnnotationClass, CurrentAnnotation } from "../types.ts"
-import { propTypes } from 'react-bootstrap/esm/Image';
+import { Annotation, AnnotationClass, CurrentAnnotation } from "../types.ts";
 import { MODAL_DATA } from '../helpers/config.tsx';
 
 interface Props {
@@ -11,6 +10,7 @@ interface Props {
     setCurrentAnnotation: React.Dispatch<React.SetStateAction<CurrentAnnotation | null>>;
     annotationClasses: AnnotationClass[];
     setActiveModal: React.Dispatch<React.SetStateAction<number | null>>;
+    gtLayerVisible: boolean; // Added prop for layer visibility
 }
 const GroundTruthPane = (props: Props) => {
     const id = 'gt'; // hardcoded ids should ideally not be used.
@@ -26,14 +26,16 @@ const GroundTruthPane = (props: Props) => {
                     Export
                 </button>
             </Card.Header>
-            <Card.Body id={id}>
-                <AnnotationList containerId={id} 
-                                annotations={props.gts} 
-                                currentAnnotation={props.currentAnnotation} 
-                                setCurrentAnnotation={props.setCurrentAnnotation}
-                                annotationClasses={props.annotationClasses}
-                                />
-            </Card.Body>
+            {props.gtLayerVisible && ( // Conditionally render Card.Body
+                <Card.Body id={id}>
+                    <AnnotationList containerId={id} 
+                                    annotations={props.gts} 
+                                    currentAnnotation={props.currentAnnotation} 
+                                    setCurrentAnnotation={props.setCurrentAnnotation}
+                                    annotationClasses={props.annotationClasses}
+                                    />
+                </Card.Body>
+            )}
         </Card>
     )
 }
