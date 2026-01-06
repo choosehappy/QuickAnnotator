@@ -157,7 +157,10 @@ const ViewportMap = (props: Props) => {
         }
 
         // Get all tile features within bounds
-        const resp = await searchTileRefsByBbox(imageId, annotationClassId, x1, y1, x2, y2, false, newDownsampleLevel);
+        const resp = await withGuard(() => searchTileRefsByBbox(imageId, annotationClassId, x1, y1, x2, y2, false, newDownsampleLevel));
+        if (!resp) {
+            return;
+        }
         const tileRefs: TileRef[] = resp.data;
         const tileRefStore = new TileRefStore(tileRefs);
 
@@ -186,11 +189,11 @@ const ViewportMap = (props: Props) => {
             const tileIds = tileRefs.map(tr => tr.tile_id);
 
             if (renderGts) {
-            const newGts = await withGuard(() => processGTFeature(imageId, annotationClassId, gtLayer, featureId, tileIds, gtFeaturesToRender));
-            if (newGts) {
-                gtAnns = gtAnns.concat(newGts);
-                props.setGts(gtAnns);
-            }
+                const newGts = await withGuard(() => processGTFeature(imageId, annotationClassId, gtLayer, featureId, tileIds, gtFeaturesToRender));
+                if (newGts) {
+                    gtAnns = gtAnns.concat(newGts);
+                    props.setGts(gtAnns);
+                }
             }
 
             const shouldRequestPredictions = (renderTileStatus || renderPreds) && annotationClassId !== MASK_CLASS_ID;
