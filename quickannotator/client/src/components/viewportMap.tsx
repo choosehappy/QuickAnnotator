@@ -35,6 +35,9 @@ interface Props {
     activeModal: number | null;
     setActiveModal: React.Dispatch<React.SetStateAction<number | null>>;
     setMouseCoords: React.Dispatch<React.SetStateAction<{ x: number, y: number } | null>>;
+    gtLayerVisible: boolean;
+    predLayerVisible: boolean;
+    tileStatusLayerVisible: boolean;
 }
 
 const ViewportMap = (props: Props) => {
@@ -905,6 +908,25 @@ const ViewportMap = (props: Props) => {
                 break;
         }
     }, { keydown: true, keyup: true }, [props.currentTool]);
+
+    useEffect(() => {
+        if (!geojs_map.current) return;
+
+        const layers = geojs_map.current.layers();
+
+        let renderGts = props.gtLayerVisible;
+        let renderPreds = props.predLayerVisible;
+        let renderTileStatus = props.tileStatusLayerVisible;
+
+        // Toggle layer visibility
+        layers[LAYER_KEYS.GT].visible(renderGts);
+        layers[LAYER_KEYS.PRED].visible(renderPreds);
+        layers[LAYER_KEYS.TILE_STATUS].visible(renderTileStatus);
+
+        if (renderGts || renderPreds || renderTileStatus) {
+            viewportRender(activeViewportRenderCall, renderGts, renderPreds, renderTileStatus, props.currentImage.id, props.currentAnnotationClass.id);
+        }
+    }, [props.gtLayerVisible, props.predLayerVisible, props.tileStatusLayerVisible]);
 
     return (
         <div ref={viewRef} style={

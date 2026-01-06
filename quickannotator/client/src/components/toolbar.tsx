@@ -12,6 +12,12 @@ interface Props {
     currentTool: string | null;
     setCurrentTool: (currentTool: string | null) => void;
     ctrlHeld: boolean;
+    gtLayerVisible: boolean;
+    predLayerVisible: boolean;
+    tileStatusLayerVisible: boolean;
+    setGtLayerVisible: (visible: boolean) => void;
+    setPredLayerVisible: (visible: boolean) => void;
+    setTileStatusLayerVisible: (visible: boolean) => void;
 }
 
 const Toolbar = React.memo((props: Props) => {
@@ -69,6 +75,12 @@ const Toolbar = React.memo((props: Props) => {
         [TOOLBAR_KEYS.WAND]: { icon: <Magic/>, ctrlIcon: null, disabled: true, title: "Magic", shortcut: WAND_TOOL_HOTKEY, content: POPOVER_DATA.MAGIC_TOOL },
         [TOOLBAR_KEYS.POLYGON]: { icon: <Heptagon/>, ctrlIcon: <Eraser/>, disabled: false, title: "Polygon", shortcut: POLYGON_TOOL_HOTKEY, content: POPOVER_DATA.POLYGON_TOOL },
     };
+
+    const layerToggles = [
+        { key: 'gtLayerVisible', title: 'Ground Truth', getter: props.gtLayerVisible, setter: props.setGtLayerVisible },
+        { key: 'predLayerVisible', title: 'Prediction', getter: props.predLayerVisible, setter: props.setPredLayerVisible },
+        { key: 'tileStatusLayerVisible', title: 'Tile Status', getter: props.tileStatusLayerVisible, setter: props.setTileStatusLayerVisible },
+    ];
 
     return (
         <ButtonToolbar
@@ -129,6 +141,23 @@ const Toolbar = React.memo((props: Props) => {
                         </span>
                     </ToggleButton>
                     </OverlayTrigger>
+                ))}
+            </ButtonGroup>
+            <ButtonGroup className={"me-2"}>
+                {layerToggles.map((toggle) => (
+                    <ToggleButton
+                        key={toggle.key}
+                        id={`toggle-${toggle.key}`}
+                        type="checkbox"
+                        variant="secondary"
+                        name="layerToggle"
+                        value={toggle.key}
+                        style={buttonStyle}
+                        checked={toggle.getter}
+                        onChange={(e) => toggle.setter(e.currentTarget.checked)}
+                    >
+                        <span style={buttonTextStyle}>{toggle.title}</span>
+                    </ToggleButton>
                 ))}
             </ButtonGroup>
         </ButtonToolbar>

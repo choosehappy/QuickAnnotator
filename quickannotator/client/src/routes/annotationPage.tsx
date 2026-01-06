@@ -37,6 +37,11 @@ const AnnotationPage = () => {
     const [mouseCoords, setMouseCoords] = useState<{ x: number, y: number }>({x: 0, y: 0});
     const [annotationClasses, setAnnotationClasses] = useState<AnnotationClass[]>([]);
 
+    // Layer visibility states
+    const [gtLayerVisible, setGtLayerVisible] = useState<boolean>(true);
+    const [predLayerVisible, setPredLayerVisible] = useState<boolean>(true);
+    const [tileStatusLayerVisible, setTileStatusLayerVisible] = useState<boolean>(true);
+
     function setCurrentAndPreviousAnnotation(newAnnotation: Annotation | null) {    // NOTE: Consider making this a custom hook if the pattern is used elsewhere
         setCurrentAnnotation((currAnn: CurrentAnnotation | null) => {
             const prevAnnotationId = currAnn?.currentState ?? null;
@@ -185,33 +190,47 @@ const AnnotationPage = () => {
                                     borderRadius: 6,
                                     zIndex: 10,
                                 }}>
-                                    <Toolbar {...{ currentTool, 
-                                                setCurrentTool,
-                                                ctrlHeld }} />
+                                    <Toolbar
+                                        currentTool={currentTool}
+                                        setCurrentTool={setCurrentTool}
+                                        ctrlHeld={ctrlHeld}
+                                        gtLayerVisible={gtLayerVisible}
+                                        predLayerVisible={predLayerVisible}
+                                        tileStatusLayerVisible={tileStatusLayerVisible}
+                                        setGtLayerVisible={setGtLayerVisible}
+                                        setPredLayerVisible={setPredLayerVisible}
+                                        setTileStatusLayerVisible={setTileStatusLayerVisible}
+                                    />
                                 </Card.Header>
                                 <Card.Body style={{ padding: "0px" }}>
-                                    <ViewportMap {...{ currentImage, 
-                                                    currentAnnotationClass, 
-                                                    gts, 
-                                                    setGts, 
-                                                    preds, 
-                                                    setPreds, 
-                                                    currentTool, 
-                                                    setCurrentTool,
-                                                    ctrlHeld,
-                                                    setCtrlHeld,
-                                                    currentAnnotation, 
-                                                    setCurrentAndPreviousAnnotation, 
-                                                    pushAnnotationStateToUndoStack,
-                                                    prevCurrentAnnotation,
-                                                    selectedPred,
-                                                    setSelectedPred,
-                                                    highlightedPreds,
-                                                    setHighlightedPreds,
-                                                    activeModal,
-                                                    setActiveModal,
-                                                    setMouseCoords
-                                                    }} />
+                                    <ViewportMap
+                                        {...{
+                                            currentImage,
+                                            currentAnnotationClass,
+                                            gts,
+                                            setGts,
+                                            preds,
+                                            setPreds,
+                                            currentTool,
+                                            setCurrentTool,
+                                            ctrlHeld,
+                                            setCtrlHeld,
+                                            currentAnnotation,
+                                            setCurrentAndPreviousAnnotation,
+                                            pushAnnotationStateToUndoStack,
+                                            prevCurrentAnnotation,
+                                            selectedPred,
+                                            setSelectedPred,
+                                            highlightedPreds,
+                                            setHighlightedPreds,
+                                            activeModal,
+                                            setActiveModal,
+                                            setMouseCoords,
+                                            gtLayerVisible,
+                                            predLayerVisible,
+                                            tileStatusLayerVisible,
+                                        }}
+                                    />
                                     <Legend mouseCoords={mouseCoords}/>
                                 </Card.Body>
                             </Card>
