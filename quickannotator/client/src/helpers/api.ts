@@ -2,7 +2,7 @@
 type ApiResponse<T> = Promise<T>;
 import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, GetAnnsForTileIdsArgs, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileRefsByPolygonArgs, TileRef, PredictTilesRequest} from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
-import { API_URI, POLYGON_OPERATIONS } from "./config.ts";
+import { API_URI, POLYGON_OPERATIONS } from "./config.tsx";
 
 interface FetchOptions extends RequestInit {
     headers?: HeadersInit;

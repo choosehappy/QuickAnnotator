@@ -1,12 +1,13 @@
 import ButtonGroup from 'react-bootstrap/ButtonGroup';
 import ToggleButton from 'react-bootstrap/ToggleButton';
-import { Button, ButtonToolbar, OverlayTrigger, Popover } from 'react-bootstrap';
-import Tooltip from 'react-bootstrap/Tooltip';
-import React, { useState } from "react";
-import { Annotation, PopoverData, ToolbarButton } from "../types.ts";
-import { BRUSH_TOOL_HOTKEY, IMPORT_TOOL_HOTKEY, PAN_TOOL_HOTKEY, POLYGON_TOOL_HOTKEY, POPOVER_DATA, WAND_TOOL_HOTKEY } from "../helpers/config";
+import { Button, ButtonToolbar, OverlayTrigger } from 'react-bootstrap';
+import { renderTooltip } from '../utils/customTooltip.tsx';
+import React from "react";
+import { ToolbarButton } from "../types.ts";
+import { BRUSH_TOOL_HOTKEY, IMPORT_TOOL_HOTKEY, PAN_TOOL_HOTKEY, POLYGON_TOOL_HOTKEY, POPOVER_DATA, WAND_TOOL_HOTKEY } from "../helpers/config.tsx";
 import { Fullscreen, ArrowCounterclockwise, ArrowClockwise, ArrowsMove, Cursor, Brush, Magic, Eraser, Heptagon, Bookmark, Bookmarks } from 'react-bootstrap-icons';
-import { TOOLBAR_KEYS } from '../helpers/config.ts';
+import { TOOLBAR_KEYS, LAYER_TOGGLE_KEYS } from '../helpers/config.tsx';
+import Form from 'react-bootstrap/Form';
 
 interface Props {
     currentTool: string | null;
@@ -59,15 +60,6 @@ const Toolbar = React.memo((props: Props) => {
         textAlign: 'left',
     };
 
-
-    const renderTooltip = (content: PopoverData) => (
-        <Popover id="button-popover" style={tooltipStyle}>
-            <Popover.Header as="h3">{content.title}</Popover.Header>
-            <Popover.Body>
-                {content.description}
-            </Popover.Body>
-        </Popover>
-    );
     const radios = {
         [TOOLBAR_KEYS.POINTER]: { icon: <Cursor/>, ctrlIcon: null, disabled: false, title: "Pan", shortcut: PAN_TOOL_HOTKEY, content: POPOVER_DATA.PAN_TOOL },
         [TOOLBAR_KEYS.IMPORT]: { icon: <Bookmark/>, ctrlIcon: <Bookmarks/>, disabled: false, title: "Import", shortcut: IMPORT_TOOL_HOTKEY, content: POPOVER_DATA.IMPORT_TOOL },
@@ -77,9 +69,9 @@ const Toolbar = React.memo((props: Props) => {
     };
 
     const layerToggles = [
-        { key: 'gtLayerVisible', title: 'Ground Truth', getter: props.gtLayerVisible, setter: props.setGtLayerVisible },
-        { key: 'predLayerVisible', title: 'Prediction', getter: props.predLayerVisible, setter: props.setPredLayerVisible },
-        { key: 'tileStatusLayerVisible', title: 'Tile Status', getter: props.tileStatusLayerVisible, setter: props.setTileStatusLayerVisible },
+        { key: 'gtLayerVisible', title: LAYER_TOGGLE_KEYS.GT_LAYER, getter: props.gtLayerVisible, setter: props.setGtLayerVisible, tooltip: POPOVER_DATA.GT_LAYER_TOGGLE },
+        { key: 'predLayerVisible', title: LAYER_TOGGLE_KEYS.PRED_LAYER, getter: props.predLayerVisible, setter: props.setPredLayerVisible, tooltip: POPOVER_DATA.PRED_LAYER_TOGGLE },
+        { key: 'tileStatusLayerVisible', title: LAYER_TOGGLE_KEYS.TILE_STATUS_LAYER, getter: props.tileStatusLayerVisible, setter: props.setTileStatusLayerVisible, tooltip: POPOVER_DATA.TILE_STATUS_LAYER_TOGGLE },
     ];
 
     return (
@@ -143,23 +135,24 @@ const Toolbar = React.memo((props: Props) => {
                     </OverlayTrigger>
                 ))}
             </ButtonGroup>
-            <ButtonGroup className={"me-2"}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0px' }}>
                 {layerToggles.map((toggle) => (
-                    <ToggleButton
+                    <OverlayTrigger
                         key={toggle.key}
-                        id={`toggle-${toggle.key}`}
-                        type="checkbox"
-                        variant="secondary"
-                        name="layerToggle"
-                        value={toggle.key}
-                        style={buttonStyle}
-                        checked={toggle.getter}
-                        onChange={(e) => toggle.setter(e.currentTarget.checked)}
+                        placement="right"
+                        overlay={renderTooltip(toggle.tooltip)}
                     >
-                        <span style={buttonTextStyle}>{toggle.title}</span>
-                    </ToggleButton>
+                        <Form.Check 
+                            type="switch"
+                            id={`switch-${toggle.key}`}
+                            label={toggle.title}
+                            checked={toggle.getter}
+                            onChange={(e) => toggle.setter(e.currentTarget.checked)}
+                            style={{ margin: '0' }}
+                        />
+                    </OverlayTrigger>
                 ))}
-            </ButtonGroup>
+            </div>
         </ButtonToolbar>
     )
 });

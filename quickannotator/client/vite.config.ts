@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { SERVER_URL } from './src/helpers/config' // Import SERVER_URL
+import { SERVER_URL } from './src/helpers/config.tsx' // Import SERVER_URL
+import React from 'react'; // Ensure React is defined
 
 // https://vitejs.dev/config/
 export default defineConfig({

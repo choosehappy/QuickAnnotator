@@ -2,7 +2,7 @@ import Card from 'react-bootstrap/Card';
 import AnnotationList from "./annotationList.tsx";
 import { Annotation, AnnotationClass, CurrentAnnotation } from "../types.ts"
 import { propTypes } from 'react-bootstrap/esm/Image';
-import { MODAL_DATA } from '../helpers/config.ts';
+import { MODAL_DATA } from '../helpers/config.tsx';
 
 interface Props {
     gts: Annotation[];

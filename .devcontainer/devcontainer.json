@@ -15,7 +15,7 @@
 	// Add VS Code extensions
 	"customizations": {
 		"vscode": {
-		  "extensions": ["ms-python.python", "alexcvzz.vscode-sqlite", "ms-toolsai.jupyter", "anyscalecompute.ray-distributed-debugger"]
+		  "extensions": ["ms-python.python", "alexcvzz.vscode-sqlite", "ms-toolsai.jupyter", "anyscalecompute.ray-distributed-debugger", "cweijan.vscode-postgresql-client2"]
 		}
 	},
 	"postCreateCommand": "uv pip install -e ."

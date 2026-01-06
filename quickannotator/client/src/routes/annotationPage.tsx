@@ -11,7 +11,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
 import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass, searchAnnotationClasses, fetchAnnotationClassById, createAnnotationClass, deleteAnnotationClass } from "../helpers/api.ts";
-import { DEFAULT_CLASS_ID, MODAL_DATA, TOOLBAR_KEYS, MASK_CLASS_ID, COOKIE_NAMES } from '../helpers/config.ts';
+import { DEFAULT_CLASS_ID, MODAL_DATA, TOOLBAR_KEYS, MASK_CLASS_ID, COOKIE_NAMES } from '../helpers/config.tsx';
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
 import Legend from '../components/legend.tsx';
@@ -189,6 +189,7 @@ const AnnotationPage = () => {
                                     borderColor: "rgba(0, 0, 0, 0.8)",
                                     borderRadius: 6,
                                     zIndex: 10,
+                                    width: "60%", // Increased width to make the toolbar wider
                                 }}>
                                     <Toolbar
                                         currentTool={currentTool}
