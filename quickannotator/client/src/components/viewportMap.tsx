@@ -179,36 +179,38 @@ const ViewportMap = (props: Props) => {
         const gtFeaturesRendered = getFeatIdsRendered(gtLayer, PredFeatureType.annotation);
         const { featuresToRender: gtFeaturesToRender } = computeFeaturesToRender(gtFeaturesRendered, tileRefStore.getAllGroupIds());
 
-        // Loop through each tile feature
-        for (const group of tileRefStore) {
+        // Process each group in parallel
+        await Promise.all(Array.from(tileRefStore).map(async (group) => {
             // Get info about the current group
             const featureId = group[0];
             const tileRefs = group[1];
             const tileIds = tileRefs.map(tr => tr.tile_id);
 
             if (renderGts) {
-                const newGts = await withGuard(() => processGTFeature(imageId, annotationClassId, gtLayer, featureId, tileIds, gtFeaturesToRender))
-                if (!newGts) return
-                gtAnns = gtAnns.concat(newGts)
-                props.setGts(gtAnns)
+            const newGts = await withGuard(() => processGTFeature(imageId, annotationClassId, gtLayer, featureId, tileIds, gtFeaturesToRender));
+            if (newGts) {
+                gtAnns = gtAnns.concat(newGts);
+                props.setGts(gtAnns);
+            }
             }
 
-            const shouldRequestPredictions = (renderTileStatus || renderPreds) && annotationClassId !== MASK_CLASS_ID
+            const shouldRequestPredictions = (renderTileStatus || renderPreds) && annotationClassId !== MASK_CLASS_ID;
 
             // Tile Status
             if (shouldRequestPredictions) {
-                if (renderTileStatus) {
-                    await withGuard(() => computeTileStatusFeature(imageId, annotationClassId, layers[LAYER_KEYS.TILE_STATUS], featureId, tileIds))
-                }
+            if (renderTileStatus) {
+                await withGuard(() => computeTileStatusFeature(imageId, annotationClassId, layers[LAYER_KEYS.TILE_STATUS], featureId, tileIds));
+            }
 
-                if (renderPreds) {
-                    const newPreds = await withGuard(() => processPredFeature(imageId, annotationClassId, layers[LAYER_KEYS.PRED], featureId, tileIds))
-                    if (!newPreds) return
-                    predAnns = predAnns.concat(newPreds)
-                    props.setPreds(predAnns)
+            if (renderPreds) {
+                const newPreds = await withGuard(() => processPredFeature(imageId, annotationClassId, layers[LAYER_KEYS.PRED], featureId, tileIds));
+                if (newPreds) {
+                predAnns = predAnns.concat(newPreds);
+                props.setPreds(predAnns);
                 }
             }
-        }
+            }
+        }));
     }
 
 
