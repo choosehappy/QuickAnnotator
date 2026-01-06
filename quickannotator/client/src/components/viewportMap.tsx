@@ -10,6 +10,7 @@ import { computeFeaturesToRender, getTileFeatureById, redrawTileFeature, createG
 import { useCookies } from 'react-cookie';
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useHotkeys, isHotkeyPressed } from 'react-hotkeys-hook';
+import { useAsyncGuard } from '../utils/useAsyncGuard.ts';
 
 
 interface Props {
@@ -41,6 +42,7 @@ const ViewportMap = (props: Props) => {
     const geojs_map = useRef<geo.map | null>(null);
     const polygonClicked = useRef<Boolean>(false);  // We need this to ensure polygon clicked and background clicked are mutually exclusive, because geojs does not provide control over event propagation.
     const activeViewportRenderCall = useRef<number>(0);
+    const { startCall, guard } = useAsyncGuard();
     const featureIdsToUpdate = useRef<number[]>([]);
     const [cookies, setCookies] = useCookies([COOKIE_NAMES.SKIP_CONFIRM_IMPORT]);
     const [searchParams, setSearchParams] = useSearchParams();
@@ -121,7 +123,8 @@ const ViewportMap = (props: Props) => {
     }
 
     const viewportRender = async (activeCallRef: React.MutableRefObject<number>, renderGts: boolean, renderPreds: boolean, renderTileStatus: boolean, imageId: number, annotationClassId: number) => {
-        const currentCallToken = ++activeCallRef.current;
+        const callToken = startCall();
+        const withGuard = guard(callToken);
         // Safeguards against invalid application state.
         if (!props.currentImage) {
             console.error("Error: currentImage is not defined.");
@@ -175,41 +178,33 @@ const ViewportMap = (props: Props) => {
 
         // Loop through each tile feature
         for (const group of tileRefStore) {
-            // If a newer call has been made, abort this one.
-            if (currentCallToken !== activeCallRef.current) return;
-
             // Get info about the current group
             const featureId = group[0];
             const tileRefs = group[1];
             const tileIds = tileRefs.map(tr => tr.tile_id);
 
-            // Ground Truths
             if (renderGts) {
-                if (currentCallToken !== activeCallRef.current) return;
-                gtAnns = gtAnns.concat(await processGTFeature(imageId, annotationClassId, gtLayer, featureId, tileIds, gtFeaturesToRender));
-                props.setGts(gtAnns);
-                // If a newer call has been made, abort this one.
-                if (currentCallToken !== activeCallRef.current) return;
+                const newGts = await withGuard(() => processGTFeature(imageId, annotationClassId, gtLayer, featureId, tileIds, gtFeaturesToRender))
+                if (!newGts) return
+                gtAnns = gtAnns.concat(newGts)
+                props.setGts(gtAnns)
             }
+
+            const shouldRequestPredictions = (renderTileStatus || renderPreds) && annotationClassId !== MASK_CLASS_ID
 
             // Tile Status
-            if (renderTileStatus && annotationClassId !== MASK_CLASS_ID) {
-                if (currentCallToken !== activeCallRef.current) return;
-                await computeTileStatusFeature(imageId, annotationClassId, layers[LAYER_KEYS.TILE_STATUS], featureId, tileIds);
-                // If a newer call has been made, abort this one.
-                if (currentCallToken !== activeCallRef.current) return;
+            if (shouldRequestPredictions) {
+                if (renderTileStatus) {
+                    await withGuard(() => computeTileStatusFeature(imageId, annotationClassId, layers[LAYER_KEYS.TILE_STATUS], featureId, tileIds))
+                }
+
+                if (renderPreds) {
+                    const newPreds = await withGuard(() => processPredFeature(imageId, annotationClassId, layers[LAYER_KEYS.PRED], featureId, tileIds))
+                    if (!newPreds) return
+                    predAnns = predAnns.concat(newPreds)
+                    props.setPreds(predAnns)
+                }
             }
-
-            // Predictions
-            if (renderPreds && annotationClassId !== MASK_CLASS_ID) {
-                if (currentCallToken !== activeCallRef.current) return;
-                predAnns = predAnns.concat(await processPredFeature(imageId, annotationClassId, layers[LAYER_KEYS.PRED], featureId, tileIds));
-                props.setPreds(predAnns);
-                // If a newer call has been made, abort this one.
-                if (currentCallToken !== activeCallRef.current) return;
-            }
-
-
         }
     }
 
