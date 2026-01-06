@@ -44,7 +44,6 @@ const ViewportMap = (props: Props) => {
     const viewRef = useRef(null);
     const geojs_map = useRef<geo.map | null>(null);
     const polygonClicked = useRef<Boolean>(false);  // We need this to ensure polygon clicked and background clicked are mutually exclusive, because geojs does not provide control over event propagation.
-    const activeViewportRenderCall = useRef<number>(0);
     const { startCall, guard } = useAsyncGuard();
     const featureIdsToUpdate = useRef<number[]>([]);
     const [cookies, setCookies] = useCookies([COOKIE_NAMES.SKIP_CONFIRM_IMPORT]);
@@ -125,7 +124,7 @@ const ViewportMap = (props: Props) => {
         }
     }
 
-    const viewportRender = async (activeCallRef: React.MutableRefObject<number>, renderGts: boolean, renderPreds: boolean, renderTileStatus: boolean, imageId: number, annotationClassId: number) => {
+    const viewportRender = async (renderGts: boolean, renderPreds: boolean, renderTileStatus: boolean, imageId: number, annotationClassId: number) => {
         const callToken = startCall();
         const withGuard = guard(callToken);
         // Safeguards against invalid application state.
@@ -464,7 +463,7 @@ const ViewportMap = (props: Props) => {
                     if (cookies[COOKIE_NAMES.SKIP_CONFIRM_IMPORT]) {
                         postAnnotations(currentImage.id, currentAnnotationClass?.id, anns.map(ann => ann.parsedPolygon)).then(() => {
                             setHighlightedPreds(null);
-                            viewportRender(activeViewportRenderCall, true, false, false, currentImage.id, currentAnnotationClass.id).then(() => {   
+                            viewportRender(true, false, false, currentImage.id, currentAnnotationClass.id).then(() => {   
                                 console.log("Viewport render complete after import.");
                             });
                         });
@@ -511,7 +510,7 @@ const ViewportMap = (props: Props) => {
         zoomPanTimeout = setTimeout(() => {
             console.log('Zooming or Panning stopped.');
             setBoundsQuery();
-            viewportRender(activeViewportRenderCall, true, true, true, props.currentImage.id, props.currentAnnotationClass.id).then(() => {   // TODO: rename active variable
+            viewportRender(props.gtLayerVisible, props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage.id, props.currentAnnotationClass.id).then(() => {   // TODO: rename active variable
                 console.log("Viewport render complete.");
             });
         }, RENDER_DELAY); // Adjust this timeout duration as needed
@@ -709,21 +708,23 @@ const ViewportMap = (props: Props) => {
         props.setPreds([]);
 
         viewportClear(true, true, true);
-        viewportRender(activeViewportRenderCall, true, true, true, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
+        viewportRender(props.gtLayerVisible, props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
             console.log("Viewport render on annotation class change complete.");
         });
 
         const interval = setInterval(() => {
             // console.log("Interval triggered.");
             if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
-                viewportRender(activeViewportRenderCall, false, true, true, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
-                    console.log("Completed viewport render triggered by interval.");
-                });
+                if (props.predLayerVisible || props.tileStatusLayerVisible) {
+                    viewportRender(false, props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
+                        console.log("Completed viewport render triggered by interval.");
+                    });
+                }
             }
         }, RENDER_PREDICTIONS_INTERVAL);
 
         return () => clearInterval(interval); // Cleanup on unmount
-    }, [props.currentAnnotationClass]);
+    }, [props.currentAnnotationClass, props.gtLayerVisible, props.predLayerVisible, props.tileStatusLayerVisible    ]); // May need to add layer visisblity states here
 
 
     // Individual tool activation methods
@@ -926,7 +927,7 @@ const ViewportMap = (props: Props) => {
         layers[LAYER_KEYS.TILE_STATUS].visible(renderTileStatus);
 
         if (renderGts || renderPreds || renderTileStatus) {
-            viewportRender(activeViewportRenderCall, renderGts, renderPreds, renderTileStatus, props.currentImage.id, props.currentAnnotationClass.id);
+            viewportRender(renderGts, renderPreds, renderTileStatus, props.currentImage.id, props.currentAnnotationClass.id);
         }
     }, [props.gtLayerVisible, props.predLayerVisible, props.tileStatusLayerVisible]);
 
