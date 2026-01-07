@@ -60,12 +60,11 @@ const ViewportMap = (props: Props) => {
         if (shouldRenderFeature || shouldUpdateFeature) {
             const resp = await getAnnotationsForTileIds(imageId, annotationClassId, tileIds, true, getPolygonSimplifyTolerance(geojs_map.current));
             annotations = resp.data.map(annResp => new Annotation(annResp, annotationClassId, featureId));
-
-            if (shouldRenderFeature) {
+            const webGLFeature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
+            if (shouldRenderFeature && !webGLFeature) {
                 const feature = createGTTileFeature({ featureId: featureId, tileIds: tileIds }, annotations, layer, props.currentAnnotationClass, props.currentAnnotation?.currentState?.id);
                 feature.geoOn(geo.event.feature.mousedown, handleMousedownOnPolygon);
             } else {
-                const webGLFeature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
                 redrawTileFeature(webGLFeature, {}, annotations);
             }
         } else {
@@ -159,11 +158,12 @@ const ViewportMap = (props: Props) => {
         const tileRefStore = new TileRefStore(tileRefs);
 
         // Prepare annotation lists
+        // NOTE: Pontential race condition here - mutable lists being updated in parallel async calls.
         let gtAnns: Annotation[] = [];
         let predAnns: Annotation[] = [];
 
         // Remove off-screen features for Ground Truth, Predictions, and Tile Status layers
-        [LAYER_KEYS.PRED, LAYER_KEYS.TILE_STATUS].forEach(layerKey => {
+        [LAYER_KEYS.GT, LAYER_KEYS.PRED, LAYER_KEYS.TILE_STATUS].forEach(layerKey => {
             const layer = layers[layerKey];
             const featuresRendered = getFeatIdsRendered(layer, PredFeatureType.annotation);
             const { featuresToRemove } = computeFeaturesToRender(featuresRendered, tileRefStore.getAllGroupIds());
