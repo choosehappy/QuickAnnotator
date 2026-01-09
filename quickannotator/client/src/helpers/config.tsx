@@ -40,7 +40,7 @@ export enum POLYGON_OPERATIONS {
 }
 
 export const DEFAULT_CLASS_ID = 1;
-export const RENDER_PREDICTIONS_INTERVAL = 8000; // ms  TODO: app setting
+export const RENDER_PREDICTIONS_INTERVAL = 10000; // ms  TODO: app setting
 export const RENDER_DELAY = 50; // ms  TODO: app setting
 export const MAP_TRANSLATION_DELAY = 500; // ms TODO: app setting
 export const MAX_ZOOM = 20;

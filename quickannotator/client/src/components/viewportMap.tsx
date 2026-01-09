@@ -927,7 +927,7 @@ const ViewportMap = (props: Props) => {
             // console.log("Interval triggered.");
             if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
                 if (props.predLayerVisible || props.tileStatusLayerVisible) {
-                    viewportRender(props.gtLayerVisible, props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
+                    viewportRender(false, props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
                         console.log("Completed viewport render triggered by interval.");
                     });
                 }
