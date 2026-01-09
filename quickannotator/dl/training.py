@@ -164,7 +164,7 @@ def train_pred_loop(config):
             run_inference(device, model, tiles)
             
         logger.info(f"No more STARTPROCESSING tiles for annotation class {annotation_class_id}. Entering training loop.")
-        if ray.get(myactor.getEnableTraining.remote()):
+        if ray.get(myactor.get_enable_training.remote()):
             #print ("in train loop")
             niter_total += 1
             images, masks, weights = next(iter(dataloader))

@@ -53,7 +53,7 @@ class RayTasksResource(MethodView):
         except ServerUnavailable as e:
             return abort(500, message=f"Error retrieving tasks: {str(e)}")
 
-@bp.route('/<annotation_class_id>/train/', endpoint='set_enable_dl')
+@bp.route('/train/<string:annotation_class_id>', endpoint='set_enable_dl')
 class SetEnableDLResource(MethodView):
     @bp.arguments(server_models.SetEnableDLArgsSchema, location='query')
     @bp.response(200)
@@ -80,3 +80,24 @@ class SetEnableDLResource(MethodView):
             return {}, 200
         except Exception as e:
             return abort(500, message=f"Error setting deep learning training: {str(e)}")
+
+@bp.route('/train/status/<string:annotation_class_id>', endpoint='dl_actor_status')
+class DLActorStatusResource(MethodView):
+    @bp.response(200, server_models.GetDLActorStatusResponseSchema)
+    @bp.alt_response(404, schema=error_handler.ErrorSchema)
+    @bp.alt_response(500, schema=error_handler.ErrorSchema)
+    def get(self, annotation_class_id):
+        """
+        Handle GET requests to retrieve the current status of deep learning training for a specific annotation class.
+        """
+        try:
+            actor_name = build_actor_name(int(annotation_class_id))
+            try:
+                actor = ray.get_actor(actor_name)
+            except ValueError:
+                return abort(404, message="Actor not found")
+            
+            enable_training = ray.get(actor.get_enable_training.remote())
+            return {'enable_training': enable_training}, 200
+        except Exception as e:
+            return abort(500, message=f"Error retrieving deep learning training status: {str(e)}")
