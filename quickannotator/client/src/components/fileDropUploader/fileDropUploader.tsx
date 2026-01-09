@@ -13,7 +13,7 @@ import ListGroup from 'react-bootstrap/ListGroup';
 import FileProgressPanel from './fileProgressPanel/fileProgressPanel.tsx'
 import './fileDropUploader.css'
 
-import {UPLOAD_ACCEPTED_FILES, WSI_EXTS, JSON_EXTS, TABULAR_EXTS, POLLING_INTERVAL_MS, TASK_STATE} from '../../helpers/config.ts'
+import {UPLOAD_ACCEPTED_FILES, WSI_EXTS, JSON_EXTS, TABULAR_EXTS, POLLING_INTERVAL_MS, TASK_STATE} from '../../helpers/config.tsx'
 import { FileWithPath } from 'react-dropzone';
 import { toast } from "react-toastify";
 import TaskChildrenGrid from '../taskChildren/taskChildrenGrid.tsx';

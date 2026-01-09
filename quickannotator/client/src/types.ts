@@ -1,5 +1,6 @@
 import {Point, Polygon, Feature} from "geojson"
 import { TILE_STATUS } from "./helpers/config";
+import React from "react";
 
 export interface IdNameElement {
     id: number;
@@ -262,7 +263,7 @@ export interface ModalData {
 
 export interface PopoverData {
     title: string;
-    description: string;
+    body: React.ReactNode;
 }
 
 export class DataItem {

@@ -9,7 +9,7 @@ import ConfigModal from '../components/modals/project/configModal/configModal.ts
 import DeleteModal from '../components/modals/project/deleteModal/deleteModal.tsx';
 import { Project } from "../types.ts";
 import { fetchAllProjects, createProject, updateProject, removeProject } from "../helpers/api.ts"
-import {PROJECT_MODAL_STATUS} from '../helpers/config.ts'
+import {PROJECT_MODAL_STATUS} from '../helpers/config.tsx'
 const LandingPage = () => {
     // 0 - create, 1 - update, 2 - remove 
     const [modalStatus, setModalStatus] = useState<PROJECT_MODAL_STATUS.CREATE | PROJECT_MODAL_STATUS.REMOVE | PROJECT_MODAL_STATUS.UPDATE | undefined>(undefined)

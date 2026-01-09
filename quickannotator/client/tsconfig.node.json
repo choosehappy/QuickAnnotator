@@ -7,10 +7,11 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
+    // "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
-    "noEmit": true,
+    "composite": true, // Added for project references
+    "noEmit": false, // Adjusted to allow emitting files
 
     /* Linting */
     "strict": true,

@@ -40,8 +40,8 @@ export enum POLYGON_OPERATIONS {
 }
 
 export const DEFAULT_CLASS_ID = 1;
-export const RENDER_PREDICTIONS_INTERVAL = 8000; // ms  TODO: app setting
-export const RENDER_DELAY = 100; // ms  TODO: app setting
+export const RENDER_PREDICTIONS_INTERVAL = 10000; // ms  TODO: app setting
+export const RENDER_DELAY = 50; // ms  TODO: app setting
 export const MAP_TRANSLATION_DELAY = 500; // ms TODO: app setting
 export const MAX_ZOOM = 20;
 export const MAX_ZOOM_FOR_DOWNSAMPLE = 8; // Max zoom level to apply tile downsampling
@@ -70,42 +70,6 @@ export const MODAL_DATA: { [key: string]: ModalData } = {
     },
 }
 
-
-export const POPOVER_DATA: { [key: string]: PopoverData } = {
-    FULLSCREEN_TOOL: {
-        title: 'Fullscreen Tool',
-        description: 'Toggle fullscreen mode for the application window.',
-    },
-    UNDO_TOOL: {
-        title: 'Undo Tool',
-        description: 'Revert the last action performed on the current annotation.',
-    },
-    REDO_TOOL: {
-        title: 'Redo Tool',
-        description: 'Reapply the last action that was undone on the current annotation.',
-    },
-    PAN_TOOL: {
-        title: 'Pan Tool',
-        description: 'Pan around the image. You can temporarily enable this tool by holding down the middle mouse button.',
-    },
-    IMPORT_TOOL: {
-        title: 'Import Tool',
-        description: 'Select predicted annotation to save them as ground truth annotations. Click to select a single prediction, or hold CTRL to lasso multiple predictions.',
-    },
-    BRUSH_TOOL: {
-        title: 'Brush Tool',
-        description: 'Brush tool for annotation. Hold CTRL to switch to eraser mode.',
-    },
-    MAGIC_TOOL: {
-        title: 'Magic Tool',
-        description: 'Magic tool for annotation.',
-    },
-    POLYGON_TOOL: {
-        title: 'Polygon Tool',
-        description: 'Polygon tool for annotation. Hold CTRL to switch to eraser mode.',
-    },
-}
-
 // Viewport settings
 export const UI_SETTINGS = {
     gtOpacity: 0.5,
@@ -124,6 +88,111 @@ export const UI_SETTINGS = {
     doneProcessingTileFillOpacity: 0.5,
     continuousCloseProximity: true, // NOTE: int values do not seem to have an effect.
     finalPointProximity: 1000,
+}
+
+
+export const POPOVER_DATA: { [key: string]: PopoverData } = {
+    FULLSCREEN_TOOL: {
+        title: 'Fullscreen Tool',
+        body: <>Toggle fullscreen mode for the application window.</>,
+    },
+    UNDO_TOOL: {
+        title: 'Undo Tool',
+        body: <>Revert the last action performed on the current annotation.</>,
+    },
+    REDO_TOOL: {
+        title: 'Redo Tool',
+        body: <>Reapply the last action that was undone on the current annotation.</>,
+    },
+    PAN_TOOL: {
+        title: 'Pan Tool',
+        body: (
+            <>
+                Pan around the image. You can temporarily enable this tool by holding down the middle mouse button.
+            </>
+        ),
+    },
+    IMPORT_TOOL: {
+        title: 'Import Tool',
+        body: (
+            <>
+                Select predicted annotation to save them as ground truth annotations. Click to select a single prediction, or hold <code>CTRL</code> to lasso multiple predictions.
+            </>
+        ),
+    },
+    BRUSH_TOOL: {
+        title: 'Brush Tool',
+        body: (
+            <>
+                Brush tool for annotation. Hold <code>CTRL</code> to switch to eraser mode.
+            </>
+        ),
+    },
+    MAGIC_TOOL: {
+        title: 'Magic Tool',
+        body: <>Magic tool for annotation.</>,
+    },
+    POLYGON_TOOL: {
+        title: 'Polygon Tool',
+        body: (
+            <>
+                Polygon tool for annotation. Hold <code>CTRL</code> to switch to eraser mode.
+            </>
+        ),
+    },
+    GT_LAYER_TOGGLE: {
+        title: 'Ground Truth Layer',
+        body: <>Toggle the visibility of the Ground Truth layer.</>,
+    },
+    PRED_LAYER_TOGGLE: {
+        title: 'Prediction Layer',
+        body: <>Toggle the visibility of the Prediction layer.</>,
+    },
+    TILE_STATUS_LAYER_TOGGLE: {
+        title: 'Tile Status Layer',
+        body: (
+            <>
+                Toggle the visibility of the Tile Status layer.
+                <br />
+                <br />
+                <strong>Legend:</strong>
+                <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                    <thead>
+                        <tr>
+                            <th style={{ border: '1px solid black', padding: '8px', textAlign: 'left' }}>Color</th>
+                            <th style={{ border: '1px solid black', padding: '8px', textAlign: 'left' }}>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style={{ border: '1px solid black', padding: '8px' }}>
+                                <div style={{ width: '16px', height: '16px', backgroundColor: UI_SETTINGS.startProcessingTileFillColor }}></div>
+                            </td>
+                            <td style={{ border: '1px solid black', padding: '8px' }}>To be processed</td>
+                        </tr>
+                        <tr>
+                            <td style={{ border: '1px solid black', padding: '8px' }}>
+                                <div style={{ width: '16px', height: '16px', backgroundColor: UI_SETTINGS.processingTileFillColor }}></div>
+                            </td>
+                            <td style={{ border: '1px solid black', padding: '8px' }}>Processing</td>
+                        </tr>
+                        <tr>
+                            <td style={{ border: '1px solid black', padding: '8px' }}>
+                                <div style={{ width: '16px', height: '16px', backgroundColor: UI_SETTINGS.unseenTileFillColor }}></div>
+                            </td>
+                            <td style={{ border: '1px solid black', padding: '8px' }}>Unseen</td>
+                        </tr>
+                        <tr>
+                            <td style={{ border: '1px solid black', padding: '8px' }}>
+                                <div style={{ width: '16px', height: '16px', backgroundColor: UI_SETTINGS.doneProcessingTileFillColor }}></div>
+                            </td>
+                            <td style={{ border: '1px solid black', padding: '8px' }}>Done processed</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </>
+        ),
+    },
 }
 
 // Hotkeys
@@ -263,3 +332,9 @@ export const TASK_STATE_MAP: { [key in TASK_STATE]: string } = {
     [TASK_STATE.FAILED]: `<div class='d-flex align-items-center text-danger'><span style='display:inline-flex;align-items:center'><svg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M4 4l8 8M12 4l-8 8' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg></span><span style='margin-left:8px'>Failed</span></div>`,
     [TASK_STATE.SUBMITTED_TO_WORKER]: `<div class='d-flex align-items-center'><span class='spinner-border spinner-border-sm me-2' role='status' aria-hidden='true'></span><span class='text-muted'>Submitted</span></div>`,
 };
+
+export enum LAYER_TOGGLE_KEYS {
+    GT_LAYER = 'Ground Truth Layer',
+    PRED_LAYER = 'Prediction Layer',
+    TILE_STATUS_LAYER = 'Tile Status Layer',
+}
