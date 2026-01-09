@@ -34,19 +34,19 @@ class DLActor:
         self.logger.info(f"Initializing DLActor with {annotation_class_id=}, {tile_size=}, {magnification=}")
         self.annotation_class_id = annotation_class_id
         self.tile_size = tile_size
-        self.procRunningSince = None
+        self.proc_running_since = None
         self.allow_pred = True  # --- don't know if we'll ever need this, so hard setting to true
         self.enable_training = True
         self.hexid = None
         self.magnification = magnification
 
     def start_dlproc(self, allow_pred=True):
-        if self.getProcRunningSince() is not None:
+        if self.get_proc_running_since() is not None:
             self.logger.warning("Already running, not starting again")
             return
 
         self.logger.info(f"Starting up {build_actor_name(annotation_class_id=self.annotation_class_id)}")
-        self.setProcRunningSince()
+        self.set_proc_running_since()
 
         total_gpus = ray.cluster_resources().get("GPU", 0)
         self.logger.info(f"Total GPUs available: {total_gpus}")
@@ -70,45 +70,45 @@ class DLActor:
         self.logger.info(f"DLActor started with hexid: {self.hexid}")
         return self.hexid
 
-    def getClassId(self):
+    def get_class_id(self):
         return self.annotation_class_id
 
-    def getHexId(self):
+    def get_hex_id(self):
         return self.hexid
 
-    def setHexId(self, hexid: str):  # not sure if set is smart to have -- should likely be done internally
+    def set_hex_id(self, hexid: str):  # not sure if set is smart to have -- should likely be done internally
         self.hexid = hexid
         return self.hexid
 
-    def getActorName(self):
+    def get_actor_name(self):
         return build_actor_name(annotation_class_id=self.annotation_class_id)
 
-    def getTileSize(self):
+    def get_tile_size(self):
         return self.tile_size
 
-    def getProcRunningSince(self):
-        self.logger.info(f"procRunningSince: {self.procRunningSince}")
-        return self.procRunningSince
+    def get_proc_running_since(self):
+        self.logger.info(f"procRunningSince: {self.proc_running_since}")
+        return self.proc_running_since
 
-    def setProcRunningSince(self, reset=False):
+    def set_proc_running_since(self, reset=False):
         if reset:
-            self.procRunningSince = None
+            self.proc_running_since = None
             self.logger.info("Resetting procRunningSince to None")
         else:
-            self.procRunningSince = datetime.now()
-            self.logger.info(f"Setting procRunningSince to {self.procRunningSince}")
+            self.proc_running_since = datetime.now()
+            self.logger.info(f"Setting procRunningSince to {self.proc_running_since}")
 
-    def getAllowPred(self):
+    def get_allow_pred(self):
         return self.allow_pred
 
-    def setAllowPred(self, allow_pred: bool):
+    def set_allow_pred(self, allow_pred: bool):
         self.allow_pred = allow_pred
         return self.allow_pred
 
-    def getEnableTraining(self):
+    def get_enable_training(self):
         return self.enable_training
 
-    def setEnableTraining(self, enable_training: bool):
+    def set_enable_training(self, enable_training: bool):
         self.enable_training = enable_training
         return self.enable_training
 
@@ -132,7 +132,7 @@ def start_processing(annotation_class_id: int):
 
         if oldest_actor != current_actor:   # Can do a direct comparison since ray returns the exact same actor object.
             logger.info(f"Stopping actor {oldest_actor} to make room for new processing.")
-            oldest_actor.setProcRunningSince.remote(reset=True)
+            oldest_actor.set_proc_running_since.remote(reset=True)
 
     # Step 4: Start the processing task on the current actor
     current_actor.start_dlproc.remote()
@@ -145,7 +145,7 @@ def get_processing_actors(sort_by_date=True):
     dated_actors = []
     for name in actor_names:
         actor = ray.get_actor(name)
-        date = ray.get(actor.getProcRunningSince.remote())
+        date = ray.get(actor.get_proc_running_since.remote())
         if date:  # actors with date == None are not processing
             dated_actors.append({'date': date, 'actor': actor, 'name': name})
 

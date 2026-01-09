@@ -154,7 +154,7 @@ def train_pred_loop(config):
     #print ("pre actor get")
     myactor = ray.get_actor(actor_name)
     #print ("post actor get")
-    while ray.get(myactor.getProcRunningSince.remote()):    # procRunningSince will be None if the DL processing is to be stopped.
+    while ray.get(myactor.get_proc_running_since.remote()):    # procRunningSince will be None if the DL processing is to be stopped.
         tilestore = TileStoreFactory.get_tilestore()
         while tiles := tilestore.get_pending_inference_tiles(annotation_class_id, batch_size_infer):
             logger.info(f"Running inference on {len(tiles)} tiles for annotation class {annotation_class_id}")
@@ -164,7 +164,7 @@ def train_pred_loop(config):
             run_inference(device, model, tiles)
             
         logger.info(f"No more STARTPROCESSING tiles for annotation class {annotation_class_id}. Entering training loop.")
-        if ray.get(myactor.getEnableTraining.remote()):
+        if ray.get(myactor.get_enable_training.remote()):
             #print ("in train loop")
             niter_total += 1
             images, masks, weights = next(iter(dataloader))
