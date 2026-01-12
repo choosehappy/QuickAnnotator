@@ -256,3 +256,10 @@ export class DataItem {
         this.selected = !this.selected;
     }
 }
+
+export interface DLActorStatus {
+    annotation_class_id: number;
+    enable_training: boolean;
+    allow_pred: boolean;
+    proc_running_since: string | null;
+}

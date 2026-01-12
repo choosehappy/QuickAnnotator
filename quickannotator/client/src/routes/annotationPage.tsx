@@ -16,7 +16,7 @@ import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
 import Legend from '../components/legend.tsx';
 import NewClassModal from '../components/newClassModal.tsx';
-import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation, DataItem, IdNameElement } from "../types.ts";
+import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation, DataItem, IdNameElement, DLActorStatus } from "../types.ts";
 import AnnotationExportModal from '../components/annotationExportModal.tsx';
 import { useHotkeys } from 'react-hotkeys-hook';
 
@@ -36,6 +36,7 @@ const AnnotationPage = () => {
     const [activeModal, setActiveModal] = useState<number | null>(null);
     const [mouseCoords, setMouseCoords] = useState<{ x: number, y: number }>({x: 0, y: 0});
     const [annotationClasses, setAnnotationClasses] = useState<AnnotationClass[]>([]);
+    const [currentDlActorStatus, setCurrentDlActorStatus] = useState<DLActorStatus | null>(null);
 
     function setCurrentAndPreviousAnnotation(newAnnotation: Annotation | null) {    // NOTE: Consider making this a custom hook if the pattern is used elsewhere
         setCurrentAnnotation((currAnn: CurrentAnnotation | null) => {
