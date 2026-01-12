@@ -87,7 +87,6 @@ class DLActor:
         return self.tile_size
 
     def get_proc_running_since(self):
-        self.logger.info(f"procRunningSince: {self.proc_running_since}")
         return self.proc_running_since
 
     def set_proc_running_since(self, reset=False):
@@ -111,7 +110,15 @@ class DLActor:
     def set_enable_training(self, enable_training: bool):
         self.enable_training = enable_training
         return self.enable_training
-
+    
+    def get_detailed_state(self) -> dict:
+        state = {
+            'annotation_class_id': self.annotation_class_id,
+            'proc_running_since': self.proc_running_since,
+            'allow_pred': self.allow_pred,
+            'enable_training': self.enable_training,
+        }
+        return state
 
 def start_processing(annotation_class_id: int):
     # Step 1: Build the actor name and retrieve the corresponding DLActor instance
@@ -153,3 +160,4 @@ def get_processing_actors(sort_by_date=True):
         return dated_actors
     else:
         return sorted(dated_actors, key=lambda x: x['date'])
+

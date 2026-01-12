@@ -35,6 +35,11 @@ class SetEnableDLArgsSchema(Schema):
     enable = fields.Bool(required=True, description="Boolean value to enable (true) or disable (false) deep learning training.")
 
 class GetDLActorStatusResponseSchema(Schema):
+    annotation_class_id = fields.Int(required=True, description="The ID of the annotation class.")
     enable_training = fields.Bool(required=True, description="Indicates if deep learning training is enabled.")
     allow_pred = fields.Bool(required=True, description="Indicates if predictions are allowed.")
     proc_running_since = fields.DateTime(required=False, allow_none=True, description="Timestamp of when processing started, or null if not processing.")
+
+
+class GetDLActorsStatusArgsSchema(Schema):
+    annotation_class_ids = fields.List(fields.Str(), required=False, description="List of annotation class IDs to get the status for. If not provided, status for all DL actors will be returned.")

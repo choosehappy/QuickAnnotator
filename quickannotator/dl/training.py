@@ -24,6 +24,7 @@ import os
 from quickannotator.db.logging import LoggingManager
 
 from torch.utils.tensorboard import SummaryWriter
+import time
 
 def get_transforms(tile_size): #probably goes...elsewhere
     transforms = A.Compose([
@@ -154,6 +155,13 @@ def train_pred_loop(config):
     #print ("pre actor get")
     myactor = ray.get_actor(actor_name)
     #print ("post actor get")
+
+    # TODO: remove timing code
+    start_time = time.time()
+    result = ray.get(myactor.get_proc_running_since.remote())
+    elapsed_time = time.time() - start_time
+    print(f"Time taken to fetch proc_running_since: {elapsed_time:.4f} seconds")
+
     while ray.get(myactor.get_proc_running_since.remote()):    # procRunningSince will be None if the DL processing is to be stopped.
         tilestore = TileStoreFactory.get_tilestore()
         while tiles := tilestore.get_pending_inference_tiles(annotation_class_id, batch_size_infer):
@@ -165,10 +173,14 @@ def train_pred_loop(config):
             
         logger.info(f"No more STARTPROCESSING tiles for annotation class {annotation_class_id}. Entering training loop.")
         if ray.get(myactor.get_enable_training.remote()):
-            #print ("in train loop")
+            logger.info("Training enabled. Loading training batch.")
             niter_total += 1
-            images, masks, weights = next(iter(dataloader))
-            #print ("post next iter")
+            try:
+                images, masks, weights = next(iter(dataloader))
+            except StopIteration:
+                logger.info("No more training data available. Waiting for new data...")
+                continue
+            logger.info(f"Training batch of size {len(images)} loaded successfully. Starting training step.")
             images = images.half().to(device) #TODO: test with .half()
             masks = masks.to(device) #these should remain as uint8 - which is both more correct and half the size of a float16
             weights = weights.to(device)
