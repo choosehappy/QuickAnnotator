@@ -27,7 +27,7 @@ from datetime import datetime
 
 logger = LoggingManager.init_logger(constants.LoggerNames.RAY.value)
 
-@ray.remote(max_concurrency=2)
+@ray.remote(max_concurrency=3)
 class DLActor:
     def __init__(self, annotation_class_id: int, tile_size: int, magnification: float):
         self.logger = LoggingManager.init_logger(constants.LoggerNames.RAY.value)
@@ -37,10 +37,9 @@ class DLActor:
         self.proc_running_since = None
         self.allow_pred = True  # --- don't know if we'll ever need this, so hard setting to true
         self.enable_training = True
-        self.hexid = None
         self.magnification = magnification
 
-    def start_dlproc(self, allow_pred=True):
+    def start_dlproc(self):
         if self.get_proc_running_since() is not None:
             self.logger.warning("Already running, not starting again")
             return
@@ -66,19 +65,12 @@ class DLActor:
                 'magnification': self.magnification
             }
         )
-        self.hexid = trainer.fit().hex()
-        self.logger.info(f"DLActor started with hexid: {self.hexid}")
-        return self.hexid
+        result = trainer.fit()
+        self.logger.info(f"Training result: {result}")
+
 
     def get_class_id(self):
         return self.annotation_class_id
-
-    def get_hex_id(self):
-        return self.hexid
-
-    def set_hex_id(self, hexid: str):  # not sure if set is smart to have -- should likely be done internally
-        self.hexid = hexid
-        return self.hexid
 
     def get_actor_name(self):
         return build_actor_name(annotation_class_id=self.annotation_class_id)
