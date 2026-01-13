@@ -46,7 +46,7 @@ const TrainingStatusButton = ({ currentDlActorStatus, setCurrentDlActorStatus, a
         );
     }
 
-    const isTrainingActive = currentDlActorStatus.enable_training;
+    const isTrainingActive = currentDlActorStatus.enable_training && currentDlActorStatus.proc_running_since !== null;
 
     return (
         <Button
