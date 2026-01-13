@@ -1,0 +1,35 @@
+.training-status-btn {
+    min-width: 140px;
+    transition: all 0.2s ease-in-out;
+}
+
+.training-status-btn.training-active {
+    animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+    0% {
+        box-shadow: 0 0 5px rgba(40, 167, 69, 0.5),
+                    0 0 10px rgba(40, 167, 69, 0.3),
+                    0 0 15px rgba(40, 167, 69, 0.2);
+    }
+    50% {
+        box-shadow: 0 0 10px rgba(40, 167, 69, 0.8),
+                    0 0 20px rgba(40, 167, 69, 0.6),
+                    0 0 30px rgba(40, 167, 69, 0.4);
+    }
+    100% {
+        box-shadow: 0 0 5px rgba(40, 167, 69, 0.5),
+                    0 0 10px rgba(40, 167, 69, 0.3),
+                    0 0 15px rgba(40, 167, 69, 0.2);
+    }
+}
+
+.training-status-btn:hover {
+    transform: scale(1.02);
+}
+
+.training-status-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

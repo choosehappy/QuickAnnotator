@@ -64,19 +64,21 @@ class SetEnableDLResource(MethodView):
             actor = ray.get_actor(actor_name)
         except ValueError:
             return abort(404)
+        except ray.exceptions.GetTimeoutError:
+            return abort(408)
         
         ref = actor.set_enable_training.remote(args['enable'])
         try:
-            ray.get(ref, timeout=10)  # wait for completion with a timeout
+            ray.get(ref, timeout=constants.RAY_GET_TIMEOUT)  # wait for completion with a timeout
         except ray.exceptions.GetTimeoutError:
             return abort(408)
         
         # Fetch the detailed state after enabling/disabling training
         try:
-            detailed_state = ray.get(actor.get_detailed_state.remote())
+            detailed_state = ray.get(actor.get_detailed_state.remote(), timeout=constants.RAY_GET_TIMEOUT)
             return detailed_state, 200
-        except Exception:
-            return abort(404)
+        except ray.exceptions.GetTimeoutError:
+            return abort(408)
 
 def get_actor_detailed_state(annotation_class_id):
     """
@@ -87,11 +89,15 @@ def get_actor_detailed_state(annotation_class_id):
         actor = ray.get_actor(actor_name)
     except ValueError:
         return None  # Actor does not exist
+    except ray.exceptions.GetTimeoutError:
+        return None  # Timeout occurred while getting actor
 
     try:
-        return ray.get(actor.get_detailed_state.remote())
+        return ray.get(actor.get_detailed_state.remote(), timeout=constants.RAY_GET_TIMEOUT)
+    except ray.exceptions.GetTimeoutError:
+        return None  # Timeout occurred while fetching the state
     except Exception:
-        return None  # Error occurred while fetching the state
+        return None  # Other error occurred while fetching the state
 
 @bp.route('/train/status/<string:annotation_class_id>', endpoint='dl_actor_status')
 class DLActorStatusResource(MethodView):
