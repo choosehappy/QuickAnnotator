@@ -14,7 +14,7 @@ The following instructions detail how to install QuickAnnotator on a single node
 ### 1.1. Installation Steps
 1. Download the docker compose file from the QuickAnnotator repository:
     ```bash
-    curl -O https://raw.githubusercontent.com/choosehappy/QuickAnnotator/main/deployment/docker-compose.yaml
+    curl -O https://raw.githubusercontent.com/choosehappy/QuickAnnotator/v2.0/deployment/docker-compose.yaml
     ```
 
 2. Run the docker compose file:
