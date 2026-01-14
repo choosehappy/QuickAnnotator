@@ -42,6 +42,7 @@ const ClassesPane = (props: Props) => {
                                             }
                                         }
                                         props.setcurrentAnnotationClass(c);
+                                        props.setCurrentDlActorStatus(null);
                                     }}
                                     active={props.currentAnnotationClass?.id === c.id}
                                     className="d-flex justify-content-between align-items-center list-group-item-secondary"

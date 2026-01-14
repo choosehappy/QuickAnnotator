@@ -46,6 +46,20 @@ const TrainingStatusButton = ({ currentDlActorStatus, setCurrentDlActorStatus, a
         );
     }
 
+    // Training inactive state
+    if (currentDlActorStatus.proc_running_since === null) {
+        return (
+            <Button 
+                variant="secondary" 
+                size="sm" 
+                disabled
+                className="training-status-btn"
+            >
+                Training Inactive
+            </Button>
+        );
+    }
+
     const isTrainingActive = currentDlActorStatus.enable_training && currentDlActorStatus.proc_running_since !== null;
 
     return (

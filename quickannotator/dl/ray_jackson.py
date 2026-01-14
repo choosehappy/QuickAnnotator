@@ -1,4 +1,5 @@
 import logging
+import time
 from quickannotator.db.logging import LoggingManager
 import ray
 from ray.train import ScalingConfig
@@ -24,6 +25,9 @@ from quickannotator.db.models import Tile
 import sqlalchemy
 from quickannotator.dl.training import train_pred_loop
 from datetime import datetime
+from ray.runtime_context import RuntimeContext
+from ray.actor import ActorHandle
+
 
 logger = LoggingManager.init_logger(constants.LoggerNames.RAY.value)
 
@@ -40,12 +44,22 @@ class DLActor:
         self.magnification = magnification
 
     def start_dlproc(self):
+        breakpoint()
         if self.get_proc_running_since() is not None:
-            self.logger.warning("Already running, not starting again")
+            self.logger.warning(f"{self.get_actor_name()} already running, not starting again")
+            return
+        
+        # Set the processing start time so that other actors can compare.
+        self.set_proc_running_since()
+
+        # This function blocks start_dlproc from loading the model until sufficient previous actors have been stopped.
+        try :
+            truncate_processing_actors(self.get_actor_name(), self.get_proc_running_since())
+        except RuntimeWarning:
+            self.set_proc_running_since(reset=True)
             return
 
-        self.logger.info(f"Starting up {build_actor_name(annotation_class_id=self.annotation_class_id)}")
-        self.set_proc_running_since()
+        self.logger.info(f"Starting up {self.get_actor_name()} DL processing...")
 
         total_gpus = ray.cluster_resources().get("GPU", 0)
         self.logger.info(f"Total GPUs available: {total_gpus}")
@@ -66,7 +80,7 @@ class DLActor:
             }
         )
         result = trainer.fit()
-        self.logger.info(f"Training result: {result}")
+        self.logger.info(f"{self.get_actor_name()} training result: {result}")
 
 
     def get_class_id(self):
@@ -120,36 +134,85 @@ def start_processing(annotation_class_id: int):
                                                                                annotation_class.work_tilesize,
                                                                                annotation_class.work_mag)
     logger.info("Got ray actor for annotation class ID: %s", annotation_class_id)
-
-    # Step 2: Retrieve the list of currently processing actors
-    actor_queue = get_processing_actors(sort_by_date=True)
-    logger.info(f"Current processing actors: {len(actor_queue)}")
-
-    # Step 3: Ensure the number of active actors does not exceed the maximum allowed
-    while len(actor_queue) >= constants.MAX_ACTORS_PROCESSING:
-        oldest_actor = actor_queue.pop(0)['actor']
-
-        if oldest_actor != current_actor:   # Can do a direct comparison since ray returns the exact same actor object.
-            logger.info(f"Stopping actor {oldest_actor} to make room for new processing.")
-            oldest_actor.set_proc_running_since.remote(reset=True)
-
-    # Step 4: Start the processing task on the current actor
     current_actor.start_dlproc.remote()
     logger.info(f"Instructed actor {actor_name} to start processing.")
     return current_actor
 
 
-def get_processing_actors(sort_by_date=True):
-    actor_names = ray.util.list_named_actors()
-    dated_actors = []
-    for name in actor_names:
-        actor = ray.get_actor(name)
-        date = ray.get(actor.get_proc_running_since.remote())
-        if date:  # actors with date == None are not processing
-            dated_actors.append({'date': date, 'actor': actor, 'name': name})
 
-    if sort_by_date:
-        return dated_actors
-    else:
-        return sorted(dated_actors, key=lambda x: x['date'])
+# def get_processing_actors(sort_by_date=True):
+#     actor_names = ray.util.list_named_actors()
+#     dated_actors = []
+#     refs = []
+#     actor_map = {}
+
+#     for name in actor_names:
+#         actor: ActorHandle = ray.get_actor(name)
+#         ref = actor.get_proc_running_since.remote()
+#         refs.append(ref)
+#         actor_map[ref] = {'actor': actor, 'name': name}
+
+#     dates = ray.get(refs)
+
+#     for ref, date in zip(refs, dates):
+#         if date:  # actors with date == None are not processing
+#             actor_info = actor_map[ref]
+#             actor_info['date'] = date
+#             dated_actors.append(actor_info)
+
+#     if sort_by_date:
+#         return sorted(dated_actors, key=lambda x: x['date'])
+#     else:
+#         return dated_actors
+
+def truncate_processing_actors(current_actor_name: str, current_actor_date: datetime):
+    """
+    Ensures the number of processing actors does not exceed the maximum allowed limit by truncating older actors.
+
+    This function checks the current number of named actors and stops older actors if the count exceeds the 
+    `constants.MAX_ACTORS_PROCESSING` limit. It prioritizes stopping actors that were started earlier than the 
+    current actor to avoid deadlocks. The truncation process retries up to `constants.MAX_RETRIES_TRUNCATE_ACTORS` 
+    times if necessary.
+
+    Args:
+        current_actor_name (str): The name of the current actor that should not be stopped.
+        current_actor_date (datetime): The start time of the current actor, used to compare with other actors.
+
+    Returns:
+        bool: True if the truncation process succeeded or was not needed, False if the maximum retries were reached 
+        without successfully truncating actors.
+
+    Notes:
+        - This function uses Ray to manage and interact with distributed actors.
+        - It assumes that each actor has a `get_proc_running_since` method to retrieve its start time and a 
+          `set_proc_running_since` method to signal it to stop.
+        - Logging is used to record warnings and truncation actions.
+    """
+    retries = 0
+    breakpoint()
+    while (names := sorted(ray.util.list_named_actors())) and len(names) > constants.MAX_ACTORS_PROCESSING:
+        if retries >= constants.MAX_RETRIES_TRUNCATE_ACTORS:
+            logger.warning(f"Actor {current_actor_name} failed to truncate total number of actors to {constants.MAX_ACTORS_PROCESSING}. Aborting startup.")
+            raise RuntimeWarning('Max retries reached in truncate_processing_actors')
+
+        overflow_count = len(names) - constants.MAX_ACTORS_PROCESSING
+        names_excluding_current = [name for name in names if name != current_actor_name]
+        actor_names_to_stop = names_excluding_current[:overflow_count]
+
+        actor_handles = {name: ray.get_actor(name) for name in actor_names_to_stop}
+        actor_refs = {name: handle.get_proc_running_since.remote() for name, handle in actor_handles.items()}
+        actor_dates: list[datetime] = ray.get(list(actor_refs.values()))
+
+        stop_refs = []
+        for name, date in zip(actor_refs.keys(), actor_dates):
+            if date and date < current_actor_date:  # This actor can only signal older actors to stop, preventing deadlock.
+                actor = actor_handles[name]
+                stop_refs.append(actor.set_proc_running_since.remote(reset=True))  # Collect references to the stop calls.
+                logger.info(f"{current_actor_name} truncated actor {name} to maintain max processing actors.")
+        
+        # Wait for all stop calls to complete.
+        ray.get(stop_refs)
+        time.sleep(constants.RETRY_DELAY_TRUNCATE_ACTORS)
+
+        retries += 1
 

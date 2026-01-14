@@ -44,6 +44,8 @@ MOUNTS_PATH = os.path.join(BASE_PATH, 'quickannotator/mounts')
 TILE_PRED_EXPIRE = 1 # minutes
 
 MAX_ACTORS_PROCESSING = 1   # TODO: app setting
+MAX_RETRIES_TRUNCATE_ACTORS = 50
+RETRY_DELAY_TRUNCATE_ACTORS = 2  # seconds
 
 FLASK_DATETIME_FORMAT = 'iso'
 

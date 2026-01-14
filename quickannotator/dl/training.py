@@ -156,13 +156,8 @@ def train_pred_loop(config):
     myactor = ray.get_actor(actor_name)
     #print ("post actor get")
 
-    # TODO: remove timing code
-    start_time = time.time()
-    result = ray.get(myactor.get_proc_running_since.remote())
-    elapsed_time = time.time() - start_time
-    print(f"Time taken to fetch proc_running_since: {elapsed_time:.4f} seconds")
-
-    while ray.get(myactor.get_proc_running_since.remote()):    # procRunningSince will be None if the DL processing is to be stopped.
+    # procRunningSince will be None if the DL processing is to be stopped, resulting in the model being unloaded from GPU and the training loop exiting
+    while ray.get(myactor.get_proc_running_since.remote()):    
         tilestore = TileStoreFactory.get_tilestore()
         while tiles := tilestore.get_pending_inference_tiles(annotation_class_id, batch_size_infer):
             logger.info(f"Running inference on {len(tiles)} tiles for annotation class {annotation_class_id}")
@@ -172,6 +167,9 @@ def train_pred_loop(config):
             run_inference(device, model, tiles)
             
         logger.info(f"No more STARTPROCESSING tiles for annotation class {annotation_class_id}. Entering training loop.")
+        if ray.get(myactor.get_proc_running_since.remote()) is None:
+            logger.info("Processing has been stopped. Exiting training loop.")
+            break
         if ray.get(myactor.get_enable_training.remote()):
             logger.info("Training enabled. Loading training batch.")
             niter_total += 1
