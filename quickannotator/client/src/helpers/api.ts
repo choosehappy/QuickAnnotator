@@ -1,6 +1,7 @@
 // Generic response type
 type ApiResponse<T> = Promise<T>;
-import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, GetAnnsForTileIdsArgs, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileRefsByPolygonArgs, TileRef, PredictTilesRequest} from "../types.ts";
+
+import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, GetAnnsForTileIdsArgs, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileRefsByPolygonArgs, TileRef, PredictTilesRequest, DLActorStatus} from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
 import { API_URI, POLYGON_OPERATIONS } from "./config.tsx";
 
@@ -361,6 +362,24 @@ export const getChildRayTasks = async (parent_task_id: string) => {
     const filters = [["parent_task_id", "=", parent_task_id], ["type", "=", "ACTOR_TASK"]];
     return await searchRayTasks(filters);
 }
+
+// Set enable/disable deep learning training for an annotation class
+export const setEnableTraining = async (annotation_class_id: number, enable: boolean): Promise<{ data: DLActorStatus, status: number }> => {
+    const query = new URLSearchParams({ enable: enable.toString() });
+    return await post<null, DLActorStatus>(`/ray/train/${annotation_class_id}?${query}`, null);
+};
+
+// Get the DL actor status for a single annotation class
+export const getDLActorStatus = async (annotation_class_id: number): Promise<{ data: DLActorStatus, status: number }> => {
+    return await get<DLActorStatus>(`/ray/train/status/${annotation_class_id}`);
+};
+
+// Get the DL actor status for multiple annotation classes
+export const getDLActorsStatus = async (annotation_class_ids: number[]): Promise<{ data: DLActorStatus[], status: number }> => {
+    const query = new URLSearchParams();
+    annotation_class_ids.forEach(id => query.append('annotation_class_ids', id.toString()));
+    return await get<DLActorStatus[]>(`/ray/train/status?${query}`);
+};
 
 export const searchTileByCoordinates = async (image_id: number, annotation_class_id: number, x: number, y: number, downsample_level = 0): ApiResponse<{ data: TileRef }> => {
     const query = new URLSearchParams({

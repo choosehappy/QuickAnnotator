@@ -282,6 +282,13 @@ export class DataItem {
     }
 }
 
+export interface DLActorStatus {
+    annotation_class_id: number;
+    enable_training: boolean;
+    allow_pred: boolean;
+    proc_running_since: string | null;
+}
+
 export interface PredictTilesRequest {
     tile_ids: number[];
     include_bbox?: boolean;
