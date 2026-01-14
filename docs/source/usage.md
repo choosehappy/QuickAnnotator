@@ -2,6 +2,10 @@
 We provide a step-by-step user manual here.
 
 ## 1. Running QuickAnnotator
+```{note}
+If you followed the "quick start" or "multi-node deployment" installation guides, the QuickAnnotator server and user interface are already running in the background.
+```
+
 After installation, open a terminal session within the QuickAnnotator docker container and run the following command to start QuickAnnotator:
 ```bash
 quickannotator
@@ -72,8 +76,12 @@ Geojson features also support properties, however QuickAnnotator currently ignor
 
 
 ### 4.1. Manual Upload
+1. Prepare a geojson file matching the format described above.
+2. Name the geojson file according to the convention: `{IMAGE_NAME}_{CLASS_NAME}_annotations.geojson`, where `{IMAGE_NAME}` is the name of the image file (including extension) and `{CLASS_NAME}` is the name of the annotation class within QuickAnnotator.
+3. Drop the geojson file into the dropzone available on the project's page.
 
 ### 4.2. TSV Upload
+You can also upload existing annotations using a TSV file as described in [TSV Upload](#tsv-upload) above.
 
 ## 5. Annotating images
 

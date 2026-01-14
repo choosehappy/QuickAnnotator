@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Column, GridOption, SlickgridReactInstance, SlickgridReact } from 'slickgrid-react';
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
 import { getChildRayTasks } from '../../helpers/api.ts';
-import { POLLING_INTERVAL_MS, TASK_STATE, TASK_STATE_MAP } from '../../helpers/config.ts';
+import { POLLING_INTERVAL_MS, TASK_STATE, TASK_STATE_MAP } from '../../helpers/config.tsx';
 import Button from 'react-bootstrap/Button';
 import Collapse from 'react-bootstrap/Collapse';
 import { SlickCustomTooltip } from '@slickgrid-universal/custom-tooltip-plugin';

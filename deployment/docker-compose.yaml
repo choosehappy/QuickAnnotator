@@ -2,8 +2,12 @@ name: quickannotator_services
 
 services:
   postgis:
-    image: postgis/postgis:latest
+    image: postgis/postgis:16-3.5
     container_name: qa_postgis
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: qa_postgis_db
     ports:
       - "5432:5432"
     volumes:
@@ -13,7 +17,7 @@ services:
       - qa_net
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:12.4.0-20151846001
     container_name: qa_grafana
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
@@ -42,7 +46,9 @@ services:
       - "5173:5173"
       - "8265:8265"
       - "6006:6006"
-    command: /bin/bash
+    command: >
+      tmux new-session -d -s server "quickannotator" &&
+      tmux new-session -d -s ui "npm run dev"
     stdin_open: true
     tty: true
     shm_size: '12gb'

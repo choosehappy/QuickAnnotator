@@ -1,8 +1,13 @@
 services:
   qa:
+    user: root
     build:
       context: ..
       dockerfile: deployment/Dockerfile
     image: histotools/quickannotator:local
+    command: 
+      /bin/bash
     volumes:
       - ..:/opt/QuickAnnotator
+    cap_add:
+      - SYS_PTRACE

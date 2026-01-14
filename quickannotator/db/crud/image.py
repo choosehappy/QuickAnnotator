@@ -20,12 +20,15 @@ def add_image_by_path(project_id, relative_path):
     fullpath = fsmanager.nas_read.relative_to_global(relative_path)
     slide = large_image.getTileSource(fullpath)
     name = os.path.basename(fullpath)
+    base_mag = float(slide.getMetadata()['magnification'])
+
 
     image = db_models.Image(project_id=project_id,
                     name=name,
                     path=relative_path,
                     base_height=slide.sizeY,
                     base_width=slide.sizeX,
+                    base_mag=base_mag,
                     dz_tilesize=slide.tileWidth,
                     embedding_coord="POINT (1 1)",
                     group_id=0,

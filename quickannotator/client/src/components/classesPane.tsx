@@ -3,8 +3,9 @@ import { useEffect } from "react";
 import { Button, ListGroup } from "react-bootstrap";
 import { AnnotationClass, DLActorStatus } from "../types.ts";
 import { Plus, Pencil, Trash } from 'react-bootstrap-icons';
-import { MODAL_DATA, MASK_CLASS_ID } from '../helpers/config.ts';
+import { MODAL_DATA, MASK_CLASS_ID } from '../helpers/config.tsx';
 import TrainingStatusButton from './TrainingStatusButton';
+
 
 interface Props {
     currentAnnotationClass: AnnotationClass | null;

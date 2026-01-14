@@ -12,7 +12,7 @@ from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.db.crud.tile import TileStore, TileStoreFactory
 from quickannotator.constants import TileStatus
 from shapely.geometry import Polygon
-from quickannotator.api.v1.utils.coordinate_space import get_tilespace
+from quickannotator.api.v1.utils.coordinate_space import get_tilespace, TileSpace
 import quickannotator.constants as constants
 from quickannotator.db.fsmanager import fsmanager
 
@@ -173,6 +173,11 @@ def fake_ann_class_tilespace(seed):
     annotation_class_id = 2
 
     tilespace = get_tilespace(image_id=image_id, annotation_class_id=annotation_class_id)
+    return tilespace
+
+@pytest.fixture
+def manual_test_tilespace(seed):
+    tilespace = TileSpace(tilesize=4, image_width=10, image_height=10)
     return tilespace
 
 @pytest.fixture

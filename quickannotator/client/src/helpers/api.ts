@@ -1,8 +1,9 @@
 // Generic response type
 type ApiResponse<T> = Promise<T>;
-import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, TileIds, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileIdsByPolygonArgs, PostAnnClassArgs, DLActorStatus } from "../types.ts";
+
+import { Image, Project, Annotation, AnnotationResponse, AnnotationClass, Tile, GetAnnsForTileIdsArgs, PostAnnsArgs, PostOperationArgs, PutAnnArgs, QueryAnnsByPolygonArgs, SearchTileRefsByPolygonArgs, TileRef, PredictTilesRequest, DLActorStatus} from "../types.ts";
 import { Polygon, Point, Feature } from 'geojson'; 
-import { API_URI, POLYGON_OPERATIONS } from "./config.ts";
+import { API_URI, POLYGON_OPERATIONS } from "./config.tsx";
 
 interface FetchOptions extends RequestInit {
     headers?: HeadersInit;
@@ -114,28 +115,34 @@ export const removeProject = async (project_id: number) => {
 
 
 // Fetch annotations
-export const fetchAllAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean) => {
-    return await get<AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/search?is_gt=${is_gt}`);
-}
+export const fetchAllAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean, simplify_tolerance = 0.0) => {
+    const query = new URLSearchParams({
+        is_gt: is_gt.toString(),
+        simplify_tolerance: simplify_tolerance.toString(),
+    });
+    return await get<AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/search?${query}`);
+};
 
-export const spatialSearchAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean, x1: number, y1: number, x2: number, y2: number) => {
+export const spatialSearchAnnotations = async (image_id: number, annotation_class_id: number, is_gt: boolean, x1: number, y1: number, x2: number, y2: number, simplify_tolerance = 0.0) => {
     const query = new URLSearchParams({
         is_gt: is_gt.toString(),
         x1: x1.toString(),
         y1: y1.toString(),
         x2: x2.toString(),
         y2: y2.toString(),
+        simplify_tolerance: simplify_tolerance.toString(),
     });
     return await get<AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/search?${query}`);
-}
+};
 
-export const getAnnotationsForTileIds = async (image_id: number, annotation_class_id: number, tile_ids: number[], is_gt: boolean) => {
-    const requestBody: TileIds = {
+export const getAnnotationsForTileIds = async (image_id: number, annotation_class_id: number, tile_ids: number[], is_gt: boolean, simplify_tolerance = 0.0) => {
+    const requestBody: GetAnnsForTileIdsArgs = {
         tile_ids: tile_ids,
         is_gt: is_gt,
+        simplify_tolerance: simplify_tolerance,
     };
 
-    return await post<TileIds, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/tileids`, requestBody);
+    return await post<GetAnnsForTileIdsArgs, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/tileids`, requestBody);
 }
 
 // Post annotation
@@ -198,24 +205,25 @@ export const deleteAnnotationClass = async (annotation_class_id: number) => {
 }
 
 // Search tile IDs by bounding box
-export const searchTileIds = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number, hasgt=false) => {
+export const searchTileRefsByBbox = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number, hasgt=false, downsample_level=0) => {
     const query = new URLSearchParams({
         hasgt: hasgt.toString(),
         x1: x1.toString(),
         y1: y1.toString(),
         x2: x2.toString(),
         y2: y2.toString(),
+        downsample_level: downsample_level.toString(),
     });
 
-    return await get<{ tile_ids: number[] }>(`/tile/${image_id}/${annotation_class_id}/search/bbox?${query}`);
+    return await get<TileRef[]>(`/tile/${image_id}/${annotation_class_id}/search/bbox?${query}`);
 }
 
-export const searchTileIdsWithinPolygon = async (image_id: number, annotation_class_id: number, polygon: Polygon, hasgt=false) => {
-    const requestBody: SearchTileIdsByPolygonArgs = {
+export const searchTileRefsWithinPolygon = async (image_id: number, annotation_class_id: number, polygon: Polygon, hasgt=false) => {
+    const requestBody: SearchTileRefsByPolygonArgs = {
         polygon: JSON.stringify(polygon),
         hasgt: hasgt
     };
-    return await post<SearchTileIdsByPolygonArgs, { tile_ids: number[] }>(`/tile/${image_id}/${annotation_class_id}/search/polygon`, requestBody);
+    return await post<SearchTileRefsByPolygonArgs, TileRef[]>(`/tile/${image_id}/${annotation_class_id}/search/polygon`, requestBody);
 };
 
 // Fetch tile by ID
@@ -225,7 +233,7 @@ export const fetchTile = async (image_id: number, annotation_class_id: number, t
 }
 
 export const operateOnAnnotation = async (annotation: Annotation, polygon2: Polygon, operation: POLYGON_OPERATIONS) => {
-    const { annotation_class_id, ...rest } = annotation;
+    const { annotation_class_id, featureId,...rest } = annotation;
     const requestBody: PostOperationArgs = {
         ...rest,
         polygon2: JSON.stringify(polygon2),
@@ -235,24 +243,20 @@ export const operateOnAnnotation = async (annotation: Annotation, polygon2: Poly
     return await post<PostOperationArgs, AnnotationResponse>(`/annotation/operation`, requestBody);
 }
 
-export const getAnnotationsWithinPolygon = async (image_id: number, annotation_class_id: number, is_gt: boolean, polygon: Polygon) => {
+export const getAnnotationsWithinPolygon = async (image_id: number, annotation_class_id: number, is_gt: boolean, polygon: Polygon, simplify_tolerance = 0.0) => {
     const requestBody: QueryAnnsByPolygonArgs = {
         is_gt: is_gt,
         polygon: JSON.stringify(polygon),
+        simplify_tolerance: simplify_tolerance,
     };
 
     return await post<QueryAnnsByPolygonArgs, AnnotationResponse[]>(`/annotation/${image_id}/${annotation_class_id}/withinpoly`, requestBody);
 }
 
 
-export const predictTile = async (image_id: number, annotation_class_id: number, tile_id: number) => {
-    const query = new URLSearchParams({ tile_id: tile_id.toString() });
-    return await post<null, Tile>(`/tile/${image_id}/${annotation_class_id}/predict?${query}`, null);
-}
-
-export const fetchTileBoundingBox = async (image_id: number, annotation_class_id: number, tile_id: number) => {
-    const query = new URLSearchParams({ tile_id: tile_id.toString() });
-    return await get<{ bbox_polygon: Polygon }>(`/tile/${image_id}/${annotation_class_id}/bbox?${query}`);
+export const predictTiles = async (image_id: number, annotation_class_id: number, tile_ids: number[], include_bbox = false) => {
+    const requestBody: PredictTilesRequest = { tile_ids, include_bbox };
+    return await post<PredictTilesRequest, Tile[]>(`/tile/${image_id}/${annotation_class_id}/predict`, requestBody);
 }
 
 // Fetch a new color for a project
@@ -377,3 +381,21 @@ export const getDLActorsStatus = async (annotation_class_ids: number[]): Promise
     return await get<DLActorStatus[]>(`/ray/train/status?${query}`);
 };
 
+export const searchTileByCoordinates = async (image_id: number, annotation_class_id: number, x: number, y: number, downsample_level = 0): ApiResponse<{ data: TileRef }> => {
+    const query = new URLSearchParams({
+        x: x.toString(),
+        y: y.toString(),
+        downsample_level: downsample_level.toString(),
+    });
+    return get<TileRef>(
+        `/tile/${image_id}/${annotation_class_id}/search/coordinates?${query}`
+    );
+};
+
+export const fetchTileBoundingBoxes = async (image_id: number, annotation_class_id: number, tile_ids: number[]) => {
+    const requestBody = { tile_ids };
+    return await post<{ tile_ids: number[] }, { tile_id: number; bbox_polygon: any }[]>(
+        `/tile/${image_id}/${annotation_class_id}/bbox`,
+        requestBody
+    );
+};

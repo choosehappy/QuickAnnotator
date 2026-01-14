@@ -10,8 +10,9 @@ import ConfirmationModal from '../components/confirmationModal.tsx';
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
+
 import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass, searchAnnotationClasses, fetchAnnotationClassById, createAnnotationClass, deleteAnnotationClass, getDLActorStatus } from "../helpers/api.ts";
-import { DEFAULT_CLASS_ID, MODAL_DATA, TOOLBAR_KEYS, MASK_CLASS_ID, COOKIE_NAMES } from '../helpers/config.ts';
+import { DEFAULT_CLASS_ID, MODAL_DATA, TOOLBAR_KEYS, MASK_CLASS_ID, COOKIE_NAMES } from '../helpers/config.tsx';
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
 import Legend from '../components/legend.tsx';
@@ -37,6 +38,11 @@ const AnnotationPage = () => {
     const [mouseCoords, setMouseCoords] = useState<{ x: number, y: number }>({x: 0, y: 0});
     const [annotationClasses, setAnnotationClasses] = useState<AnnotationClass[]>([]);
     const [currentDlActorStatus, setCurrentDlActorStatus] = useState<DLActorStatus | null>(null);
+
+    // Layer visibility states
+    const [gtLayerVisible, setGtLayerVisible] = useState<boolean>(true);
+    const [predLayerVisible, setPredLayerVisible] = useState<boolean>(true);
+    const [tileStatusLayerVisible, setTileStatusLayerVisible] = useState<boolean>(true);
 
     function setCurrentAndPreviousAnnotation(newAnnotation: Annotation | null) {    // NOTE: Consider making this a custom hook if the pattern is used elsewhere
         setCurrentAnnotation((currAnn: CurrentAnnotation | null) => {
@@ -217,34 +223,49 @@ const AnnotationPage = () => {
                                     borderColor: "rgba(0, 0, 0, 0.8)",
                                     borderRadius: 6,
                                     zIndex: 10,
+                                    width: "60%", // Increased width to make the toolbar wider
                                 }}>
-                                    <Toolbar {...{ currentTool, 
-                                                setCurrentTool,
-                                                ctrlHeld }} />
+                                    <Toolbar
+                                        currentTool={currentTool}
+                                        setCurrentTool={setCurrentTool}
+                                        ctrlHeld={ctrlHeld}
+                                        gtLayerVisible={gtLayerVisible}
+                                        predLayerVisible={predLayerVisible}
+                                        tileStatusLayerVisible={tileStatusLayerVisible}
+                                        setGtLayerVisible={setGtLayerVisible}
+                                        setPredLayerVisible={setPredLayerVisible}
+                                        setTileStatusLayerVisible={setTileStatusLayerVisible}
+                                    />
                                 </Card.Header>
                                 <Card.Body style={{ padding: "0px" }}>
-                                    <ViewportMap {...{ currentImage, 
-                                                    currentAnnotationClass, 
-                                                    gts, 
-                                                    setGts, 
-                                                    preds, 
-                                                    setPreds, 
-                                                    currentTool, 
-                                                    setCurrentTool,
-                                                    ctrlHeld,
-                                                    setCtrlHeld,
-                                                    currentAnnotation, 
-                                                    setCurrentAndPreviousAnnotation, 
-                                                    pushAnnotationStateToUndoStack,
-                                                    prevCurrentAnnotation,
-                                                    selectedPred,
-                                                    setSelectedPred,
-                                                    highlightedPreds,
-                                                    setHighlightedPreds,
-                                                    activeModal,
-                                                    setActiveModal,
-                                                    setMouseCoords
-                                                    }} />
+                                    <ViewportMap
+                                        {...{
+                                            currentImage,
+                                            currentAnnotationClass,
+                                            gts,
+                                            setGts,
+                                            preds,
+                                            setPreds,
+                                            currentTool,
+                                            setCurrentTool,
+                                            ctrlHeld,
+                                            setCtrlHeld,
+                                            currentAnnotation,
+                                            setCurrentAndPreviousAnnotation,
+                                            pushAnnotationStateToUndoStack,
+                                            prevCurrentAnnotation,
+                                            selectedPred,
+                                            setSelectedPred,
+                                            highlightedPreds,
+                                            setHighlightedPreds,
+                                            activeModal,
+                                            setActiveModal,
+                                            setMouseCoords,
+                                            gtLayerVisible,
+                                            predLayerVisible,
+                                            tileStatusLayerVisible,
+                                        }}
+                                    />
                                     <Legend mouseCoords={mouseCoords}/>
                                 </Card.Body>
                             </Card>
@@ -255,10 +276,10 @@ const AnnotationPage = () => {
                                     {...{ currentAnnotationClass, setcurrentAnnotationClass: setCurrentAnnotationClass, setActiveModal, annotationClasses, setAnnotationClasses, currentDlActorStatus, setCurrentDlActorStatus }}
                                 />
                                 <GroundTruthPane
-                                    {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, annotationClasses, setActiveModal }}
+                                    {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, annotationClasses, setActiveModal, gtLayerVisible }}
                                 />
                                 <PredictionsPane
-                                    {...{ preds, setPreds, selectedPred, setSelectedPred, annotationClasses}}
+                                    {...{ preds, setPreds, selectedPred, setSelectedPred, annotationClasses, predLayerVisible }}
                                 />
                             </Stack>
                         </Col>

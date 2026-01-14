@@ -1,6 +1,6 @@
 from itertools import product
 from sqlalchemy.orm import Query
-from sqlalchemy import func, Table, MetaData
+from sqlalchemy import func, Table, MetaData, inspect
 import sqlalchemy
 from quickannotator import constants
 from quickannotator.db.crud.image import get_image_by_id
@@ -23,7 +23,7 @@ from osgeo import ogr
 import tempfile
 
 
-def get_annotation_query(model, scale_factor: float=1.0, mode=constants.AnnotationReturnMode.GEOJSON) -> Query:
+def get_annotation_query(model, scale_factor: float=1.0, mode=constants.AnnotationReturnMode.GEOJSON, simplify_tolerance: float=0.0) -> Query:
     '''
     Constructs a SQLAlchemy query to retrieve and scale annotation data from the database.
     Args:
@@ -48,7 +48,7 @@ def get_annotation_query(model, scale_factor: float=1.0, mode=constants.Annotati
             model.id,
             model.tile_id,
             func.ST_AsGeoJSON(func.ST_Scale(model.centroid, scale_factor, scale_factor)).label('centroid'),
-            func.ST_AsGeoJSON(func.ST_Scale(model.polygon, scale_factor, scale_factor)).label('polygon'),
+            func.ST_AsGeoJSON(func.ST_SimplifyPreserveTopology(func.ST_Scale(model.polygon, scale_factor, scale_factor), simplify_tolerance)).label('polygon'),
             model.area,
             model.custom_metrics,
             model.datetime
@@ -58,7 +58,7 @@ def get_annotation_query(model, scale_factor: float=1.0, mode=constants.Annotati
             model.id,
             model.tile_id,
             func.ST_Scale(model.centroid, scale_factor, scale_factor).label('centroid'),
-            func.ST_Scale(model.polygon, scale_factor, scale_factor).label('polygon'),
+            func.ST_SimplifyPreserveTopology(func.ST_Scale(model.polygon, scale_factor, scale_factor), simplify_tolerance).label('polygon'),
             model.area,
             model.custom_metrics,
             model.datetime
@@ -92,7 +92,7 @@ def anns_to_feature_collection(annotations: List[db_models.Annotation]) -> geojs
 
 
 class AnnotationStore:
-    def __init__(self, image_id: int, annotation_class_id: int, is_gt: bool, in_work_mag=True, require_table_exists=False, mode=constants.AnnotationReturnMode.GEOJSON):
+    def __init__(self, image_id: int, annotation_class_id: int, is_gt: bool, in_work_mag=True, require_table_exists=False, mode=constants.AnnotationReturnMode.GEOJSON, simplify_tolerance: float=0.0):
         """
         Initializes the annotation helper with the given parameters.
 
@@ -115,6 +115,7 @@ class AnnotationStore:
         self.annotation_class_id = annotation_class_id
         self.is_gt = is_gt
         self.scaling_factor = 1.0 if in_work_mag else base_to_work_scaling_factor(image_id, annotation_class_id)
+        self.simplify_tolerance = simplify_tolerance
 
         table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt=is_gt)
         model = create_dynamic_model(table_name)
@@ -126,10 +127,9 @@ class AnnotationStore:
             self.model = model
 
 
-        self.query = get_annotation_query(self.model, 1/self.scaling_factor, mode)
+        self.query = get_annotation_query(self.model, 1/self.scaling_factor, mode, self.simplify_tolerance)
 
     # CREATE
-    # TODO: consider adding optional parameter to allow tileids to be passed in.
     def insert_annotations(self, polygons: List[BaseGeometry], tile_ids: List[int] | int=None) -> List[db_models.Annotation]:
         # Initial validation
         if len(polygons) == 0:
@@ -424,9 +424,8 @@ def table_exists(table_name: str) -> bool:
     Returns:
         bool: True if the table exists, False otherwise.
     """
-    metadata = MetaData()
-    metadata.reflect(bind=engine)
-    return table_name in metadata.tables
+    inspector = inspect(engine)
+    return table_name in inspector.get_table_names()
 
 
 def build_export_filepath(image_id: int, annotation_class_id: int, is_gt: bool, extension: constants.ExportFormatExtensions, relative: bool, timestamp: datetime = None) -> str:
