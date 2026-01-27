@@ -12,7 +12,10 @@ import datetime
 from quickannotator.dl.inference import run_inference
 from quickannotator.db.crud.tile import TileStoreFactory
 from quickannotator.db.crud.annotation_class import build_actor_name
-from .dataset import TileDataset
+from .dataset import TileDataset, PatchedDataset, compute_hv_map
+from .model import UNetMultiTask
+from .loss import MultiTaskLoss
+from .dl_config import DLConfig, get_default_config, get_augmentation_transforms
 import io
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
@@ -25,27 +28,11 @@ from quickannotator.db.logging import LoggingManager
 
 from torch.utils.tensorboard import SummaryWriter
 
-def get_transforms(tile_size): #probably goes...elsewhere
-    transforms = A.Compose([
-    A.RandomScale(scale_limit=-.1, p=.1),
-    A.PadIfNeeded(min_height=tile_size, min_width=tile_size),
-    A.VerticalFlip(p=.5),
-    A.HorizontalFlip(p=.5),
-    A.Blur(p=.5),
-    # # Downscale(p=.25, scale_min=0.64, scale_max=0.99),
-    A.GaussNoise(p=.5, var_limit=(10.0, 50.0)),
-    # A.GridDistortion(p=.5, num_steps=5, distort_limit=(-0.3, 0.3),
-    #                 border_mode=cv2.BORDER_REFLECT),
-    # A.ISONoise(p=.5, intensity=(0.1, 0.5), color_shift=(0.01, 0.05)),
-    # A.RandomBrightnessContrast(p=0.5, brightness_limit=(-0.2, 0.2), contrast_limit=(-0.2, 0.2), brightness_by_max=True),
-    # A.RandomGamma(p=.5, gamma_limit=(80, 120), eps=1e-07),
-    # A.MultiplicativeNoise(p=.5, multiplier=(0.9, 1.1), per_channel=True, elementwise=True),
-    # A.HueSaturationValue(hue_shift_limit=20, sat_shift_limit=10, val_shift_limit=10, p=.9),
-    A.Rotate(p=1, border_mode=cv2.BORDER_REFLECT),
-    A.RandomCrop(tile_size, tile_size),
-    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),  # Normalization
-    ToTensorV2()])
-    return transforms
+def get_transforms_from_config(tile_size, dl_config: DLConfig = None):
+    """Get augmentation transforms from configuration or use default."""
+    if dl_config is None:
+        dl_config = get_default_config()
+    return get_augmentation_transforms(tile_size, dl_config.augmentation)
 
 
 
@@ -84,12 +71,16 @@ def train_pred_loop(config):
     actor_name = build_actor_name(annotation_class_id)
     logger.info(f"Actor name: {actor_name}")
 
-    #TODO: all these from project settings
-    boost_count = 5
-    batch_size_train=4
-    batch_size_infer=4
-    edge_weight=1_000
-    num_workers=0 #TODO:set to num of CPUs? or...# of CPUs/ divided by # of classes or something...challenge - one started can't change. maybe set to min(batch_size train, ??) 
+    # Load or create default configuration
+    dl_config = get_default_config()
+    boost_count = dl_config.boost_count
+    batch_size_train = dl_config.data.batch_size
+    batch_size_infer = dl_config.batch_size_infer
+    edge_weight = dl_config.edge_weight ##??
+    num_workers = dl_config.data.num_workers
+    patch_size = dl_config.data.patch_size
+    
+    logger.info(f"Training config: batch_size={batch_size_train}, patch_size={patch_size}, edge_weight={edge_weight}") 
     
 
     # Set device
@@ -99,15 +90,33 @@ def train_pred_loop(config):
     else:
         device= "cpu"
 
-    dataset=TileDataset(annotation_class_id,
-                        edge_weight=edge_weight, transforms=get_transforms(tile_size), 
-                        boost_count=boost_count)
+    # Create tile dataset and wrap with PatchedDataset for patch-based training
+    tile_dataset = TileDataset(
+        annotation_class_id,
+        edge_weight=edge_weight,
+        transforms=get_transforms_from_config(patch_size, dl_config),
+        boost_count=boost_count
+    )
+    
+    # Wrap with PatchedDataset to extract patches from tiles with HV maps
+    patched_dataset = PatchedDataset(
+        tile_dataset=tile_dataset,
+        patch_size=patch_size,
+        transforms=None  # Transforms already applied in TileDataset
+    )
 
-    dataloader = DataLoader(dataset, batch_size=batch_size_train, shuffle=False, num_workers=num_workers) #NOTE: for dataset of type iter - shuffle must == False
+    dataloader = DataLoader(
+        patched_dataset,
+        batch_size=batch_size_train,
+        shuffle=False,  # IterableDataset doesn't support shuffle
+        num_workers=num_workers
+    )
 
-    #model = smp.Unet(encoder_name="timm-mobilenetv3_small_100", encoder_weights="imagenet", in_channels=3, classes=1) #TODO: this should all be a setting
-    model = smp.Unet(encoder_name="efficientnet-b0", encoder_weights="imagenet", 
-                 decoder_channels=(64, 64, 64, 32, 16), in_channels=3, classes=1, encoder_freeze=True )
+    # Create model - use the new multi-task model with config parameters
+    model = UNetMultiTask(
+        encoder_name=dl_config.model.encoder_name,
+        embedding_dim=dl_config.model.embedding_dim
+    )
     
     # Load the model weights
     checkpoint_path = get_checkpoint_filepath(annotation_class_id)
@@ -123,28 +132,45 @@ def train_pred_loop(config):
         logger.info(f"No checkpoint found at {checkpoint_path}, starting from scratch.")
 
 
-    criterion = nn.BCEWithLogitsLoss(reduction='none', ).cuda() # TODO: make this a setting and provide other loss function options (DICE loss?)
-    optimizer = optim.NAdam(model.parameters(), lr=0.001, weight_decay=1e-2) #TODO: this should be a setting
+    # Create multi-task loss with all 8 components from configuration
+    criterion = MultiTaskLoss(
+        alpha_seg=dl_config.loss.alpha_seg,
+        alpha_edge=dl_config.loss.alpha_edge,
+        alpha_hv=dl_config.loss.alpha_hv,
+        alpha_recon=dl_config.loss.alpha_recon,
+        alpha_obj_emb=dl_config.loss.alpha_obj_emb,
+        alpha_pixel_con=dl_config.loss.alpha_pixel_con,
+        alpha_var=dl_config.loss.alpha_var,
+        alpha_small_hole=dl_config.loss.alpha_small_hole,
+        bce_dice_weight=dl_config.loss.bce_dice_weight,
+        temperature=dl_config.loss.temperature,
+        max_samples=dl_config.loss.max_samples,
+        pos_thresh=dl_config.loss.pos_thresh
+    )
+    
+    # Create optimizer from configuration
+    optimizer = optim.NAdam(
+        model.parameters(),
+        lr=dl_config.optimizer.learning_rate,
+        weight_decay=dl_config.optimizer.weight_decay
+    )
     
     scaler = torch.amp.GradScaler("cuda")
 
     # print(summary(model, (3, tile_size, tile_size))) #TODO: log this
     # TODO: why does the above line produce an error: RuntimeError: Input type (torch.cuda.FloatTensor) and weight type (torch.FloatTensor) should be the same
-    #--- freeze encoder weights
-    for param in model.encoder.parameters():
+    
+    #model = model.half() #TODO: test with .half()
+    model=ray.train.torch.prepare_model(model,device)
+    model.train()
+    
+    # Freeze encoder weights for transfer learning
+    for param in model.model.encoder.parameters():
         param.requires_grad = False
         
     for name, param in model.named_parameters():
         if not param.requires_grad:
             logger.info(f"{name} is frozen")
-    #-----
-
-
-    
-    #model = model.half() #TODO: test with .half()
-    model=ray.train.torch.prepare_model(model,device)
-    model.train()
-
 
     running_loss = []
     
@@ -167,48 +193,82 @@ def train_pred_loop(config):
         if ray.get(myactor.getEnableTraining.remote()):
             #print ("in train loop")
             niter_total += 1
-            images, masks, weights = next(iter(dataloader))
-            #print ("post next iter")
-            images = images.half().to(device) #TODO: test with .half()
-            masks = masks.to(device) #these should remain as uint8 - which is both more correct and half the size of a float16
-            weights = weights.to(device)
-            #print ("post copy ")
+            batch_data = next(iter(dataloader))
+            
+            # Unpack patch batch: (patch_image, patch_mask, patch_weight, hv_map)
+            images = batch_data[0]
+            masks = batch_data[1]
+            # Note: weights (batch_data[2]) currently unused - reserved for future per-sample weighting
+            hv_maps = batch_data[3]
+            
+            # Move to device and normalize images to [0, 1]
+            images = images.half().to(device) / 255.0
+            masks = masks.to(device)
+            hv_maps = hv_maps.to(device)
             
             with torch.autocast(device_type="cuda", dtype=torch.float16):
                 optimizer.zero_grad()
-                outputs = model(images)
                 
-                loss = criterion(outputs, masks.float())
-                loss = (loss * (edge_weight ** weights).type_as(loss)).mean()
+                # Forward pass with ALL auxiliary tasks enabled
+                model_output = model(
+                    images,
+                    return_recon=True,
+                    return_hv=True,
+                    return_obj_emb=True,
+                    return_pixel_emb=True
+                )
                 
-                positive_mask = (masks == 1).float()
-                unlabeled_mask = (masks == 0).float()
-                
-                positive_loss = 1.0 * (loss * positive_mask).mean()
-                unlabeled_loss = .1 * (loss * unlabeled_mask).mean()
-                
-                loss_total = positive_loss + unlabeled_loss
-            # loss_total.backward()
-            # optimizer.step()
-            
-            scaler.scale(loss_total).backward()
+                # Compute 8-component multi-task loss
+                # MultiTaskLoss.forward() returns dict with 'total' and individual components
+                losses_dict = criterion(
+                    model_output=model_output,
+                    positive_mask=masks,
+                    target_hv=hv_maps,
+                    images=images,  # Required for reconstruction loss
+                    pred_probs=torch.sigmoid(model_output['preds'])
+                )
+                loss_total = losses_dict['total']
 
+            scaler.scale(loss_total).backward()
+            
+            # Optional gradient clipping for stability
+            if dl_config.optimizer.grad_clip is not None:
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), dl_config.optimizer.grad_clip)
+            
             scaler.step(optimizer)
             scaler.update()
 
-
             running_loss.append(loss_total.item())
             
-            writer.add_scalar(f'loss/loss', loss, niter_total)
-            writer.add_scalar(f'loss/positive_loss', positive_loss, niter_total)
-            writer.add_scalar(f'loss/unlabeled_loss', unlabeled_loss, niter_total)
-            writer.add_scalar(f'loss/loss_total', loss_total, niter_total)
+            # Log total loss and all 8 components to TensorBoard for comprehensive monitoring
+            def _to_scalar(val):
+                """Helper to safely extract scalar from tensor or return float."""
+                return val.item() if isinstance(val, torch.Tensor) else float(val)
+            
+            writer.add_scalar('loss/total', loss_total.item(), niter_total)
+            writer.add_scalar('loss/segmentation', _to_scalar(losses_dict['segmentation']), niter_total)
+            writer.add_scalar('loss/edge', _to_scalar(losses_dict['edge']), niter_total)
+            writer.add_scalar('loss/hv', _to_scalar(losses_dict['hv']), niter_total)
+            writer.add_scalar('loss/recon', _to_scalar(losses_dict['recon']), niter_total)
+            writer.add_scalar('loss/obj_emb', _to_scalar(losses_dict['obj_emb']), niter_total)
+            writer.add_scalar('loss/pixel_con', _to_scalar(losses_dict['pixel_con']), niter_total)
+            writer.add_scalar('loss/total_var', _to_scalar(losses_dict['total_var']), niter_total)
+            writer.add_scalar('loss/small_hole', _to_scalar(losses_dict['small_hole']), niter_total)
 
             #print ("losses:\t",loss_total,positive_mask.sum(),positive_loss,unlabeled_loss)
             
             last_save+=1
             if last_save>50:
                 logger.info(f"niter_total [{niter_total}], Loss: {sum(running_loss)/len(running_loss)}")
+                logger.info(f"  - Segmentation: {_to_scalar(losses_dict['segmentation']):.4f}")
+                logger.info(f"  - Edge: {_to_scalar(losses_dict['edge']):.4f}")
+                logger.info(f"  - HV: {_to_scalar(losses_dict['hv']):.4f}")
+                logger.info(f"  - Reconstruction: {_to_scalar(losses_dict['recon']):.4f}")
+                logger.info(f"  - Object Embedding: {_to_scalar(losses_dict['obj_emb']):.4f}")
+                logger.info(f"  - Pixel Contrastive: {_to_scalar(losses_dict['pixel_con']):.4f}")
+                logger.info(f"  - Total Variation: {_to_scalar(losses_dict['total_var']):.4f}")
+                logger.info(f"  - Small Hole: {_to_scalar(losses_dict['small_hole']):.4f}")
                 running_loss=[]
 
                 logger.info("Saving model checkpoint")  # Use logger instead of print
