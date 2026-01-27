@@ -468,6 +468,11 @@ class MultiTaskLoss(nn.Module):
         temperature: float = 0.1,
         max_samples: int = 512,
         pos_thresh: float = 0.5,
+        post_process_pseudo: bool = False,
+        min_size: int = 100,
+        min_hole_size: int = 100,
+        smooth_pseudo: bool = False,
+        smooth_radius: int = 1,
     ):
         """
         Initialize 8-component multi-task loss.
@@ -485,6 +490,11 @@ class MultiTaskLoss(nn.Module):
             temperature: Temperature for contrastive similarity.
             max_samples: Max samples for contrastive learning.
             pos_thresh: Threshold for positive predictions.
+            post_process_pseudo: Whether to post-process pseudo-labels with morphology.
+            min_size: Minimum object size for morphological filtering.
+            min_hole_size: Minimum hole size for morphological filtering.
+            smooth_pseudo: Whether to smooth pseudo-labels.
+            smooth_radius: Radius for smoothing structuring element.
         """
         super().__init__()
         self.alpha_seg = alpha_seg
@@ -496,6 +506,11 @@ class MultiTaskLoss(nn.Module):
         self.alpha_var = alpha_var
         self.alpha_small_hole = alpha_small_hole
         self.pos_thresh = pos_thresh
+        self.post_process_pseudo = post_process_pseudo
+        self.min_size = min_size
+        self.min_hole_size = min_hole_size
+        self.smooth_pseudo = smooth_pseudo
+        self.smooth_radius = smooth_radius
         
         # Loss components
         self.seg_loss_fn = WeaklySupervisedSegmentationLoss(bce_dice_weight=bce_dice_weight)
@@ -532,7 +547,6 @@ class MultiTaskLoss(nn.Module):
         Returns:
             Dictionary with 'total' loss and individual component losses for logging.
         """
-        device = positive_mask.device
         losses = {}
         
         # === LOSS 1: Segmentation (Weakly-Supervised) ===
@@ -544,11 +558,11 @@ class MultiTaskLoss(nn.Module):
         pseudo_pos, pseudo_neg = self.seg_loss_fn.generate_pseudo_labels(
             pred_probs, positive_mask,
             threshold_pos=self.pos_thresh,
-            post_process=True,
-            min_size=10,
-            min_hole_size=10,
-            smooth=True,
-            smooth_radius=3
+            post_process=self.post_process_pseudo,
+            min_size=self.min_size,
+            min_hole_size=self.min_hole_size,
+            smooth=self.smooth_pseudo,
+            smooth_radius=self.smooth_radius
         )
         loss_seg = self.seg_loss_fn(pred_seg, positive_mask, pseudo_pos=pseudo_pos, pseudo_neg=pseudo_neg)
         losses['segmentation'] = loss_seg

@@ -31,9 +31,11 @@ class PixelEmbeddingHead(nn.Module):
             embedding_dim: Dimensionality of the output embeddings.
         """
         super().__init__()
-        self.conv1 = nn.Conv2d(in_channels, embedding_dim, 1)
-        self.relu = nn.ReLU(inplace=True)
-        self.conv2 = nn.Conv2d(embedding_dim, embedding_dim, 1)
+        self.layers = nn.Sequential(
+            nn.Conv2d(in_channels, embedding_dim, kernel_size=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(embedding_dim, embedding_dim, kernel_size=1),
+        )
 
     def forward(self, features: torch.Tensor) -> torch.Tensor:
         """
@@ -45,11 +47,8 @@ class PixelEmbeddingHead(nn.Module):
         Returns:
             Normalized embeddings of shape (B, embedding_dim, H, W).
         """
-        x = self.conv1(features)
-        x = self.relu(x)
-        x = self.conv2(x)
-        norm = torch.norm(x, p=2, dim=1, keepdim=True) + 1e-6
-        return x / norm
+        x = self.layers(features)
+        return F.normalize(x, dim=1, p=2)
 
 
 class MultiTaskSegmentationModel(nn.Module):
@@ -111,7 +110,6 @@ class MultiTaskSegmentationModel(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        return_embeddings: bool = False,
         return_recon: bool = False,
         return_hv: bool = False,
         return_obj_emb: bool = False,
@@ -122,7 +120,6 @@ class MultiTaskSegmentationModel(nn.Module):
 
         Args:
             x: Input tensor of shape (B, 3, H, W).
-            return_embeddings: Whether to return embeddings (deprecated, use specific flags).
             return_recon: Whether to compute and return reconstruction.
             return_hv: Whether to compute and return HV map.
             return_obj_emb: Whether to compute and return object embeddings.

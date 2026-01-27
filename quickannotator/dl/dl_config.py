@@ -108,7 +108,7 @@ class OptimizerConfig:
     
     # Gradient
     use_amp: bool = True  # Automatic Mixed Precision
-    grad_clip: Optional[float] = None
+    grad_clip: Optional[float] = 1.0 # Gradient clipping value (None to disable)
 
 
 @dataclass

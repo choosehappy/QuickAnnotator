@@ -86,7 +86,7 @@ def run_inference(device, model, tiles):
 
         else:
             io_image,tile.x,tile.y = load_tile(tile)
-            # NOTE: Should we also cache the image here? - Jackson
+            # NOTE: Should we also cache the image here? - Jackson - AJ: i don't think so, as the cache will rapidly be filled -- i would leave it only for DL based tiles
 
         if constants.DEBUG:
             path = fsmanager.nas_write.get_debug_path()
@@ -138,4 +138,4 @@ def run_inference(device, model, tiles):
                       tile_ids={tile.tile_id for tile in tiles}, 
                       pred_status=TileStatus.DONEPROCESSING, 
                       process_owns_tile=True)
-    return preds
+    return result #was pred - but we don't use this anyway - so might as well return the result of the upsert

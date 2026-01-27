@@ -75,13 +75,10 @@ class TileDataset(IterableDataset):
                 
                 self.mask_cache_manager.cache(mask_cache_key, CacheableMask(mask_image, None))
 
-            img_new = io_image
-            mask_new = mask_image
-
             # Log image dimensions
-            logger.debug(f"Image dimensions: {img_new.shape}, Mask dimensions: {mask_new.shape}")
+            logger.debug(f"Image dimensions: {io_image.shape}, Mask dimensions: {mask_image.shape}")
 
-            yield img_new, mask_new[None, ::]
+            yield io_image, mask_image
 
 
 def compute_hv_map(mask_img: np.ndarray) -> np.ndarray:
@@ -177,10 +174,7 @@ class PatchedDataset(IterableDataset):
             Tuples of (patch_image, patch_mask, hv_map)
         """
         for tile_image, tile_mask in self.tile_dataset:
-            # Extract patches from the tile
-            # Note: tile_mask comes with shape (1, H, W) from TileDataset
-            tile_mask_2d = tile_mask[0]
-            
+
             # Extract and yield patches
-            for patch_data in self._extract_patches(tile_image, tile_mask_2d):
+            for patch_data in self._extract_patches(tile_image, tile_mask):
                 yield patch_data

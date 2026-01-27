@@ -142,11 +142,16 @@ def train_pred_loop(config):
         bce_dice_weight=dl_config.loss.bce_dice_weight,
         temperature=dl_config.loss.temperature,
         max_samples=dl_config.loss.max_samples,
-        pos_thresh=dl_config.loss.pos_thresh
+        pos_thresh=dl_config.loss.pos_thresh,
+        post_process_pseudo=dl_config.loss.post_process_pseudo,
+        min_size=dl_config.loss.min_size,
+        min_hole_size=dl_config.loss.min_hole_size,
+        smooth_pseudo=dl_config.loss.smooth_pseudo,
+        smooth_radius=dl_config.loss.smooth_radius
     )
     
     # Create optimizer from configuration
-    optimizer = optim.NAdam(
+    optimizer = optim.AdamW(
         model.parameters(),
         lr=dl_config.optimizer.learning_rate,
         weight_decay=dl_config.optimizer.weight_decay
