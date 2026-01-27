@@ -41,7 +41,7 @@ class ModelConfig:
     # Encoder
     encoder_name: str = "efficientnet-b0"
     encoder_weights: str = "imagenet"
-    encoder_freeze: bool = True  # Freeze encoder for transfer learning
+    encoder_freeze: bool = False  # Freeze encoder for transfer learning (disabled by default)
     
     # Architecture
     embedding_dim: int = 16
@@ -195,7 +195,6 @@ class DLConfig:
     # Ray/Distributed
     boost_count: int = 5
     batch_size_infer: int = 4
-    edge_weight: float = 1_000
     
     def __post_init__(self):
         """Initialize default sub-configurations if not provided."""
@@ -305,12 +304,6 @@ def get_augmentation_transforms(patch_size: int, config: Optional[AugmentationCo
     
     # Random crop
     transforms.append(A.RandomCrop(patch_size, patch_size))
-    
-    # Normalization
-    if config.normalize:
-        transforms.append(
-            A.Normalize(mean=config.norm_mean, std=config.norm_std)
-        )
     
     # To tensor
     transforms.append(ToTensorV2())

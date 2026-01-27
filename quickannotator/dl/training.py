@@ -76,11 +76,10 @@ def train_pred_loop(config):
     boost_count = dl_config.boost_count
     batch_size_train = dl_config.data.batch_size
     batch_size_infer = dl_config.batch_size_infer
-    edge_weight = dl_config.edge_weight ##??
     num_workers = dl_config.data.num_workers
     patch_size = dl_config.data.patch_size
     
-    logger.info(f"Training config: batch_size={batch_size_train}, patch_size={patch_size}, edge_weight={edge_weight}") 
+    logger.info(f"Training config: batch_size={batch_size_train}, patch_size={patch_size}") 
     
 
     # Set device
@@ -93,16 +92,14 @@ def train_pred_loop(config):
     # Create tile dataset and wrap with PatchedDataset for patch-based training
     tile_dataset = TileDataset(
         annotation_class_id,
-        edge_weight=edge_weight,
-        transforms=get_transforms_from_config(patch_size, dl_config),
         boost_count=boost_count
     )
     
-    # Wrap with PatchedDataset to extract patches from tiles with HV maps
+    # Wrap with PatchedDataset to extract patches from tiles with HV maps and apply transforms
     patched_dataset = PatchedDataset(
         tile_dataset=tile_dataset,
         patch_size=patch_size,
-        transforms=None  # Transforms already applied in TileDataset
+        transforms=get_transforms_from_config(patch_size, dl_config)
     )
 
     dataloader = DataLoader(
@@ -164,13 +161,15 @@ def train_pred_loop(config):
     model=ray.train.torch.prepare_model(model,device)
     model.train()
     
-    # Freeze encoder weights for transfer learning
-    for param in model.model.encoder.parameters():
-        param.requires_grad = False
+    # Conditionally freeze encoder weights for transfer learning (based on config)
+    if dl_config.model.encoder_freeze:
+        for param in model.model.encoder.parameters():
+            param.requires_grad = False
+        logger.info("Encoder weights frozen for transfer learning")
         
     for name, param in model.named_parameters():
         if not param.requires_grad:
-            logger.info(f"{name} is frozen")
+            logger.info(f"Frozen parameter: {name}")
 
     running_loss = []
     
@@ -195,11 +194,10 @@ def train_pred_loop(config):
             niter_total += 1
             batch_data = next(iter(dataloader))
             
-            # Unpack patch batch: (patch_image, patch_mask, patch_weight, hv_map)
+            # Unpack patch batch: (patch_image, patch_mask, hv_map)
             images = batch_data[0]
             masks = batch_data[1]
-            # Note: weights (batch_data[2]) currently unused - reserved for future per-sample weighting
-            hv_maps = batch_data[3]
+            hv_maps = batch_data[2]
             
             # Move to device and normalize images to [0, 1]
             images = images.half().to(device) / 255.0

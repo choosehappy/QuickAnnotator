@@ -25,8 +25,17 @@ import os
 logger = logging.getLogger(constants.LoggerNames.RAY.value)
 
 def preprocess_image(io_image, device):
-    io_image = io_image / 255.0
-    io_image = (io_image - np.array([0.485, 0.456, 0.406])) / np.array([0.229, 0.224, 0.225])
+    """
+    Preprocess image for inference: normalize to [0, 1], pad, and convert to tensor.
+    
+    Args:
+        io_image: Input image as numpy array (H, W, C) in [0, 255] range
+        device: PyTorch device to move tensor to
+        
+    Returns:
+        Preprocessed image tensor of shape (1, 3, H+64, W+64)
+    """
+    io_image = io_image / 255.0  # Normalize to [0, 1]
     io_image = np.pad(io_image, ((32, 32), (32, 32), (0, 0)), mode='reflect')
     io_image = torch.tensor(io_image, dtype=torch.float32).permute(2, 0, 1).unsqueeze(0).to(device)
     return io_image
@@ -95,17 +104,22 @@ def run_inference(device, model, tiles):
     
     model.eval()
     with torch.no_grad():
-        outputs = model(io_images)  #output at target magnification level!
-        outputs = torch.sigmoid(outputs) #BCEWithLogitsLoss needs a sigmoid at the end
-        outputs = outputs[:, :, 32:-32, 32:-32]
+        # Forward pass through multi-task model (returns dict with 'preds' and auxiliary outputs)
+        model_output = model(io_images, return_recon=False, return_hv=False, return_obj_emb=False, return_pixel_emb=False)
+        
+        # Extract segmentation predictions and apply sigmoid
+        preds = torch.sigmoid(model_output['preds'])
+        
+        # Remove padding applied during preprocessing
+        preds = preds[:, :, 32:-32, 32:-32]
 
-        for j, output in enumerate(outputs):
+        for j, pred in enumerate(preds):
             #---
-            # oo = outputs.squeeze().detach().cpu().numpy()
+            # oo = pred.squeeze().detach().cpu().numpy()
             # cv2.imwrite("/opt/QuickAnnotator/output.png",oo) #TODO: remove- - for debug
             # np.save('/opt/QuickAnnotator/output.npy', oo)
             #---
-            polygons = postprocess_output(output) #some parmaeters here should be added to the class level config -- see function prototype
+            polygons = postprocess_output(pred) #some parmaeters here should be added to the class level config -- see function prototype
             translated_polygons = [
                 shapely.affinity.translate(polygon, xoff=tiles[j].x, yoff=tiles[j].y) for polygon in polygons
             ]
@@ -124,4 +138,4 @@ def run_inference(device, model, tiles):
                       tile_ids={tile.tile_id for tile in tiles}, 
                       pred_status=TileStatus.DONEPROCESSING, 
                       process_owns_tile=True)
-    return outputs
+    return preds
