@@ -57,31 +57,6 @@ def edge_loss(positive_mask: torch.Tensor, pred: torch.Tensor) -> torch.Tensor:
     return bce_edge
 
 
-def masked_mse_loss(preds: torch.Tensor, targets: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-    """
-    Compute masked MSE loss.
-
-    Args:
-        preds: Predictions.
-        targets: Targets.
-        mask: Mask to apply.
-
-    Returns:
-        Masked MSE loss.
-    """
-    criterion = nn.MSELoss(reduction='none')
-    per_element_loss = criterion(preds, targets)
-
-    # Expand mask to match channel dimension if needed
-    if mask.dim() < per_element_loss.dim():
-        mask = mask.unsqueeze(1)  # [B,1,H,W]
-
-    # Apply mask
-    masked_loss = per_element_loss * mask
-
-    # Average over valid pixels, avoid division by zero
-    return masked_loss.sum() / mask.sum().clamp(min=1)
-
 
 def total_variation_loss(mask: torch.Tensor) -> torch.Tensor:
     """
@@ -93,8 +68,8 @@ def total_variation_loss(mask: torch.Tensor) -> torch.Tensor:
     Returns:
         Total variation loss.
     """
-    dx = torch.abs(mask[:, :, 1:, :] - mask[:, :, :-1, :])
-    dy = torch.abs(mask[:, :, :, 1:] - mask[:, :, :, :-1])
+    dx = torch.abs(mask[:, :, 1:, :] - mask[:, :, :-1, :]) ** 2
+    dy = torch.abs(mask[:, :, :, 1:] - mask[:, :, :, :-1]) ** 2
     return (dx.mean() + dy.mean())
 
 
