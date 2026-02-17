@@ -79,8 +79,8 @@ class LossConfig:
     pos_thresh: float = 0.9
     neg_thresh: float = 0.2
     post_process_pseudo: bool = True #False #AJ: was false but i don't think was ported over correctly
-    min_size: int = 100
-    min_hole_size: int = 100
+    max_size: int = 100
+    max_hole_size: int = 100
     smooth_pseudo: bool = False  #AJ: leaving as false for now - its a bit computationally expensive
     smooth_radius: int = 2
     
@@ -93,11 +93,9 @@ class LossConfig:
 @dataclass
 class OptimizerConfig:
     """Optimizer and learning rate configuration."""
-    
     # Optimizer
-    optimizer_type: str = "NAdam"  # Options: "Adam", "NAdam", "SGD"
-    learning_rate: float = 0.001
-    weight_decay: float = 1e-2
+    learning_rate: float = 1e-4
+    weight_decay: float = 1e-5
     beta1: float = 0.9
     beta2: float = 0.999
     

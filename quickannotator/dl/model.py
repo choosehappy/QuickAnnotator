@@ -159,7 +159,7 @@ class UNetMultiTask(nn.Module):
             outputs["obj_emb"] = obj_emb
 
         if return_pixel_emb:  # Pixel-level embeddings (high-resolution)
-            pixel_emb = self.pixel_proj(features[1])
+            pixel_emb = self.pixel_proj(features[1]) #normalization occurs within the pixel_proj head
             outputs["pixel_emb"] = pixel_emb
 
         return outputs

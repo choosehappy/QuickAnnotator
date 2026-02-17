@@ -64,7 +64,7 @@ def train_pred_loop(config):
     #---------
     logger = LoggingManager.init_logger(constants.LoggerNames.RAY.value)
     logger.info("Initialized train_pred_loop")
-    #TODO: likely need to accept here the checkpoint location
+
     annotation_class_id = config["annotation_class_id"] # --- this should result in a catastrophic failure if not provided
     tile_size = config["tile_size"] #probably this as well
     magnification = config["magnification"] #probably this as well
@@ -156,7 +156,8 @@ def train_pred_loop(config):
     optimizer = optim.AdamW(
         model.parameters(),
         lr=dl_config.optimizer.learning_rate,
-        weight_decay=dl_config.optimizer.weight_decay
+        weight_decay=dl_config.optimizer.weight_decay,
+        betas=(dl_config.optimizer.beta1, dl_config.optimizer.beta2)
     )
     
     scaler = torch.amp.GradScaler("cuda")
@@ -253,6 +254,9 @@ def train_pred_loop(config):
             
             writer.add_scalar('loss/total', loss_total.item(), niter_total)
             writer.add_scalar('loss/segmentation', _to_scalar(losses_dict['segmentation']), niter_total)
+            writer.add_scalar('loss/seg_bce_pos', _to_scalar(losses_dict['seg_bce_pos']), niter_total)
+            writer.add_scalar('loss/seg_dice', _to_scalar(losses_dict['seg_dice']), niter_total)
+            writer.add_scalar('loss/seg_bce_bg', _to_scalar(losses_dict['seg_bce_bg']), niter_total)
             writer.add_scalar('loss/edge', _to_scalar(losses_dict['edge']), niter_total)
             writer.add_scalar('loss/hv', _to_scalar(losses_dict['hv']), niter_total)
             writer.add_scalar('loss/recon', _to_scalar(losses_dict['recon']), niter_total)
@@ -267,6 +271,9 @@ def train_pred_loop(config):
             if last_save>50:
                 logger.info(f"niter_total [{niter_total}], Loss: {sum(running_loss)/len(running_loss)}")
                 logger.info(f"  - Segmentation: {_to_scalar(losses_dict['segmentation']):.4f}")
+                logger.info(f"    - BCE Pos: {_to_scalar(losses_dict['seg_bce_pos']):.4f}")
+                logger.info(f"    - Dice: {_to_scalar(losses_dict['seg_dice']):.4f}")
+                logger.info(f"    - BCE BG: {_to_scalar(losses_dict['seg_bce_bg']):.4f}")
                 logger.info(f"  - Edge: {_to_scalar(losses_dict['edge']):.4f}")
                 logger.info(f"  - HV: {_to_scalar(losses_dict['hv']):.4f}")
                 logger.info(f"  - Reconstruction: {_to_scalar(losses_dict['recon']):.4f}")

@@ -53,7 +53,7 @@ def edge_loss(positive_mask: torch.Tensor, pred: torch.Tensor) -> torch.Tensor:
     """
     edge_mask = compute_sobel_edge_mask(positive_mask)
     bce_edge = nn.BCEWithLogitsLoss(reduction='none')(pred, positive_mask)
-    bce_edge = (bce_edge * edge_mask).sum() / (edge_mask.sum() + 1e-6)
+    bce_edge = (bce_edge * edge_mask).sum() / edge_mask.sum().clamp(min=1.0)
     return bce_edge
 
 
@@ -149,29 +149,42 @@ class HVRegressionLoss(nn.Module):
         self.reduction = reduction
         self.mse_loss = nn.MSELoss(reduction=reduction)
     
-    def forward(self, pred_hv: torch.Tensor, target_hv: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self,
+        pred_hv: torch.Tensor,
+        target_hv: torch.Tensor,
+        mask: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """
-        Compute HV regression loss.
-        
+        Compute HV regression loss with optional masking, normalized per sample.
+
         Args:
             pred_hv: Predicted HV maps of shape (B, 1, H, W).
             target_hv: Target HV maps of shape (B, 1, H, W).
-            mask: Optional mask to apply (B, 1, H, W). Only compute loss on masked regions.
-            
+            mask: Optional mask (B, 1, H, W). Only compute loss on masked regions.
+
         Returns:
-            HV regression loss.
+            HV regression loss (scalar).
         """
         if mask is not None:
-            # Only compute loss on positive regions
-            pred_hv_masked = pred_hv * mask
-            target_hv_masked = target_hv * mask
-            
-            # Compute MSE only on masked regions
-            mse = ((pred_hv_masked - target_hv_masked) ** 2 * mask).sum() / (mask.sum() + 1e-8)
-            return mse
+            B = pred_hv.shape[0]
+
+            # Flatten per sample
+            diff_flat = (pred_hv - target_hv).view(B, -1)
+            mask_flat = mask.view(B, -1)
+
+            # Per-sample numerator and denominator
+            num = (diff_flat ** 2 * mask_flat).sum(dim=1)
+            den = mask_flat.sum(dim=1).clamp(min=1.0)  # avoid division by tiny numbers
+
+            mse_per_sample = num / den
+
+            # Average over batch
+            return mse_per_sample.mean()
         else:
             # Standard MSE loss
             return self.mse_loss(pred_hv, target_hv)
+
 
 
 class WeaklySupervisedSegmentationLoss(nn.Module):
@@ -210,7 +223,7 @@ class WeaklySupervisedSegmentationLoss(nn.Module):
         self.pseudo_neg_weight = pseudo_neg_weight
 
         self.dice_loss_fn = smp.losses.DiceLoss(
-            mode='binary', from_logits=False, smooth=dice_smooth
+            mode='binary', from_logits=True, smooth=dice_smooth, ignore_index=-1  #AJ: added from_logits=True since our model outputs logits for segmentation head
         )
         self.bce_loss_fn = nn.BCEWithLogitsLoss(reduction='none')
 
@@ -222,8 +235,8 @@ class WeaklySupervisedSegmentationLoss(nn.Module):
         threshold_pos: float = 0.9,
         threshold_neg: float = 0.2,
         post_process: bool = False,
-        min_size: int = 100,
-        min_hole_size: int = 100,
+        max_size: int = 100,
+        max_hole_size: int = 100,
         smooth: bool = False,
         smooth_radius: int = 1
     ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -236,8 +249,8 @@ class WeaklySupervisedSegmentationLoss(nn.Module):
             threshold_pos: Threshold for pseudo-positives.
             threshold_neg: Threshold for pseudo-negatives.
             post_process: Whether to apply morphological post-processing.
-            min_size: Minimum size for objects.
-            min_hole_size: Minimum size for holes.
+            max_size: Minimum size for objects.
+            max_hole_size: Minimum size for holes.
             smooth: Whether to smooth edges.
             smooth_radius: Radius for smoothing.
 
@@ -248,7 +261,7 @@ class WeaklySupervisedSegmentationLoss(nn.Module):
         unknown_mask = 1 - positive_mask
 
         # Initial pseudo-labels
-        pseudo_pos = ((pred_probs > threshold_pos) & (unknown_mask > 0)).float()
+        pseudo_pos = ((pred_probs >= threshold_pos) & (unknown_mask > 0)).float()
         pseudo_neg = ((pred_probs < threshold_neg) & (unknown_mask > 0)).float()
 
         if post_process:
@@ -261,9 +274,9 @@ class WeaklySupervisedSegmentationLoss(nn.Module):
                 for i in range(batch_size):
                     m = mask_np[i, 0]
                     # Remove small objects
-                    m = remove_small_objects(m, max_size=min_size)
+                    m = remove_small_objects(m, max_size=max_size)
                     # Fill small holes
-                    m = remove_small_holes(m, max_size=min_hole_size)
+                    m = remove_small_holes(m, max_size=max_hole_size)
                     # Optional smoothing
                     if smooth:
                         m = opening(m, struct)
@@ -279,7 +292,7 @@ class WeaklySupervisedSegmentationLoss(nn.Module):
         positive_mask: torch.Tensor,
         pseudo_pos: Optional[torch.Tensor] = None,
         pseudo_neg: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    ) -> dict:
         """
         Compute the loss.
 
@@ -290,7 +303,7 @@ class WeaklySupervisedSegmentationLoss(nn.Module):
             pseudo_neg: Pseudo-negative mask.
 
         Returns:
-            Combined loss value.
+            Dictionary with individual loss components and combined loss.
         """
         eps = 1e-6
         B, _, H, W = pred.shape
@@ -314,28 +327,56 @@ class WeaklySupervisedSegmentationLoss(nn.Module):
 
         # Positive BCE
         bce_pos = self.bce_loss_fn(pred, combined_pos)
-        bce_pos = (bce_pos * weight_map).sum() / (weight_map.sum() + eps)
+        bce_pos_loss = (bce_pos * weight_map).sum() / (weight_map.sum() + eps)
 
-        # Dice on positives (weighted by GT + pseudo_pos)
-        dice = self.dice_loss_fn(pred * combined_pos, combined_pos.float())
+        # Dice on positives 
+        dice_mask = torch.full_like(combined_pos.float(), fill_value=-1)  # Initialize with ignore_index
+        dice_mask[combined_pos == 1] = 1  # GT + pseudo_pos are positives
+        if pseudo_neg is not None:
+            dice_mask[pseudo_neg == 1] = 0   
+        dice_loss = self.dice_loss_fn(pred, dice_mask) #TODO: consider per pixel dice weight - but would require custom functionality
 
+
+        # --- unknown background --- > push to zero
         # Dynamic lambda_bg
         tile_pos_frac = combined_pos.view(B, -1).mean(dim=1)
-        lambda_bg = self.lambda_bg_base * (1 - tile_pos_frac)
-        lambda_bg = lambda_bg.view(B, 1, 1, 1)
-
-        # BCE on unknown pixels + pseudo-negatives
-        unknown_mask = 1 - combined_pos
-        unknown_weight = lambda_bg
-        if pseudo_neg is not None:
-            unknown_mask2 = torch.clamp(unknown_mask + pseudo_neg, 0, 1)
-        else:
-            unknown_mask2 = unknown_mask
-        bce_bg = self.bce_loss_fn(pred, torch.zeros_like(pred))
-        bce_bg = (bce_bg * unknown_mask2 * unknown_weight).sum() / (unknown_mask2.sum() + eps)
+        lambda_bg = self.lambda_bg_base * (1 + tile_pos_frac.clamp(max=.5)) #note: the more positive pixels, the stronger this should be to encourage better edges
         
-        loss = self.bce_dice_weight * bce_pos + (1 - self.bce_dice_weight) * dice + bce_bg.mean()
-        return loss
+        # ---- Build truly unknown mask ----
+        truly_unknown = (combined_pos == 0)
+        if pseudo_neg is not None:
+            truly_unknown = truly_unknown & (pseudo_neg == 0)
+
+        truly_unknown = truly_unknown.float()
+
+        # ---- BCE toward zero ----
+        bce_bg = self.bce_loss_fn(pred, torch.zeros_like(pred))
+
+        # Flatten per sample
+        bce_bg_flat = (bce_bg * truly_unknown).view(B, -1)
+        mask_flat = truly_unknown.view(B, -1)
+
+        # Per-sample numerator and denominator
+        num = bce_bg_flat.sum(dim=1)                     # (B,)
+        den = mask_flat.sum(dim=1)                       # (B,)
+
+        # Avoid division when no unknown pixels exist
+        loss_per_sample = torch.zeros_like(num)
+        valid = den > 0
+        loss_per_sample[valid] = num[valid] / (den[valid] + eps)
+
+        # Apply per-sample lambda_bg 
+        bce_bg_loss = (lambda_bg * loss_per_sample).mean()
+
+        # Combined loss
+        combined_loss = self.bce_dice_weight * bce_pos_loss + (1 - self.bce_dice_weight) * dice_loss +  bce_bg_loss
+        
+        return {
+            'bce_pos': bce_pos_loss,
+            'dice': dice_loss,
+            'bce_bg': bce_bg_loss,
+            'total': combined_loss
+        }
 
 
 class HierarchicalPixelContrastiveLoss(nn.Module):
@@ -469,8 +510,8 @@ class MultiTaskLoss(nn.Module):
         max_samples: int = 512,
         pos_thresh: float = 0.5,
         post_process_pseudo: bool = False,
-        min_size: int = 100,
-        min_hole_size: int = 100,
+        max_size: int = 100,
+        max_hole_size: int = 100,
         smooth_pseudo: bool = False,
         smooth_radius: int = 1,
     ):
@@ -491,8 +532,8 @@ class MultiTaskLoss(nn.Module):
             max_samples: Max samples for contrastive learning.
             pos_thresh: Threshold for positive predictions.
             post_process_pseudo: Whether to post-process pseudo-labels with morphology.
-            min_size: Minimum object size for morphological filtering.
-            min_hole_size: Minimum hole size for morphological filtering.
+            max_size: Minimum object size for morphological filtering.
+            max_hole_size: Minimum hole size for morphological filtering.
             smooth_pseudo: Whether to smooth pseudo-labels.
             smooth_radius: Radius for smoothing structuring element.
         """
@@ -507,8 +548,8 @@ class MultiTaskLoss(nn.Module):
         self.alpha_small_hole = alpha_small_hole
         self.pos_thresh = pos_thresh
         self.post_process_pseudo = post_process_pseudo
-        self.min_size = min_size
-        self.min_hole_size = min_hole_size
+        self.max_size = max_size
+        self.max_hole_size = max_hole_size
         self.smooth_pseudo = smooth_pseudo
         self.smooth_radius = smooth_radius
         
@@ -559,13 +600,17 @@ class MultiTaskLoss(nn.Module):
             pred_probs, positive_mask,
             threshold_pos=self.pos_thresh,
             post_process=self.post_process_pseudo,
-            min_size=self.min_size,
-            min_hole_size=self.min_hole_size,
+            max_size=self.max_size,
+            max_hole_size=self.max_hole_size,
             smooth=self.smooth_pseudo,
             smooth_radius=self.smooth_radius
         )
-        loss_seg = self.seg_loss_fn(pred_seg, positive_mask, pseudo_pos=pseudo_pos, pseudo_neg=pseudo_neg)
+        seg_loss_dict = self.seg_loss_fn(pred_seg, positive_mask, pseudo_pos=pseudo_pos, pseudo_neg=pseudo_neg)
+        loss_seg = seg_loss_dict['total']
         losses['segmentation'] = loss_seg
+        losses['seg_bce_pos'] = seg_loss_dict['bce_pos']
+        losses['seg_dice'] = seg_loss_dict['dice']
+        losses['seg_bce_bg'] = seg_loss_dict['bce_bg']
         
         # === LOSS 2: Edge-Aware Loss ===
         loss_edge = edge_loss(positive_mask, pred_seg)
@@ -639,55 +684,54 @@ class MultiTaskLoss(nn.Module):
         """
         Object-level embedding loss using hierarchical prototype clustering.
         Pulls same-class embeddings together, pushes different-class apart.
-        
+
         Args:
             obj_embeddings: Object embeddings (B, D, H, W)
             positive_mask: Object masks (B, 1, H, W)
             temperature: Temperature for similarity scaling
-            
+
         Returns:
-            Prototype clustering loss
+            Prototype clustering loss (scalar)
         """
         B, D, H, W = obj_embeddings.shape
         device = obj_embeddings.device
-        
-        # Normalize embeddings
+
+        # Normalize embeddings along channel dimension
         obj_emb_norm = F.normalize(obj_embeddings, dim=1)  # (B, D, H, W)
-        
+
         loss_total = 0.0
         valid_samples = 0
-        
+
         for b in range(B):
             emb_flat = obj_emb_norm[b].reshape(D, -1).T  # (H*W, D)
-            mask_flat = positive_mask[b].view(-1)  # (H*W,)
-            
+            mask_flat = positive_mask[b].view(-1)        # (H*W,)
+
             if mask_flat.sum() < 2:
                 continue
-            
-            # Positive samples (foreground)
+
+            # Positive embeddings
             pos_idx = mask_flat.nonzero(as_tuple=True)[0]
             z_pos = emb_flat[pos_idx]  # (N_pos, D)
-            
-            # Prototype (mean of positive embeddings)
+
+            # Prototype for positive class
             proto = z_pos.mean(dim=0, keepdim=True)  # (1, D)
-            
-            # Similarity of positive samples to prototype
-            sim_pos = (z_pos @ proto.T) / temperature  # (N_pos, 1)
-            
-            # Negative samples (background)
-            neg_idx = (~mask_flat).nonzero(as_tuple=True)[0]
-            if neg_idx.numel() > 0:
-                z_neg = emb_flat[neg_idx]  # (N_neg, D)
-                sim_neg = (z_neg @ proto.T) / temperature  # (N_neg, 1)
-                
-                # InfoNCE-style loss
-                pos_loss = -torch.log(torch.sigmoid(sim_pos).mean() + 1e-8)
-                neg_loss = -torch.log(1.0 - torch.sigmoid(sim_neg).mean() + 1e-8)
-                loss_b = pos_loss + neg_loss
-            else:
-                loss_b = -torch.log(torch.sigmoid(sim_pos).mean() + 1e-8)
-            
+
+            # Compute similarity of all embeddings to prototype
+            sim_all = (emb_flat @ proto.T) / temperature  # (H*W, 1)
+
+            # Create labels: positives=1, negatives=0
+            labels = mask_flat.to(torch.float32)  # 1 for positive, 0 for negative
+
+            # Compute numerically stable contrastive loss
+            # log-sigmoid for positives, log(1-sigmoid) for negatives
+            pos_mask = labels.bool()
+            neg_mask = ~labels.bool()
+
+            loss_pos = -torch.logsigmoid(sim_all[pos_mask]).mean() if pos_mask.any() else 0.0
+            loss_neg = -torch.logsigmoid(-sim_all[neg_mask]).mean() if neg_mask.any() else 0.0
+
+            loss_b = loss_pos + loss_neg
             loss_total += loss_b
             valid_samples += 1
-        
+
         return loss_total / max(valid_samples, 1)
