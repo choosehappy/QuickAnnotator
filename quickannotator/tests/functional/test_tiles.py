@@ -322,3 +322,43 @@ def test_predict_tile_with_bbox(test_client, seed, db_session):
         assert isinstance(tile['bbox_polygon'], dict)
         assert tile['bbox_polygon']['type'] == 'Polygon'
         assert len(tile['bbox_polygon']['coordinates'][0]) == 5
+
+def test_refresh_startprocessing_tile_datetime(test_client, seed, db_session):
+    """
+    GIVEN a tile in the STARTPROCESSING state
+    WHEN the tile is refreshed
+    THEN the pred_datetime of the tile should be updated
+    """
+
+    # Arrange
+    annotation_class_id = 2
+    image_id = 1
+    tile_id = 0
+    current_time = datetime.now()
+
+    # Insert a tile in STARTPROCESSING state
+    tile = db_models.Tile(
+        annotation_class_id=annotation_class_id,
+        image_id=image_id,
+        tile_id=tile_id,
+        pred_status=TileStatus.STARTPROCESSING,
+        pred_datetime=current_time - timedelta(hours=1)  # Set an old datetime
+    )
+    db_session.add(tile)
+    db_session.commit()
+
+    # Act
+    request_body = {
+        'tile_ids': [tile_id]
+    }
+    response = test_client.post(f'/api/v1/tile/{image_id}/{annotation_class_id}/predict', json=request_body)
+
+    # Assert
+    assert response.status_code == 200
+    data = response.get_json()
+    assert len(data) == 1
+    updated_tile = data[0]
+    assert updated_tile['tile_id'] == tile_id
+    assert updated_tile['pred_status'] == TileStatus.STARTPROCESSING
+    assert 'pred_datetime' in updated_tile
+    assert datetime.fromisoformat(updated_tile['pred_datetime']) > current_time

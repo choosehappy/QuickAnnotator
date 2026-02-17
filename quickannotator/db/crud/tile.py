@@ -139,8 +139,16 @@ class TileStore(ABC):   # Only an ABC to prevent instantiation
             )
 
             update_fields = {
-                'pred_status': case((tile_is_unseen_or_stale == 1, pred_status), else_=db_models.Tile.pred_status),
-                'pred_datetime': case((tile_is_unseen_or_stale == 1, current_time), else_=db_models.Tile.pred_datetime)
+                'pred_status': case(
+                    (tile_is_unseen_or_stale == 1, pred_status),
+                    (db_models.Tile.pred_status == TileStatus.STARTPROCESSING, pred_status),
+                    else_=db_models.Tile.pred_status
+                ),
+                'pred_datetime': case(
+                    (tile_is_unseen_or_stale == 1, current_time),
+                    (db_models.Tile.pred_status == TileStatus.STARTPROCESSING, current_time),
+                    else_=db_models.Tile.pred_datetime
+                )
             }
 
         tiles = self._upsert_tiles(
@@ -377,4 +385,4 @@ class TileStoreFactory():
         else:
             raise ValueError(f"Unsupported dialect: {dialect_name}")
 
-        
+
