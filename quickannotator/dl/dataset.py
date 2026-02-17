@@ -117,22 +117,24 @@ class PatchedDataset(IterableDataset):
     avoiding redundant Tile fetches.
     """
     
-    def __init__(self, tile_dataset: TileDataset, patch_size: int = 512, transforms=None):
+    def __init__(self, tile_dataset: TileDataset, patch_size: int = 512, stride: int = 256, transforms=None):
         """
         Initialize PatchedDataset wrapper.
         
         Args:
             tile_dataset: TileDataset instance to wrap
             patch_size: Size of patches to extract from tiles (default 512x512)
+            stride: Stride for sliding window extraction (default 256 for 50% overlap)
             transforms: Optional augmentation transforms to apply to patches
         """
         self.tile_dataset = tile_dataset
         self.patch_size = patch_size
+        self.stride = stride
         self.transforms = transforms
         
     def _extract_patches(self, image: np.ndarray, mask: np.ndarray):
         """
-        Extract non-overlapping patches from a tile along with their masks.
+        Extract patches from a tile along with their masks using sliding window.
         
         Args:
             image: Full tile image of shape (H, W, C)
@@ -143,9 +145,9 @@ class PatchedDataset(IterableDataset):
         """
         h, w = mask.shape
         
-        # Extract non-overlapping patches
-        for y in range(0, h - self.patch_size + 1, self.patch_size):
-            for x in range(0, w - self.patch_size + 1, self.patch_size):
+        # Extract patches using sliding window with configurable stride
+        for y in range(0, h - self.patch_size + 1, self.stride):
+            for x in range(0, w - self.patch_size + 1, self.stride):
                 # Extract patch regions
                 patch_img = image[y:y+self.patch_size, x:x+self.patch_size]
                 patch_mask = mask[y:y+self.patch_size, x:x+self.patch_size]

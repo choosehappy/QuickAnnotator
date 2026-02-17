@@ -24,7 +24,7 @@ class DataConfig:
     max_patches_per_image: int = 200
     
     # Dataset
-    num_workers: int = 0
+    num_workers: int = -1 #AJ: was 0 but -1 will use all available cores, which is generally what we want for data loading
     batch_size: int = 4
     shuffle: bool = False  # IterableDataset doesn't support shuffle
     
@@ -77,11 +77,11 @@ class LossConfig:
     # Pseudo-labeling thresholds
     pos_thresh: float = 0.9
     neg_thresh: float = 0.2
-    post_process_pseudo: bool = False
+    post_process_pseudo: bool = True #False #AJ: was false but i don't think was ported over correctly
     min_size: int = 100
     min_hole_size: int = 100
-    smooth_pseudo: bool = False
-    smooth_radius: int = 1
+    smooth_pseudo: bool = False  #AJ: leaving as false for now - its a bit computationally expensive
+    smooth_radius: int = 2
     
     # Contrastive loss params
     temperature: float = 0.1
