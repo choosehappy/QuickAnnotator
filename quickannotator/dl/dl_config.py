@@ -20,7 +20,8 @@ class DataConfig:
     # Patch extraction
     patch_size: int = 512
     stride: int = 256  # For sliding window extraction (if needed)
-    min_positive_pixels: int = 100  # Minimum pixels per patch to include it
+    shuffle_patches: bool = True  # Shuffle patches within each tile for better randomization
+    min_positive_pixels: int = 1000  # Minimum pixels per patch to include it
     max_patches_per_image: int = 200
     
     # Dataset

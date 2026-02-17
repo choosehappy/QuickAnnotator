@@ -99,6 +99,8 @@ def train_pred_loop(config):
     patched_dataset = PatchedDataset(
         tile_dataset=tile_dataset,
         patch_size=patch_size,
+        stride=dl_config.data.stride,
+        shuffle_patches=dl_config.data.shuffle_patches,
         transforms=get_transforms_from_config(patch_size, dl_config)
     )
 
