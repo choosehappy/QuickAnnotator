@@ -74,7 +74,7 @@ class TileDataset(IterableDataset):
                 
                 mask_image = (mask_image>0).astype(np.uint8) # if two polygons slightly overlap, fillpoly is addiditve and you end upwith values >1
                 
-                self.mask_cache_manager.cache(mask_cache_key, CacheableMask(mask_image, None))
+                self.mask_cache_manager.cache(mask_cache_key, CacheableMask(mask_image))
 
             # Log image dimensions
             logger.debug(f"Image dimensions: {io_image.shape}, Mask dimensions: {mask_image.shape}")
