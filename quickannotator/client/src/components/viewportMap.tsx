@@ -365,7 +365,7 @@ const ViewportMap = (props: Props) => {
         postAnnotations(currentImage.id, currentAnnotationClass.id, [newPolygon]).then(async (resp) => {
             if (resp.status === 200) {
                 const centroid = newPolygon.coordinates[0][0]; // Directly access the coordinates
-                const tileResp = await searchTileByCoordinates(currentImage.id, currentAnnotationClass.id, centroid[0], centroid[1]);
+                const tileResp = await searchTileByCoordinates(currentImage.id, currentAnnotationClass.id, centroid[0], centroid[1], downsampleLevel.current);
                 const featureId = tileResp.data.downsampled_tile_id;
                 if (featureId === null || !tileIdIsValid(featureId)) return;
                 const annotation = new Annotation(resp.data[0], currentAnnotationClass.id, featureId);
