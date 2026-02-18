@@ -214,7 +214,7 @@ def train_pred_loop(config):
             masks = masks.to(device)
             hv_maps = hv_maps.to(device)
             
-            with torch.autocast(device_type="cuda", dtype=torch.float16):
+            with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=dl_config.optimizer.use_amp):
                 optimizer.zero_grad()
                 
                 # Forward pass with ALL auxiliary tasks enabled
