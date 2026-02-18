@@ -148,8 +148,8 @@ def train_pred_loop(config):
         max_samples=dl_config.loss.max_samples,
         pos_thresh=dl_config.loss.pos_thresh,
         post_process_pseudo=dl_config.loss.post_process_pseudo,
-        min_size=dl_config.loss.min_size,
-        min_hole_size=dl_config.loss.min_hole_size,
+        max_size=dl_config.loss.max_size,
+        max_hole_size=dl_config.loss.max_hole_size,
         smooth_pseudo=dl_config.loss.smooth_pseudo,
         smooth_radius=dl_config.loss.smooth_radius
     )
@@ -212,7 +212,7 @@ def train_pred_loop(config):
             # Move to device and normalize images to [0, 1]
             images = images.half().to(device) / 255.0
             masks = masks.to(device)
-            hv_maps = hv_maps.to(device)
+            hv_maps = hv_maps.to(device)z
             
             with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=dl_config.optimizer.use_amp):
                 optimizer.zero_grad()
