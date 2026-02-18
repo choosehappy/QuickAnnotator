@@ -710,8 +710,8 @@ class MultiTaskLoss(nn.Module):
             pos_mask = labels.bool()
             neg_mask = ~labels.bool()
 
-            loss_pos = -torch.logsigmoid(sim_all[pos_mask]).mean() if pos_mask.any() else 0.0
-            loss_neg = -torch.logsigmoid(-sim_all[neg_mask]).mean() if neg_mask.any() else 0.0
+            loss_pos = -F.logsigmoid(sim_all[pos_mask]).mean() if pos_mask.any() else 0.0
+            loss_neg = -F.logsigmoid(-sim_all[neg_mask]).mean() if neg_mask.any() else 0.0
 
             loss_b = loss_pos + loss_neg
             loss_total += loss_b

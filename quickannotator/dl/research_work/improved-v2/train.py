@@ -1,4 +1,3 @@
-
 # %%
 
 """
@@ -121,7 +120,7 @@ def train(
     # Create filesystem dataset and wrap with production PatchedDataset
     filesystem_dataset = FilesystemDataset(img_paths, mask_paths)
     patched_dataset = PatchedDataset(
-        tile_dataset=filesystem_dataset,  # type: ignore - FilesystemDataset duck-types TileDataset
+        tile_dataset=filesystem_dataset, 
         patch_size=dl_config.data.patch_size,
         stride=dl_config.data.stride,
         shuffle_patches=dl_config.data.shuffle_patches,

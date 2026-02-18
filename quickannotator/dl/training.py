@@ -12,7 +12,9 @@ import datetime
 from quickannotator.dl.inference import run_inference
 from quickannotator.db.crud.tile import TileStoreFactory
 from quickannotator.db.crud.annotation_class import build_actor_name
-from .dataset import TileDataset, PatchedDataset, compute_hv_map
+from .dataset import TileDataset
+from .patcheddataset import PatchedDataset, compute_hv_map
+
 from .model import UNetMultiTask
 from .loss import MultiTaskLoss
 from .dl_config import DLConfig, get_default_config, get_augmentation_transforms
