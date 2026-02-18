@@ -25,7 +25,7 @@ class DataConfig:
     max_patches_per_image: int = 200
     
     # Dataset
-    num_workers: int = -1 #AJ: was 0 but -1 will use all available cores, which is generally what we want for data loading
+    num_workers: int = 4 
     batch_size: int = 4
     shuffle: bool = False  # IterableDataset doesn't support shuffle
     
@@ -59,7 +59,7 @@ class LossConfig:
     """Loss function configuration for 8-component multi-task objective."""
     
     # === 8-Component Loss Weights (from improved-v1 research) ===
-    alpha_seg: float = 2.0  # Weakly-supervised segmentation (critical main task)
+    alpha_seg: float = 5.0  # Weakly-supervised segmentation (critical main task)
     alpha_edge: float = 10.0  # Edge-aware loss (strong emphasis on boundaries)
     alpha_hv: float = 1.0  # HV regression (distance maps for shape)
     alpha_recon: float = 0.5  # Image reconstruction (regularization)
@@ -76,7 +76,7 @@ class LossConfig:
     pseudo_neg_weight: float = 0.3
     
     # Pseudo-labeling thresholds
-    pos_thresh: float = 0.9
+    pos_thresh: float = 0.8
     neg_thresh: float = 0.2
     post_process_pseudo: bool = True #False #AJ: was false but i don't think was ported over correctly
     max_size: int = 100
@@ -94,16 +94,10 @@ class LossConfig:
 class OptimizerConfig:
     """Optimizer and learning rate configuration."""
     # Optimizer
-    learning_rate: float = 1e-4
-    weight_decay: float = 1e-5
+    learning_rate: float = 1e-3
+    weight_decay: float = 1e-4
     beta1: float = 0.9
     beta2: float = 0.999
-    
-    # Learning rate schedule
-    use_scheduler: bool = False
-    scheduler_type: str = "cosine"  # Options: "cosine", "step", "linear"
-    warmup_epochs: int = 5
-    total_epochs: int = 100
     
     # Gradient
     use_amp: bool = True  # Automatic Mixed Precision

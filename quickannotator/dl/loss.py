@@ -670,6 +670,14 @@ class MultiTaskLoss(nn.Module):
         """
         B, D, H, W = obj_embeddings.shape
         device = obj_embeddings.device
+        
+        if positive_mask.shape[2:] != (H, W):
+            positive_mask = F.interpolate(
+                positive_mask.float(),
+                size=(H, W),
+                mode="nearest"
+                )
+
 
         # Normalize embeddings along channel dimension
         obj_emb_norm = F.normalize(obj_embeddings, dim=1)  # (B, D, H, W)
@@ -702,8 +710,8 @@ class MultiTaskLoss(nn.Module):
             pos_mask = labels.bool()
             neg_mask = ~labels.bool()
 
-            loss_pos = -torch.logsigmoid(sim_all[pos_mask]).mean() if pos_mask.any() else 0.0
-            loss_neg = -torch.logsigmoid(-sim_all[neg_mask]).mean() if neg_mask.any() else 0.0
+            loss_pos = -F.logsigmoid(sim_all[pos_mask]).mean() if pos_mask.any() else 0.0
+            loss_neg = -F.logsigmoid(-sim_all[neg_mask]).mean() if neg_mask.any() else 0.0
 
             loss_b = loss_pos + loss_neg
             loss_total += loss_b

@@ -12,7 +12,9 @@ import datetime
 from quickannotator.dl.inference import run_inference
 from quickannotator.db.crud.tile import TileStoreFactory
 from quickannotator.db.crud.annotation_class import build_actor_name
-from .dataset import TileDataset, PatchedDataset, compute_hv_map
+from .dataset import TileDataset
+from .patcheddataset import PatchedDataset, compute_hv_map
+
 from .model import UNetMultiTask
 from .loss import MultiTaskLoss
 from .dl_config import DLConfig, get_default_config, get_augmentation_transforms
@@ -212,7 +214,7 @@ def train_pred_loop(config):
             masks = masks.to(device)
             hv_maps = hv_maps.to(device)
             
-            with torch.autocast(device_type="cuda", dtype=torch.float16):
+            with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=dl_config.optimizer.use_amp):
                 optimizer.zero_grad()
                 
                 # Forward pass with ALL auxiliary tasks enabled
