@@ -670,6 +670,14 @@ class MultiTaskLoss(nn.Module):
         """
         B, D, H, W = obj_embeddings.shape
         device = obj_embeddings.device
+        
+        if positive_mask.shape[2:] != (H, W):
+            positive_mask = F.interpolate(
+                positive_mask.float(),
+                size=(H, W),
+                mode="nearest"
+                )
+
 
         # Normalize embeddings along channel dimension
         obj_emb_norm = F.normalize(obj_embeddings, dim=1)  # (B, D, H, W)
