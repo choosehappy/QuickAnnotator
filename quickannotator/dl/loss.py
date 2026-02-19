@@ -12,8 +12,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import segmentation_models_pytorch as smp
-from skimage.morphology import disk, opening, closing, remove_small_objects, remove_small_holes
 
+import cupy as cp
+from cucim.skimage.morphology import (
+    remove_small_objects, remove_small_holes, disk, opening, closing
+)
 
 def compute_sobel_edge_mask(mask: torch.Tensor) -> torch.Tensor:
     """
@@ -283,23 +286,23 @@ class WeaklySupervisedSegmentationLoss(nn.Module):
 
         if post_process:
             batch_size = pred_probs.shape[0]
-            struct = disk(smooth_radius)  # Structuring element for smoothing
+            struct = disk(smooth_radius)  # cuCIM disk, returns cupy array
 
             for mask in [pseudo_pos, pseudo_neg]:
-                mask_np = mask.cpu().numpy().astype(bool)
+                # Convert entire batch to cupy bool — stays on GPU
+                mask_cp = cp.from_dlpack(mask.bool().detach())  # zero-copy if possible
 
                 for i in range(batch_size):
-                    m = mask_np[i, 0]
-                    # Remove small objects
-                    m = remove_small_objects(m, max_size=max_size)
-                    # Fill small holes
-                    m = remove_small_holes(m, max_size=max_hole_size)
-                    # Optional smoothing
+                    m = mask_cp[i, 0]
+                    m = remove_small_objects(m, min_size=max_size)
+                    m = remove_small_holes(m, area_threshold=max_hole_size)
                     if smooth:
                         m = opening(m, struct)
                         m = closing(m, struct)
-                    mask_np[i] = m
-                mask.copy_(torch.from_numpy(mask_np.astype(float)).to(device))
+                    mask_cp[i, 0] = m
+
+                # Copy result back into the original torch tensor in-place
+                mask.copy_(torch.from_dlpack(mask_cp.astype(cp.float32)))
 
         return pseudo_pos, pseudo_neg
 
@@ -626,8 +629,8 @@ class MultiTaskLoss(nn.Module):
             smooth_radius=self.smooth_radius
         )
 
-        losses['img_pseudo_pos'] = pseudo_pos[0,::].cpu().detach().numpy()#return the images as well
-        losses['img_pseudo_neg'] = pseudo_neg[0,::].cpu().detach().numpy()
+        losses['img_pseudo_pos'] = pseudo_pos[0,::].detach()  # Keep on GPU, return as tensor
+        losses['img_pseudo_neg'] = pseudo_neg[0,::].detach()  # Keep on GPU, return as tensor
 
         seg_loss_dict = self.seg_loss_fn(pred_seg, positive_mask, pseudo_pos=pseudo_pos, pseudo_neg=pseudo_neg)
         loss_seg = seg_loss_dict['total']
@@ -650,7 +653,10 @@ class MultiTaskLoss(nn.Module):
         loss_hv = 0.0
         if 'hv_map' in model_output and self.alpha_hv > 0:
             pred_hv = model_output['hv_map']
-            loss_hv = self.hv_loss_fn(pred_hv, target_hv, mask=positive_mask)
+            loss_hv = (
+                self.hv_loss_fn(pred_hv, target_hv, mask=positive_mask)
+                + .1*self.hv_loss_fn(pred_hv, target_hv, mask=pseudo_pos)
+            )
         losses['hv'] = loss_hv
         
         # === LOSS 4: Image Reconstruction Loss ===

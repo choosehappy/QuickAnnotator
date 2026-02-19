@@ -26,7 +26,7 @@ class DataConfig:
     
     # Dataset
     num_workers: int = 8
-    batch_size: int = 4
+    batch_size: int = 2
     shuffle: bool = False  # IterableDataset doesn't support shuffle
     
     # Caching

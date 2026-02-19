@@ -99,7 +99,7 @@ def train(
     # Setup logging
     logger = setup_logging(log_dir)
     logger.info("Initialized improved-v2 training")
-    logger.info(f"Training config: batch_size={dl_config.data.batch_size}, patch_size={dl_config.data.patch_size}")
+    logger.info(f"Training config: batch_size={dl_config.data.batch_size}, patch_size={dl_config.data.patch_size}, num_workers={dl_config.data.num_workers}, num_epochs={num_epochs}")
 
     # Set device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -291,8 +291,8 @@ def train(
                 writer.add_image("imgs/preds_ppos", losses_dict["img_pseudo_pos"], niter_total)                           
                 writer.add_image("imgs/preds_pneg", losses_dict["img_pseudo_neg"], niter_total)                           
                 writer.add_image("imgs/masks", masks[0].float(), niter_total)
-                if 'hv' in model_output and model_output['hv'] is not None:
-                    writer.add_image("imgs/hv_map", model_output['hv'][0], niter_total)
+                if 'hv_map' in model_output and model_output['hv_map'] is not None:
+                    writer.add_image("imgs/hv_map", model_output['hv_map'][0], niter_total)
 
             last_save += 1
 
@@ -329,8 +329,6 @@ def train(
 if __name__ == "__main__":
     # Example usage - customize as needed
     config = get_default_config()
-    config.data.batch_size = 8
-    config.data.num_workers = 8
 
     train(
         data_dir=Path("/home/janowczy/research/quickannotator_dl/images"),
