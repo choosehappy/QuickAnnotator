@@ -34,7 +34,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard.writer import SummaryWriter
+from torch.utils.tensorboard.writer import SummaryWriter 
 from torch.cuda.amp.grad_scaler import GradScaler
 import torch.amp
 from torch.nn.utils.clip_grad import clip_grad_norm_
@@ -140,18 +140,18 @@ def train(
         embedding_dim=dl_config.model.embedding_dim
     )
 
-    # Load checkpoint if exists
-    checkpoint_path = get_checkpoint_filepath(checkpoint_dir)
-    if os.path.exists(checkpoint_path):
-        logger.info(f"Loading model from {checkpoint_path}")
-        try:
-            checkpoint = torch.load(checkpoint_path, map_location=device)
-            model.load_state_dict(checkpoint, strict=False)
-        except Exception as e:
-            logger.error(f"Failed to load checkpoint: {e}")
-            raise
-    else:
-        logger.info(f"Starting from scratch (no checkpoint at {checkpoint_path})")
+    # # Load checkpoint if exists
+    # checkpoint_path = get_checkpoint_filepath(checkpoint_dir)
+    # if os.path.exists(checkpoint_path):
+    #     logger.info(f"Loading model from {checkpoint_path}")
+    #     try:
+    #         checkpoint = torch.load(checkpoint_path, map_location=device)
+    #         model.load_state_dict(checkpoint, strict=False)
+    #     except Exception as e:
+    #         logger.error(f"Failed to load checkpoint: {e}")
+    #         raise
+    # else:
+    #     logger.info(f"Starting from scratch (no checkpoint at {checkpoint_path})")
 
     model = model.to(device)
     model.train()
@@ -176,6 +176,7 @@ def train(
         alpha_pixel_con=dl_config.loss.alpha_pixel_con,
         alpha_var=dl_config.loss.alpha_var,
         alpha_small_hole=dl_config.loss.alpha_small_hole,
+        alpha_interior=dl_config.loss.alpha_interior,
         bce_dice_weight=dl_config.loss.bce_dice_weight,
         temperature=dl_config.loss.temperature,
         max_samples=dl_config.loss.max_samples,
@@ -199,7 +200,8 @@ def train(
     scaler = GradScaler() if torch.cuda.is_available() else None
 
     # Setup TensorBoard
-    writer = SummaryWriter(log_dir=log_dir)
+    writer = SummaryWriter(log_dir=f"{log_dir}/{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    
 
     running_loss = []
     last_save = 0
@@ -227,42 +229,10 @@ def train(
             hv_maps = hv_maps.to(device)
 
             # Forward pass with AMP
-            if torch.cuda.is_available() and scaler is not None:
-                with torch.amp.autocast('cuda', dtype=torch.float16, enabled=True):
-                    optimizer.zero_grad()
-
-                    # Forward pass with ALL auxiliary tasks enabled
-                    model_output = model(
-                        images,
-                        return_recon=True,
-                        return_hv=True,
-                        return_obj_emb=True,
-                        return_pixel_emb=True
-                    )
-
-                    # Compute 8-component multi-task loss
-                    losses_dict = criterion(
-                        model_output=model_output,
-                        positive_mask=masks,
-                        target_hv=hv_maps,
-                        images=images,
-                        pred_probs=torch.sigmoid(model_output['preds'])
-                    )
-                    loss_total = losses_dict['total']
-
-                scaler.scale(loss_total).backward()  # type: ignore - scaler.scale returns Tensor
-
-                # Optional gradient clipping for stability
-                if dl_config.optimizer.grad_clip is not None:
-                    scaler.unscale_(optimizer)
-                    clip_grad_norm_(model.parameters(), dl_config.optimizer.grad_clip)
-
-                scaler.step(optimizer)
-                scaler.update()
-            else:
-                # CPU mode without AMP
+            with torch.amp.autocast('cuda', dtype=torch.float16, enabled=True):
                 optimizer.zero_grad()
 
+                # Forward pass with ALL auxiliary tasks enabled
                 model_output = model(
                     images,
                     return_recon=True,
@@ -271,6 +241,7 @@ def train(
                     return_pixel_emb=True
                 )
 
+                # Compute 8-component multi-task loss 
                 losses_dict = criterion(
                     model_output=model_output,
                     positive_mask=masks,
@@ -280,12 +251,16 @@ def train(
                 )
                 loss_total = losses_dict['total']
 
-                loss_total.backward()
+            scaler.scale(loss_total).backward()  # type: ignore - scaler.scale returns Tensor
 
-                if dl_config.optimizer.grad_clip is not None:
-                    clip_grad_norm_(model.parameters(), dl_config.optimizer.grad_clip)
+            # Optional gradient clipping for stability
+            if dl_config.optimizer.grad_clip is not None:
+                scaler.unscale_(optimizer)
+                clip_grad_norm_(model.parameters(), dl_config.optimizer.grad_clip)
 
-                optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
+
 
             running_loss.append(loss_total.item())
 
@@ -302,6 +277,7 @@ def train(
             writer.add_scalar('loss/pixel_con', _to_scalar(losses_dict['pixel_con']), niter_total)
             writer.add_scalar('loss/total_var', _to_scalar(losses_dict['total_var']), niter_total)
             writer.add_scalar('loss/small_hole', _to_scalar(losses_dict['small_hole']), niter_total)
+            writer.add_scalar('loss/interior_fill', _to_scalar(losses_dict['interior_fill']), niter_total)
 
 
             # Images (slow, so less frequent)
@@ -311,7 +287,9 @@ def train(
                     writer.add_image("imgs/recon", model_output['recon'][0], niter_total)
                 preds = torch.sigmoid(model_output['preds'])
                 writer.add_image("imgs/preds", preds[0], niter_total)
-                writer.add_image("imgs/preds_thresh", (preds[0] >= dl_config.loss.pos_thresh).float(), niter_total)
+                #writer.add_image("imgs/preds_thresh", (preds[0] >= dl_config.loss.pos_thresh).float(), niter_total)
+                writer.add_image("imgs/preds_ppos", losses_dict["img_pseudo_pos"], niter_total)                           
+                writer.add_image("imgs/preds_pneg", losses_dict["img_pseudo_neg"], niter_total)                           
                 writer.add_image("imgs/masks", masks[0].float(), niter_total)
                 if 'hv' in model_output and model_output['hv'] is not None:
                     writer.add_image("imgs/hv_map", model_output['hv'][0], niter_total)
@@ -333,6 +311,7 @@ def train(
                 logger.info(f"  - Pixel Contrastive: {_to_scalar(losses_dict['pixel_con']):.4f}")
                 logger.info(f"  - Total Variation: {_to_scalar(losses_dict['total_var']):.4f}")
                 logger.info(f"  - Small Hole: {_to_scalar(losses_dict['small_hole']):.4f}")
+                logger.info(f"  - Interior Fill: {_to_scalar(losses_dict['interior_fill']):.4f}")
 
                 running_loss = []
 
@@ -356,8 +335,8 @@ if __name__ == "__main__":
     train(
         data_dir=Path("/home/janowczy/research/quickannotator_dl/images"),
         checkpoint_dir="./checkpoints",
-        log_dir="./logs/improved-v2",
-        num_epochs=10,
+        log_dir="./logs/improved-v2/",
+        num_epochs=100,
         dl_config=config,
     )
 
