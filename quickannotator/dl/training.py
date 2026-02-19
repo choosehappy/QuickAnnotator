@@ -143,6 +143,7 @@ def train_pred_loop(config):
         alpha_pixel_con=dl_config.loss.alpha_pixel_con,
         alpha_var=dl_config.loss.alpha_var,
         alpha_small_hole=dl_config.loss.alpha_small_hole,
+        alpha_interior=dl_config.loss.alpha_interior,
         bce_dice_weight=dl_config.loss.bce_dice_weight,
         temperature=dl_config.loss.temperature,
         max_samples=dl_config.loss.max_samples,
@@ -212,7 +213,7 @@ def train_pred_loop(config):
             # Move to device and normalize images to [0, 1]
             images = images.half().to(device) / 255.0
             masks = masks.to(device)
-            hv_maps = hv_maps.to(device)z
+            hv_maps = hv_maps.to(device)
             
             with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=dl_config.optimizer.use_amp):
                 optimizer.zero_grad()
@@ -266,7 +267,8 @@ def train_pred_loop(config):
             writer.add_scalar('loss/pixel_con', _to_scalar(losses_dict['pixel_con']), niter_total)
             writer.add_scalar('loss/total_var', _to_scalar(losses_dict['total_var']), niter_total)
             writer.add_scalar('loss/small_hole', _to_scalar(losses_dict['small_hole']), niter_total)
-
+            writer.add_scalar('loss/interior_fill', _to_scalar(losses_dict['interior_fill']), niter_total)
+            
             #print ("losses:\t",loss_total,positive_mask.sum(),positive_loss,unlabeled_loss)
             
             last_save+=1
@@ -283,6 +285,7 @@ def train_pred_loop(config):
                 logger.info(f"  - Pixel Contrastive: {_to_scalar(losses_dict['pixel_con']):.4f}")
                 logger.info(f"  - Total Variation: {_to_scalar(losses_dict['total_var']):.4f}")
                 logger.info(f"  - Small Hole: {_to_scalar(losses_dict['small_hole']):.4f}")
+                logger.info(f"  - Interior Fill: {_to_scalar(losses_dict['interior_fill']):.4f}")
                 running_loss=[]
 
                 logger.info("Saving model checkpoint")  # Use logger instead of print
