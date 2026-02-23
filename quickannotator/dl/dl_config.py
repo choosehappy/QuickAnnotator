@@ -25,8 +25,8 @@ class DataConfig:
     max_patches_per_image: int = 200
     
     # Dataset
-    num_workers: int = 4 
-    batch_size: int = 4
+    num_workers: int = 8
+    batch_size: int = 2
     shuffle: bool = False  # IterableDataset doesn't support shuffle
     
     # Caching
@@ -41,6 +41,7 @@ class ModelConfig:
     
     # Encoder
     encoder_name: str = "efficientnet-b0"
+    #encoder_name: str = "mobilenet_v2"
     encoder_weights: str = "imagenet"
     encoder_freeze: bool = False  # Freeze encoder for transfer learning (disabled by default)
     
@@ -59,7 +60,7 @@ class LossConfig:
     """Loss function configuration for 8-component multi-task objective."""
     
     # === 8-Component Loss Weights (from improved-v1 research) ===
-    alpha_seg: float = 5.0  # Weakly-supervised segmentation (critical main task)
+    alpha_seg: float = 10.0  # Weakly-supervised segmentation (critical main task)
     alpha_edge: float = 10.0  # Edge-aware loss (strong emphasis on boundaries)
     alpha_hv: float = 1.0  # HV regression (distance maps for shape)
     alpha_recon: float = 0.5  # Image reconstruction (regularization)
@@ -67,6 +68,7 @@ class LossConfig:
     alpha_pixel_con: float = 0.1  # Pixel-level contrastive learning
     alpha_var: float = 0.1  # Total variation (smoothness regularization)
     alpha_small_hole: float = 0.1  # Small hole morphological loss
+    alpha_interior: float = 0.5  # Interior fill loss (encourages filling inside objects)
     
     # Segmentation loss params
     bce_dice_weight: float = 0.5
@@ -77,7 +79,7 @@ class LossConfig:
     
     # Pseudo-labeling thresholds
     pos_thresh: float = 0.8
-    neg_thresh: float = 0.2
+    neg_thresh: float = 0.4
     post_process_pseudo: bool = True #False #AJ: was false but i don't think was ported over correctly
     max_size: int = 100
     max_hole_size: int = 100

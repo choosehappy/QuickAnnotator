@@ -12,8 +12,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import segmentation_models_pytorch as smp
-from skimage.morphology import disk, opening, closing, remove_small_objects, remove_small_holes
 
+import cupy as cp
+from cucim.skimage.morphology import (
+    remove_small_objects, remove_small_holes, disk, opening, closing
+)
 
 def compute_sobel_edge_mask(mask: torch.Tensor) -> torch.Tensor:
     """
@@ -40,7 +43,7 @@ def compute_sobel_edge_mask(mask: torch.Tensor) -> torch.Tensor:
     return edge_mask
 
 
-def edge_loss(positive_mask: torch.Tensor, pred: torch.Tensor) -> torch.Tensor:
+def edge_loss(positive_mask: torch.Tensor, pred: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Compute edge-aware loss using Sobel edges.
 
@@ -54,8 +57,50 @@ def edge_loss(positive_mask: torch.Tensor, pred: torch.Tensor) -> torch.Tensor:
     edge_mask = compute_sobel_edge_mask(positive_mask)
     bce_edge = nn.BCEWithLogitsLoss(reduction='none')(pred, positive_mask)
     bce_edge = (bce_edge * edge_mask).sum() / edge_mask.sum().clamp(min=1.0)
-    return bce_edge
+    return bce_edge, edge_mask
 
+
+def interior_fill_loss_with_pseudo(
+    pred_probs: torch.Tensor,
+    edge_mask_gt: torch.Tensor,
+    positive_mask: torch.Tensor,
+    pseudo_positive_mask: torch.Tensor = None,
+    dilate_kernel: int = 3,
+    pseudo_weight: float = 0.2
+) -> torch.Tensor:
+    """
+    Interior fill loss: encourages the interior of objects to be positive
+    wherever edges exist, using GT + optional pseudo-positive regions.
+
+    Args:
+        pred_probs: Sigmoid predictions of shape (B,1,H,W), values in [0,1]
+        positive_mask: GT mask, shape (B,1,H,W), values in {0,1}
+        pseudo_positive_mask: Optional pseudo-positive mask, same shape, {0,1}
+        dilate_kernel: Kernel size for dilating edges inward
+        pseudo_weight: Weight for pseudo-positive regions relative to GT
+
+    Returns:
+        Scalar loss
+    """
+    
+    # Step 2: Combine GT + pseudo positives
+    if pseudo_positive_mask is not None:
+        effective_mask = positive_mask.float() + pseudo_weight * pseudo_positive_mask.float()
+        effective_mask = effective_mask.clamp(0, 1)
+    else:
+        effective_mask = positive_mask.float()
+
+    # Step 3: Dilate edge inward to create interior band
+    padding = dilate_kernel // 2
+    dilated_edge = F.max_pool2d(edge_mask_gt, kernel_size=dilate_kernel, stride=1, padding=padding)
+
+    # Step 4: Mask the dilated edge with effective positive regions
+    interior_band = dilated_edge * effective_mask  # only penalize pixels inside positive regions
+
+    # Step 5: Penalize low predicted probabilities inside interior_band
+    loss = (interior_band * (1 - pred_probs)).sum() / (interior_band.sum().clamp(min=1.0))
+
+    return loss
 
 
 def total_variation_loss(mask: torch.Tensor) -> torch.Tensor:
@@ -241,23 +286,23 @@ class WeaklySupervisedSegmentationLoss(nn.Module):
 
         if post_process:
             batch_size = pred_probs.shape[0]
-            struct = disk(smooth_radius)  # Structuring element for smoothing
+            struct = disk(smooth_radius)  # cuCIM disk, returns cupy array
 
             for mask in [pseudo_pos, pseudo_neg]:
-                mask_np = mask.cpu().numpy().astype(bool)
+                # Convert entire batch to cupy bool — stays on GPU
+                mask_cp = cp.from_dlpack(mask.bool().detach())  # zero-copy if possible
 
                 for i in range(batch_size):
-                    m = mask_np[i, 0]
-                    # Remove small objects
-                    m = remove_small_objects(m, max_size=max_size)
-                    # Fill small holes
-                    m = remove_small_holes(m, max_size=max_hole_size)
-                    # Optional smoothing
+                    m = mask_cp[i, 0]
+                    m = remove_small_objects(m, min_size=max_size)
+                    m = remove_small_holes(m, area_threshold=max_hole_size)
                     if smooth:
                         m = opening(m, struct)
                         m = closing(m, struct)
-                    mask_np[i] = m
-                mask.copy_(torch.from_numpy(mask_np.astype(float)).to(device))
+                    mask_cp[i, 0] = m
+
+                # Copy result back into the original torch tensor in-place
+                mask.copy_(torch.from_dlpack(mask_cp.astype(cp.float32)))
 
         return pseudo_pos, pseudo_neg
 
@@ -480,6 +525,7 @@ class MultiTaskLoss(nn.Module):
         alpha_pixel_con: float = 0.1,
         alpha_var: float = 0.01,
         alpha_small_hole: float = 0.01,
+        alpha_interior: float = 0.05,
         bce_dice_weight: float = 0.5,
         temperature: float = 0.1,
         max_samples: int = 512,
@@ -502,6 +548,7 @@ class MultiTaskLoss(nn.Module):
             alpha_pixel_con: Weight for pixel contrastive loss.
             alpha_var: Weight for total variation loss.
             alpha_small_hole: Weight for small hole morphology loss.
+            alpha_interior: Weight for interior fill loss.
             bce_dice_weight: Balance between BCE and Dice in segmentation.
             temperature: Temperature for contrastive similarity.
             max_samples: Max samples for contrastive learning.
@@ -520,6 +567,7 @@ class MultiTaskLoss(nn.Module):
         self.alpha_obj_emb = alpha_obj_emb
         self.alpha_pixel_con = alpha_pixel_con
         self.alpha_var = alpha_var
+        self.alpha_interior = alpha_interior
         self.alpha_small_hole = alpha_small_hole
         self.pos_thresh = pos_thresh
         self.post_process_pseudo = post_process_pseudo
@@ -580,6 +628,10 @@ class MultiTaskLoss(nn.Module):
             smooth=self.smooth_pseudo,
             smooth_radius=self.smooth_radius
         )
+
+        losses['img_pseudo_pos'] = pseudo_pos[0,::].detach()  # Keep on GPU, return as tensor
+        losses['img_pseudo_neg'] = pseudo_neg[0,::].detach()  # Keep on GPU, return as tensor
+
         seg_loss_dict = self.seg_loss_fn(pred_seg, positive_mask, pseudo_pos=pseudo_pos, pseudo_neg=pseudo_neg)
         loss_seg = seg_loss_dict['total']
         losses['segmentation'] = loss_seg
@@ -588,14 +640,23 @@ class MultiTaskLoss(nn.Module):
         losses['seg_bce_bg'] = seg_loss_dict['bce_bg']
         
         # === LOSS 2: Edge-Aware Loss ===
-        loss_edge = edge_loss(positive_mask, pred_seg)
+        loss_edge , edge_mask_gt = edge_loss(positive_mask, pred_seg)
         losses['edge'] = loss_edge
-        
+
+        # === LOSS 2.1: Interior fill  Loss ===
+        loss_interior = interior_fill_loss_with_pseudo(pred_probs, positive_mask, edge_mask_gt,
+                                                       pseudo_positive_mask=pseudo_pos, dilate_kernel=3, pseudo_weight=0.2)
+        losses['interior_fill'] = loss_interior
+
+
         # === LOSS 3: HV Regression Loss ===
         loss_hv = 0.0
         if 'hv_map' in model_output and self.alpha_hv > 0:
             pred_hv = model_output['hv_map']
-            loss_hv = self.hv_loss_fn(pred_hv, target_hv, mask=positive_mask)
+            loss_hv = (
+                self.hv_loss_fn(pred_hv, target_hv, mask=positive_mask)
+                + .1*self.hv_loss_fn(pred_hv, target_hv, mask=pseudo_pos)
+            )
         losses['hv'] = loss_hv
         
         # === LOSS 4: Image Reconstruction Loss ===
@@ -640,7 +701,8 @@ class MultiTaskLoss(nn.Module):
             self.alpha_obj_emb * losses['obj_emb'] +
             self.alpha_pixel_con * losses['pixel_con'] +
             self.alpha_var * losses['total_var'] +
-            self.alpha_small_hole * losses['small_hole']
+            self.alpha_small_hole * losses['small_hole'] +
+            self.alpha_interior * losses['interior_fill'] 
         )
         
         # Safety check for NaN/Inf losses
