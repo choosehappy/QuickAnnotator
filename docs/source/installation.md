@@ -73,6 +73,22 @@ Ray cluster launcher is used for multi-node deployments.
 The command `chmod -R g+rw .` ensures that both the host and the docker container users have access to the repository files.
 ```
 
-2. Set your env variables in the `deployment/dev.env` file.
-3. Within VS Code, open the cloned repository and click on the "Reopen in Container" button to build the devcontainer. This will create a docker container with all the necessary dependencies to run QuickAnnotator.
+2. *(Optional)* Configure the `deployment/.env` file to set the host ports that each QuickAnnotator service will be exposed on:
+
+    | Variable               | Default       | Description                  |
+    | ---------------------- | ------------- | ---------------------------- |
+    | `COMPOSE_PROJECT_NAME` | `qa_services` | Docker Compose project name  |
+    | `POSTGIS_PORT`         | `5432`        | PostGIS database port        |
+    | `GRAFANA_PORT`         | `3000`        | Grafana dashboard port       |
+    | `QA_PORT`              | `5000`        | QuickAnnotator API port      |
+    | `VITE_PORT`            | `5173`        | QuickAnnotator frontend port |
+    | `RAY_PORT`             | `8265`        | Ray dashboard port           |
+    | `TB_PORT`              | `6006`        | TensorBoard port             |
+
+    ```{tip}
+    If you need to run multiple instances of QuickAnnotator on the same machine, assign a unique set of ports to each instance in their respective `.env` files.
+    ```
+
+3. Set your env variables in the `deployment/dev.env` file.
+4. Within VS Code, open the cloned repository and click on the "Reopen in Container" button to build the devcontainer. This will create a docker container with all the necessary dependencies to run QuickAnnotator.
 ![image](https://github.com/user-attachments/assets/b776577f-a4c2-4eb8-858c-c603ac20cc6d)
