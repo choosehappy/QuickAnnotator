@@ -4,7 +4,7 @@ import cv2, numpy as np
 import random
 
 from torch.utils.data import IterableDataset
-from quickannotator.db import get_session
+from quickannotator.db import get_session, engine
 from quickannotator.db.crud.tile import TileStoreFactory
 from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
 from quickannotator.db.crud.annotation import AnnotationStore
@@ -23,6 +23,11 @@ class TileDataset(IterableDataset):
         self.boost_count = boost_count
         self.image_cache_manager = ImageCacheManager()
         self.mask_cache_manager = MaskCacheManager()
+
+        # Dispose of the engine connection pool to prevent child processes from
+        # inheriting stale connections when DataLoader spawns worker processes.
+        engine.dispose(close=False)
+        
         with get_session() as db_session:  # Ensure this provides a session context
             annotation_class = get_annotation_class_by_id(classid)
             self.magnification = annotation_class.work_mag
