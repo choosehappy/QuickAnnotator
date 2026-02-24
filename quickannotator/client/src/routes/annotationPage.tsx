@@ -10,13 +10,14 @@ import ConfirmationModal from '../components/confirmationModal.tsx';
 import React, { useState, useEffect, useRef } from 'react';
 import { useOutletContext, useParams } from 'react-router-dom';
 
-import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass, searchAnnotationClasses, fetchAnnotationClassById, createAnnotationClass, deleteAnnotationClass } from "../helpers/api.ts";
+
+import { fetchImage, fetchProject, postAnnotations, startProcessingAnnotationClass, searchAnnotationClasses, fetchAnnotationClassById, createAnnotationClass, deleteAnnotationClass, getDLActorStatus } from "../helpers/api.ts";
 import { DEFAULT_CLASS_ID, MODAL_DATA, TOOLBAR_KEYS, MASK_CLASS_ID, COOKIE_NAMES } from '../helpers/config.tsx';
 import Card from "react-bootstrap/Card";
 import Toolbar from "../components/toolbar.tsx";
 import Legend from '../components/legend.tsx';
 import NewClassModal from '../components/newClassModal.tsx';
-import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation, DataItem, IdNameElement } from "../types.ts";
+import { Annotation, AnnotationClass, OutletContextType, CurrentAnnotation, DataItem, IdNameElement, DLActorStatus } from "../types.ts";
 import AnnotationExportModal from '../components/annotationExportModal.tsx';
 import { useHotkeys } from 'react-hotkeys-hook';
 
@@ -36,6 +37,7 @@ const AnnotationPage = () => {
     const [activeModal, setActiveModal] = useState<number | null>(null);
     const [mouseCoords, setMouseCoords] = useState<{ x: number, y: number }>({x: 0, y: 0});
     const [annotationClasses, setAnnotationClasses] = useState<AnnotationClass[]>([]);
+    const [currentDlActorStatus, setCurrentDlActorStatus] = useState<DLActorStatus | null>(null);
 
     // Layer visibility states
     const [gtLayerVisible, setGtLayerVisible] = useState<boolean>(true);
@@ -161,6 +163,38 @@ const AnnotationPage = () => {
     }
     , [currentAnnotationClass]);
 
+    // Poll DL actor status periodically
+    useEffect(() => {
+        const currentAnnotationClassId = currentAnnotationClass?.id;
+        if (!currentAnnotationClassId || currentAnnotationClassId === MASK_CLASS_ID) {
+            setCurrentDlActorStatus(null);
+            return;
+        }
+
+        // Fetch status immediately
+        const fetchStatus = async () => {
+            try {
+                const resp = await getDLActorStatus(currentAnnotationClassId);
+                if (resp.status === 200) {
+                    setCurrentDlActorStatus(resp.data);
+                } else {
+                    setCurrentDlActorStatus(null);
+                }
+            } catch (error) {
+                console.error("Error fetching DL actor status:", error);
+                setCurrentDlActorStatus(null);
+            }
+        };
+
+        fetchStatus();
+
+        // Set up polling interval (every 5 seconds)
+        const intervalId = setInterval(fetchStatus, 5000);
+
+        // Cleanup on unmount or when annotation class changes
+        return () => clearInterval(intervalId);
+    }, [currentAnnotationClass]);
+
 
     if (currentImage) {
         return (
@@ -239,7 +273,7 @@ const AnnotationPage = () => {
                         <Col xs={3}>
                             <Stack gap={3}>
                                 <ClassesPane
-                                    {...{ currentAnnotationClass, setcurrentAnnotationClass: setCurrentAnnotationClass, setActiveModal, annotationClasses, setAnnotationClasses }}
+                                    {...{ currentAnnotationClass, setcurrentAnnotationClass: setCurrentAnnotationClass, setActiveModal, annotationClasses, setAnnotationClasses, currentDlActorStatus, setCurrentDlActorStatus }}
                                 />
                                 <GroundTruthPane
                                     {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, annotationClasses, setActiveModal, gtLayerVisible }}

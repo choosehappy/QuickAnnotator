@@ -44,6 +44,8 @@ MOUNTS_PATH = os.path.join(BASE_PATH, 'quickannotator/mounts')
 TILE_PRED_EXPIRE = 1 # minutes
 
 MAX_ACTORS_PROCESSING = 1   # TODO: app setting
+MAX_RETRIES_TRUNCATE_ACTORS = 50
+RETRY_DELAY_TRUNCATE_ACTORS = 2  # seconds
 
 FLASK_DATETIME_FORMAT = 'iso'
 
@@ -68,6 +70,8 @@ MASK_CLASS_NAME = "Tissue Mask"
 MASK_CLASS_COLOR_IDX = 0
 MASK_CLASS_WORK_MAG = 1.25
 MASK_CLASS_WORK_TILESIZE = 2048
+
+RAY_GET_TIMEOUT = 10  # seconds
 
 # TODO: move to project settings
 INFERENCE_THRESHOLD = 0.5  # TODO: app setting
