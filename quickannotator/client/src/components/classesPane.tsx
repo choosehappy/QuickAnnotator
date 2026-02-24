@@ -1,9 +1,11 @@
 import Card from 'react-bootstrap/Card';
 import { useEffect } from "react";
 import { Button, ListGroup } from "react-bootstrap";
-import { AnnotationClass } from "../types.ts";
+import { AnnotationClass, DLActorStatus } from "../types.ts";
 import { Plus, Pencil, Trash } from 'react-bootstrap-icons';
 import { MODAL_DATA, MASK_CLASS_ID } from '../helpers/config.tsx';
+import TrainingStatusButton from './TrainingStatusButton';
+
 
 interface Props {
     currentAnnotationClass: AnnotationClass | null;
@@ -11,6 +13,8 @@ interface Props {
     setActiveModal: (activeModal: number | null) => void;
     annotationClasses: AnnotationClass[];
     setAnnotationClasses: (classes: AnnotationClass[]) => void;
+    currentDlActorStatus: DLActorStatus | null;
+    setCurrentDlActorStatus: (status: DLActorStatus | null) => void;
 }
 
 const ClassesPane = (props: Props) => {
@@ -39,23 +43,32 @@ const ClassesPane = (props: Props) => {
                                             }
                                         }
                                         props.setcurrentAnnotationClass(c);
+                                        props.setCurrentDlActorStatus(null);
                                     }}
                                     active={props.currentAnnotationClass?.id === c.id}
                                     className="d-flex justify-content-between align-items-center list-group-item-secondary"
                                 >
                                     <span>{c.name}</span>
-                                    <div>
+                                    <div className="d-flex align-items-center">
                                         {c.id !== MASK_CLASS_ID && c.id === props.currentAnnotationClass?.id && (
-                                            <Button 
-                                                variant="outline-danger" 
-                                                size="sm"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    props.setActiveModal(MODAL_DATA.DELETE_CLASS.id);
-                                                }}
-                                            >
-                                                <Trash />
-                                            </Button>
+                                            <>
+                                                <TrainingStatusButton
+                                                    currentDlActorStatus={props.currentDlActorStatus}
+                                                    setCurrentDlActorStatus={props.setCurrentDlActorStatus}
+                                                    annotationClassId={c.id}
+                                                />
+                                                <Button 
+                                                    variant="outline-danger" 
+                                                    size="sm"
+                                                    className="ms-2"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        props.setActiveModal(MODAL_DATA.DELETE_CLASS.id);
+                                                    }}
+                                                >
+                                                    <Trash />
+                                                </Button>
+                                            </>
                                         )}
                                         <Button 
                                             disabled 
