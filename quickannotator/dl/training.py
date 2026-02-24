@@ -24,6 +24,7 @@ import os
 from quickannotator.db.logging import LoggingManager
 
 from torch.utils.tensorboard import SummaryWriter
+import time
 
 def get_transforms(tile_size): #probably goes...elsewhere
     transforms = A.Compose([
@@ -154,7 +155,9 @@ def train_pred_loop(config):
     #print ("pre actor get")
     myactor = ray.get_actor(actor_name)
     #print ("post actor get")
-    while ray.get(myactor.getProcRunningSince.remote()):    # procRunningSince will be None if the DL processing is to be stopped.
+
+    # procRunningSince will be None if the DL processing is to be stopped, resulting in the model being unloaded from GPU and the training loop exiting
+    while ray.get(myactor.get_proc_running_since.remote()):    
         tilestore = TileStoreFactory.get_tilestore()
         while tiles := tilestore.get_pending_inference_tiles(annotation_class_id, batch_size_infer):
             logger.info(f"Running inference on {len(tiles)} tiles for annotation class {annotation_class_id}")
@@ -164,11 +167,18 @@ def train_pred_loop(config):
             run_inference(device, model, tiles)
             
         logger.info(f"No more STARTPROCESSING tiles for annotation class {annotation_class_id}. Entering training loop.")
-        if ray.get(myactor.getEnableTraining.remote()):
-            #print ("in train loop")
+        if ray.get(myactor.get_proc_running_since.remote()) is None:
+            logger.info("Processing has been stopped. Exiting training loop.")
+            break
+        if ray.get(myactor.get_enable_training.remote()):
+            logger.info("Training enabled. Loading training batch.")
             niter_total += 1
-            images, masks, weights = next(iter(dataloader))
-            #print ("post next iter")
+            try:
+                images, masks, weights = next(iter(dataloader))
+            except StopIteration:
+                logger.info("No more training data available. Waiting for new data...")
+                continue
+            logger.info(f"Training batch of size {len(images)} loaded successfully. Starting training step.")
             images = images.half().to(device) #TODO: test with .half()
             masks = masks.to(device) #these should remain as uint8 - which is both more correct and half the size of a float16
             weights = weights.to(device)
