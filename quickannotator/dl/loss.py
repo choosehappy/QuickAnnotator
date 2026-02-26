@@ -206,8 +206,10 @@ class HVRegressionLoss(nn.Module):
             diff_flat = (pred_hv - target_hv).view(B, -1)
             mask_flat = mask.view(B, -1)
 
-            # Per-sample numerator and denominator
-            num = (diff_flat ** 2 * mask_flat).sum(dim=1)
+            # Zero out diff outside mask BEFORE squaring to avoid inf * 0 = nan
+            diff_masked = diff_flat * mask_flat
+
+            num = (diff_masked ** 2).sum(dim=1)
             den = mask_flat.sum(dim=1).clamp(min=1.0)  # avoid division by tiny numbers
 
             mse_per_sample = num / den
@@ -303,7 +305,11 @@ class WeaklySupervisedSegmentationLoss(nn.Module):
 
             for mask in [pseudo_pos, pseudo_neg]:
                 # Convert entire batch to cupy bool — stays on GPU
-                mask_cp = cp.from_dlpack(mask.bool().detach())  # zero-copy if possible
+                
+                with cp.cuda.Device(mask.device.index):
+                    cp.cuda.runtime.setDevice(mask.device.index)
+                    torch.cuda.set_device(mask.device.index)
+                    mask_cp = cp.from_dlpack(mask.bool().detach())  # zero-copy if possible
 
                 for i in range(batch_size):
                     m = mask_cp[i, 0]
