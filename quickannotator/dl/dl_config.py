@@ -69,7 +69,9 @@ class LossConfig:
     alpha_var: float = 0.1  # Total variation (smoothness regularization)
     alpha_small_hole: float = 0.1  # Small hole morphological loss
     alpha_interior: float = 0.5  # Interior fill loss (encourages filling inside objects)
-    
+    alpha_consistency: float = 0.5  # Consistency loss between different views of the same image (e.g. different augmentations) - encourages stable predictions under transformations
+    alpha_obj_view_cont: float = 0.01  # Object-level view contrastive loss (encourages consistent object embeddings across views)
+
     # Segmentation loss params
     bce_dice_weight: float = 0.5
     lambda_bg_base: float = 0.05
@@ -157,7 +159,7 @@ class TrainingConfig:
     """Training loop configuration."""
     
     # Epochs and iterations
-    num_epochs: int = 100
+    num_epochs: int = 1000
     checkpoint_interval: int = 50
     log_interval: int = 10
     
@@ -212,95 +214,119 @@ def get_default_config() -> DLConfig:
     return DLConfig()
 
 
-def get_augmentation_transforms(patch_size: int, config: Optional[AugmentationConfig] = None) -> A.Compose:
-    """
-    Build augmentation pipeline from configuration.
-    
-    Args:
-        patch_size: Size of patches to augment.
-        config: AugmentationConfig object. Uses defaults if None.
-    
-    Returns:
-        Albumentations Compose object.
-    """
+
+def get_augmentation_transforms(
+    patch_size: int,
+    config: Optional[AugmentationConfig] = None,
+):
     if config is None:
         config = AugmentationConfig()
-    
-    transforms = []
-    
-    # Random scale
+
+    geom_transforms = []
+    photo_transforms = []
+
+    # -----------------
+    # GEOMETRIC
+    # -----------------
+
     if config.random_scale:
-        transforms.append(
-            A.RandomScale(scale_limit=config.scale_limit, p=config.scale_prob)
+        geom_transforms.append(
+            A.RandomScale(
+                scale_limit=config.scale_limit,
+                p=config.scale_prob,
+            )
         )
-    
-    # Pad if needed
-    transforms.append(A.PadIfNeeded(min_height=patch_size, min_width=patch_size))
-    
-    # Flips
+
+    geom_transforms.append(
+        A.PadIfNeeded(
+            min_height=patch_size,
+            min_width=patch_size,
+        )
+    )
+
     if config.vertical_flip:
-        transforms.append(A.VerticalFlip(p=config.vertical_flip_prob))
-    
-    if config.horizontal_flip:
-        transforms.append(A.HorizontalFlip(p=config.horizontal_flip_prob))
-    
-    # Blur
-    if config.blur:
-        transforms.append(A.Blur(p=config.blur_prob))
-    
-    # Noise
-    if config.gauss_noise:
-        transforms.append(
-            A.GaussNoise(p=config.gauss_noise_prob, var_limit=config.gauss_var_limit)
+        geom_transforms.append(
+            A.VerticalFlip(p=config.vertical_flip_prob)
         )
-    
+
+    if config.horizontal_flip:
+        geom_transforms.append(
+            A.HorizontalFlip(p=config.horizontal_flip_prob)
+        )
+
+    if config.rotation:
+        geom_transforms.append(
+            A.Rotate(
+                p=config.rotation_prob,
+                border_mode=cv2.BORDER_REFLECT,
+            )
+        )
+
+    geom_transforms.append(
+        A.RandomCrop(patch_size, patch_size)
+    )
+
+    geom_transform = A.Compose(geom_transforms)
+
+    # -----------------
+    # PHOTOMETRIC
+    # -----------------
+
+    if config.blur:
+        photo_transforms.append(
+            A.Blur(p=config.blur_prob)
+        )
+
+    if config.gauss_noise:
+        photo_transforms.append(
+            A.GaussNoise(
+                p=config.gauss_noise_prob,
+                var_limit=config.gauss_var_limit,
+            )
+        )
+
     if config.iso_noise:
-        transforms.append(
+        photo_transforms.append(
             A.ISONoise(
                 p=config.iso_noise_prob,
                 intensity=config.iso_intensity_range,
-                color_shift=config.iso_color_shift
+                color_shift=config.iso_color_shift,
             )
         )
-    
-    # Brightness/Contrast
+
     if config.brightness_contrast:
-        transforms.append(
+        photo_transforms.append(
             A.RandomBrightnessContrast(
                 p=config.brightness_contrast_prob,
                 brightness_limit=(-config.brightness_limit, config.brightness_limit),
                 contrast_limit=(-config.contrast_limit, config.contrast_limit),
-                brightness_by_max=True
+                brightness_by_max=True,
             )
         )
-    
-    # Gamma
+
     if config.random_gamma:
-        transforms.append(
-            A.RandomGamma(p=config.random_gamma_prob, gamma_limit=config.gamma_limit, eps=1e-7)
+        photo_transforms.append(
+            A.RandomGamma(
+                p=config.random_gamma_prob,
+                gamma_limit=config.gamma_limit,
+                eps=1e-7,
+            )
         )
-    
-    # Hue/Saturation
+
     if config.hue_saturation:
-        transforms.append(
+        photo_transforms.append(
             A.HueSaturationValue(
                 hue_shift_limit=config.hue_shift_limit,
                 sat_shift_limit=config.sat_shift_limit,
                 val_shift_limit=config.val_shift_limit,
-                p=config.hue_saturation_prob
+                p=config.hue_saturation_prob,
             )
         )
-    
-    # Rotation
-    if config.rotation:
-        transforms.append(
-            A.Rotate(p=config.rotation_prob, border_mode=cv2.BORDER_REFLECT)
-        )
-    
-    # Random crop
-    transforms.append(A.RandomCrop(patch_size, patch_size))
-    
-    # To tensor
-    transforms.append(ToTensorV2())
-    
-    return A.Compose(transforms)
+
+    photo_transforms.append(ToTensorV2())
+
+    photo_transform = A.Compose(photo_transforms)
+
+    return geom_transform, photo_transform
+
+

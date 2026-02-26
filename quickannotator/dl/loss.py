@@ -18,6 +18,19 @@ from cucim.skimage.morphology import (
     remove_small_objects, remove_small_holes, disk, opening, closing
 )
 
+import logging
+logger = logging.getLogger(__name__)
+
+def safe_loss(loss, name):
+    if not torch.is_tensor(loss):
+        loss = torch.tensor(loss, dtype=torch.float32)
+
+    if torch.isnan(loss).any() or torch.isinf(loss).any():
+        logger.error(f"[NaN/Inf detected] Loss '{name}' is invalid. Setting to zero.")
+        return torch.zeros(1, device=loss.device, dtype=loss.dtype, requires_grad=True).squeeze()
+    return loss
+
+
 def compute_sobel_edge_mask(mask: torch.Tensor) -> torch.Tensor:
     """
     Compute edge mask using Sobel operator.
@@ -502,7 +515,7 @@ class HierarchicalPixelContrastiveLoss(nn.Module):
 
 class MultiTaskLoss(nn.Module):
     """
-    Comprehensive multi-task loss combining 8 auxiliary losses:
+    Comprehensive multi-task loss combining 9 auxiliary losses:
     1. Segmentation (weakly-supervised with pseudo-labels)
     2. Edge-aware segmentation
     3. HV regression (distance maps)
@@ -511,6 +524,7 @@ class MultiTaskLoss(nn.Module):
     6. Pixel-level contrastive learning
     7. Total variation (smoothness regularization)
     8. Small hole morphological regularization
+    9. Consitency loss between different views of the same image (e.g. different augmentations) - encourages stable predictions under transformations
     
     This is the core multi-task objective for the improved training paradigm.
     """
@@ -526,6 +540,8 @@ class MultiTaskLoss(nn.Module):
         alpha_var: float = 0.01,
         alpha_small_hole: float = 0.01,
         alpha_interior: float = 0.05,
+        alpha_consistency: float = 0.05,
+        alpha_obj_view_cont: float = 0.05,
         bce_dice_weight: float = 0.5,
         temperature: float = 0.1,
         max_samples: int = 512,
@@ -569,6 +585,8 @@ class MultiTaskLoss(nn.Module):
         self.alpha_var = alpha_var
         self.alpha_interior = alpha_interior
         self.alpha_small_hole = alpha_small_hole
+        self.alpha_consistency = alpha_consistency
+        self.alpha_obj_view_cont = alpha_obj_view_cont
         self.pos_thresh = pos_thresh
         self.post_process_pseudo = post_process_pseudo
         self.max_size = max_size
@@ -635,46 +653,57 @@ class MultiTaskLoss(nn.Module):
         seg_loss_dict = self.seg_loss_fn(pred_seg, positive_mask, pseudo_pos=pseudo_pos, pseudo_neg=pseudo_neg)
         loss_seg = seg_loss_dict['total']
         losses['segmentation'] = loss_seg
-        losses['seg_bce_pos'] = seg_loss_dict['bce_pos']
-        losses['seg_dice'] = seg_loss_dict['dice']
-        losses['seg_bce_bg'] = seg_loss_dict['bce_bg']
+        losses['seg_bce_pos'] = safe_loss(seg_loss_dict['bce_pos'], 'seg_bce_pos')
+        losses['seg_dice'] = safe_loss(seg_loss_dict['dice'], 'seg_dice')
+        losses['seg_bce_bg'] = safe_loss(seg_loss_dict['bce_bg'], 'seg_bce_bg')
         
         # === LOSS 2: Edge-Aware Loss ===
         loss_edge , edge_mask_gt = edge_loss(positive_mask, pred_seg)
+        loss_edge = safe_loss(loss_edge, 'edge')
         losses['edge'] = loss_edge
 
         # === LOSS 2.1: Interior fill  Loss ===
         loss_interior = interior_fill_loss_with_pseudo(pred_probs, positive_mask, edge_mask_gt,
                                                        pseudo_positive_mask=pseudo_pos, dilate_kernel=3, pseudo_weight=0.2)
+        loss_interior = safe_loss(loss_interior, 'interior_fill')
         losses['interior_fill'] = loss_interior
 
 
         # === LOSS 3: HV Regression Loss ===
-        loss_hv = 0.0
+        loss_hv = torch.tensor(0.0, device=pred_seg.device)
         if 'hv_map' in model_output and self.alpha_hv > 0:
             pred_hv = model_output['hv_map']
             loss_hv = (
                 self.hv_loss_fn(pred_hv, target_hv, mask=positive_mask)
                 + .1*self.hv_loss_fn(pred_hv, target_hv, mask=pseudo_pos)
             )
+        loss_hv = safe_loss(loss_hv, 'hv')
         losses['hv'] = loss_hv
         
         # === LOSS 4: Image Reconstruction Loss ===
-        loss_recon = 0.0
+        loss_recon = torch.tensor(0.0, device=pred_seg.device)
         if images is not None and 'recon' in model_output and self.alpha_recon > 0:
             recon_images = model_output['recon']
             loss_recon = self.recon_loss_fn(recon_images, images)
+        loss_recon = safe_loss(loss_recon, 'recon')
         losses['recon'] = loss_recon
         
         # === LOSS 5: Object Embedding Loss (Hierarchical Prototype) ===
-        loss_obj_emb = 0.0
+        loss_obj_emb = torch.tensor(0.0, device=pred_seg.device)
+        loss_obj_view_cont = torch.tensor(0.0, device=pred_seg.device)
+
         if 'obj_emb' in model_output and self.alpha_obj_emb > 0:
             obj_emb = model_output['obj_emb']
             loss_obj_emb = self._hierarchical_prototype_loss(obj_emb, positive_mask)
+            loss_obj_view_cont = self._dense_voxel_contrastive_loss_from_concat(obj_emb)
+
+        loss_obj_emb = safe_loss(loss_obj_emb, 'obj_emb')
+        loss_obj_view_cont = safe_loss(loss_obj_view_cont, 'obj_view_cont')
         losses['obj_emb'] = loss_obj_emb
+        losses['obj_view_cont'] = loss_obj_view_cont
         
         # === LOSS 6: Pixel Contrastive Loss ===
-        loss_pixel_con = 0.0
+        loss_pixel_con = torch.tensor(0.0, device=pred_seg.device)
         if 'pixel_emb' in model_output and self.alpha_pixel_con > 0:
             pixel_emb = model_output['pixel_emb']
             loss_pixel_con = self.contrastive_loss_fn(
@@ -682,16 +711,27 @@ class MultiTaskLoss(nn.Module):
                 positive_mask,
                 pred_probs=pred_probs
             )
+        loss_pixel_con = safe_loss(loss_pixel_con, 'pixel_con')
         losses['pixel_con'] = loss_pixel_con
         
         # === LOSS 7: Total Variation Loss (Smoothness) ===
         loss_var = total_variation_loss(pred_seg)
+        loss_var = safe_loss(loss_var, 'total_var')
         losses['total_var'] = loss_var
         
         # === LOSS 8: Small Hole Loss (Morphological) ===
         loss_small_hole = small_hole_loss(pred_probs)
+        loss_small_hole = safe_loss(loss_small_hole, 'small_hole')
         losses['small_hole'] = loss_small_hole
-        
+
+
+        # === LOSS 9: Consistency Loss (between different views of same image) ===
+        B = pred_probs.shape[0] // 2
+        loss_consistency = F.mse_loss(pred_probs[:B], pred_probs[B:].detach())
+        loss_consistency = safe_loss(loss_consistency, 'consistency')
+        losses['consistency'] = loss_consistency
+
+
         # === Weighted Total Loss ===
         loss_total = (
             self.alpha_seg * losses['segmentation'] +
@@ -699,15 +739,15 @@ class MultiTaskLoss(nn.Module):
             self.alpha_hv * losses['hv'] +
             self.alpha_recon * losses['recon'] +
             self.alpha_obj_emb * losses['obj_emb'] +
+            self.alpha_obj_view_cont * losses['obj_view_cont'] +
             self.alpha_pixel_con * losses['pixel_con'] +
             self.alpha_var * losses['total_var'] +
             self.alpha_small_hole * losses['small_hole'] +
-            self.alpha_interior * losses['interior_fill'] 
+            self.alpha_interior * losses['interior_fill'] + 
+            self.alpha_consistency * losses['consistency']
         )
         
-        # Safety check for NaN/Inf losses
-        if torch.isnan(loss_total) or torch.isinf(loss_total):
-            raise ValueError(f"Loss is NaN/Inf! Check individual loss components for issues.")
+        loss_total = safe_loss(loss_total, 'total')
         losses['total'] = loss_total
         
         return losses
@@ -780,3 +820,52 @@ class MultiTaskLoss(nn.Module):
             valid_samples += 1
 
         return loss_total / max(valid_samples, 1)
+
+    def _dense_voxel_contrastive_loss_from_concat(
+        self,
+        obj_embeddings: torch.Tensor,
+        temperature: float = 0.1,
+    ) -> torch.Tensor:
+        """
+        Dense pixel-wise contrastive loss (InfoNCE style) where
+        obj_embeddings is a concatenation of two aligned views:
+
+            [view1_batch, view2_batch]
+
+        Each voxel in view1 is contrasted with the spatially aligned
+        voxel in view2, while all other voxels act as negatives.
+
+        Args:
+            obj_embeddings: Concatenated embeddings (2B, D, H, W)
+            temperature: Temperature scaling
+
+        Returns:
+            Dense contrastive loss (scalar)
+        """
+        B2, D, H, W = obj_embeddings.shape
+        device = obj_embeddings.device
+
+        assert B2 % 2 == 0, "Batch size must be even (concatenated views)."
+        B = B2 // 2
+
+        # Split views
+        z1 = obj_embeddings[:B]
+        z2 = obj_embeddings[B:]
+
+        # Flatten spatial dims
+        # (B, D, H, W) -> (B*H*W, D)
+        z1 = z1.permute(0, 2, 3, 1).reshape(-1, D)
+        z2 = z2.permute(0, 2, 3, 1).reshape(-1, D)
+
+        N = z1.shape[0]  # total voxels
+
+        # Similarity matrix
+        sim = torch.matmul(z1, z2.T) / temperature  # (N, N)
+
+        # Positive targets are aligned indices
+        target = torch.arange(N, device=device)
+
+        # InfoNCE
+        loss = F.cross_entropy(sim, target)
+
+        return loss
