@@ -4,6 +4,8 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, CosineAnnealingLR, LinearLR, SequentialLR
+
 from tqdm import tqdm
 import ray
 
@@ -165,6 +167,14 @@ def train_pred_loop(config):
         weight_decay=dl_config.optimizer.weight_decay,
         betas=(dl_config.optimizer.beta1, dl_config.optimizer.beta2)
     )
+
+    warmup = LinearLR(optimizer, start_factor=dl_config.optimizer.warmup_start_factor, 
+                        end_factor=dl_config.optimizer.warmup_end_factor, 
+                        total_iters=dl_config.optimizer.warmup_total_iters)
+    cosine = CosineAnnealingWarmRestarts(optimizer, T_0=dl_config.optimizer.cosine_annealing_t0, 
+                        T_mult=dl_config.optimizer.cosine_annealing_t_mult)
+    scheduler = SequentialLR(optimizer, schedulers=[warmup, cosine], milestones=[dl_config.optimizer.warmup_total_iters])
+
     
     scaler = torch.amp.GradScaler("cuda")
 
@@ -260,6 +270,10 @@ def train_pred_loop(config):
             
             scaler.step(optimizer)
             scaler.update()
+
+            if niter_total % (dl_config.training.scheduler_batch_step_interval) == 0:
+                logger.info("Stepping learning rate scheduler")
+                scheduler.step()
 
             running_loss.append(loss_total.item())
             

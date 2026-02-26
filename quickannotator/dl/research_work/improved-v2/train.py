@@ -49,6 +49,8 @@ from quickannotator.dl.dl_config import DLConfig, get_default_config, get_augmen
 
 from datasets import FilesystemDataset
 
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, CosineAnnealingLR, LinearLR, SequentialLR
+
 
 # Configure logging for local training
 def setup_logging(log_dir: str):
@@ -102,7 +104,7 @@ def train(
     logger.info(f"Training config: batch_size={dl_config.data.batch_size}, patch_size={dl_config.data.patch_size}, num_workers={dl_config.data.num_workers}, num_epochs={num_epochs}")
 
     # Set device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
 
 
@@ -198,6 +200,11 @@ def train(
         betas=(dl_config.optimizer.beta1, dl_config.optimizer.beta2)
     )
 
+
+    warmup = LinearLR(optimizer, start_factor=0.1, end_factor=1.0, total_iters=5)
+    cosine = CosineAnnealingWarmRestarts(optimizer, T_0=50, T_mult=2)
+    scheduler = SequentialLR(optimizer, schedulers=[warmup, cosine], milestones=[5])
+
     # Setup AMP gradient scaler
     scaler = GradScaler() if torch.cuda.is_available() else None
 
@@ -268,7 +275,12 @@ def train(
 
             scaler.step(optimizer)
             scaler.update()
+            
+            if niter_total % (dl_config.training.scheduler_batch_step_interval) == 0:
+                logger.info("Stepping learning rate scheduler")
+                scheduler.step()
 
+            
 
             running_loss.append(loss_total.item())
 
@@ -289,6 +301,8 @@ def train(
             writer.add_scalar('loss/interior_fill', _to_scalar(losses_dict['interior_fill']), niter_total)
             writer.add_scalar('loss/consistency', _to_scalar(losses_dict['consistency']), niter_total)
 
+            current_lr = scheduler.get_last_lr()[0]
+            writer.add_scalar('train/learning_rate', current_lr, niter_total)
 
             # Images (slow, so less frequent)
             if niter_total % (dl_config.training.save_checkpoint_interval) == 0:
@@ -333,6 +347,9 @@ def train(
                 torch.save(model.state_dict(), checkpoint_path)
                 logger.info(f"Model checkpoint saved to {checkpoint_path}")
                 last_save = 0
+
+
+
 
     logger.info("Training complete!")
     writer.close()

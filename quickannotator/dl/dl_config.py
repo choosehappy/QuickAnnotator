@@ -107,6 +107,14 @@ class OptimizerConfig:
     use_amp: bool = True  # Automatic Mixed Precision
     grad_clip: Optional[float] = 1.0 # Gradient clipping value (None to disable)
 
+    warmup_start_factor: float = .1
+    warmup_end_factor: float = 1.0
+    warmup_total_iters: int = 5
+    
+    cosine_annealing_t0: int = 50
+    cosine_annealing_t_mult: int = 2
+
+
 
 @dataclass
 class AugmentationConfig:
@@ -162,9 +170,11 @@ class TrainingConfig:
     num_epochs: int = 1000
     checkpoint_interval: int = 50
     log_interval: int = 10
+
+    scheduler_batch_step_interval: int = 50
     
     # Device
-    device: str = "cuda"
+    device: str = "cuda:1"
     distributed: bool = False
     
     # Checkpointing
