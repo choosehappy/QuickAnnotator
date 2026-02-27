@@ -79,6 +79,7 @@ def train_pred_loop(config):
     boost_count = dl_config.boost_count
     batch_size_train = dl_config.data.batch_size
     batch_size_infer = dl_config.batch_size_infer
+    max_inference_iterations = dl_config.max_inference_iterations
     num_workers = dl_config.data.num_workers
     patch_size = dl_config.data.patch_size
     
@@ -195,12 +196,17 @@ def train_pred_loop(config):
     # procRunningSince will be None if the DL processing is to be stopped, resulting in the model being unloaded from GPU and the training loop exiting
     while ray.get(myactor.get_proc_running_since.remote()):    
         tilestore = TileStoreFactory.get_tilestore()
-        while tiles := tilestore.get_pending_inference_tiles(annotation_class_id, batch_size_infer):
+        infer_iter = 0
+        while infer_iter <= max_inference_iterations:
+            tiles = tilestore.get_pending_inference_tiles(annotation_class_id, batch_size_infer)
+            if not tiles:
+                break
             logger.info(f"Running inference on {len(tiles)} tiles for annotation class {annotation_class_id}")
             tileids = [tile.tile_id for tile in tiles]
             logger.info(f"Tiles to process: {tileids}")
             #print (f"running inference on {len(tiles)}")
             run_inference(device, model, tiles)
+            infer_iter += 1
             
         logger.info(f"No more STARTPROCESSING tiles for annotation class {annotation_class_id}. Entering training loop.")
         if ray.get(myactor.get_proc_running_since.remote()) is None:
@@ -210,7 +216,7 @@ def train_pred_loop(config):
             logger.info("Training enabled. Loading training batch.")
             niter_total += 1
             batch_data = next(iter(dataloader))
-            
+            logger.info(f"Batch loaded. Batch size: {len(batch_data[0])}. Starting training step.")
             # Unpack patch batch: (patch_image, patch_mask, hv_map)
             images = batch_data[0]
             masks = batch_data[1]
@@ -303,7 +309,8 @@ def train_pred_loop(config):
                 save_file(model.state_dict(), checkpoint_path)
                 logger.info(f"Model checkpoint saved to {checkpoint_path}")
                 last_save = 0
-                
+        else:
+            logger.info("Training disabled.")
     logger.info("Exiting training!")
 
 
