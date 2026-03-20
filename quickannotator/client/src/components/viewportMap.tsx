@@ -456,18 +456,13 @@ const ViewportMap = (props: Props) => {
             if (resp.status === 200) {
                 // In this case we set the annotation's featureId to null since we don't need to redraw specific tiles.
                 const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentAnnotationClass.id, null));
-                if (anns.length === 0) {
-                    alert("No annotations selected within the lasso. Please try again.");
-                }
-                
-                setHighlightedPreds(anns);
-                const tilesResp = await searchTileRefsWithinPolygon(currentImage.id, currentAnnotationClass.id, polygon, false);
-                if (tilesResp.status === 200) {
-                    const featureIds = tilesResp.data.map((tile_ref: TileRef) => tile_ref.downsampled_tile_id);
+                if (anns.length > 0) {
+                    const featureIds = getFeatIdsRendered(geojs_map.current.layers()[LAYER_KEYS.GT], PredFeatureType.annotation);
                     featureIdsToUpdate.current = featureIds;
+                    redrawHighlightedPreds(anns);
                     if (cookies[COOKIE_NAMES.SKIP_CONFIRM_IMPORT]) {
                         postAnnotations(currentImage.id, currentAnnotationClass?.id, anns.map(ann => ann.parsedPolygon)).then(() => {
-                            setHighlightedPreds(null);
+                            redrawHighlightedPreds([]);  // Clear the redrawing of highlighted predictions by passing an empty array.
                             viewportRender(true, false, false, currentImage.id, currentAnnotationClass.id).then(() => {   
                                 console.log("Viewport render complete after import.");
                             });
@@ -477,7 +472,7 @@ const ViewportMap = (props: Props) => {
                         setActiveModal(MODAL_DATA.IMPORT_CONF.id);
                     }
                 } else {
-                    console.log("No tiles found within the polygon.");
+                    alert("No annotations found within the lasso. Please try again.");
                 }
                 annotationLayer.mode('point');
                 // }
@@ -863,19 +858,20 @@ const ViewportMap = (props: Props) => {
     }, [props.selectedPred]);
 
     // When the highlighted predictions change, redraw the features
-    useEffect(() => {
+    function redrawHighlightedPreds(highlightedPreds: Annotation[]) {
         if (!geojs_map.current || !props.currentImage || !props.currentAnnotationClass) return;
 
         const predLayer = geojs_map.current.layers()[LAYER_KEYS.PRED];
         if (!predLayer) return;
         const features = predLayer.features().filter((f: any) => f.featureType === 'polygon');
-        const featuresToRedraw = features.filter((f: any) => featureIdsToUpdate.current.includes(f.props.featureId));
-        const highlightedPolyIds = props.highlightedPreds ? props.highlightedPreds.map(ann => ann.id) : null;
+        // const featuresToRedraw = features.filter((f: any) => featIdsToUpdate.includes(f.props.featureId));
+        const highlightedPolyIds = highlightedPreds.map(ann => ann.id);
 
-        featuresToRedraw.forEach((f: any) => {
+        features.forEach((f: any) => {
             redrawTileFeature(f, highlightedPolyIds ? { highlightedPolyIds: highlightedPolyIds } : {});
         });
-    }, [props.highlightedPreds]);
+        console.log("Redrew highlighted predictions.");
+    }
 
 
     useHotkeys('backspace, delete', handleDeleteAnnotation, [props.currentAnnotation, props.currentImage, props.currentAnnotationClass, props.gts]);
