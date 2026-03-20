@@ -25,7 +25,7 @@ class DataConfig:
     max_patches_per_image: int = 200
     
     # Dataset
-    num_workers: int = 8
+    num_workers: int = 1
     batch_size: int = 2
     shuffle: bool = False  # IterableDataset doesn't support shuffle
     
@@ -190,6 +190,7 @@ class DLConfig:
     # Ray/Distributed
     boost_count: int = 5
     batch_size_infer: int = 4
+    max_inference_iterations: int = 4  # Max inference batches per outer loop iteration (0 = no inference)
     
     def __post_init__(self):
         """Initialize default sub-configurations if not provided."""
