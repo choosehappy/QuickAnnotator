@@ -208,8 +208,8 @@ def train_pred_loop(config):
     # procRunningSince will be None if the DL processing is to be stopped, resulting in the model being unloaded from GPU and the training loop exiting
     while ray.get(myactor.get_proc_running_since.remote()):    
         tilestore = TileStoreFactory.get_tilestore()
-        infer_iter = 0
-        while infer_iter <= max_inference_iterations:
+        # Replace the while loop with a for loop
+        for _ in range(max_inference_iterations + 1):
             tiles = tilestore.get_pending_inference_tiles(annotation_class_id, batch_size_infer)
             if not tiles:
                 break
@@ -218,8 +218,6 @@ def train_pred_loop(config):
             logger.info(f"Tiles to process: {tileids}")
             #print (f"running inference on {len(tiles)}")
             run_inference(device, model, tiles)
-            infer_iter += 1
-            
         logger.info(f"No more STARTPROCESSING tiles for annotation class {annotation_class_id}. Entering training loop.")
         if ray.get(myactor.get_proc_running_since.remote()) is None:
             logger.info("Processing has been stopped. Exiting training loop.")
