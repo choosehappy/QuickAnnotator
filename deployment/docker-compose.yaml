@@ -29,7 +29,8 @@ services:
   qa:
     image: histotools/quickannotator:main
     volumes:
-      - /home/jjaco34/digital_slide_archive/devops/dsa/assetstore/emory_ts_for_dsa:/opt/QuickAnnotator/quickannotator/mounts/nas_read
+      # nas_read can be replaced with a local or NAS mount.
+      - nas_read:/opt/QuickAnnotator/quickannotator/mounts/nas_read 
       - nas_write:/opt/QuickAnnotator/quickannotator/mounts/nas_write
     networks:
       - qa_net
