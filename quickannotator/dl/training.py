@@ -4,6 +4,8 @@ import torch
 from torch.utils.data import DataLoader
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, CosineAnnealingLR, LinearLR, SequentialLR
+
 from tqdm import tqdm
 import ray
 
@@ -146,6 +148,8 @@ def train_pred_loop(config):
         alpha_var=dl_config.loss.alpha_var,
         alpha_small_hole=dl_config.loss.alpha_small_hole,
         alpha_interior=dl_config.loss.alpha_interior,
+        alpha_consistency=dl_config.loss.alpha_consistency,
+        alpha_obj_view_cont=dl_config.loss.alpha_obj_view_cont,
         bce_dice_weight=dl_config.loss.bce_dice_weight,
         temperature=dl_config.loss.temperature,
         max_samples=dl_config.loss.max_samples,
@@ -164,6 +168,14 @@ def train_pred_loop(config):
         weight_decay=dl_config.optimizer.weight_decay,
         betas=(dl_config.optimizer.beta1, dl_config.optimizer.beta2)
     )
+
+    warmup = LinearLR(optimizer, start_factor=dl_config.optimizer.warmup_start_factor, 
+                        end_factor=dl_config.optimizer.warmup_end_factor, 
+                        total_iters=dl_config.optimizer.warmup_total_iters)
+    cosine = CosineAnnealingWarmRestarts(optimizer, T_0=dl_config.optimizer.cosine_annealing_t0, 
+                        T_mult=dl_config.optimizer.cosine_annealing_t_mult)
+    scheduler = SequentialLR(optimizer, schedulers=[warmup, cosine], milestones=[dl_config.optimizer.warmup_total_iters])
+
     
     scaler = torch.amp.GradScaler("cuda")
 
@@ -218,10 +230,15 @@ def train_pred_loop(config):
             batch_data = next(iter(dataloader))
             logger.info(f"Batch loaded. Batch size: {len(batch_data[0])}. Starting training step.")
             # Unpack patch batch: (patch_image, patch_mask, hv_map)
-            images = batch_data[0]
-            masks = batch_data[1]
-            hv_maps = batch_data[2]
-            
+            view1 = batch_data[0]
+            view2 = batch_data[1]
+            masks = batch_data[2]
+            hv_maps = batch_data[3]
+
+            images = torch.cat([view1, view2], dim=0)
+            masks = torch.cat([masks, masks], dim=0)
+            hv_maps = torch.cat([hv_maps, hv_maps], dim=0)
+
             # Move to device and normalize images to [0, 1]
             images = images.half().to(device) / 255.0
             masks = masks.to(device)
@@ -239,7 +256,7 @@ def train_pred_loop(config):
                     return_pixel_emb=True
                 )
                 
-                # Compute 8-component multi-task loss
+                # Compute 10 (?)-component multi-task loss
                 # MultiTaskLoss.forward() returns dict with 'total' and individual components
                 losses_dict = criterion(
                     model_output=model_output,
@@ -260,6 +277,10 @@ def train_pred_loop(config):
             scaler.step(optimizer)
             scaler.update()
 
+            if niter_total % (dl_config.training.scheduler_batch_step_interval) == 0:
+                logger.info("Stepping learning rate scheduler")
+                scheduler.step()
+
             running_loss.append(loss_total.item())
             
             # Log total loss and all 8 components to TensorBoard for comprehensive monitoring
@@ -276,11 +297,13 @@ def train_pred_loop(config):
             writer.add_scalar('loss/hv', _to_scalar(losses_dict['hv']), niter_total)
             writer.add_scalar('loss/recon', _to_scalar(losses_dict['recon']), niter_total)
             writer.add_scalar('loss/obj_emb', _to_scalar(losses_dict['obj_emb']), niter_total)
+            writer.add_scalar('loss/obj_view_cont', _to_scalar(losses_dict['obj_view_cont']), niter_total)
             writer.add_scalar('loss/pixel_con', _to_scalar(losses_dict['pixel_con']), niter_total)
             writer.add_scalar('loss/total_var', _to_scalar(losses_dict['total_var']), niter_total)
             writer.add_scalar('loss/small_hole', _to_scalar(losses_dict['small_hole']), niter_total)
             writer.add_scalar('loss/interior_fill', _to_scalar(losses_dict['interior_fill']), niter_total)
-            
+            writer.add_scalar('loss/consistency', _to_scalar(losses_dict['consistency']), niter_total)
+
             #print ("losses:\t",loss_total,positive_mask.sum(),positive_loss,unlabeled_loss)
             
             last_save+=1
@@ -294,10 +317,13 @@ def train_pred_loop(config):
                 logger.info(f"  - HV: {_to_scalar(losses_dict['hv']):.4f}")
                 logger.info(f"  - Reconstruction: {_to_scalar(losses_dict['recon']):.4f}")
                 logger.info(f"  - Object Embedding: {_to_scalar(losses_dict['obj_emb']):.4f}")
+                logger.info(f"  - Object View Contrastive: {_to_scalar(losses_dict['obj_view_cont']):.4f}")
                 logger.info(f"  - Pixel Contrastive: {_to_scalar(losses_dict['pixel_con']):.4f}")
                 logger.info(f"  - Total Variation: {_to_scalar(losses_dict['total_var']):.4f}")
                 logger.info(f"  - Small Hole: {_to_scalar(losses_dict['small_hole']):.4f}")
                 logger.info(f"  - Interior Fill: {_to_scalar(losses_dict['interior_fill']):.4f}")
+                logger.info(f"  - Consistency: {_to_scalar(losses_dict['consistency']):.4f}")
+
                 running_loss=[]
 
                 logger.info("Saving model checkpoint")  # Use logger instead of print

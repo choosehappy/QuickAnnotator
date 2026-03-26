@@ -55,7 +55,7 @@ class PatchedDataset(IterableDataset):
         self.patch_size = patch_size
         self.stride = stride
         self.shuffle_patches = shuffle_patches
-        self.transforms = transforms
+        self.geom_transform, self.photo_transform = transforms if transforms else (None, None)
         
     def _get_candidate_patches(self, mask: np.ndarray):
         """
@@ -105,17 +105,22 @@ class PatchedDataset(IterableDataset):
             
             # Compute HV map for this patch
             hv_map = compute_hv_map(patch_mask)
-            
-            # Apply transforms if provided
-            if self.transforms:
-                augmented = self.transforms(
-                    image=patch_img, 
-                    masks=[patch_mask, hv_map]
-                )
-                patch_img = augmented['image']
-                patch_mask, hv_map = augmented['masks']
-            
-            yield patch_img, patch_mask[None, ::], hv_map[None, ::]
+
+            if self.geom_transform:
+
+                geom_out = self.geom_transform(image=patch_img, masks=[patch_mask, hv_map])
+
+                img_geom = geom_out["image"]
+                mask_geom, hv_geom = geom_out["masks"]
+
+                if self.photo_transform:
+                    view1 = self.photo_transform(image=img_geom)["image"]
+                    view2 = self.photo_transform(image=img_geom)["image"]
+
+                    yield (view1, view2, mask_geom[None, ...], hv_geom[None, ...])
+            else:
+                yield patch_img, patch_img, patch_mask[None, ...], hv_map[None, ...]
+
     
     def __iter__(self):
         """
