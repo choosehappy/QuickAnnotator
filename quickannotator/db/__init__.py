@@ -40,6 +40,9 @@ def drop_db():
     # Drop all tables in the database
     Base.metadata.drop_all(bind=engine)
 
+def dispose_engine():
+    engine.dispose(close=False)
+
 @contextmanager
 def get_session():
     """Provides a transactional scope for db_session outside Flask."""
@@ -53,6 +56,22 @@ def get_session():
     finally:
         db_session.remove()  # Cleanup session automatically
         #print("Session closed")
+
+@contextmanager
+def get_new_session():
+    """Provides a transactional scope for db_session outside Flask."""
+    _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db_session = _SessionLocal()
+    
+    try:
+        yield db_session
+        db_session.commit()
+    except Exception as e:
+        db_session.rollback()
+        print(f"Error: {e}")
+        raise
+    finally:
+        db_session.close()  # Use close() instead of remove() for fresh sessions
 
 @contextmanager
 def get_ogr_datasource():

@@ -4,6 +4,8 @@ from shapely.geometry import Polygon, shape
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy import case, update, select
+from sqlalchemy.orm import sessionmaker
+from quickannotator.db import engine
 from quickannotator.db.crud.annotation import create_dynamic_model
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
 from quickannotator.constants import MASK_CLASS_ID, MASK_DILATION, TileStatus
@@ -325,7 +327,7 @@ class TileStore(ABC):   # Only an ABC to prevent instantiation
         )
 
         if dialect == Dialects.POSTGRESQL:
-            subquery = subquery.with_for_update(skip_locked=True)
+            subquery = subquery.with_for_update()
             
 
         tile = db_session.execute(
@@ -344,9 +346,8 @@ class TileStore(ABC):   # Only an ABC to prevent instantiation
 
         if tile:
             db_session.expunge(tile)
-            return tile
-        else:
-            return
+        db_session.commit()
+        return tile
 
 class PostgresTileStore(TileStore):
     def __init__(self):

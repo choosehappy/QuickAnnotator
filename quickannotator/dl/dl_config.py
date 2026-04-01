@@ -25,7 +25,7 @@ class DataConfig:
     max_patches_per_image: int = 200
     
     # Dataset
-    num_workers: int = 1
+    num_workers: int = 8
     batch_size: int = 2
     shuffle: bool = False  # IterableDataset doesn't support shuffle
     

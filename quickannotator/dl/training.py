@@ -25,6 +25,7 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import cv2
 from safetensors.torch import save_file, load_file
+from quickannotator.db import dispose_engine
 from quickannotator.db.fsmanager import fsmanager
 import quickannotator.constants as constants
 import os
@@ -114,7 +115,8 @@ def train_pred_loop(config):
         patched_dataset,
         batch_size=batch_size_train,
         shuffle=False,  # IterableDataset doesn't support shuffle
-        num_workers=num_workers
+        num_workers=num_workers,
+        worker_init_fn=lambda worker_id: dispose_engine()  # Dispose engine in each worker to prevent connection issues
     )
 
     # Create model - use the new multi-task model with config parameters

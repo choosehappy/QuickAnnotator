@@ -1,4 +1,4 @@
-from quickannotator.db import get_session
+from quickannotator.db import get_new_session
 import logging
 import quickannotator.db.models as db_models
 from datetime import datetime
@@ -8,14 +8,17 @@ import logging
 
 class SQLAlchemyHandler(logging.Handler):
     def emit(self, record):
-        with get_session() as db_session:
-            log_entry = db_models.Log(
-                name=record.name,
-                timestamp=datetime.fromtimestamp(record.created),
-                level=record.levelname,
-                message=self.format(record)
-            )
-            db_session.add(log_entry)
+        try:
+            with get_new_session() as db_session:
+                log_entry = db_models.Log(
+                    name=record.name,
+                    timestamp=datetime.fromtimestamp(record.created),
+                    level=record.levelname,
+                    message=self.format(record)
+                )
+                db_session.add(log_entry)
+        except Exception as e:
+            print(f"Failed to log to database: {e}")
 
 class LoggingManager:
 
