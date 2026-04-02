@@ -34,6 +34,12 @@ from quickannotator.db.logging import LoggingManager
 from torch.utils.tensorboard import SummaryWriter
 import time
 
+def _worker_init_fn(worker_id):
+    """Dispose the SQLAlchemy engine in each DataLoader worker to prevent
+    connection pool inheritance issues when using spawn multiprocessing."""
+    dispose_engine()
+
+
 def get_transforms_from_config(tile_size, dl_config: DLConfig = None):
     """Get augmentation transforms from configuration or use default."""
     if dl_config is None:
@@ -116,7 +122,8 @@ def train_pred_loop(config):
         batch_size=batch_size_train,
         shuffle=False,  # IterableDataset doesn't support shuffle
         num_workers=num_workers,
-        worker_init_fn=lambda worker_id: dispose_engine()  # Dispose engine in each worker to prevent connection issues
+        worker_init_fn=_worker_init_fn,
+        multiprocessing_context="spawn"  # Use spawn to avoid issues with the global scoped_session.
     )
 
     # Create model - use the new multi-task model with config parameters
