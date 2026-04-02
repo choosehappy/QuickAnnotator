@@ -1,4 +1,4 @@
-from quickannotator.db import get_new_session
+from quickannotator.db import get_session
 import logging
 import quickannotator.db.models as db_models
 from datetime import datetime
@@ -9,7 +9,7 @@ import logging
 class SQLAlchemyHandler(logging.Handler):
     def emit(self, record):
         try:
-            with get_new_session() as db_session:
+            with get_session() as db_session:
                 log_entry = db_models.Log(
                     name=record.name,
                     timestamp=datetime.fromtimestamp(record.created),
