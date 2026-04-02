@@ -909,13 +909,12 @@ const ViewportMap = (props: Props) => {
         let renderPreds = props.predLayerVisible;
         let renderTileStatus = props.tileStatusLayerVisible;
 
-        // Toggle layer visibility
         layers[LAYER_KEYS.GT].visible(renderGts);
         layers[LAYER_KEYS.PRED].visible(renderPreds);
         layers[LAYER_KEYS.TILE_STATUS].visible(renderTileStatus);
 
-        if (renderGts || renderPreds || renderTileStatus) {
-            viewportRender(renderGts, renderPreds, renderTileStatus, props.currentImage.id, props.currentAnnotationClass.id);
+        if (renderPreds || renderTileStatus) {
+            viewportRender(false, renderPreds, renderTileStatus, props.currentImage.id, props.currentAnnotationClass.id);
         }
 
 
@@ -923,7 +922,7 @@ const ViewportMap = (props: Props) => {
             // console.log("Interval triggered.");
             if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
                 if (props.predLayerVisible || props.tileStatusLayerVisible) {
-                    viewportRender(false, props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
+                    viewportRender(false, renderPreds, renderTileStatus, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
                         console.log("Completed viewport render triggered by interval.");
                     });
                 }
