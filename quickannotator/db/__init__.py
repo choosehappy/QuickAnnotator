@@ -40,6 +40,9 @@ def drop_db():
     # Drop all tables in the database
     Base.metadata.drop_all(bind=engine)
 
+def dispose_engine():
+    engine.dispose(close=False)
+
 @contextmanager
 def get_session():
     """Provides a transactional scope for db_session outside Flask."""

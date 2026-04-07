@@ -43,10 +43,9 @@ def test_mask_cache_manager():
     # Initialize MaskCacheManager
     manager = MaskCacheManager()
 
-    # Create a sample mask matrix and weight matrix
+    # Create a sample mask matrix
     matrix = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
-    weight = np.random.randint(0, 2, (100, 100), dtype=np.uint8)
-    mask = CacheableMask(matrix, weight)
+    mask = CacheableMask(matrix)
 
     # Generate a cache key
     key = CacheableMask.get_key(image_id=1, annotation_class_id=1, tile_id=1)
@@ -58,7 +57,6 @@ def test_mask_cache_manager():
     cached_mask = manager.get_cached(key)
     assert cached_mask is not None
     assert np.array_equal(cached_mask.get_mask(), matrix)
-    assert np.array_equal(cached_mask.get_weight(), weight)
 
     # Invalidate the cache
     manager.invalidate(key)

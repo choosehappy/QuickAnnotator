@@ -152,27 +152,16 @@ class CacheableImage(CacheableObject):
 
 
 class CacheableMask(CacheableObject):
-    def __init__(self, matrix: np.ndarray, weight: np.ndarray):
+    def __init__(self, matrix: np.ndarray):
         if matrix.dtype != np.uint8:
             raise ValueError("Matrix must have dtype of uint8")
-        if weight.dtype != np.uint8:
-            raise ValueError("Weight must have dtype of uint8")
         self.mask = compress_to_image_bytestream(matrix, format=constants.ImageFormat.PNG)
-        self.weight = compress_to_image_bytestream(weight, format=constants.ImageFormat.PNG)
 
     def get_mask(self):
         """
         Returns the uncompressed mask data.
         """
         return decompress_from_image_bytestream(self.mask)
-    
-
-    def get_weight(self):
-        """
-        Returns the weight of the mask.
-        """
-        return decompress_from_image_bytestream(self.weight)
-    
 
     @staticmethod
     def get_key(image_id: int, annotation_class_id: int, tile_id: int) -> str:

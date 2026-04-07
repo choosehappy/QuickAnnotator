@@ -1,13 +1,15 @@
 import shapely.wkb
+import shapely.affinity
 import cv2, numpy as np
+import random
 
-import scipy.ndimage
 from torch.utils.data import IterableDataset
-from quickannotator.db import get_session
+from quickannotator.db import get_session, engine
 from quickannotator.db.crud.tile import TileStoreFactory
 from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
 from quickannotator.db.crud.annotation import AnnotationStore
 from quickannotator.dl.utils import MaskCacheManager, ImageCacheManager, CacheableImage, CacheableMask, load_tile 
+
 import logging
 import os
 from datetime import datetime
@@ -16,21 +18,32 @@ import quickannotator.constants as constants
 logger = logging.getLogger(constants.LoggerNames.RAY.value)
 
 class TileDataset(IterableDataset):
-    def __init__(self, classid, transforms=None, edge_weight=0, boost_count=5):
+    def __init__(self, classid, boost_count=5):
         self.classid = classid
-        self.transforms = transforms
-        self.edge_weight = edge_weight
         self.boost_count = boost_count
-        self.image_cache_manager = ImageCacheManager()
-        self.mask_cache_manager = MaskCacheManager()
+        # Cache managers are created lazily in __iter__ so that they are not
+        # pickled when DataLoader spawns worker processes (PooledClient and its
+        # serde/lock references are not picklable).
+        self._image_cache_manager = None
+        self._mask_cache_manager = None
+
+        # Dispose of the engine connection pool to prevent child processes from
+        # inheriting stale connections when DataLoader spawns worker processes.
+        engine.dispose(close=False)
+        
         with get_session() as db_session:  # Ensure this provides a session context
             annotation_class = get_annotation_class_by_id(classid)
             self.magnification = annotation_class.work_mag
             self.tile_size = annotation_class.work_tilesize
         
-        
-
     def __iter__(self):
+        # Initialise cache managers here (not in __init__) so they are never
+        # pickled when DataLoader spawns worker processes.
+        if self._image_cache_manager is None:
+            self._image_cache_manager = ImageCacheManager()
+        if self._mask_cache_manager is None:
+            self._mask_cache_manager = MaskCacheManager()
+
         tilestore = TileStoreFactory.get_tilestore()
         
         while tile := tilestore.get_workers_tiles(self.classid, self.boost_count):
@@ -40,9 +53,9 @@ class TileDataset(IterableDataset):
             image_id = tile.image_id
             tile_id = tile.tile_id
             img_cache_key = CacheableImage.get_key(image_id, self.classid, tile_id)
-            img_cache_val = self.image_cache_manager.get_cached(img_cache_key)
+            img_cache_val = self._image_cache_manager.get_cached(img_cache_key)
             mask_cache_key = CacheableMask.get_key(image_id, self.classid, tile_id)
-            mask_cache_val = self.mask_cache_manager.get_cached(mask_cache_key)
+            mask_cache_val = self._mask_cache_manager.get_cached(mask_cache_key)
 
             
 
@@ -53,11 +66,11 @@ class TileDataset(IterableDataset):
             else:
                 io_image,x,y = load_tile(tile)
                 
-                self.image_cache_manager.cache(img_cache_key, CacheableImage(io_image, (x, y)))
+                self._image_cache_manager.cache(img_cache_key, CacheableImage(io_image, (x, y)))
             
 
             if mask_cache_val:
-                mask_image, weight = mask_cache_val.get_mask(), mask_cache_val.get_weight()
+                mask_image = mask_cache_val.get_mask()
             else:
                 with get_session() as db_session: #TODO: Move down?
                     store = AnnotationStore(image_id, self.classid, is_gt=True, in_work_mag=True, mode=constants.AnnotationReturnMode.WKB)
@@ -76,38 +89,10 @@ class TileDataset(IterableDataset):
                 
                 mask_image = (mask_image>0).astype(np.uint8) # if two polygons slightly overlap, fillpoly is addiditve and you end upwith values >1
                 
-                if self.edge_weight:
-                    weight = scipy.ndimage.morphology.binary_dilation(mask_image, iterations=2) & ~mask_image
-                else:
-                    weight = np.ones(mask_image.shape, dtype=mask_image.dtype)
-                
-                self.mask_cache_manager.cache(mask_cache_key, CacheableMask(mask_image, weight))
-
-            img_new = io_image
-            mask_new = mask_image
-            weight_new = weight
-
-            if self.transforms:
-                augmented = self.transforms(image=io_image, masks=[mask_image, weight])
-                img_new = augmented['image']
-                mask_new, weight_new = augmented['masks']
-
-            # Save the image, mask, and weight to files
-            base_path = "/opt/QuickAnnotator/quickannotator/mounts/nas_write"
-            os.makedirs(base_path, exist_ok=True)
-
-
+                self._mask_cache_manager.cache(mask_cache_key, CacheableMask(mask_image))
 
             # Log image dimensions
-            logger.info(f"Image dimensions: {img_new.shape}, Mask dimensions: {mask_new.shape}, Weight dimensions: {weight_new.shape}")
+            logger.debug(f"Image dimensions: {io_image.shape}, Mask dimensions: {mask_image.shape}")
 
-            # Save the image, mask, and weight to files
+            yield io_image, mask_image
 
-            # image_path = os.path.join(base_path, f"image_{image_id}_class_{self.classid}_tile_{tile_id}.png")
-            # mask_path = os.path.join(base_path, f"mask_{image_id}_class_{self.classid}_tile_{tile_id}.png")
-            # weight_path = os.path.join(base_path, f"weight_{image_id}_class_{self.classid}_tile_{tile_id}.png")
-            # cv2.imwrite(image_path, io_image)
-            # cv2.imwrite(mask_path, mask_image * 255)  # Scale mask to 0-255 for saving
-            # cv2.imwrite(weight_path, weight * 255)  # Scale weight to 0-255 for saving
-
-            yield img_new, mask_new[None,::], weight_new
