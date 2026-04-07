@@ -44,7 +44,6 @@ class DLActor:
         self.magnification = magnification
 
     def start_dlproc(self):
-        breakpoint()
         if self.get_proc_running_since() is not None:
             self.logger.warning(f"{self.get_actor_name()} already running, not starting again")
             return
@@ -189,7 +188,6 @@ def truncate_processing_actors(current_actor_name: str, current_actor_date: date
         - Logging is used to record warnings and truncation actions.
     """
     retries = 0
-    breakpoint()
     while (names := sorted(ray.util.list_named_actors())) and len(names) > constants.MAX_ACTORS_PROCESSING:
         if retries >= constants.MAX_RETRIES_TRUNCATE_ACTORS:
             logger.warning(f"Actor {current_actor_name} failed to truncate total number of actors to {constants.MAX_ACTORS_PROCESSING}. Aborting startup.")

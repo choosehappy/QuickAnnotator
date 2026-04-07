@@ -4,7 +4,7 @@ import cv2, numpy as np
 import random
 
 from torch.utils.data import IterableDataset
-from quickannotator.db import get_session
+from quickannotator.db import get_session, engine
 from quickannotator.db.crud.tile import TileStoreFactory
 from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
 from quickannotator.db.crud.annotation import AnnotationStore
@@ -21,14 +21,29 @@ class TileDataset(IterableDataset):
     def __init__(self, classid, boost_count=5):
         self.classid = classid
         self.boost_count = boost_count
-        self.image_cache_manager = ImageCacheManager()
-        self.mask_cache_manager = MaskCacheManager()
+        # Cache managers are created lazily in __iter__ so that they are not
+        # pickled when DataLoader spawns worker processes (PooledClient and its
+        # serde/lock references are not picklable).
+        self._image_cache_manager = None
+        self._mask_cache_manager = None
+
+        # Dispose of the engine connection pool to prevent child processes from
+        # inheriting stale connections when DataLoader spawns worker processes.
+        engine.dispose(close=False)
+        
         with get_session() as db_session:  # Ensure this provides a session context
             annotation_class = get_annotation_class_by_id(classid)
             self.magnification = annotation_class.work_mag
             self.tile_size = annotation_class.work_tilesize
         
     def __iter__(self):
+        # Initialise cache managers here (not in __init__) so they are never
+        # pickled when DataLoader spawns worker processes.
+        if self._image_cache_manager is None:
+            self._image_cache_manager = ImageCacheManager()
+        if self._mask_cache_manager is None:
+            self._mask_cache_manager = MaskCacheManager()
+
         tilestore = TileStoreFactory.get_tilestore()
         
         while tile := tilestore.get_workers_tiles(self.classid, self.boost_count):
@@ -38,9 +53,9 @@ class TileDataset(IterableDataset):
             image_id = tile.image_id
             tile_id = tile.tile_id
             img_cache_key = CacheableImage.get_key(image_id, self.classid, tile_id)
-            img_cache_val = self.image_cache_manager.get_cached(img_cache_key)
+            img_cache_val = self._image_cache_manager.get_cached(img_cache_key)
             mask_cache_key = CacheableMask.get_key(image_id, self.classid, tile_id)
-            mask_cache_val = self.mask_cache_manager.get_cached(mask_cache_key)
+            mask_cache_val = self._mask_cache_manager.get_cached(mask_cache_key)
 
             
 
@@ -51,7 +66,7 @@ class TileDataset(IterableDataset):
             else:
                 io_image,x,y = load_tile(tile)
                 
-                self.image_cache_manager.cache(img_cache_key, CacheableImage(io_image, (x, y)))
+                self._image_cache_manager.cache(img_cache_key, CacheableImage(io_image, (x, y)))
             
 
             if mask_cache_val:
@@ -74,7 +89,7 @@ class TileDataset(IterableDataset):
                 
                 mask_image = (mask_image>0).astype(np.uint8) # if two polygons slightly overlap, fillpoly is addiditve and you end upwith values >1
                 
-                self.mask_cache_manager.cache(mask_cache_key, CacheableMask(mask_image, None))
+                self._mask_cache_manager.cache(mask_cache_key, CacheableMask(mask_image))
 
             # Log image dimensions
             logger.debug(f"Image dimensions: {io_image.shape}, Mask dimensions: {mask_image.shape}")

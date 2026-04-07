@@ -25,6 +25,7 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import cv2
 from safetensors.torch import save_file, load_file
+from quickannotator.db import dispose_engine
 from quickannotator.db.fsmanager import fsmanager
 import quickannotator.constants as constants
 import os
@@ -32,6 +33,12 @@ from quickannotator.db.logging import LoggingManager
 
 from torch.utils.tensorboard import SummaryWriter
 import time
+
+def _worker_init_fn(worker_id):
+    """Dispose the SQLAlchemy engine in each DataLoader worker to prevent
+    connection pool inheritance issues when using spawn multiprocessing."""
+    dispose_engine()
+
 
 def get_transforms_from_config(tile_size, dl_config: DLConfig = None):
     """Get augmentation transforms from configuration or use default."""
@@ -81,6 +88,7 @@ def train_pred_loop(config):
     boost_count = dl_config.boost_count
     batch_size_train = dl_config.data.batch_size
     batch_size_infer = dl_config.batch_size_infer
+    max_inference_iterations = dl_config.max_inference_iterations
     num_workers = dl_config.data.num_workers
     patch_size = dl_config.data.patch_size
     
@@ -113,7 +121,9 @@ def train_pred_loop(config):
         patched_dataset,
         batch_size=batch_size_train,
         shuffle=False,  # IterableDataset doesn't support shuffle
-        num_workers=num_workers
+        num_workers=num_workers,
+        worker_init_fn=_worker_init_fn,
+        multiprocessing_context="spawn"  # Use spawn to avoid issues with the global scoped_session.
     )
 
     # Create model - use the new multi-task model with config parameters
@@ -207,13 +217,16 @@ def train_pred_loop(config):
     # procRunningSince will be None if the DL processing is to be stopped, resulting in the model being unloaded from GPU and the training loop exiting
     while ray.get(myactor.get_proc_running_since.remote()):    
         tilestore = TileStoreFactory.get_tilestore()
-        while tiles := tilestore.get_pending_inference_tiles(annotation_class_id, batch_size_infer):
+        # Replace the while loop with a for loop
+        for _ in range(max_inference_iterations + 1):
+            tiles = tilestore.get_pending_inference_tiles(annotation_class_id, batch_size_infer)
+            if not tiles:
+                break
             logger.info(f"Running inference on {len(tiles)} tiles for annotation class {annotation_class_id}")
             tileids = [tile.tile_id for tile in tiles]
             logger.info(f"Tiles to process: {tileids}")
             #print (f"running inference on {len(tiles)}")
             run_inference(device, model, tiles)
-            
         logger.info(f"No more STARTPROCESSING tiles for annotation class {annotation_class_id}. Entering training loop.")
         if ray.get(myactor.get_proc_running_since.remote()) is None:
             logger.info("Processing has been stopped. Exiting training loop.")
@@ -222,7 +235,7 @@ def train_pred_loop(config):
             logger.info("Training enabled. Loading training batch.")
             niter_total += 1
             batch_data = next(iter(dataloader))
-            
+            logger.info(f"Batch loaded. Batch size: {len(batch_data[0])}. Starting training step.")
             # Unpack patch batch: (patch_image, patch_mask, hv_map)
             view1 = batch_data[0]
             view2 = batch_data[1]
@@ -329,7 +342,8 @@ def train_pred_loop(config):
                 save_file(model.state_dict(), checkpoint_path)
                 logger.info(f"Model checkpoint saved to {checkpoint_path}")
                 last_save = 0
-                
+        else:
+            logger.info("Training disabled.")
     logger.info("Exiting training!")
 
 

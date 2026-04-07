@@ -1,15 +1,13 @@
-name: quickannotator_services
-
+name: ${COMPOSE_PROJECT_NAME}
 services:
   postgis:
     image: postgis/postgis:16-3.5
-    container_name: qa_postgis
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
       POSTGRES_DB: qa_postgis_db
     ports:
-      - "5432:5432"
+      - "${POSTGIS_PORT}:5432"
     volumes:
       - postgis_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -18,11 +16,10 @@ services:
 
   grafana:
     image: grafana/grafana:12.4.0-20151846001
-    container_name: qa_grafana
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT}:3000"
     depends_on:
       - postgis
     restart: unless-stopped
@@ -31,21 +28,21 @@ services:
 
   qa:
     image: histotools/quickannotator:main
-    container_name: qa
     volumes:
-      - nas_read:/opt/QuickAnnotator/quickannotator/mounts/nas_read
+      # nas_read can be replaced with a local or NAS mount.
+      - nas_read:/opt/QuickAnnotator/quickannotator/mounts/nas_read 
       - nas_write:/opt/QuickAnnotator/quickannotator/mounts/nas_write
     networks:
       - qa_net
     depends_on:
       - postgis
     environment:
-      - POSTGRES_HOST=qa_postgis
+      - POSTGRES_HOST=postgis
     ports:
-      - "5000:5000"
-      - "5173:5173"
-      - "8265:8265"
-      - "6006:6006"
+      - "${VITE_PORT}:5173"
+      - "${QA_PORT}:5000"
+      - "${RAY_PORT}:8265"
+      - "${TB_PORT}:6006"
     command: >
       tmux new-session -d -s server "quickannotator" &&
       tmux new-session -d -s ui "npm run dev"
