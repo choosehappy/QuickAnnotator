@@ -24,3 +24,11 @@ class PutAnnClassArgsSchema(GetAnnClassArgsSchema):
 class SearchAnnClassArgsSchema(Schema):
     name = fields.Str(required=False)
     project_id = fields.Int(required=False)
+
+class GetAnnClassCountsArgsSchema(Schema):
+    project_id = fields.Int(required=False)
+    group_by = fields.Str(required=False)
+
+class AnnClassCountRespSchema(Schema):
+    project_id = fields.Int(load_default=None)
+    annotation_class_count = fields.Int()
