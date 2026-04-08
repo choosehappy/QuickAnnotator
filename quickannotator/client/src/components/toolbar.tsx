@@ -5,7 +5,7 @@ import { renderTooltip } from '../utils/customTooltip.tsx';
 import React from "react";
 import { ToolbarButton } from "../types.ts";
 import { BRUSH_TOOL_HOTKEY, IMPORT_TOOL_HOTKEY, PAN_TOOL_HOTKEY, POLYGON_TOOL_HOTKEY, POPOVER_DATA, WAND_TOOL_HOTKEY } from "../helpers/config.tsx";
-import { Fullscreen, ArrowCounterclockwise, ArrowClockwise, ArrowsMove, Cursor, Brush, Magic, Eraser, Heptagon, Bookmark, Bookmarks } from 'react-bootstrap-icons';
+import { Fullscreen, ArrowCounterclockwise, ArrowClockwise, ArrowsMove, Cursor, Brush, Magic, Eraser, Heptagon, Bookmark, Bookmarks, BoundingBoxCircles } from 'react-bootstrap-icons';
 import { TOOLBAR_KEYS, LAYER_TOGGLE_KEYS } from '../helpers/config.tsx';
 import Form from 'react-bootstrap/Form';
 
@@ -61,7 +61,7 @@ const Toolbar = React.memo((props: Props) => {
     };
 
     const radios = {
-        [TOOLBAR_KEYS.POINTER]: { icon: <Cursor/>, ctrlIcon: null, disabled: false, title: "Pan", shortcut: PAN_TOOL_HOTKEY, content: POPOVER_DATA.PAN_TOOL },
+        [TOOLBAR_KEYS.POINTER]: { icon: <Cursor/>, ctrlIcon: <BoundingBoxCircles/>, disabled: false, title: "Pan", shortcut: PAN_TOOL_HOTKEY, content: POPOVER_DATA.PAN_TOOL },
         [TOOLBAR_KEYS.IMPORT]: { icon: <Bookmark/>, ctrlIcon: <Bookmarks/>, disabled: false, title: "Import", shortcut: IMPORT_TOOL_HOTKEY, content: POPOVER_DATA.IMPORT_TOOL },
         [TOOLBAR_KEYS.BRUSH]: { icon: <Brush/>, ctrlIcon: <Eraser/>, disabled: false, title: "Brush", shortcut: BRUSH_TOOL_HOTKEY, content: POPOVER_DATA.BRUSH_TOOL },
         [TOOLBAR_KEYS.WAND]: { icon: <Magic/>, ctrlIcon: null, disabled: true, title: "Magic", shortcut: WAND_TOOL_HOTKEY, content: POPOVER_DATA.MAGIC_TOOL },

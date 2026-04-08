@@ -165,8 +165,9 @@ export const putAnnotation = async (image_id: number, annotation_class_id: numbe
     return await put<PutAnnArgs, AnnotationResponse>(`/annotation/${image_id}/${annotation_class_id}`, requestBody);
 }
 
-export const removeAnnotation = async (image_id: number, annotation_class_id: number, annotation_id: number, is_gt: boolean) => {
-    const query = new URLSearchParams({ is_gt: is_gt.toString(), annotation_id: annotation_id.toString() });
+export const removeAnnotations = async (image_id: number, annotation_class_id: number, annotation_ids: number[], is_gt: boolean) => {
+    const query = new URLSearchParams({ is_gt: is_gt.toString() });
+    annotation_ids.forEach(id => query.append('annotation_ids', id.toString()));
     return await remove(`/annotation/${image_id}/${annotation_class_id}?${query}`);
 }
 

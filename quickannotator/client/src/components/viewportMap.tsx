@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef, useCallback, act } from 'react';
 import geo from "geojs"
 import { Annotation, Image, AnnotationClass, Tile, CurrentAnnotation, PutAnnArgs, AnnotationResponse, TileRef, PredFeatureType } from "../types.ts"
-import { searchTileRefsByBbox, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotation, getAnnotationsForTileIds, getAnnotationsWithinPolygon, searchTileRefsWithinPolygon, fetchTileBoundingBoxes, fetchImageMetadata, searchTileByCoordinates, predictTiles } from "../helpers/api.ts";
+import { searchTileRefsByBbox, fetchAllAnnotations, postAnnotations, operateOnAnnotation, putAnnotation, removeAnnotations, getAnnotationsForTileIds, getAnnotationsWithinPolygon, searchTileRefsWithinPolygon, fetchTileBoundingBoxes, fetchImageMetadata, searchTileByCoordinates, predictTiles } from "../helpers/api.ts";
 import { Point, Polygon, Feature, Position, GeoJsonGeometryTypes } from "geojson";
 
-import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID, COOKIE_NAMES, POLYGON_OPERATIONS, POLYGON_CREATE_STYLE, POLYGON_CREATE_STYLE_SECONDARY, IMPORT_CREATE_STYLE, BRUSH_CREATE_STYLE, BRUSH_CREATE_STYLE_SECONDARY, BRUSH_SIZE, UI_SETTINGS, MAX_ZOOM } from "../helpers/config.tsx";
+import { TOOLBAR_KEYS, INTERACTION_MODE, LAYER_KEYS, TILE_STATUS, MODAL_DATA, RENDER_PREDICTIONS_INTERVAL, RENDER_DELAY, MAP_TRANSLATION_DELAY, MASK_CLASS_ID, COOKIE_NAMES, POLYGON_OPERATIONS, POLYGON_CREATE_STYLE, POLYGON_CREATE_STYLE_SECONDARY, IMPORT_CREATE_STYLE, LASSO_SELECT_STYLE, BRUSH_CREATE_STYLE, BRUSH_CREATE_STYLE_SECONDARY, BRUSH_SIZE, UI_SETTINGS, MAX_ZOOM } from "../helpers/config.tsx";
 
 import { computeFeaturesToRender, getTileFeatureById, redrawTileFeature, createGTTileFeature, createPredTileFeature, createPendingTileFeature, getFeatIdsRendered, tileIdIsValid, getScaledSize, createCirclePolygon, createConnectingRectangle, TileRefStore, getTileFeatureByTileId, removeFeatureById, getTileDownsampleLevel, getPolygonSimplifyTolerance, createTileStatusFeature } from '../utils/map.ts';
 import { useCookies } from 'react-cookie';
@@ -32,6 +32,8 @@ interface Props {
     setCtrlHeld: React.Dispatch<React.SetStateAction<boolean>>;
     highlightedPreds: Annotation[] | null;
     setHighlightedPreds: React.Dispatch<React.SetStateAction<Annotation[] | null>>;
+    multiSelectedAnnotations: Annotation[];
+    setMultiSelectedAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>;
     activeModal: number | null;
     setActiveModal: React.Dispatch<React.SetStateAction<number | null>>;
     setMouseCoords: React.Dispatch<React.SetStateAction<{ x: number, y: number } | null>>;
@@ -223,8 +225,22 @@ const ViewportMap = (props: Props) => {
         console.log(evt.data)
         polygonClicked.current = true;
 
-        // Note: gets called even when clicking on an already selected polygon.
-        props.setCurrentAndPreviousAnnotation(evt.data);
+        const clickedAnnotation: Annotation = evt.data;
+
+        // Ctrl+click: toggle annotation in multi-selection
+        if (isHotkeyPressed('ctrl') && props.currentTool === TOOLBAR_KEYS.POINTER) {
+            props.setMultiSelectedAnnotations((prev: Annotation[]) => {
+                const exists = prev.some(a => a.id === clickedAnnotation.id);
+                if (exists) {
+                    return prev.filter(a => a.id !== clickedAnnotation.id);
+                } else {
+                    return [...prev, clickedAnnotation];
+                }
+            });
+        } else {
+            // Note: gets called even when clicking on an already selected polygon.
+            props.setCurrentAndPreviousAnnotation(clickedAnnotation);
+        }
 
         setTimeout(() => {
             polygonClicked.current = false;
@@ -243,6 +259,11 @@ const ViewportMap = (props: Props) => {
             if (tileIdIsValid(featureId)) {
                 props.setCurrentAndPreviousAnnotation(null);
             }
+        }
+
+        // Clear multi-selection when clicking empty space (without Ctrl held)
+        if (!polygonClicked.current && !isHotkeyPressed('ctrl') && props.multiSelectedAnnotations.length > 0) {
+            props.setMultiSelectedAnnotations([]);
         }
     }
 
@@ -289,6 +310,29 @@ const ViewportMap = (props: Props) => {
     function handleDeleteAnnotation(evt) {
         console.log("Delete annotation detected.")
 
+        const multiSelected = props.multiSelectedAnnotations;
+
+        // Multi-delete: delete all multi-selected annotations (and currentAnnotation if set)
+        if (multiSelected.length > 0) {
+            const idsToDelete = new Set(multiSelected.map(a => a.id));
+            if (props.currentAnnotation?.currentState) {
+                idsToDelete.add(props.currentAnnotation.currentState.id);
+            }
+
+            const idsArray = Array.from(idsToDelete);
+            if (!props.currentImage || !props.currentAnnotationClass) return;
+
+            removeAnnotations(props.currentImage.id, props.currentAnnotationClass.id, idsArray, true).then(() => {
+                props.setMultiSelectedAnnotations([]);
+                props.setCurrentAndPreviousAnnotation(null);
+                viewportClear(true, false, false);
+                viewportRender(true, false, false, props.currentImage.id, props.currentAnnotationClass.id);
+                console.log(`Deleted ${idsArray.length} annotations.`);
+            });
+            return;
+        }
+
+        // Single delete: existing behavior
         if (!props.currentAnnotation) return;    // Delete operation only allowed if an annotation is selected.
 
         const currentState: Annotation | undefined = props.currentAnnotation.currentState;
@@ -303,7 +347,7 @@ const ViewportMap = (props: Props) => {
         const layer = geojs_map.current.layers()[LAYER_KEYS.GT];
 
         if (annotationId && props.currentImage && props.currentAnnotationClass && tileIdIsValid(featureId)) {
-            removeAnnotation(props.currentImage.id, props.currentAnnotationClass.id, annotationId, true).then(() => {
+            removeAnnotations(props.currentImage.id, props.currentAnnotationClass.id, [annotationId], true).then(() => {
                 const feature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
                 const data = feature.data();
                 const deletedData = data.filter((d: Annotation) => d.id !== annotationId);
@@ -336,7 +380,7 @@ const ViewportMap = (props: Props) => {
 
                 // Call the deleteAnnotation API method
                 if (props.currentImage && props.currentAnnotationClass && currentState.id) {
-                    removeAnnotation(props.currentImage.id, props.currentAnnotationClass.id, currentState.id, true)
+                    removeAnnotations(props.currentImage.id, props.currentAnnotationClass.id, [currentState.id], true)
                         .then(() => {
                             console.log(`Annotation id=${currentState.id} deleted due to null polygon.`);
                         });
@@ -477,6 +521,19 @@ const ViewportMap = (props: Props) => {
                 annotationLayer.mode('point');
                 // }
             }
+        } else if (currentTool === TOOLBAR_KEYS.POINTER) {
+            // Lasso selection of GT annotations
+            const resp = await getAnnotationsWithinPolygon(currentImage.id, currentAnnotationClass.id, true, polygon);
+            if (resp.status === 200) {
+                const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentAnnotationClass.id, null));
+                props.setMultiSelectedAnnotations(anns);
+                if (anns.length === 0) {
+                    console.log("No ground truth annotations found within the lasso.");
+                } else {
+                    console.log(`Selected ${anns.length} ground truth annotations via lasso.`);
+                }
+            }
+            annotationLayer.mode(null);  // Return to pan mode
         }
     }
 
@@ -491,6 +548,10 @@ const ViewportMap = (props: Props) => {
                     break;
                 case TOOLBAR_KEYS.IMPORT:
                     activateImportTool(layer, props.ctrlHeld);
+                    break;
+                case TOOLBAR_KEYS.POINTER:
+                    // After lasso selection completes, return to pan mode
+                    activatePointerTool(layer);
                     break;
                 case TOOLBAR_KEYS.BRUSH:
                     // activateBrushTool(layer, props.ctrlHeld);
@@ -688,7 +749,7 @@ const ViewportMap = (props: Props) => {
             map.geoOff(geo.event.pan);
             map.geoOff(geo.event.transition);
         };
-    }, [props.currentImage, props.currentAnnotationClass, props.currentTool, props.currentAnnotation, props.gts, props.ctrlHeld]);
+    }, [props.currentImage, props.currentAnnotationClass, props.currentTool, props.currentAnnotation, props.gts, props.ctrlHeld, props.multiSelectedAnnotations]);
 
     // When the currentAnnotationClass changes
     useEffect(() => {
@@ -706,6 +767,7 @@ const ViewportMap = (props: Props) => {
         // // Clear all existing annotations.
         props.setGts([]);
         props.setPreds([]);
+        props.setMultiSelectedAnnotations([]);
 
         viewportRender(props.gtLayerVisible, props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
             console.log("Viewport render on annotation class change complete.");
@@ -789,6 +851,9 @@ const ViewportMap = (props: Props) => {
         const layer = geojs_map.current?.layers()[LAYER_KEYS.ANN];
         if (!layer) return;
 
+        // Clear multi-selection when switching tools
+        props.setMultiSelectedAnnotations([]);
+
         // We need to clean up the cursor
         removeCursor();
 
@@ -827,7 +892,8 @@ const ViewportMap = (props: Props) => {
         // If the current annotation is associated with a tile feature, "redraw" the feature.
         if (tileIdIsValid(featureId)) {
             const feature = getTileFeatureById(layer, featureId, PredFeatureType.annotation);
-            redrawTileFeature(feature, { currentAnnotationId: currentState?.id });
+            const multiSelectedIds = props.multiSelectedAnnotations.map(a => a.id);
+            redrawTileFeature(feature, { currentAnnotationId: currentState?.id, multiSelectedIds });
             const undoStackLength = props.currentAnnotation?.undoStack.length;
 
             if (currentState && !polygonClicked.current && undoStackLength && undoStackLength === 1) {  // If the annotation was changed programmatically (not clicked), we center the map.
@@ -850,6 +916,20 @@ const ViewportMap = (props: Props) => {
         }
 
     }, [props.currentAnnotation])
+
+    // Redraw GT features when multi-selection changes
+    useEffect(() => {
+        const gtLayer = geojs_map.current?.layers()[LAYER_KEYS.GT];
+        if (!gtLayer) return;
+
+        const multiSelectedIds = props.multiSelectedAnnotations.map(a => a.id);
+        const currentAnnotationId = props.currentAnnotation?.currentState?.id ?? null;
+
+        const features = gtLayer.features().filter((f: any) => f.featureType === 'polygon' && f.props?.type === PredFeatureType.annotation);
+        features.forEach((feature: any) => {
+            redrawTileFeature(feature, { currentAnnotationId, multiSelectedIds });
+        });
+    }, [props.multiSelectedAnnotations])
 
     useEffect(() => {
         const x = props.selectedPred?.currentState?.parsedCentroid?.coordinates[0];
@@ -874,7 +954,7 @@ const ViewportMap = (props: Props) => {
     }
 
 
-    useHotkeys('backspace, delete', handleDeleteAnnotation, [props.currentAnnotation, props.currentImage, props.currentAnnotationClass, props.gts]);
+    useHotkeys('backspace, delete', handleDeleteAnnotation, [props.currentAnnotation, props.currentImage, props.currentAnnotationClass, props.gts, props.multiSelectedAnnotations]);
     useHotkeys('ctrl', (event) => {
         const isKeyDown = event.type === 'keydown';
         props.setCtrlHeld(isKeyDown);
@@ -884,6 +964,15 @@ const ViewportMap = (props: Props) => {
         if (!annotationLayer) return;
 
         switch (props.currentTool) {
+            case TOOLBAR_KEYS.POINTER:
+                if (isKeyDown) {
+                    annotationLayer.mode('polygon', undefined, {
+                        createStyle: LASSO_SELECT_STYLE
+                    });
+                } else {
+                    annotationLayer.mode(null);
+                }
+                break;
             case TOOLBAR_KEYS.POLYGON:
                 annotationLayer.annotations()[0]?.createStyle(isKeyDown ? POLYGON_CREATE_STYLE_SECONDARY : POLYGON_CREATE_STYLE);
                 break;
