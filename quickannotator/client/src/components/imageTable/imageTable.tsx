@@ -143,7 +143,7 @@ export default class ImageTable extends React.PureComponent {
         };
         return this.props.annotationClasses.map((ac) => ({
             id: `class_gt_${ac.id}`,
-            name: `# ${ac.name} (GT)`,
+            name: `No. ${ac.name} (GT)`,
             field: `class_gt_${ac.id}`,
             sortable: true,
             type: 'number',
