@@ -4,10 +4,12 @@ import { Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, L
 
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
 import { Project } from "../../types.ts";
+import { AnnotationCount } from "../../helpers/api.ts";
 import { Link } from 'react-router-dom';
 
 interface Props {
     projects: Project[];
+    projectCounts: AnnotationCount[] | null;
     containerId: string;
     deleteHandle: (project: any) => void;
     editHandle: (project: any) => void;
@@ -42,11 +44,11 @@ export default class ProjectTable extends React.PureComponent {
     }
 
     componentDidUpdate(prevProps: Props) {
-        if (prevProps.projects !== this.props.projects) {
+        if (prevProps.projects !== this.props.projects || prevProps.projectCounts !== this.props.projectCounts) {
             this.state.reactGrid?.gridService.resetGrid();
             this.setState(() => ({
                 ...this.state,
-                dataset: this.props.projects,
+                dataset: this.getData(this.props.projects),
             }));
         }
     }
@@ -82,12 +84,19 @@ export default class ProjectTable extends React.PureComponent {
 
             return `<a href="/project/${dataContext.id}">${value}</a>`
         }
+        const spinnerFormatter = (row: number, cell: number, value: any) => {
+            if (value === null) {
+                return '<span class="spinner-border spinner-border-sm" role="status"></span>';
+            }
+            return value;
+        }
 
         const columns: Column[] = [
             { id: 'id', name: 'Id', field: 'id', sortable: true },
             { id: 'name', name: 'Name', field: 'name', sortable: true, formatter: nameFormatter },
             { id: 'is_dataset_large', name: 'Large Dataset', field: 'is_dataset_large', sortable: true },
             { id: 'description', name: 'Description', field: 'description', sortable: true },
+            { id: 'gt_count', name: 'GT Count', field: 'gt_count', sortable: true, type: 'number', formatter: spinnerFormatter },
             { id: 'datetime', name: 'Date Time', field: 'datetime', sortable: true },
             { id: 'action', name: '', field: 'action', sortable: true, formatter: actionFormatter }
         ];
@@ -118,11 +127,20 @@ export default class ProjectTable extends React.PureComponent {
     }
 
     getData(projects: Project[]) {
+        const countsLoaded = this.props.projectCounts !== null;
+        const countsByProject: Record<number, number> = {};
+        for (const c of (this.props.projectCounts || [])) {
+            if (c.project_id != null) {
+                countsByProject[c.project_id] = c.gt_count;
+            }
+        }
         const mappedData = projects.map((proj) => {
             return {
                 id: proj.id,
                 name: proj.name,
                 is_dataset_large: proj.is_dataset_large,
+                description: proj.description,
+                gt_count: countsLoaded ? (countsByProject[proj.id!] ?? 0) : null,
                 datetime: proj.datetime
             };
         });
