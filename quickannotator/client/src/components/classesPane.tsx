@@ -139,7 +139,7 @@ const ClassesPane = (props: Props) => {
                     <Modal.Title>Tissue Mask Required</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    A tissue mask must be added before you can begin labeling with another class. Please select one of the two options:
+                    A tissue mask must be added before you can switch to another annotation class. Please select one of the two options:
                 </Modal.Body>
                 <Modal.Footer>
                     <Button variant="secondary" onClick={handleAddOwnMask} disabled={generating}>
