@@ -8,7 +8,7 @@ import ProjectTable from '../components/projectTable/projectTable.tsx';
 import ConfigModal from '../components/modals/project/configModal/configModal.tsx';
 import DeleteModal from '../components/modals/project/deleteModal/deleteModal.tsx';
 import { Project } from "../types.ts";
-import { fetchAllProjects, createProject, updateProject, removeProject, fetchAnnotationCounts, AnnotationCount } from "../helpers/api.ts"
+import { fetchAllProjects, createProject, updateProject, removeProject, fetchAnnotationCounts, fetchImageCounts, fetchAnnotationClassCounts, AnnotationCount, ImageCount, AnnotationClassCount } from "../helpers/api.ts"
 import {PROJECT_MODAL_STATUS} from '../helpers/config.tsx'
 const LandingPage = () => {
     // 0 - create, 1 - update, 2 - remove 
@@ -16,6 +16,8 @@ const LandingPage = () => {
     const { setCurrentImage, setCurrentProject } = useOutletContext<OutletContextType>();
     const [projects, setProjects] = useState<Project[]>([])
     const [projectCounts, setProjectCounts] = useState<AnnotationCount[] | null>(null)
+    const [imageCounts, setImageCounts] = useState<ImageCount[] | null>(null)
+    const [classCounts, setClassCounts] = useState<AnnotationClassCount[] | null>(null)
     const [showAlert, setShowAlert] = useState<boolean>(false)
     const [deletedId, setDeletedId] = useState<number | undefined>(undefined)
     const [selectedProject, setSelectedProject] = useState<Project | undefined>(undefined)
@@ -32,6 +34,16 @@ const LandingPage = () => {
         fetchAnnotationCounts({ group_by: 'project' }).then((resp) => {
             if (resp.status === 200) {
                 setProjectCounts(resp.data);
+            }
+        });
+        fetchImageCounts({ group_by: 'project' }).then((resp) => {
+            if (resp.status === 200) {
+                setImageCounts(resp.data);
+            }
+        });
+        fetchAnnotationClassCounts({ group_by: 'project' }).then((resp) => {
+            if (resp.status === 200) {
+                setClassCounts(resp.data);
             }
         });
     }, [])
@@ -52,6 +64,16 @@ const LandingPage = () => {
         fetchAnnotationCounts({ group_by: 'project' }).then((resp) => {
             if (resp.status === 200) {
                 setProjectCounts(resp.data);
+            }
+        });
+        fetchImageCounts({ group_by: 'project' }).then((resp) => {
+            if (resp.status === 200) {
+                setImageCounts(resp.data);
+            }
+        });
+        fetchAnnotationClassCounts({ group_by: 'project' }).then((resp) => {
+            if (resp.status === 200) {
+                setClassCounts(resp.data);
             }
         });
     }
@@ -134,7 +156,7 @@ const LandingPage = () => {
                     <Col className="d-flex flex-grow-1"><Card className="flex-grow-1">
                         <Card.Header><Card.Title>Project List</Card.Title></Card.Header>
                         <Card.Body id="project_table" className='p-0'>
-                            <ProjectTable containerId='project_table' projects={projects} projectCounts={projectCounts} deleteHandle={showDeleteModalHandle} editHandle={showConfigModalHandle} />
+                            <ProjectTable containerId='project_table' projects={projects} projectCounts={projectCounts} imageCounts={imageCounts} classCounts={classCounts} deleteHandle={showDeleteModalHandle} editHandle={showConfigModalHandle} />
                         </Card.Body>
                     </Card></Col>
                 </Row>

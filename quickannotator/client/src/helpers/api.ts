@@ -222,6 +222,30 @@ export const fetchAnnotationCounts = async (params: { project_id?: number; image
     return await get<AnnotationCount[]>(`/annotation/counts?${query}`);
 }
 
+export interface ImageCount {
+    project_id?: number;
+    image_count: number;
+}
+
+export const fetchImageCounts = async (params: { project_id?: number; group_by?: string }) => {
+    const query = new URLSearchParams();
+    if (params.project_id !== undefined) query.set('project_id', params.project_id.toString());
+    if (params.group_by !== undefined) query.set('group_by', params.group_by);
+    return await get<ImageCount[]>(`/image/counts?${query}`);
+}
+
+export interface AnnotationClassCount {
+    project_id?: number;
+    annotation_class_count: number;
+}
+
+export const fetchAnnotationClassCounts = async (params: { project_id?: number; group_by?: string }) => {
+    const query = new URLSearchParams();
+    if (params.project_id !== undefined) query.set('project_id', params.project_id.toString());
+    if (params.group_by !== undefined) query.set('group_by', params.group_by);
+    return await get<AnnotationClassCount[]>(`/class/counts?${query}`);
+}
+
 // Search tile IDs by bounding box
 export const searchTileRefsByBbox = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number, hasgt=false, downsample_level=0) => {
     const query = new URLSearchParams({

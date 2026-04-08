@@ -7,6 +7,7 @@ from flask import abort
 import quickannotator.db.models as db_models
 from quickannotator.db import db_session
 from quickannotator.db.crud.annotation_class import get_all_annotation_classes, get_all_annotation_classes_for_project, get_annotation_class_by_id, get_annotation_class_by_name, insert_annotation_class, put_annotation_class
+from quickannotator.db.crud.project import get_all_projects
 from quickannotator.dl.ray_jackson import start_processing
 
 from flask.views import MethodView
@@ -87,6 +88,29 @@ class SearchAnnotationClass(MethodView):
             result = get_all_annotation_classes()
 
         return result, 200
+
+####################################################################################################
+
+@bp.route('/counts')
+class AnnotationClassCounts(MethodView):
+    @bp.arguments(server_models.GetAnnClassCountsArgsSchema, location='query')
+    @bp.response(200, server_models.AnnClassCountRespSchema(many=True))
+    def get(self, args):
+        """Get annotation class counts, optionally grouped by project."""
+        project_id = args.get('project_id')
+        group_by = args.get('group_by')
+
+        if group_by == 'project':
+            if project_id is not None:
+                projects = [p for p in [db_models.AnnotationClass.query.session.get(db_models.Project, project_id)] if p is not None]
+            else:
+                projects = get_all_projects()
+            return [{'project_id': proj.id, 'annotation_class_count': len(get_all_annotation_classes_for_project(proj.id))} for proj in projects], 200
+
+        if project_id is not None:
+            return [{'project_id': project_id, 'annotation_class_count': len(get_all_annotation_classes_for_project(project_id))}], 200
+
+        return {"message": "project_id or group_by=project is required"}, 400
 
 ####################################################################################################
 @bp.route('/<int:annotation_class_id>/startproc')
