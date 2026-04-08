@@ -345,6 +345,29 @@ export const getImageThumbnailURL = (image_id: number) =>`/api/v1/image/${image_
 
 export const UploadImageURL = () =>`/api/v1/image/upload`;
 
+// Annotation counts
+export interface AnnotationCount {
+    project_id?: number;
+    image_id?: number;
+    annotation_class_id?: number;
+    gt_count: number;
+    pred_count: number;
+}
+
+export const fetchAnnotationCounts = async (params: { project_id?: number; image_id?: number; annotation_class_id?: number; group_by?: string }) => {
+    const query = new URLSearchParams();
+    if (params.project_id !== undefined) query.set('project_id', params.project_id.toString());
+    if (params.image_id !== undefined) query.set('image_id', params.image_id.toString());
+    if (params.annotation_class_id !== undefined) query.set('annotation_class_id', params.annotation_class_id.toString());
+    if (params.group_by !== undefined) query.set('group_by', params.group_by);
+    return await get<AnnotationCount[]>(`/annotation/counts?${query}`);
+};
+
+// Tissue mask helpers
+export const generateTissueMask = async (image_id: number) => {
+    return await post<null, { message: string; count?: number }>(`/annotation/${image_id}/mask/generate`, null);
+};
+
 // Ray cluster / task helpers
 // Fetch a single Ray task by its task id
 export const fetchRayTaskById = async (task_id: string) => {

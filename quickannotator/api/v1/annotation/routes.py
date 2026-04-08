@@ -4,7 +4,7 @@ from quickannotator.db.crud.annotation import AnnotationStore, build_export_file
 from quickannotator.db.crud.image import get_image_by_id
 from quickannotator.db.crud.tile import TileStoreFactory
 from quickannotator.db.fsmanager import fsmanager
-from .utils import AnnotationExporter, compute_actor_name, GeometryOperation
+from .utils import AnnotationExporter, compute_actor_name, GeometryOperation, generate_tissue_mask
 import quickannotator.db.models as db_models
 from . import models as server_models
 from quickannotator import constants
@@ -249,3 +249,29 @@ class DownloadAnnotations(MethodView):
                     yield chunk
 
         return Response(generate(), headers=headers, direct_passthrough=True)
+
+
+@bp.route('/<int:image_id>/mask/generate')
+class GenerateMask(MethodView):
+    @bp.response(200)
+    def post(self, image_id):
+        """Auto-generate tissue mask polygons for the given image."""
+        image = get_image_by_id(image_id)
+        if image is None:
+            return {"message": "Image not found"}, 404
+
+        mask_class_id = constants.MASK_CLASS_ID
+        shapely_polygons = generate_tissue_mask(image_id)
+
+        if not shapely_polygons:
+            return {"message": "No tissue detected in image"}, 200
+
+        store = AnnotationStore(image_id, mask_class_id, is_gt=True, in_work_mag=False)
+        anns = store.insert_annotations(shapely_polygons)
+
+        tilestore = TileStoreFactory.get_tilestore()
+        tile_ids = {ann.tile_id for ann in anns}
+        tilestore.upsert_gt_tiles(image_id, mask_class_id, tile_ids)
+        db_session.commit()
+
+        return {"message": f"Generated {len(anns)} tissue mask polygon(s)", "count": len(anns)}, 200

@@ -320,3 +320,102 @@ class GeometryOperation:
         Convenience wrapper for difference operation.
         """
         return GeometryOperation.apply_operation(poly1, poly2, lambda a, b: a.difference(b), multipoly_func)
+
+
+def generate_tissue_mask(image_id: int, disk_size: int = 5, threshold: int = 210) -> list[Polygon]:
+    """
+    Auto-generate tissue mask polygons for the given image.
+
+    Generates a binary mask from a downsampled thumbnail using grayscale
+    thresholding, cleans it up with morphological operations, then extracts
+    contours as Shapely Polygons scaled to base image coordinates.
+
+    Args:
+        image_id: The database ID of the image.
+        disk_size: Radius of the disk structuring element for the minimum filter.
+        threshold: Grayscale intensity threshold (pixels below this are tissue).
+
+    Returns:
+        A list of Shapely Polygon objects in base image coordinate space.
+    """
+    import numpy as np
+    import cv2
+    from skimage.morphology import disk, remove_small_holes, remove_small_objects
+    from skimage.filters import rank
+    from skimage import color
+    from scipy.ndimage import binary_fill_holes, binary_dilation
+    import large_image
+
+    image = get_image_by_id(image_id)
+    if image is None:
+        raise ValueError(f"Image with id {image_id} not found")
+
+    full_path = fsmanager.nas_read.relative_to_global(image.path)
+    slide = large_image.open(full_path)
+
+    # 1. Get a small downsample of the image
+    thumbnail_width = 2048
+    thumb_data, _ = slide.getThumbnail(width=thumbnail_width, format='numpy')
+    if thumb_data.shape[2] == 4:
+        thumb_data = thumb_data[:, :, :3]  # drop alpha channel
+
+    thumb_h, thumb_w = thumb_data.shape[:2]
+    scale_x = image.base_width / thumb_w
+    scale_y = image.base_height / thumb_h
+
+    # 2. Generate binary mask
+    img_gray = color.rgb2gray(thumb_data)
+    img_gray = (img_gray * 255).astype(np.uint8)
+    selem = disk(disk_size)
+    imgfilt = rank.minimum(img_gray, selem)
+    binary_mask = imgfilt < threshold
+
+    # 3. Process mask: clean up small holes/objects and fill
+    binary_mask = remove_small_holes(binary_mask, 5000)
+    binary_mask = remove_small_objects(binary_mask, 500)
+    if constants.MASK_DILATION > 0:
+        binary_mask = binary_dilation(binary_mask, iterations=constants.MASK_DILATION)
+    binary_mask = binary_fill_holes(binary_mask)
+
+    # 4. Convert mask to polygons using OpenCV contours
+    mask_uint8 = binary_mask.astype(np.uint8) * 255
+    contours, hierarchy = cv2.findContours(mask_uint8, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+
+    if not contours:
+        return []
+
+    # Build polygons from contours, handling holes via hierarchy
+    shapely_polygons = []
+    if hierarchy is not None:
+        hierarchy = hierarchy[0]
+        for i, contour in enumerate(contours):
+            # Only process outer contours (no parent)
+            if hierarchy[i][3] != -1:
+                continue
+            if len(contour) < 3:
+                continue
+
+            # Scale exterior ring to base image coordinates
+            exterior = [(float(pt[0][0]) * scale_x, float(pt[0][1]) * scale_y) for pt in contour]
+            if len(exterior) < 3:
+                continue
+
+            # Collect holes (child contours)
+            holes = []
+            child_idx = hierarchy[i][2]
+            while child_idx != -1:
+                child_contour = contours[child_idx]
+                if len(child_contour) >= 3:
+                    hole = [(float(pt[0][0]) * scale_x, float(pt[0][1]) * scale_y) for pt in child_contour]
+                    if len(hole) >= 3:
+                        holes.append(hole)
+                child_idx = hierarchy[child_idx][0]
+
+            try:
+                poly = Polygon(exterior, holes if holes else None)
+                if poly.is_valid and not poly.is_empty and poly.area > 0:
+                    shapely_polygons.append(poly)
+            except Exception:
+                continue
+
+    return shapely_polygons
