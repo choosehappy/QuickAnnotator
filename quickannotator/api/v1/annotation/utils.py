@@ -28,6 +28,13 @@ from shapely.geometry.base import BaseGeometry
 from shapely.geometry import Polygon, MultiPolygon
 from werkzeug.datastructures import FileStorage
 import logging
+import numpy as np
+import cv2
+from skimage.morphology import disk, remove_small_holes, remove_small_objects
+from skimage.filters import rank
+from skimage import color
+import large_image
+from quickannotator.dl.utils import contours_to_polygons
 # logger
 logger = logging.getLogger(constants.LoggerNames.FLASK.value)
 
@@ -338,14 +345,6 @@ def generate_tissue_mask(image_id: int, disk_size: int = 5, threshold: int = 210
     Returns:
         A list of Shapely Polygon objects in base image coordinate space.
     """
-    import numpy as np
-    import cv2
-    from skimage.morphology import disk, remove_small_holes, remove_small_objects
-    from skimage.filters import rank
-    from skimage import color
-    from scipy.ndimage import binary_fill_holes, binary_dilation
-    import large_image
-
     image = get_image_by_id(image_id)
     if image is None:
         raise ValueError(f"Image with id {image_id} not found")
@@ -374,48 +373,12 @@ def generate_tissue_mask(image_id: int, disk_size: int = 5, threshold: int = 210
     binary_mask = remove_small_holes(binary_mask, 5000)
     binary_mask = remove_small_objects(binary_mask, 500)
     if constants.MASK_DILATION > 0:
-        binary_mask = binary_dilation(binary_mask, iterations=constants.MASK_DILATION)
-    binary_mask = binary_fill_holes(binary_mask)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+        binary_mask = cv2.dilate(binary_mask.astype(np.uint8), kernel, iterations=constants.MASK_DILATION).astype(bool)
+    binary_mask = remove_small_holes(binary_mask, 5000)
 
     # 4. Convert mask to polygons using OpenCV contours
     mask_uint8 = binary_mask.astype(np.uint8) * 255
-    contours, hierarchy = cv2.findContours(mask_uint8, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(mask_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    if not contours:
-        return []
-
-    # Build polygons from contours, handling holes via hierarchy
-    shapely_polygons = []
-    if hierarchy is not None:
-        hierarchy = hierarchy[0]
-        for i, contour in enumerate(contours):
-            # Only process outer contours (no parent)
-            if hierarchy[i][3] != -1:
-                continue
-            if len(contour) < 3:
-                continue
-
-            # Scale exterior ring to base image coordinates
-            exterior = [(float(pt[0][0]) * scale_x, float(pt[0][1]) * scale_y) for pt in contour]
-            if len(exterior) < 3:
-                continue
-
-            # Collect holes (child contours)
-            holes = []
-            child_idx = hierarchy[i][2]
-            while child_idx != -1:
-                child_contour = contours[child_idx]
-                if len(child_contour) >= 3:
-                    hole = [(float(pt[0][0]) * scale_x, float(pt[0][1]) * scale_y) for pt in child_contour]
-                    if len(hole) >= 3:
-                        holes.append(hole)
-                child_idx = hierarchy[child_idx][0]
-
-            try:
-                poly = Polygon(exterior, holes if holes else None)
-                if poly.is_valid and not poly.is_empty and poly.area > 0:
-                    shapely_polygons.append(poly)
-            except Exception:
-                continue
-
-    return shapely_polygons
+    return contours_to_polygons(contours, scale_x=scale_x, scale_y=scale_y)
