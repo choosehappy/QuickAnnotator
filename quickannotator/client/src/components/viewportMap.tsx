@@ -164,8 +164,13 @@ const ViewportMap = (props: Props) => {
         let gtAnns: Annotation[] = [];
         let predAnns: Annotation[] = [];
 
-        // Remove off-screen features for Ground Truth, Predictions, and Tile Status layers
-        [LAYER_KEYS.GT, LAYER_KEYS.PRED, LAYER_KEYS.TILE_STATUS].forEach(layerKey => {
+        // Remove off-screen features only for layers that are being re-rendered
+        const layersToUpdate = [
+            ...(renderGts ? [LAYER_KEYS.GT] : []),
+            ...(renderPreds ? [LAYER_KEYS.PRED] : []),
+            ...(renderTileStatus ? [LAYER_KEYS.TILE_STATUS] : []),
+        ];
+        layersToUpdate.forEach(layerKey => {
             const layer = layers[layerKey];
             const featuresRendered = getFeatIdsRendered(layer, PredFeatureType.annotation);
             const { featuresToRemove } = computeFeaturesToRender(featuresRendered, tileRefStore.getAllGroupIds());
@@ -180,7 +185,7 @@ const ViewportMap = (props: Props) => {
         // Should any layers be cleared due to downsample level change?
         if (downsampleLevel.current !== newDownsampleLevel) {
             downsampleLevel.current = newDownsampleLevel;
-            viewportClear(true, true, true);
+            viewportClear(renderGts, renderPreds, renderTileStatus);
         }
         // Process each group in parallel
         await Promise.all(Array.from(tileRefStore).map(async (group) => {
@@ -994,24 +999,31 @@ const ViewportMap = (props: Props) => {
 
         const layers = geojs_map.current.layers();
 
-        let renderGts = props.gtLayerVisible;
-        let renderPreds = props.predLayerVisible;
-        let renderTileStatus = props.tileStatusLayerVisible;
+        layers[LAYER_KEYS.GT].visible(props.gtLayerVisible);
+        layers[LAYER_KEYS.PRED].visible(props.predLayerVisible);
+        layers[LAYER_KEYS.TILE_STATUS].visible(props.tileStatusLayerVisible);
 
-        layers[LAYER_KEYS.GT].visible(renderGts);
-        layers[LAYER_KEYS.PRED].visible(renderPreds);
-        layers[LAYER_KEYS.TILE_STATUS].visible(renderTileStatus);
-
-        if (renderPreds || renderTileStatus) {
-            viewportRender(false, renderPreds, renderTileStatus, props.currentImage.id, props.currentAnnotationClass.id);
+        if (props.predLayerVisible || props.tileStatusLayerVisible) {
+            viewportRender(
+                false,
+                props.predLayerVisible,
+                props.tileStatusLayerVisible,
+                props.currentImage.id,
+                props.currentAnnotationClass.id
+            );
         }
 
-
         const interval = setInterval(() => {
-            // console.log("Interval triggered.");
+            // Use up-to-date props on every tick!
             if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
                 if (props.predLayerVisible || props.tileStatusLayerVisible) {
-                    viewportRender(false, renderPreds, renderTileStatus, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
+                    viewportRender(
+                        false,
+                        props.predLayerVisible,
+                        props.tileStatusLayerVisible,
+                        props.currentImage.id,
+                        props.currentAnnotationClass.id
+                    ).then(() => {
                         console.log("Completed viewport render triggered by interval.");
                     });
                 }
@@ -1019,7 +1031,7 @@ const ViewportMap = (props: Props) => {
         }, RENDER_PREDICTIONS_INTERVAL);
 
         return () => clearInterval(interval); // Cleanup on unmount
-    }, [props.gtLayerVisible, props.predLayerVisible, props.tileStatusLayerVisible]);
+    }, [props.gtLayerVisible, props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage, props.currentAnnotationClass]);
 
     return (
         <div ref={viewRef} style={
