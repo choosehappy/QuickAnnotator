@@ -258,7 +258,7 @@ const ViewportMap = (props: Props) => {
         console.log(`Mouse down detected. Mode: ${mode}`);
 
 
-        if (!polygonClicked.current && props.currentAnnotation) {
+        if (!polygonClicked.current && !isHotkeyPressed('ctrl') && props.currentAnnotation) {
             const currentState = props.currentAnnotation.currentState;
             const featureId = currentState?.featureId;
             if (tileIdIsValid(featureId)) {
@@ -269,6 +269,16 @@ const ViewportMap = (props: Props) => {
         // Clear multi-selection when clicking empty space (without Ctrl held)
         if (!polygonClicked.current && !isHotkeyPressed('ctrl') && props.multiSelectedAnnotations.length > 0) {
             props.setMultiSelectedAnnotations([]);
+        }
+
+        // Start lasso selection when Ctrl+clicking on empty space in pointer mode.
+        // If a polygon was clicked, handleMousedownOnPolygon already handled the
+        // Ctrl+click toggle, so we skip lasso entry.
+        if (!polygonClicked.current && isHotkeyPressed('ctrl') && props.currentTool === TOOLBAR_KEYS.POINTER) {
+            const annotationLayer = geojs_map.current.layers()[LAYER_KEYS.ANN];
+            annotationLayer.mode('polygon', undefined, {
+                createStyle: LASSO_SELECT_STYLE
+            });
         }
     }
 
@@ -531,7 +541,11 @@ const ViewportMap = (props: Props) => {
             const resp = await getAnnotationsWithinPolygon(currentImage.id, currentAnnotationClass.id, true, polygon);
             if (resp.status === 200) {
                 const anns = resp.data.map((annResp: AnnotationResponse) => new Annotation(annResp, currentAnnotationClass.id, null));
-                props.setMultiSelectedAnnotations(anns);
+                props.setMultiSelectedAnnotations((prev: Annotation[]) => {
+                    const existingIds = new Set(prev.map(a => a.id));
+                    const newAnns = anns.filter((a: Annotation) => !existingIds.has(a.id));
+                    return [...prev, ...newAnns];
+                });
                 if (anns.length === 0) {
                     console.log("No ground truth annotations found within the lasso.");
                 } else {
@@ -970,13 +984,13 @@ const ViewportMap = (props: Props) => {
 
         switch (props.currentTool) {
             case TOOLBAR_KEYS.POINTER:
-                if (isKeyDown) {
-                    annotationLayer.mode('polygon', undefined, {
-                        createStyle: LASSO_SELECT_STYLE
-                    });
-                } else {
+                if (!isKeyDown) {
                     annotationLayer.mode(null);
                 }
+                // When Ctrl is pressed, don't enter polygon mode immediately.
+                // handleMousedown will enter lasso polygon mode only when
+                // clicking on empty space, allowing clicks on annotations
+                // to pass through to handleMousedownOnPolygon for toggle.
                 break;
             case TOOLBAR_KEYS.POLYGON:
                 annotationLayer.annotations()[0]?.createStyle(isKeyDown ? POLYGON_CREATE_STYLE_SECONDARY : POLYGON_CREATE_STYLE);
