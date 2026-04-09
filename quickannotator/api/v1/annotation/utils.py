@@ -28,6 +28,12 @@ from shapely.geometry.base import BaseGeometry
 from shapely.geometry import Polygon, MultiPolygon
 from werkzeug.datastructures import FileStorage
 import logging
+import numpy as np
+import cv2
+from skimage.morphology import disk, remove_small_holes, remove_small_objects
+from skimage.filters import rank
+from skimage import color
+import large_image
 # logger
 logger = logging.getLogger(constants.LoggerNames.FLASK.value)
 
@@ -338,14 +344,6 @@ def generate_tissue_mask(image_id: int, disk_size: int = 5, threshold: int = 210
     Returns:
         A list of Shapely Polygon objects in base image coordinate space.
     """
-    import numpy as np
-    import cv2
-    from skimage.morphology import disk, remove_small_holes, remove_small_objects
-    from skimage.filters import rank
-    from skimage import color
-    from scipy.ndimage import binary_fill_holes, binary_dilation
-    import large_image
-
     image = get_image_by_id(image_id)
     if image is None:
         raise ValueError(f"Image with id {image_id} not found")
@@ -374,8 +372,9 @@ def generate_tissue_mask(image_id: int, disk_size: int = 5, threshold: int = 210
     binary_mask = remove_small_holes(binary_mask, 5000)
     binary_mask = remove_small_objects(binary_mask, 500)
     if constants.MASK_DILATION > 0:
-        binary_mask = binary_dilation(binary_mask, iterations=constants.MASK_DILATION)
-    binary_mask = binary_fill_holes(binary_mask)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+        binary_mask = cv2.dilate(binary_mask.astype(np.uint8), kernel, iterations=constants.MASK_DILATION).astype(bool)
+    binary_mask = remove_small_holes(binary_mask, 5000)
 
     # 4. Convert mask to polygons using OpenCV contours
     mask_uint8 = binary_mask.astype(np.uint8) * 255
