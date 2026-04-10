@@ -231,7 +231,7 @@ class AnnotationStore:
                     geojson_feature = {
                         "type": "Feature",
                         "geometry": json.loads(feature.GetField(field_name)),    # NOTE: Could alternatively use geom.ExportToJson(), but this would require a modified query without AS_GeoJSON(). NOTE: potentially optimize using orjson.loads
-                        "properties": feature.items()
+                        "properties": {}
                     }
 
                     if not first:
