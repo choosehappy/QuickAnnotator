@@ -37,15 +37,15 @@ class AnnotationCounts(MethodView):
     def get(self, args):
         """Get annotation counts filtered by project, image, and/or annotation class.
         
-        Use group_by=project to get totals aggregated per project (summed across all images and classes).
+        Use group_by_project=true to get totals aggregated per project (summed across all images and classes).
         """
         project_id = args.get('project_id')
         image_id = args.get('image_id')
         annotation_class_id = args.get('annotation_class_id')
-        group_by = args.get('group_by')
+        group_by_project = args.get('group_by_project', False)
 
         # Determine which projects to iterate
-        if group_by == 'project':
+        if group_by_project:
             if project_id is not None:
                 projects = [db_models.Project.query.get(project_id)]
                 projects = [p for p in projects if p is not None]

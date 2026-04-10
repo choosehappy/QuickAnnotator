@@ -54,7 +54,7 @@ class GetAnnCountsArgsSchema(Schema):
     project_id = fields.Int(required=False)
     image_id = fields.Int(required=False)
     annotation_class_id = fields.Int(required=False)
-    group_by = fields.Str(required=False)  # 'project' to aggregate per-project
+    group_by_project = fields.Bool(required=False, load_default=False)
 
 class AnnCountRespSchema(Schema):
     project_id = fields.Int(load_default=None)

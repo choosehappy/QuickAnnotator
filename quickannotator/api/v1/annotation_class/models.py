@@ -27,7 +27,7 @@ class SearchAnnClassArgsSchema(Schema):
 
 class GetAnnClassCountsArgsSchema(Schema):
     project_id = fields.Int(required=False)
-    group_by = fields.Str(required=False)
+    group_by_project = fields.Bool(required=False, load_default=False)
 
 class AnnClassCountRespSchema(Schema):
     project_id = fields.Int(load_default=None)

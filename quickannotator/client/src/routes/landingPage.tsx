@@ -31,17 +31,17 @@ const LandingPage = () => {
             }
 
         });
-        fetchAnnotationCounts({ group_by: 'project' }).then((resp) => {
+        fetchAnnotationCounts({ group_by_project: true }).then((resp) => {
             if (resp.status === 200) {
                 setProjectCounts(resp.data);
             }
         });
-        fetchImageCounts({ group_by: 'project' }).then((resp) => {
+        fetchImageCounts({ group_by_project: true }).then((resp) => {
             if (resp.status === 200) {
                 setImageCounts(resp.data);
             }
         });
-        fetchAnnotationClassCounts({ group_by: 'project' }).then((resp) => {
+        fetchAnnotationClassCounts({ group_by_project: true }).then((resp) => {
             if (resp.status === 200) {
                 setClassCounts(resp.data);
             }
@@ -61,17 +61,17 @@ const LandingPage = () => {
                 console.error("fetch project error")
             }
         });
-        fetchAnnotationCounts({ group_by: 'project' }).then((resp) => {
+        fetchAnnotationCounts({ group_by_project: true }).then((resp) => {
             if (resp.status === 200) {
                 setProjectCounts(resp.data);
             }
         });
-        fetchImageCounts({ group_by: 'project' }).then((resp) => {
+        fetchImageCounts({ group_by_project: true }).then((resp) => {
             if (resp.status === 200) {
                 setImageCounts(resp.data);
             }
         });
-        fetchAnnotationClassCounts({ group_by: 'project' }).then((resp) => {
+        fetchAnnotationClassCounts({ group_by_project: true }).then((resp) => {
             if (resp.status === 200) {
                 setClassCounts(resp.data);
             }

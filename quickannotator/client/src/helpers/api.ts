@@ -213,12 +213,12 @@ export interface AnnotationCount {
     pred_count: number;
 }
 
-export const fetchAnnotationCounts = async (params: { project_id?: number; image_id?: number; annotation_class_id?: number; group_by?: string }) => {
+export const fetchAnnotationCounts = async (params: { project_id?: number; image_id?: number; annotation_class_id?: number; group_by_project?: boolean }) => {
     const query = new URLSearchParams();
     if (params.project_id !== undefined) query.set('project_id', params.project_id.toString());
     if (params.image_id !== undefined) query.set('image_id', params.image_id.toString());
     if (params.annotation_class_id !== undefined) query.set('annotation_class_id', params.annotation_class_id.toString());
-    if (params.group_by !== undefined) query.set('group_by', params.group_by);
+    if (params.group_by_project !== undefined) query.set('group_by_project', params.group_by_project.toString());
     return await get<AnnotationCount[]>(`/annotation/counts?${query}`);
 }
 
@@ -227,10 +227,10 @@ export interface ImageCount {
     image_count: number;
 }
 
-export const fetchImageCounts = async (params: { project_id?: number; group_by?: string }) => {
+export const fetchImageCounts = async (params: { project_id?: number; group_by_project?: boolean }) => {
     const query = new URLSearchParams();
     if (params.project_id !== undefined) query.set('project_id', params.project_id.toString());
-    if (params.group_by !== undefined) query.set('group_by', params.group_by);
+    if (params.group_by_project !== undefined) query.set('group_by_project', params.group_by_project.toString());
     return await get<ImageCount[]>(`/image/counts?${query}`);
 }
 
@@ -239,10 +239,10 @@ export interface AnnotationClassCount {
     annotation_class_count: number;
 }
 
-export const fetchAnnotationClassCounts = async (params: { project_id?: number; group_by?: string }) => {
+export const fetchAnnotationClassCounts = async (params: { project_id?: number; group_by_project?: boolean }) => {
     const query = new URLSearchParams();
     if (params.project_id !== undefined) query.set('project_id', params.project_id.toString());
-    if (params.group_by !== undefined) query.set('group_by', params.group_by);
+    if (params.group_by_project !== undefined) query.set('group_by_project', params.group_by_project.toString());
     return await get<AnnotationClassCount[]>(`/class/counts?${query}`);
 }
 

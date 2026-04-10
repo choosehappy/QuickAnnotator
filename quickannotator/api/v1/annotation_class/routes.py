@@ -98,9 +98,9 @@ class AnnotationClassCounts(MethodView):
     def get(self, args):
         """Get annotation class counts, optionally grouped by project."""
         project_id = args.get('project_id')
-        group_by = args.get('group_by')
+        group_by_project = args.get('group_by_project', False)
 
-        if group_by == 'project':
+        if group_by_project:
             if project_id is not None:
                 projects = [p for p in [db_models.AnnotationClass.query.session.get(db_models.Project, project_id)] if p is not None]
             else:
@@ -110,7 +110,7 @@ class AnnotationClassCounts(MethodView):
         if project_id is not None:
             return [{'project_id': project_id, 'annotation_class_count': len(get_all_annotation_classes_for_project(project_id))}], 200
 
-        return {"message": "project_id or group_by=project is required"}, 400
+        return {"message": "project_id or group_by_project=true is required"}, 400
 
 ####################################################################################################
 @bp.route('/<int:annotation_class_id>/startproc')
