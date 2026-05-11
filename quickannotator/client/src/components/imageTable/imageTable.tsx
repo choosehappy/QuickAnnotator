@@ -4,12 +4,12 @@ import { Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, L
 
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
 import { AnnotationClass, Image, Project } from "../../types.ts";
-import {getAnnotationPageURL, getImageThumbnailURL, AnnotationCount } from "../../helpers/api.ts";
+import {getAnnotationPageURL, getImageThumbnailURL } from "../../helpers/api.ts";
 interface Props {
     project: Project;
     images: Image[];
     annotationClasses: AnnotationClass[];
-    annotationCounts: AnnotationCount[] | null;
+    annotationCounts: Record<number, Record<number, number>> | null;
     changed: boolean;
     containerId: string;
     deleteHandler: (imageId: number)=>void;
@@ -154,13 +154,7 @@ export default class ImageTable extends React.PureComponent {
     getData(images: Image[]) {
         const annotationClasses = this.props.annotationClasses || [];
         const countsLoaded = this.props.annotationCounts !== null;
-        const counts = this.props.annotationCounts || [];
-        // Index counts by image_id for fast lookup
-        const countsByImage: Record<number, Record<number, number>> = {};
-        for (const c of counts) {
-            if (!countsByImage[c.image_id]) countsByImage[c.image_id] = {};
-            countsByImage[c.image_id][c.annotation_class_id] = c.gt_count;
-        }
+        const counts = this.props.annotationCounts || {};
         const mappedData = images.map((img) => {
             const row: any = {
                 id: img.id,
@@ -172,7 +166,7 @@ export default class ImageTable extends React.PureComponent {
                 dz_tilesize: img.dz_tilesize,
                 date: img.datetime,
             };
-            const imgCounts = countsByImage[img.id] || {};
+            const imgCounts = counts[img.id] || {};
             for (const ac of annotationClasses) {
                 row[`class_gt_${ac.id}`] = countsLoaded ? (imgCounts[ac.id] ?? 0) : null;
             }

@@ -9,7 +9,6 @@ from quickannotator.db import db_session
 from quickannotator.db.fsmanager import fsmanager
 from quickannotator.db.crud.image import get_image_by_id
 from quickannotator.db.crud.image import get_images_by_project_id
-from quickannotator.db.crud.project import get_all_projects
 from quickannotator.api.v1.annotation.utils import import_annotation_from_json
 from quickannotator.api.v1.image.utils import delete_image_and_related_data, import_image_from_wsi
 from quickannotator.api.v1.project.utils import import_from_tabular
@@ -62,28 +61,6 @@ class Image(MethodView):
 
         delete_image_and_related_data(args['image_id'])
         return {}, 204
-
-#################################################################################
-@bp.route('/counts')
-class ImageCounts(MethodView):
-    @bp.arguments(server_models.GetImageCountsArgsSchema, location='query')
-    @bp.response(200, server_models.ImageCountRespSchema(many=True))
-    def get(self, args):
-        """Get image counts, optionally grouped by project."""
-        project_id = args.get('project_id')
-        group_by_project = args.get('group_by_project', False)
-
-        if group_by_project:
-            if project_id is not None:
-                projects = [p for p in [db_models.Project.query.get(project_id)] if p is not None]
-            else:
-                projects = get_all_projects()
-            return [{'project_id': proj.id, 'image_count': len(get_images_by_project_id(proj.id))} for proj in projects], 200
-
-        if project_id is not None:
-            return [{'project_id': project_id, 'image_count': len(get_images_by_project_id(project_id))}], 200
-
-        return {"message": "project_id or group_by_project=true is required"}, 400
 
 #################################################################################
 @bp.route('/<int:project_id>/search', endpoint="image_search")

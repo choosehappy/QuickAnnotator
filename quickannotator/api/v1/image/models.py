@@ -38,11 +38,3 @@ class UploadFileArgsSchema(Schema):
 
 class ImageMetadataRespSchema(Schema):
     mpp = fields.Float()
-
-class GetImageCountsArgsSchema(Schema):
-    project_id = fields.Int(required=False)
-    group_by_project = fields.Bool(required=False, load_default=False)
-
-class ImageCountRespSchema(Schema):
-    project_id = fields.Int(load_default=None)
-    image_count = fields.Int()

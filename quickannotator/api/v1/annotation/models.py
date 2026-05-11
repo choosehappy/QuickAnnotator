@@ -50,19 +50,6 @@ class OperationArgsSchema(AnnRespSchema):
     operation = fields.Integer(required=True)  # Default 0 for union.
     polygon2 = db_models.GeometryField(required=True)    # The second polygon
 
-class GetAnnCountsArgsSchema(Schema):
-    project_id = fields.Int(required=False)
-    image_id = fields.Int(required=False)
-    annotation_class_id = fields.Int(required=False)
-    group_by_project = fields.Bool(required=False, load_default=False)
-
-class AnnCountRespSchema(Schema):
-    project_id = fields.Int(load_default=None)
-    image_id = fields.Int(load_default=None)
-    annotation_class_id = fields.Int(load_default=None)
-    gt_count = fields.Int()
-    pred_count = fields.Int()
-
 class PutAnnArgsSchema(Schema):
     annotation_id = fields.Int(required=True)
     polygon = db_models.GeometryField(required=True)
