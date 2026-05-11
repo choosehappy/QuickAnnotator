@@ -93,6 +93,8 @@ class Dialects(enum.Enum):
     POSTGRESQL = "postgresql"
 
 CHECKPOINT_FILENAME = "model.safetensors"
+CHECKPOINT_PERIOD = 50 # Save a checkpoint every N training iterations. TODO: app setting
+MAX_CHECKPOINTS_PER_CLASS = 5 # Max number of checkpoints to keep per annotation class. TODO: app setting
 
 class LoggerNames(enum.Enum):
     FLASK = "flask"
