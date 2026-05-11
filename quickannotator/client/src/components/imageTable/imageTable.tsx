@@ -1,11 +1,12 @@
 import * as React from 'react';
 import { Column, GridOption, SlickgridReactInstance, SlickgridReact } from "slickgrid-react";
-import { Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, ListGroup } from "react-bootstrap";
 
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
 import './imageTable.css';
 import { AnnotationClass, Image, Project } from "../../types.ts";
 import {getAnnotationPageURL, getImageThumbnailURL } from "../../helpers/api.ts";
+import ConfirmationModal from '../confirmationModal.tsx';
+import { MODAL_DATA, COOKIE_NAMES } from '../../helpers/config.tsx';
 interface Props {
     project: Project;
     images: Image[];
@@ -27,7 +28,7 @@ export default class ImageTable extends React.PureComponent {
             reactGrid: undefined,
             deletedImageId: undefined,
             deletedImageName: undefined,
-            confirmShow: false
+            activeModal: null
         };
         this.clickOnDelete = this.clickOnDelete.bind(this);
         this.handleClose = this.handleClose.bind(this);
@@ -41,7 +42,7 @@ export default class ImageTable extends React.PureComponent {
     
     clickOnDelete(data: any) {
         console.log('deleted', data.id)
-        this.setState({...this.state, confirmShow: true, deletedImageId: data.id, deletedImageName: data.name})
+        this.setState({...this.state, activeModal: MODAL_DATA.DELETE_IMAGE.id, deletedImageId: data.id, deletedImageName: data.name})
         
     }
     
@@ -72,7 +73,7 @@ export default class ImageTable extends React.PureComponent {
     }
 
     handleClose() {
-        this.setState({...this.state, confirmShow: false})
+        this.setState({...this.state, activeModal: null})
     }
 
     reactGridReady(reactGrid: SlickgridReactInstance) {
@@ -190,24 +191,16 @@ export default class ImageTable extends React.PureComponent {
     render() {
         return !this.state.gridOptions ? '' : (
             <>
-                <Modal show={this.state.confirmShow} onHide={this.handleClose}>
-                    <Modal.Header closeButton>
-                        <Modal.Title>Modal heading</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>Do you sure you want to delete <strong>{this.state.deletedImageId}: {this.state.deletedImageName}</strong></Modal.Body>
-                    <Modal.Footer>
-                        <Button variant="secondary" onClick={this.handleClose}>
-                            Cancel
-                        </Button>
-                        <Button variant="danger" onClick={()=>{
-                                
-                                this.props.deleteHandler(this.state.deletedImageId)
-                                this.setState({...this.state, confirmShow: false})
-                            }}>
-                            Delete
-                        </Button>
-                    </Modal.Footer>
-                </Modal>
+                <ConfirmationModal
+                    activeModal={this.state.activeModal}
+                    config={MODAL_DATA.DELETE_IMAGE}
+                    onConfirm={() => {
+                        this.props.deleteHandler(this.state.deletedImageId);
+                        this.setState({...this.state, activeModal: null});
+                    }}
+                    onCancel={this.handleClose}
+                    checkboxCookieName={COOKIE_NAMES.SKIP_CONFIRM_DELETE_IMAGE}
+                />
                 <div style={{ borderRadius: '8px', overflow: 'hidden' }}>
                     <SlickgridReact ref={this.gridRef} gridId={this.props.containerId + '-grid'}
                         columnDefinitions={this.state.columnDefinitions}

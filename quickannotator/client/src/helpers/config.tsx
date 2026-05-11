@@ -68,6 +68,11 @@ export const MODAL_DATA: { [key: string]: ModalData } = {
         title: 'Export Annotations',
         description: 'How would you like to export the annotations from this image?',
     },
+    DELETE_IMAGE: {
+        id: 4,
+        title: 'Delete image',
+        description: 'Are you sure you want to delete this image? This action will permanently remove the image and all its annotations.',
+    },
 }
 
 // Viewport settings
@@ -314,6 +319,7 @@ export const TABULAR_EXTS = ['tsv']
 export enum COOKIE_NAMES {
     SKIP_CONFIRM_IMPORT = 'skipConfirmImport',
     SKIP_CONFIRM_DELETE_CLASS = 'skipConfirmDeleteClass',
+    SKIP_CONFIRM_DELETE_IMAGE = 'skipConfirmDeleteImage',
 }
 
 export const POLLING_INTERVAL_MS = 3000; // 3 seconds

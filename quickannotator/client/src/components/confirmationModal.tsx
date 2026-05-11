@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { ModalData } from '../types';
 import { useCookies } from 'react-cookie';
@@ -16,13 +16,21 @@ interface ConfirmationModalProps {
 const ConfirmationModal: React.FC<ConfirmationModalProps> = (props: ConfirmationModalProps) => {
     const [cookies, setCookies] = useCookies([props.checkboxCookieName]);
 
+    useEffect(() => {
+        if (props.activeModal === props.config.id && cookies[props.checkboxCookieName]) {
+            props.onConfirm();
+        }
+    }, [props.activeModal]);
+
     const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const isChecked = event.target.checked;
         setCookies(props.checkboxCookieName, isChecked, {path: '/' });
     };
 
+    const shouldShow = props.activeModal === props.config.id && !cookies[props.checkboxCookieName];
+
     return (
-        <Modal show={props.activeModal === props.config.id} onHide={props.onCancel} backdrop={false}>
+        <Modal show={shouldShow} onHide={props.onCancel} backdrop={false}>
             <Modal.Header closeButton>
                 <Modal.Title>{props.config.title}</Modal.Title>
             </Modal.Header>
