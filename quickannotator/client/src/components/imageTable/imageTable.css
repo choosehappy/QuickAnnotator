@@ -1,0 +1,8 @@
+.slick-row,
+.slick-row .slick-cell {
+    cursor: pointer !important;
+}
+
+.slick-row .spinner-border {
+    color: var(--bs-body-color, #212529);
+}

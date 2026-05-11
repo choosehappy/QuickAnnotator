@@ -1,0 +1,4 @@
+.slick-row,
+.slick-row .slick-cell {
+    cursor: pointer !important;
+}

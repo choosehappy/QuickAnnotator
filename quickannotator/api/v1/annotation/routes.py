@@ -3,7 +3,6 @@ from quickannotator.constants import PolygonOperations
 from quickannotator.db.crud.annotation import AnnotationStore, build_export_filepath, get_annotation_count
 from quickannotator.db.crud.image import get_image_by_id, get_images_by_project_id
 from quickannotator.db.crud.annotation_class import get_all_annotation_classes_for_project, get_annotation_class_by_id
-from quickannotator.db.crud.project import get_all_projects
 from quickannotator.db.crud.tile import TileStoreFactory
 from quickannotator.db.fsmanager import fsmanager
 from .utils import AnnotationExporter, compute_actor_name, GeometryOperation, generate_tissue_mask
@@ -30,80 +29,6 @@ bp = Blueprint('annotation', __name__, description='Annotation operations')
 logger = logging.getLogger(constants.LoggerNames.FLASK.value)
 mask_cache_manager = MaskCacheManager()
 
-@bp.route('/counts')
-class AnnotationCounts(MethodView):
-    @bp.arguments(server_models.GetAnnCountsArgsSchema, location='query')
-    @bp.response(200, server_models.AnnCountRespSchema(many=True))
-    def get(self, args):
-        """Get annotation counts filtered by project, image, and/or annotation class.
-        
-        Use group_by=project to get totals aggregated per project (summed across all images and classes).
-        """
-        project_id = args.get('project_id')
-        image_id = args.get('image_id')
-        annotation_class_id = args.get('annotation_class_id')
-        group_by = args.get('group_by')
-
-        # Determine which projects to iterate
-        if group_by == 'project':
-            if project_id is not None:
-                projects = [db_models.Project.query.get(project_id)]
-                projects = [p for p in projects if p is not None]
-            else:
-                projects = get_all_projects()
-
-            results = []
-            for proj in projects:
-                images = get_images_by_project_id(proj.id)
-                annotation_classes = get_all_annotation_classes_for_project(proj.id)
-                total_gt = 0
-                total_pred = 0
-                for img in images:
-                    for ann_cls in annotation_classes:
-                        total_gt += get_annotation_count(img.id, ann_cls.id, is_gt=True)
-                        total_pred += get_annotation_count(img.id, ann_cls.id, is_gt=False)
-                results.append({
-                    'project_id': proj.id,
-                    'gt_count': total_gt,
-                    'pred_count': total_pred,
-                })
-            return results, 200
-
-        # Per-image granularity (existing behavior)
-        if image_id is not None:
-            image = get_image_by_id(image_id)
-            if image is None:
-                return [], 200
-            images = [image]
-            if project_id is None:
-                project_id = image.project_id
-        elif project_id is not None:
-            images = get_images_by_project_id(project_id)
-        else:
-            return {"message": "Either project_id or image_id is required"}, 400
-
-        # Determine the set of annotation classes to query
-        if annotation_class_id is not None:
-            ann_class = get_annotation_class_by_id(annotation_class_id)
-            if ann_class is None:
-                return [], 200
-            annotation_classes = [ann_class]
-        else:
-            annotation_classes = get_all_annotation_classes_for_project(project_id)
-
-        results = []
-        for img in images:
-            for ann_cls in annotation_classes:
-                gt_count = get_annotation_count(img.id, ann_cls.id, is_gt=True)
-                pred_count = get_annotation_count(img.id, ann_cls.id, is_gt=False)
-                results.append({
-                    'image_id': img.id,
-                    'annotation_class_id': ann_cls.id,
-                    'gt_count': gt_count,
-                    'pred_count': pred_count,
-                })
-
-        return results, 200
 
 @bp.route('/<int:image_id>/<int:annotation_class_id>')
 class Annotation(MethodView):

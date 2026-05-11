@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, ListGroup } from "react-bootstrap";
 import { Fullscreen, CloudArrowUp, GearFill, Download, AspectRatioFill, Brush, Magic, Eraser, Heptagon, CurrencyBitcoin } from 'react-bootstrap-icons';
 
-import { fetchProject, fetchImagesByProjectId, removeImage, searchAnnotationClasses, fetchAnnotationCounts, AnnotationCount } from "../helpers/api.ts"
+import { fetchProject, fetchImagesByProjectId, removeImage, searchAnnotationClasses, fetchProjectAnnotationStats } from "../helpers/api.ts"
 import { Image, AnnotationClass, OutletContextType } from "../types.ts";
 import './project.css'
 import ImageTable from '../components/imageTable/imageTable.tsx';
@@ -16,7 +16,7 @@ const ProjectPage = () => {
     const { currentProject, setCurrentProject, currentImage, setCurrentImage } = useOutletContext<OutletContextType>();
     const [images, setImages] = useState<Image[]>([])
     const [annotationClasses, setAnnotationClasses] = useState<AnnotationClass[]>([])
-    const [annotationCounts, setAnnotationCounts] = useState<AnnotationCount[] | null>(null)
+    const [annotationCounts, setAnnotationCounts] = useState<Record<number, Record<number, number>> | null>(null)
     const [settingShow, setSettingShow] = useState<boolean>(false)
     const [embeddingShow, setEmbeddingShow] = useState<boolean>(false)
     const [exportAnnotationsShow, setExportAnnotationsShow] = useState<boolean>(false)
@@ -40,9 +40,24 @@ const ProjectPage = () => {
                     setAnnotationClasses(resp.data);
                 }
             });
-            fetchAnnotationCounts({ project_id: parseInt(projectid) }).then((resp) => {
+            searchAnnotationClasses(parseInt(projectid)).then((resp) => {
                 if (resp.status === 200) {
-                    setAnnotationCounts(resp.data);
+                    setAnnotationClasses(resp.data);
+                    Promise.all(
+                        resp.data.map(ac =>
+                            fetchProjectAnnotationStats(parseInt(projectid), 'image', [ac.id])
+                                .then(r => ({ classId: ac.id, stats: r.data }))
+                        )
+                    ).then(results => {
+                        const matrix: Record<number, Record<number, number>> = {};
+                        for (const { classId, stats } of results) {
+                            for (const s of stats) {
+                                if (!matrix[s.group_id]) matrix[s.group_id] = {};
+                                matrix[s.group_id][classId] = s.stats.count;
+                            }
+                        }
+                        setAnnotationCounts(matrix);
+                    });
                 }
             });
         }
@@ -56,10 +71,20 @@ const ProjectPage = () => {
                     setImages(resp.data);
                 }
             });
-            fetchAnnotationCounts({ project_id: parseInt(projectid) }).then((resp) => {
-                if (resp.status === 200) {
-                    setAnnotationCounts(resp.data);
+            Promise.all(
+                annotationClasses.map(ac =>
+                    fetchProjectAnnotationStats(parseInt(projectid), 'image', [ac.id])
+                        .then(r => ({ classId: ac.id, stats: r.data }))
+                )
+            ).then(results => {
+                const matrix: Record<number, Record<number, number>> = {};
+                for (const { classId, stats } of results) {
+                    for (const s of stats) {
+                        if (!matrix[s.group_id]) matrix[s.group_id] = {};
+                        matrix[s.group_id][classId] = s.stats.count;
+                    }
                 }
+                setAnnotationCounts(matrix);
             });
         }
     }

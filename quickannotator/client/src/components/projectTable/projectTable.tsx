@@ -3,15 +3,19 @@ import { Column, GridOption, SlickgridReactInstance, SlickgridReact } from "slic
 import { Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, ListGroup, Nav } from "react-bootstrap";
 
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
+import './projectTable.css';
 import { Project } from "../../types.ts";
-import { AnnotationCount, ImageCount, AnnotationClassCount } from "../../helpers/api.ts";
 import { Link } from 'react-router-dom';
+
+interface ProjectStat {
+    gt_count: number | null;
+    image_count: number | null;
+    annotation_class_count: number | null;
+}
 
 interface Props {
     projects: Project[];
-    projectCounts: AnnotationCount[] | null;
-    imageCounts: ImageCount[] | null;
-    classCounts: AnnotationClassCount[] | null;
+    projectStats: Record<number, ProjectStat>;
     containerId: string;
     deleteHandle: (project: any) => void;
     editHandle: (project: any) => void;
@@ -46,7 +50,7 @@ export default class ProjectTable extends React.PureComponent {
     }
 
     componentDidUpdate(prevProps: Props) {
-        if (prevProps.projects !== this.props.projects || prevProps.projectCounts !== this.props.projectCounts || prevProps.imageCounts !== this.props.imageCounts || prevProps.classCounts !== this.props.classCounts) {
+        if (prevProps.projects !== this.props.projects || prevProps.projectStats !== this.props.projectStats) {
             this.state.reactGrid?.gridService.resetGrid();
             this.setState(() => ({
                 ...this.state,
@@ -61,6 +65,12 @@ export default class ProjectTable extends React.PureComponent {
 
     reactGridReady(reactGrid: SlickgridReactInstance) {
         this.setState({ reactGrid });
+        reactGrid.slickGrid?.onClick.subscribe((e, args) => {
+            if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('a')) return;
+            const item = reactGrid.slickGrid?.getDataItem(args.row);
+            if (!item) return;
+            window.location.href = `/project/${item.id}`;
+        });
     }
 
     defineGrid() {
@@ -131,42 +141,20 @@ export default class ProjectTable extends React.PureComponent {
     }
 
     getData(projects: Project[]) {
-        const gtLoaded = this.props.projectCounts !== null;
-        const imgLoaded = this.props.imageCounts !== null;
-        const clsLoaded = this.props.classCounts !== null;
-
-        const gtByProject: Record<number, number> = {};
-        for (const c of (this.props.projectCounts || [])) {
-            if (c.project_id != null) {
-                gtByProject[c.project_id] = c.gt_count;
-            }
-        }
-        const imgByProject: Record<number, number> = {};
-        for (const c of (this.props.imageCounts || [])) {
-            if (c.project_id != null) {
-                imgByProject[c.project_id] = c.image_count;
-            }
-        }
-        const clsByProject: Record<number, number> = {};
-        for (const c of (this.props.classCounts || [])) {
-            if (c.project_id != null) {
-                clsByProject[c.project_id] = c.annotation_class_count;
-            }
-        }
-        const mappedData = projects.map((proj) => {
+        const stats = this.props.projectStats;
+        return projects.map((proj) => {
+            const s = stats[proj.id!];
             return {
                 id: proj.id,
                 name: proj.name,
                 is_dataset_large: proj.is_dataset_large,
                 description: proj.description,
-                image_count: imgLoaded ? (imgByProject[proj.id!] ?? 0) : null,
-                annotation_class_count: clsLoaded ? (clsByProject[proj.id!] ?? 0) : null,
-                gt_count: gtLoaded ? (gtByProject[proj.id!] ?? 0) : null,
+                image_count: s ? s.image_count : null,
+                annotation_class_count: s ? s.annotation_class_count : null,
+                gt_count: s ? s.gt_count : null,
                 datetime: proj.datetime
             };
         });
-
-        return mappedData;
     }
 
     render() {
