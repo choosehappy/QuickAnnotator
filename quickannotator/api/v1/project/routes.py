@@ -10,7 +10,7 @@ import quickannotator.db.models as db_models
 from . import models as server_models
 from flask_smorest import Blueprint
 from datetime import datetime
-from flask import request, jsonify
+from flask import request
 
 # Import DB helpers for stats (implement or update as needed)
 from quickannotator.db import crud
@@ -97,20 +97,16 @@ class SearchProject(MethodView):
 
 @bp.route('/<int:project_id>/annotations/stats/')
 class ProjectAnnotationStats(MethodView):
-    def get(self, project_id):
+    @bp.arguments(server_models.ProjectAnnotationStatsArgsSchema, location='query')
+    @bp.response(200, server_models.AnnotationStatRespSchema(many=True))
+    def get(self, args, project_id):
         """
         Returns annotation stats grouped by annotation_class or image.
-        Query params:
-            group_by: 'annotation_class' or 'image'
-            annotation_class_ids: comma-separated list of ints (optional)
-            image_ids: comma-separated list of ints (optional)
-        Output: list of {group_id, group_label, count}
         """
-        group_by = request.args.get('group_by', 'annotation_class')
-        annotation_class_ids = request.args.get('annotation_class_ids')
-        image_ids = request.args.get('image_ids')
+        group_by = args.get('group_by', 'annotation_class')
+        annotation_class_ids = args.get('annotation_class_ids')
+        image_ids = args.get('image_ids')
 
-        # Parse id lists
         if annotation_class_ids:
             annotation_class_ids = [int(x) for x in annotation_class_ids.split(',') if x.strip()]
         else:
@@ -123,7 +119,6 @@ class ProjectAnnotationStats(MethodView):
         images = get_images_by_project_id(project_id)
         annotation_classes = get_all_annotation_classes_for_project(project_id)
 
-        # Filter if ids provided
         if image_ids is not None:
             images = [img for img in images if img.id in image_ids]
         if annotation_class_ids is not None:
@@ -147,30 +142,24 @@ class ProjectAnnotationStats(MethodView):
                     "stats": {"count": count}
                 })
         else:
-            return jsonify({"error": "Invalid group_by value"}), 400
+            abort(400, "Invalid group_by value. Must be 'annotation_class' or 'image'.")
 
-        return jsonify(result)
+        return result
 
 
 @bp.route('/<int:project_id>/annotation_class/stats')
 class ProjectAnnotationClassStats(MethodView):
+    @bp.response(200, server_models.ProjectCountRespSchema)
     def get(self, project_id):
-        """
-        Returns annotation class count for the project.
-        Output: {"count": int}
-        """
+        """Returns annotation class count for the project."""
         count = len(get_all_annotation_classes_for_project(project_id))
-        result = {"stats": {"count": count}}
-        return jsonify(result)
+        return {"stats": {"count": count}}
 
 
 @bp.route('/<int:project_id>/image/stats')
 class ProjectImageStats(MethodView):
+    @bp.response(200, server_models.ProjectCountRespSchema)
     def get(self, project_id):
-        """
-        Returns image count for the project.
-        Output: {"count": int}
-        """
+        """Returns image count for the project."""
         count = len(get_images_by_project_id(project_id))
-        result = {"stats": {"count": count}}
-        return jsonify(result)
+        return {"stats": {"count": count}}
