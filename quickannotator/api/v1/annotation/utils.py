@@ -353,8 +353,7 @@ def generate_tissue_mask(image_id: int, disk_size: int = 5, threshold: int = 210
     slide = large_image.open(full_path)
 
     # 1. Get a small downsample of the image
-    thumbnail_width = 2048
-    thumb_data, _ = slide.getThumbnail(width=thumbnail_width, format='numpy')
+    thumb_data, _ = slide.getThumbnail(width=constants.MASK_THUMBNAIL_WIDTH, format='numpy')
     if thumb_data.shape[2] == 4:
         thumb_data = thumb_data[:, :, :3]  # drop alpha channel
 
@@ -369,13 +368,12 @@ def generate_tissue_mask(image_id: int, disk_size: int = 5, threshold: int = 210
     imgfilt = rank.minimum(img_gray, selem)
     binary_mask = imgfilt < threshold
 
-    # 3. Process mask: clean up small holes/objects and fill
-    binary_mask = remove_small_holes(binary_mask, 5000)
-    binary_mask = remove_small_objects(binary_mask, 500)
+    # 3. Process mask: clean up small holes/objects
+    binary_mask = remove_small_objects(binary_mask, constants.MASK_REMOVE_SMALL_OBJECTS_MIN_SIZE)
     if constants.MASK_DILATION > 0:
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
         binary_mask = cv2.dilate(binary_mask.astype(np.uint8), kernel, iterations=constants.MASK_DILATION).astype(bool)
-    binary_mask = remove_small_holes(binary_mask, 5000)
+    binary_mask = remove_small_holes(binary_mask, constants.MASK_REMOVE_SMALL_HOLES_MIN_SIZE)
 
     # 4. Convert mask to polygons using OpenCV contours
     mask_uint8 = binary_mask.astype(np.uint8) * 255
