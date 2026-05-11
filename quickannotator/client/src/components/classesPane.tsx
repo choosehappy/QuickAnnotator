@@ -1,11 +1,11 @@
 import Card from 'react-bootstrap/Card';
 import { useState } from "react";
 import { Button, ListGroup, Modal, Spinner } from "react-bootstrap";
-import { AnnotationClass, DLActorStatus, Image } from "../types.ts";
+import { AnnotationClass, DLActorStatus, Image, Project } from "../types.ts";
 import { Plus, Pencil, Trash } from 'react-bootstrap-icons';
 import { MODAL_DATA, MASK_CLASS_ID } from '../helpers/config.tsx';
 import TrainingStatusButton from './TrainingStatusButton';
-import { fetchAnnotationCounts, generateTissueMask } from '../helpers/api.ts';
+import { fetchProjectAnnotationStats, generateTissueMask } from '../helpers/api.ts';
 
 
 interface Props {
@@ -17,6 +17,7 @@ interface Props {
     currentDlActorStatus: DLActorStatus | null;
     setCurrentDlActorStatus: (status: DLActorStatus | null) => void;
     currentImage: Image;
+    currentProject: Project;
 }
 
 const ClassesPane = (props: Props) => {
@@ -30,8 +31,8 @@ const ClassesPane = (props: Props) => {
 
         // Only check mask when switching away from the tissue mask class
         if (props.currentAnnotationClass?.id === MASK_CLASS_ID && c.id !== MASK_CLASS_ID) {
-            const resp = await fetchAnnotationCounts({ image_id: props.currentImage.id, annotation_class_id: MASK_CLASS_ID });
-            const maskCount = resp.data?.[0]?.gt_count ?? 0;
+            const resp = await fetchProjectAnnotationStats(props.currentProject.id, 'annotation_class', [MASK_CLASS_ID], [props.currentImage.id]);
+            const maskCount = resp.data?.[0]?.stats.count ?? 0;
             if (maskCount > 0) {
                 // Mask exists, proceed with class switch
                 props.setcurrentAnnotationClass(c);
