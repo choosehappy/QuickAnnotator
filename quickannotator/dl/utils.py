@@ -4,6 +4,8 @@ from pymemcache import serde
 import os, io 
 from PIL import Image as PILImage
 import numpy as np
+import cv2
+from shapely.geometry import Polygon
 from quickannotator.constants import ImageFormat
 from quickannotator.db import get_session
 from quickannotator.db.fsmanager import fsmanager
@@ -16,6 +18,27 @@ import quickannotator.constants as constants
 import logging
 
 logger = logging.getLogger(constants.LoggerNames.RAY.value)
+
+
+def contours_to_polygons(
+    contours,
+    scale_x: float = 1.0,
+    scale_y: float = 1.0,
+    min_area: float = 0.0,
+) -> list[Polygon]:
+    scaled = scale_x != 1.0 or scale_y != 1.0
+    if scaled:
+        return [
+            Polygon(contour[:, 0, :] * [scale_x, scale_y])
+            for contour in contours
+            if cv2.contourArea(contour) >= min_area
+        ]
+    return [
+        Polygon(contour[:, 0, :])
+        for contour in contours
+        if cv2.contourArea(contour) >= min_area
+    ]
+
 
 def compress_to_image_bytestream(matrix: np.ndarray, format: ImageFormat, **kwargs):
     """

@@ -15,7 +15,7 @@ from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 
 from quickannotator.constants import TileStatus
 import quickannotator.constants as constants
-from quickannotator.dl.utils import CacheableImage, load_tile, ImageCacheManager
+from quickannotator.dl.utils import CacheableImage, load_tile, ImageCacheManager, contours_to_polygons
 from quickannotator.db.fsmanager import fsmanager
 
 from datetime import datetime
@@ -68,7 +68,7 @@ def postprocess_output(outputs, min_area = 100, dilate_kernel = 2): ## These sho
 
     contours, _ = cv2.findContours(positive_mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
-    polygons = [shapely.geometry.Polygon(contour[:, 0, :]) for contour in contours if cv2.contourArea(contour) >= min_area]
+    polygons = contours_to_polygons(contours, min_area=min_area)
     return polygons
 
 

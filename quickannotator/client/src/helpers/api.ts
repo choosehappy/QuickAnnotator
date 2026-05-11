@@ -375,6 +375,11 @@ export const getImageThumbnailURL = (image_id: number) =>`/api/v1/image/${image_
 
 export const UploadImageURL = () =>`/api/v1/image/upload`;
 
+// Tissue mask helpers
+export const generateTissueMask = async (image_id: number) => {
+    return await post<null, { message: string; count?: number }>(`/annotation/${image_id}/mask/generate`, null);
+};
+
 // Ray cluster / task helpers
 // Fetch a single Ray task by its task id
 export const fetchRayTaskById = async (task_id: string) => {
