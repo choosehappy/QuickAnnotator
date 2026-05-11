@@ -658,7 +658,7 @@ class MultiTaskLoss(nn.Module):
 
         seg_loss_dict = self.seg_loss_fn(pred_seg, positive_mask, pseudo_pos=pseudo_pos, pseudo_neg=pseudo_neg)
         loss_seg = seg_loss_dict['total']
-        losses['segmentation'] = loss_seg
+        losses['segmentation'] = safe_loss(loss_seg, 'segmentation')
         losses['seg_bce_pos'] = safe_loss(seg_loss_dict['bce_pos'], 'seg_bce_pos')
         losses['seg_dice'] = safe_loss(seg_loss_dict['dice'], 'seg_dice')
         losses['seg_bce_bg'] = safe_loss(seg_loss_dict['bce_bg'], 'seg_bce_bg')
