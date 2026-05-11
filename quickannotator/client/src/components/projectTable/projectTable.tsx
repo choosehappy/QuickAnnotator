@@ -3,6 +3,7 @@ import { Column, GridOption, SlickgridReactInstance, SlickgridReact } from "slic
 import { Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, ListGroup, Nav } from "react-bootstrap";
 
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
+import './projectTable.css';
 import { Project } from "../../types.ts";
 import { Link } from 'react-router-dom';
 
@@ -64,6 +65,12 @@ export default class ProjectTable extends React.PureComponent {
 
     reactGridReady(reactGrid: SlickgridReactInstance) {
         this.setState({ reactGrid });
+        reactGrid.slickGrid?.onClick.subscribe((e, args) => {
+            if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('a')) return;
+            const item = reactGrid.slickGrid?.getDataItem(args.row);
+            if (!item) return;
+            window.location.href = `/project/${item.id}`;
+        });
     }
 
     defineGrid() {

@@ -3,6 +3,7 @@ import { Column, GridOption, SlickgridReactInstance, SlickgridReact } from "slic
 import { Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, ListGroup } from "react-bootstrap";
 
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
+import './imageTable.css';
 import { AnnotationClass, Image, Project } from "../../types.ts";
 import {getAnnotationPageURL, getImageThumbnailURL } from "../../helpers/api.ts";
 interface Props {
@@ -76,6 +77,12 @@ export default class ImageTable extends React.PureComponent {
 
     reactGridReady(reactGrid: SlickgridReactInstance) {
         this.setState({ reactGrid });
+        reactGrid.slickGrid?.onClick.subscribe((e, args) => {
+            if ((e.target as HTMLElement).closest('button')) return;
+            const item = reactGrid.slickGrid?.getDataItem(args.row);
+            if (!item || this.props.project?.id == null) return;
+            window.location.href = `..${getAnnotationPageURL(this.props.project.id, item.id)}`;
+        });
     }
 
     defineGrid() {
@@ -105,8 +112,12 @@ export default class ImageTable extends React.PureComponent {
                 console.error('No project defined for image table thumbnail formatter')
                 return ''
             }
-
-            return `<a href="..${getAnnotationPageURL(this.props.project.id,value)}"><img src='..${getImageThumbnailURL(value)}' height='64'></img></a>`
+            const src = `..${getImageThumbnailURL(value)}`;
+            return `<span class="spinner-border spinner-border-sm" role="status"></span>` +
+                `<span class="text-danger" style="display:none;font-size:1.5rem">&times;</span>` +
+                `<img src='${src}' height='64' style='display:none'` +
+                ` onload='this.previousElementSibling.previousElementSibling.style.display="none";this.style.display="block"'` +
+                ` onerror='this.previousElementSibling.previousElementSibling.style.display="none";this.previousElementSibling.style.display="inline"'>`;
         }
         const actionFormatter = (row: number, cell: number, value: any, columnDef: Column, dataContext: any) => {
             console.log(dataContext)
