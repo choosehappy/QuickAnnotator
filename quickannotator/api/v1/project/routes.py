@@ -136,7 +136,7 @@ class ProjectAnnotationStats(MethodView):
                 result.append({
                     "group_id": ann_cls.id,
                     "group_label": ann_cls.name,
-                    "count": count
+                    "stats": {"count": count}
                 })
         elif group_by == 'image':
             for img in images:
@@ -144,7 +144,7 @@ class ProjectAnnotationStats(MethodView):
                 result.append({
                     "group_id": img.id,
                     "group_label": getattr(img, 'name', str(img.id)),
-                    "count": count
+                    "stats": {"count": count}
                 })
         else:
             return jsonify({"error": "Invalid group_by value"}), 400
@@ -160,7 +160,7 @@ class ProjectAnnotationClassStats(MethodView):
         Output: {"count": int}
         """
         count = len(get_all_annotation_classes_for_project(project_id))
-        result = {"count": count}
+        result = {"stats": {"count": count}}
         return jsonify(result)
 
 
@@ -172,5 +172,5 @@ class ProjectImageStats(MethodView):
         Output: {"count": int}
         """
         count = len(get_images_by_project_id(project_id))
-        result = {"count": count}
+        result = {"stats": {"count": count}}
         return jsonify(result)

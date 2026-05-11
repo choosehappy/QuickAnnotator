@@ -53,7 +53,7 @@ const ProjectPage = () => {
                         for (const { classId, stats } of results) {
                             for (const s of stats) {
                                 if (!matrix[s.group_id]) matrix[s.group_id] = {};
-                                matrix[s.group_id][classId] = s.count;
+                                matrix[s.group_id][classId] = s.stats.count;
                             }
                         }
                         setAnnotationCounts(matrix);
@@ -81,7 +81,7 @@ const ProjectPage = () => {
                 for (const { classId, stats } of results) {
                     for (const s of stats) {
                         if (!matrix[s.group_id]) matrix[s.group_id] = {};
-                        matrix[s.group_id][classId] = s.count;
+                        matrix[s.group_id][classId] = s.stats.count;
                     }
                 }
                 setAnnotationCounts(matrix);

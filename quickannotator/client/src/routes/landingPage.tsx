@@ -29,17 +29,17 @@ const LandingPage = () => {
                     setProjectStats(prev => ({ ...prev, [id]: { gt_count: null, image_count: null, annotation_class_count: null } }));
                     fetchProjectAnnotationStats(id, 'annotation_class').then(r => {
                         if (r.status === 200) {
-                            const gt = r.data.reduce((sum, s) => sum + s.count, 0);
+                            const gt = r.data.reduce((sum, s) => sum + s.stats.count, 0);
                             setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], gt_count: gt } }));
                         }
                     });
                     fetchProjectImageStats(id).then(r => {
                         if (r.status === 200)
-                            setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], image_count: r.data.count } }));
+                            setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], image_count: r.data.stats.count } }));
                     });
                     fetchProjectAnnotationClassStats(id).then(r => {
                         if (r.status === 200)
-                            setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], annotation_class_count: r.data.count } }));
+                            setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], annotation_class_count: r.data.stats.count } }));
                     });
                 });
             } else {
@@ -62,17 +62,17 @@ const LandingPage = () => {
                     setProjectStats(prev => ({ ...prev, [id]: { gt_count: null, image_count: null, annotation_class_count: null } }));
                     fetchProjectAnnotationStats(id, 'annotation_class').then(r => {
                         if (r.status === 200) {
-                            const gt = r.data.reduce((sum, s) => sum + s.count, 0);
+                            const gt = r.data.reduce((sum, s) => sum + s.stats.count, 0);
                             setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], gt_count: gt } }));
                         }
                     });
                     fetchProjectImageStats(id).then(r => {
                         if (r.status === 200)
-                            setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], image_count: r.data.count } }));
+                            setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], image_count: r.data.stats.count } }));
                     });
                     fetchProjectAnnotationClassStats(id).then(r => {
                         if (r.status === 200)
-                            setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], annotation_class_count: r.data.count } }));
+                            setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], annotation_class_count: r.data.stats.count } }));
                     });
                 });
             } else {

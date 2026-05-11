@@ -208,7 +208,9 @@ export const deleteAnnotationClass = async (annotation_class_id: number) => {
 export interface AnnotationStat {
     group_id: number;
     group_label: string;
-    count: number;
+    stats: {
+        count: number;
+    };
 }
 
 export const fetchProjectAnnotationStats = async (project_id: number, group_by: 'annotation_class' | 'image' = 'annotation_class', annotation_class_ids?: number[], image_ids?: number[]) => {
@@ -219,7 +221,9 @@ export const fetchProjectAnnotationStats = async (project_id: number, group_by: 
 };
 
 export interface ProjectCount {
-    count: number;
+    stats: {
+        count: number;
+    };
 }
 
 export const fetchProjectAnnotationClassStats = async (project_id: number) => {
