@@ -123,7 +123,7 @@ def train_pred_loop(config):
     )
     
     # Load the model weights
-    checkpoint_path = get_latest_checkpoint_filepath(annotation_class_id)
+    checkpoint_path = fsmanager.nas_write.get_latest_checkpoint_filepath(annotation_class_id)
     if checkpoint_path is not None and os.path.exists(checkpoint_path):
         logger.info(f"Loading model from {checkpoint_path}")
         try:
@@ -328,9 +328,9 @@ def train_pred_loop(config):
                                  #but as well give the user in the front end a dropdown which enables them to select which model checkpoint they want to use? we had somethng similar in QAv1
                                  #that said, this is likely a more advanced features and not very "apple like" since it would require explaining to the user when/why/how they should use the different models
                                  #maybe suggest avoiduing for now --- lets just save the last one
-                checkpoint_path = get_new_checkpoint_filepath(annotation_class_id)
+                checkpoint_path = fsmanager.nas_write.get_new_checkpoint_filepath(annotation_class_id)
                 save_file(model.state_dict(), checkpoint_path)
-                truncate_checkpoints(annotation_class_id, max_checkpoints=constants.MAX_CHECKPOINTS_PER_CLASS)  # Keep only the latest 5 checkpoints to save space
+                fsmanager.nas_write.truncate_checkpoints(annotation_class_id, max_checkpoints=constants.MAX_CHECKPOINTS_PER_CLASS)  # Keep only the latest 5 checkpoints to save space
 
                 logger.info(f"Model checkpoint saved to {checkpoint_path}")
                 last_save = 0
@@ -339,53 +339,6 @@ def train_pred_loop(config):
     logger.info("Exiting training!")
 
 
-def get_checkpoint_filepath(annotation_class_id: int):
-    """
-    Returns the path to the model checkpoint for the given annotation class ID.
-    """
-    savepath = fsmanager.nas_write.get_class_checkpoint_path(annotation_class_id)
-    if not os.path.exists(savepath):
-        os.makedirs(savepath, exist_ok=True)
-    return os.path.join(savepath, constants.CHECKPOINT_FILENAME)
-
-def get_latest_checkpoint_filepath(annotation_class_id: int):
-    """
-    Returns the path to the latest model checkpoint for the given annotation class ID, or None if no checkpoint exists.
-    """
-    savepath = fsmanager.nas_write.get_class_checkpoint_path(annotation_class_id)
-    if not os.path.exists(savepath):
-        return None
-    import glob
-    checkpoint_files = [os.path.basename(f) for f in glob.glob(os.path.join(savepath, f"*{constants.CHECKPOINT_FILENAME}"))]
-    if not checkpoint_files:
-        return None
-    latest_checkpoint = max(checkpoint_files, key=lambda f: os.path.getctime(os.path.join(savepath, f)))
-    return os.path.join(savepath, latest_checkpoint)
-
-def get_new_checkpoint_filepath(annotation_class_id: int):
-    """
-    Returns a new path for a model checkpoint with a timestamp, for the given annotation class ID.
-    This can be used to save multiple checkpoints without overwriting.
-    """
-    savepath = fsmanager.nas_write.get_class_checkpoint_path(annotation_class_id)
-    if not os.path.exists(savepath):
-        os.makedirs(savepath, exist_ok=True)
-    filename = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
-    return os.path.join(savepath, filename + "_" + constants.CHECKPOINT_FILENAME)
-
-def truncate_checkpoints(annotation_class_id: int, max_checkpoints: int = 5):
-    """
-    Keeps only the latest `max_checkpoints` checkpoints for the given annotation class ID, and deletes older ones.
-    """
-    savepath = fsmanager.nas_write.get_class_checkpoint_path(annotation_class_id)
-    if not os.path.exists(savepath):
-        return
-    checkpoint_files = [os.path.basename(f) for f in glob.glob(os.path.join(savepath, f"*{constants.CHECKPOINT_FILENAME}"))]
-    if len(checkpoint_files) <= max_checkpoints:
-        return
-    checkpoint_files.sort(key=lambda f: os.path.getctime(os.path.join(savepath, f)), reverse=True)
-    for old_checkpoint in checkpoint_files[max_checkpoints:]:
-        os.remove(os.path.join(savepath, old_checkpoint))
 
 def get_log_filepath(annotation_class_id: int):
     """
