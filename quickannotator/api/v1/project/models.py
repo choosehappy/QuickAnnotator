@@ -34,3 +34,32 @@ class DeleteProjectArgsSchema(GetProjectArgsSchema):
 
 class SearchProjectArgsSchema(Schema):
     name = fields.Str(required=False)
+
+
+class StatsCountSchema(Schema):
+    count = fields.Int()
+
+
+class AnnotationStatRespSchema(Schema):
+    group_id = fields.Int()
+    group_label = fields.Str()
+    stats = fields.Nested(StatsCountSchema)
+
+
+class ProjectAnnotationStatsArgsSchema(Schema):
+    group_by = fields.Str(
+        load_default='annotation_class',
+        metadata={"description": "Group results by 'annotation_class' or 'image'"}
+    )
+    annotation_class_ids = fields.Str(
+        load_default=None,
+        metadata={"description": "Comma-separated list of annotation class IDs to filter by"}
+    )
+    image_ids = fields.Str(
+        load_default=None,
+        metadata={"description": "Comma-separated list of image IDs to filter by"}
+    )
+
+
+class ProjectCountRespSchema(Schema):
+    stats = fields.Nested(StatsCountSchema)

@@ -3,11 +3,19 @@ import { Column, GridOption, SlickgridReactInstance, SlickgridReact } from "slic
 import { Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, ListGroup, Nav } from "react-bootstrap";
 
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
+import './projectTable.css';
 import { Project } from "../../types.ts";
 import { Link } from 'react-router-dom';
 
+interface ProjectStat {
+    gt_count: number | null;
+    image_count: number | null;
+    annotation_class_count: number | null;
+}
+
 interface Props {
     projects: Project[];
+    projectStats: Record<number, ProjectStat>;
     containerId: string;
     deleteHandle: (project: any) => void;
     editHandle: (project: any) => void;
@@ -42,11 +50,11 @@ export default class ProjectTable extends React.PureComponent {
     }
 
     componentDidUpdate(prevProps: Props) {
-        if (prevProps.projects !== this.props.projects) {
+        if (prevProps.projects !== this.props.projects || prevProps.projectStats !== this.props.projectStats) {
             this.state.reactGrid?.gridService.resetGrid();
             this.setState(() => ({
                 ...this.state,
-                dataset: this.props.projects,
+                dataset: this.getData(this.props.projects),
             }));
         }
     }
@@ -57,6 +65,12 @@ export default class ProjectTable extends React.PureComponent {
 
     reactGridReady(reactGrid: SlickgridReactInstance) {
         this.setState({ reactGrid });
+        reactGrid.slickGrid?.onClick.subscribe((e, args) => {
+            if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('a')) return;
+            const item = reactGrid.slickGrid?.getDataItem(args.row);
+            if (!item) return;
+            window.location.href = `/project/${item.id}`;
+        });
     }
 
     defineGrid() {
@@ -82,12 +96,21 @@ export default class ProjectTable extends React.PureComponent {
 
             return `<a href="/project/${dataContext.id}">${value}</a>`
         }
+        const spinnerFormatter = (row: number, cell: number, value: any) => {
+            if (value === null) {
+                return '<span class="spinner-border spinner-border-sm" role="status"></span>';
+            }
+            return value;
+        }
 
         const columns: Column[] = [
             { id: 'id', name: 'Id', field: 'id', sortable: true },
             { id: 'name', name: 'Name', field: 'name', sortable: true, formatter: nameFormatter },
             { id: 'is_dataset_large', name: 'Large Dataset', field: 'is_dataset_large', sortable: true },
             { id: 'description', name: 'Description', field: 'description', sortable: true },
+            { id: 'image_count', name: 'No. Images', field: 'image_count', sortable: true, type: 'number', formatter: spinnerFormatter },
+            { id: 'annotation_class_count', name: 'No. Classes', field: 'annotation_class_count', sortable: true, type: 'number', formatter: spinnerFormatter },
+            { id: 'gt_count', name: 'No. GT', field: 'gt_count', sortable: true, type: 'number', formatter: spinnerFormatter },
             { id: 'datetime', name: 'Date Time', field: 'datetime', sortable: true },
             { id: 'action', name: '', field: 'action', sortable: true, formatter: actionFormatter }
         ];
@@ -118,16 +141,20 @@ export default class ProjectTable extends React.PureComponent {
     }
 
     getData(projects: Project[]) {
-        const mappedData = projects.map((proj) => {
+        const stats = this.props.projectStats;
+        return projects.map((proj) => {
+            const s = stats[proj.id!];
             return {
                 id: proj.id,
                 name: proj.name,
                 is_dataset_large: proj.is_dataset_large,
+                description: proj.description,
+                image_count: s ? s.image_count : null,
+                annotation_class_count: s ? s.annotation_class_count : null,
+                gt_count: s ? s.gt_count : null,
                 datetime: proj.datetime
             };
         });
-
-        return mappedData;
     }
 
     render() {

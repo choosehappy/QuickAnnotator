@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, ListGroup } from "react-bootstrap";
 import { Fullscreen, CloudArrowUp, GearFill, Download, AspectRatioFill, Brush, Magic, Eraser, Heptagon, CurrencyBitcoin } from 'react-bootstrap-icons';
 
-import { fetchProject, fetchImagesByProjectId, removeImage } from "../helpers/api.ts"
-import { Image, OutletContextType } from "../types.ts";
+import { fetchProject, fetchImagesByProjectId, removeImage, searchAnnotationClasses, fetchProjectAnnotationStats } from "../helpers/api.ts"
+import { Image, AnnotationClass, OutletContextType } from "../types.ts";
 import './project.css'
 import ImageTable from '../components/imageTable/imageTable.tsx';
 import FileDropUploader from '../components/fileDropUploader/fileDropUploader.tsx'
@@ -15,6 +15,8 @@ const ProjectPage = () => {
     const { projectid } = useParams();
     const { currentProject, setCurrentProject, currentImage, setCurrentImage } = useOutletContext<OutletContextType>();
     const [images, setImages] = useState<Image[]>([])
+    const [annotationClasses, setAnnotationClasses] = useState<AnnotationClass[]>([])
+    const [annotationCounts, setAnnotationCounts] = useState<Record<number, Record<number, number>> | null>(null)
     const [settingShow, setSettingShow] = useState<boolean>(false)
     const [embeddingShow, setEmbeddingShow] = useState<boolean>(false)
     const [exportAnnotationsShow, setExportAnnotationsShow] = useState<boolean>(false)
@@ -32,7 +34,31 @@ const ProjectPage = () => {
                 if (resp.status === 200) {
                     setImages(resp.data);
                 }
-
+            });
+            searchAnnotationClasses(parseInt(projectid)).then((resp) => {
+                if (resp.status === 200) {
+                    setAnnotationClasses(resp.data);
+                }
+            });
+            searchAnnotationClasses(parseInt(projectid)).then((resp) => {
+                if (resp.status === 200) {
+                    setAnnotationClasses(resp.data);
+                    Promise.all(
+                        resp.data.map(ac =>
+                            fetchProjectAnnotationStats(parseInt(projectid), 'image', [ac.id])
+                                .then(r => ({ classId: ac.id, stats: r.data }))
+                        )
+                    ).then(results => {
+                        const matrix: Record<number, Record<number, number>> = {};
+                        for (const { classId, stats } of results) {
+                            for (const s of stats) {
+                                if (!matrix[s.group_id]) matrix[s.group_id] = {};
+                                matrix[s.group_id][classId] = s.stats.count;
+                            }
+                        }
+                        setAnnotationCounts(matrix);
+                    });
+                }
             });
         }
 
@@ -44,6 +70,21 @@ const ProjectPage = () => {
                 if (resp.status === 200) {
                     setImages(resp.data);
                 }
+            });
+            Promise.all(
+                annotationClasses.map(ac =>
+                    fetchProjectAnnotationStats(parseInt(projectid), 'image', [ac.id])
+                        .then(r => ({ classId: ac.id, stats: r.data }))
+                )
+            ).then(results => {
+                const matrix: Record<number, Record<number, number>> = {};
+                for (const { classId, stats } of results) {
+                    for (const s of stats) {
+                        if (!matrix[s.group_id]) matrix[s.group_id] = {};
+                        matrix[s.group_id][classId] = s.stats.count;
+                    }
+                }
+                setAnnotationCounts(matrix);
             });
         }
     }
@@ -117,7 +158,7 @@ const ProjectPage = () => {
                                 <FileDropUploader project_id={projectid} reloadHandler={reloadImages} />
                             </Card.Header>
                             <Card.Body id='img_table' className="p-0">
-                                <ImageTable containerId='img_table' project={currentProject} images={images} changed={(!embeddingShow && !settingShow)} deleteHandler={deleteImageHandle} />
+                                <ImageTable containerId='img_table' project={currentProject} images={images} annotationClasses={annotationClasses} annotationCounts={annotationCounts} changed={(!embeddingShow && !settingShow)} deleteHandler={deleteImageHandle} />
                             </Card.Body>
 
                         </Card>
