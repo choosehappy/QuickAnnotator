@@ -14,15 +14,6 @@ def setup_checkpoint_dir(annotation_class_id):
     fsmanager.nas_write.base_path = orig_base
     shutil.rmtree(temp_dir)
 
-def test_get_checkpoint_filepath():
-    annotation_class_id = 123
-    with tempfile.TemporaryDirectory() as temp_dir:
-        orig_base = fsmanager.nas_write.base_path
-        fsmanager.nas_write.base_path = temp_dir
-        path = fsmanager.nas_write.get_checkpoint_filepath(annotation_class_id)
-        assert os.path.basename(path) == constants.CHECKPOINT_FILENAME
-        assert os.path.exists(os.path.dirname(path))
-        fsmanager.nas_write.base_path = orig_base
 
 def test_get_new_checkpoint_filepath_and_latest():
     annotation_class_id = 456
@@ -52,7 +43,7 @@ def test_truncate_checkpoints():
             path = fsmanager.nas_write.get_new_checkpoint_filepath(annotation_class_id)
             with open(path, 'w') as f:
                 f.write(f"ckpt {i}")
-            time.sleep(0.01)
+            time.sleep(2)
             paths.append(path)
         fsmanager.nas_write.truncate_checkpoints(annotation_class_id, max_checkpoints=5)
         savepath = fsmanager.nas_write.get_class_checkpoint_path(annotation_class_id)

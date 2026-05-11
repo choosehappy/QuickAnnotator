@@ -1,6 +1,11 @@
 from quickannotator import constants
 import os
 
+# Imports for checkpoint management
+import glob
+import datetime
+
+
 
 class FileStore():
     """
@@ -245,23 +250,10 @@ class NASWrite(FileStore):
         relative_path = "debug"
         return relative_path if relative else self.relative_to_global(relative_path)
 
-    def get_checkpoint_filepath(self, annotation_class_id: int):
-        """
-        Returns the path to the model checkpoint for the given annotation class ID.
-        """
-        savepath = self.get_class_checkpoint_path(annotation_class_id)
-        if not os.path.exists(savepath):
-            os.makedirs(savepath, exist_ok=True)
-        import quickannotator.constants as constants
-        return os.path.join(savepath, constants.CHECKPOINT_FILENAME)
-
     def get_latest_checkpoint_filepath(self, annotation_class_id: int):
         """
         Returns the path to the latest model checkpoint for the given annotation class ID, or None if no checkpoint exists.
         """
-        import glob
-        import os
-        import quickannotator.constants as constants
         savepath = self.get_class_checkpoint_path(annotation_class_id)
         if not os.path.exists(savepath):
             return None
@@ -276,9 +268,6 @@ class NASWrite(FileStore):
         Returns a new path for a model checkpoint with a timestamp, for the given annotation class ID.
         This can be used to save multiple checkpoints without overwriting.
         """
-        import datetime
-        import os
-        import quickannotator.constants as constants
         savepath = self.get_class_checkpoint_path(annotation_class_id)
         if not os.path.exists(savepath):
             os.makedirs(savepath, exist_ok=True)
@@ -289,9 +278,6 @@ class NASWrite(FileStore):
         """
         Keeps only the latest `max_checkpoints` checkpoints for the given annotation class ID, and deletes older ones.
         """
-        import glob
-        import os
-        import quickannotator.constants as constants
         savepath = self.get_class_checkpoint_path(annotation_class_id)
         if not os.path.exists(savepath):
             return
