@@ -6,7 +6,7 @@ from sqlalchemy.sql import func
 from quickannotator.db import Base
 from sqlalchemy.orm import relationship
 import geojson
-from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, Text, func, ext
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, Text, UniqueConstraint, func, ext
 from ..constants import TileStatus
 from sqlalchemy import Enum
 from datetime import datetime
@@ -73,11 +73,15 @@ class AnnotationClass(Base):
     project_id = Column(Integer, ForeignKey('project.id'), nullable=True)
 
     # columns
-    name = Column(Text, nullable=False, unique=True)
+    name = Column(Text, nullable=False)
     color = Column(Text, nullable=False)
     work_mag = Column(Float, nullable=False)
     work_tilesize = Column(Integer, nullable=False)
     datetime = Column(DateTime, default=datetime.now)
+
+    __table_args__ = (
+        UniqueConstraint('project_id', 'name', name='uq_annotation_class_project_name'),
+    )
 
 
 class Tile(Base):
