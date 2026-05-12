@@ -1008,44 +1008,40 @@ const ViewportMap = (props: Props) => {
         }
     }, { keydown: true, keyup: true }, [props.currentTool]);
 
+    // Set layer visibility and trigger an immediate render when visibility toggles.
+    // currentImage/currentAnnotationClass are intentionally omitted from deps: this effect
+    // should only fire on visibility changes. The [currentAnnotationClass] effect handles
+    // rendering when the annotation class changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         if (!geojs_map.current) return;
 
         const layers = geojs_map.current.layers();
-
         layers[LAYER_KEYS.GT].visible(props.gtLayerVisible);
         layers[LAYER_KEYS.PRED].visible(props.predLayerVisible);
         layers[LAYER_KEYS.TILE_STATUS].visible(props.tileStatusLayerVisible);
 
+        if (!props.currentImage || !props.currentAnnotationClass) return;
         if (props.predLayerVisible || props.tileStatusLayerVisible) {
-            viewportRender(
-                false,
-                props.predLayerVisible,
-                props.tileStatusLayerVisible,
-                props.currentImage.id,
-                props.currentAnnotationClass.id
-            );
+            viewportRender(false, props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage.id, props.currentAnnotationClass.id);
         }
+    }, [props.gtLayerVisible, props.predLayerVisible, props.tileStatusLayerVisible]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // Manage the polling interval. Re-subscribes when image, class, or visibility changes
+    // so the closure always has fresh values.
+    useEffect(() => {
         const interval = setInterval(() => {
-            // Use up-to-date props on every tick!
             if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
                 if (props.predLayerVisible || props.tileStatusLayerVisible) {
-                    viewportRender(
-                        false,
-                        props.predLayerVisible,
-                        props.tileStatusLayerVisible,
-                        props.currentImage.id,
-                        props.currentAnnotationClass.id
-                    ).then(() => {
+                    viewportRender(false, props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
                         console.log("Completed viewport render triggered by interval.");
                     });
                 }
             }
         }, RENDER_PREDICTIONS_INTERVAL);
 
-        return () => clearInterval(interval); // Cleanup on unmount
-    }, [props.gtLayerVisible, props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage, props.currentAnnotationClass]);
+        return () => clearInterval(interval);
+    }, [props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage, props.currentAnnotationClass]);
 
     return (
         <div ref={viewRef} style={
