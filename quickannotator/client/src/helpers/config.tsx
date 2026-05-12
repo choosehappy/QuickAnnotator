@@ -114,6 +114,7 @@ export const POPOVER_DATA: { [key: string]: PopoverData } = {
         body: (
             <>
                 Pan around the image. You can temporarily enable this tool by holding down the middle mouse button.
+                Hold <code>CTRL</code> to lasso-select multiple ground truth annotations.
             </>
         ),
     },
@@ -234,6 +235,16 @@ export const IMPORT_CREATE_STYLE = {
     fillColor: { r: 1, g: 0.5, b: 0 },
     stroke: true,
     strokeColor: { r: 1, g: 0.5, b: 0 },
+    strokeWidth: 3,
+    fillOpacity: 0.9,
+};
+
+export const LASSO_SELECT_STYLE = {
+    closed: true,
+    fill: true,
+    fillColor: { r: 0, g: 0.8, b: 0.8 },
+    stroke: true,
+    strokeColor: { r: 0, g: 0.8, b: 0.8 },
     strokeWidth: 3,
     fillOpacity: 0.9,
 };

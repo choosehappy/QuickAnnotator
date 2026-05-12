@@ -121,10 +121,13 @@ export const createGTTileFeature = (featureProps: FeatureProps, annotations: Ann
 
     const originalDraw = feature.draw;
     // Override the draw method to accept options.
-    feature.draw = (options = { currentAnnotationId: null }) => {
-        if (options.currentAnnotationId) {
+    feature.draw = (options = { currentAnnotationId: null, multiSelectedIds: [] as number[] }) => {
+        const selectedIds = new Set(options.multiSelectedIds || []);
+        if (options.currentAnnotationId) selectedIds.add(options.currentAnnotationId);
+
+        if (selectedIds.size > 0) {
             feature.style('strokeColor', (point: number[], pointIdx: number, ann: Annotation, annIdx: number) => {
-                return ann.id === options.currentAnnotationId ? 'black' : 'white';
+                return selectedIds.has(ann.id) ? 'black' : 'white';
             });
         } else {
             feature.style('strokeColor', 'white');
@@ -132,7 +135,7 @@ export const createGTTileFeature = (featureProps: FeatureProps, annotations: Ann
         originalDraw.call(feature);
     }
     console.log('Drew ground truth polygons.')
-    feature.draw({ currentAnnotationId: currentAnnotationId });
+    feature.draw({ currentAnnotationId: currentAnnotationId, multiSelectedIds: [] });
     return feature;
 }
 
