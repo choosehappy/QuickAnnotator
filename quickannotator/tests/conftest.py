@@ -14,7 +14,29 @@ from quickannotator.constants import TileStatus
 from shapely.geometry import Polygon
 from quickannotator.api.v1.utils.coordinate_space import get_tilespace, TileSpace
 import quickannotator.constants as constants
+import quickannotator.db.fsmanager as fsmanager_module
 from quickannotator.db.fsmanager import fsmanager
+
+
+@pytest.fixture(autouse=True)
+def isolated_fs(tmp_path, monkeypatch):
+    """Redirect all file system operations to a temporary directory so tests
+    never touch the real application mounts."""
+    monkeypatch.setattr(constants, 'MOUNTS_PATH', str(tmp_path))
+    monkeypatch.setattr(fsmanager_module, 'constants', constants)
+
+    # Create the expected subdirectory structure
+    (tmp_path / 'nas_read' / 'images').mkdir(parents=True)
+    (tmp_path / 'nas_read' / 'masks').mkdir(parents=True)
+    (tmp_path / 'nas_write' / 'projects').mkdir(parents=True)
+    (tmp_path / 'nas_write' / 'classes').mkdir(parents=True)
+    (tmp_path / 'nas_write' / 'temp').mkdir(parents=True)
+
+    # Re-initialise the singleton so it picks up the patched MOUNTS_PATH
+    new_fsmanager = fsmanager_module.FileSystemManager()
+    monkeypatch.setattr(fsmanager_module, 'fsmanager', new_fsmanager)
+
+    yield
 
 
 @pytest.fixture(scope='module')

@@ -33,6 +33,7 @@ const AnnotationPage = () => {
     const [currentAnnotation, setCurrentAnnotation] = useState<CurrentAnnotation | null>(null);
     const [selectedPred, setSelectedPred] = useState<CurrentAnnotation | null>(null);
     const [highlightedPreds, setHighlightedPreds] = useState<Annotation[] | null>(null);
+    const [multiSelectedAnnotations, setMultiSelectedAnnotations] = useState<Annotation[]>([]);
     const prevCurrentAnnotation = useRef<CurrentAnnotation | null>(null);
     const [activeModal, setActiveModal] = useState<number | null>(null);
     const [mouseCoords, setMouseCoords] = useState<{ x: number, y: number }>({x: 0, y: 0});
@@ -258,6 +259,8 @@ const AnnotationPage = () => {
                                             setSelectedPred,
                                             highlightedPreds,
                                             setHighlightedPreds,
+                                            multiSelectedAnnotations,
+                                            setMultiSelectedAnnotations,
                                             activeModal,
                                             setActiveModal,
                                             setMouseCoords,
@@ -273,7 +276,7 @@ const AnnotationPage = () => {
                         <Col xs={3}>
                             <Stack gap={3}>
                                 <ClassesPane
-                                    {...{ currentAnnotationClass, setcurrentAnnotationClass: setCurrentAnnotationClass, setActiveModal, annotationClasses, setAnnotationClasses, currentDlActorStatus, setCurrentDlActorStatus }}
+                                    {...{ currentAnnotationClass, setcurrentAnnotationClass: setCurrentAnnotationClass, setActiveModal, annotationClasses, setAnnotationClasses, currentDlActorStatus, setCurrentDlActorStatus, currentImage, currentProject }}
                                 />
                                 <GroundTruthPane
                                     {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, annotationClasses, setActiveModal, gtLayerVisible }}

@@ -12,6 +12,10 @@ def get_project_by_id(project_id: int) -> db_models.Project:
     return db_session.query(db_models.Project).get(project_id)
 
 
+def get_all_projects() -> list[db_models.Project]:
+    return db_session.query(db_models.Project).all()
+
+
 def delete_projects(project_ids: list[int] | int):
     """
     Delete projects by their IDs.

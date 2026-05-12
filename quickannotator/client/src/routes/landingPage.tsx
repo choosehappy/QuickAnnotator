@@ -8,13 +8,14 @@ import ProjectTable from '../components/projectTable/projectTable.tsx';
 import ConfigModal from '../components/modals/project/configModal/configModal.tsx';
 import DeleteModal from '../components/modals/project/deleteModal/deleteModal.tsx';
 import { Project } from "../types.ts";
-import { fetchAllProjects, createProject, updateProject, removeProject } from "../helpers/api.ts"
+import { fetchAllProjects, createProject, updateProject, removeProject, fetchProjectAnnotationStats, fetchProjectImageStats, fetchProjectAnnotationClassStats } from "../helpers/api.ts"
 import {PROJECT_MODAL_STATUS} from '../helpers/config.tsx'
 const LandingPage = () => {
     // 0 - create, 1 - update, 2 - remove 
     const [modalStatus, setModalStatus] = useState<PROJECT_MODAL_STATUS.CREATE | PROJECT_MODAL_STATUS.REMOVE | PROJECT_MODAL_STATUS.UPDATE | undefined>(undefined)
     const { setCurrentImage, setCurrentProject } = useOutletContext<OutletContextType>();
     const [projects, setProjects] = useState<Project[]>([])
+    const [projectStats, setProjectStats] = useState<Record<number, { gt_count: number | null; image_count: number | null; annotation_class_count: number | null; }>>({})
     const [showAlert, setShowAlert] = useState<boolean>(false)
     const [deletedId, setDeletedId] = useState<number | undefined>(undefined)
     const [selectedProject, setSelectedProject] = useState<Project | undefined>(undefined)
@@ -23,10 +24,27 @@ const LandingPage = () => {
         fetchAllProjects().then((resp) => {
             if (resp.status === 200) {
                 setProjects(resp.data);
+                resp.data.forEach((proj) => {
+                    const id = proj.id!;
+                    setProjectStats(prev => ({ ...prev, [id]: { gt_count: null, image_count: null, annotation_class_count: null } }));
+                    fetchProjectAnnotationStats(id, 'annotation_class').then(r => {
+                        if (r.status === 200) {
+                            const gt = r.data.reduce((sum, s) => sum + s.stats.count, 0);
+                            setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], gt_count: gt } }));
+                        }
+                    });
+                    fetchProjectImageStats(id).then(r => {
+                        if (r.status === 200)
+                            setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], image_count: r.data.stats.count } }));
+                    });
+                    fetchProjectAnnotationClassStats(id).then(r => {
+                        if (r.status === 200)
+                            setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], annotation_class_count: r.data.stats.count } }));
+                    });
+                });
             } else {
                 console.error("fetch project error")
             }
-
         });
     }, [])
 
@@ -39,6 +57,24 @@ const LandingPage = () => {
         fetchAllProjects().then((resp) => {
             if (resp.status === 200) {
                 setProjects(resp.data);
+                resp.data.forEach((proj) => {
+                    const id = proj.id!;
+                    setProjectStats(prev => ({ ...prev, [id]: { gt_count: null, image_count: null, annotation_class_count: null } }));
+                    fetchProjectAnnotationStats(id, 'annotation_class').then(r => {
+                        if (r.status === 200) {
+                            const gt = r.data.reduce((sum, s) => sum + s.stats.count, 0);
+                            setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], gt_count: gt } }));
+                        }
+                    });
+                    fetchProjectImageStats(id).then(r => {
+                        if (r.status === 200)
+                            setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], image_count: r.data.stats.count } }));
+                    });
+                    fetchProjectAnnotationClassStats(id).then(r => {
+                        if (r.status === 200)
+                            setProjectStats(prev => ({ ...prev, [id]: { ...prev[id], annotation_class_count: r.data.stats.count } }));
+                    });
+                });
             } else {
                 console.error("fetch project error")
             }
@@ -123,7 +159,7 @@ const LandingPage = () => {
                     <Col className="d-flex flex-grow-1"><Card className="flex-grow-1">
                         <Card.Header><Card.Title>Project List</Card.Title></Card.Header>
                         <Card.Body id="project_table" className='p-0'>
-                            <ProjectTable containerId='project_table' projects={projects} deleteHandle={showDeleteModalHandle} editHandle={showConfigModalHandle} />
+                            <ProjectTable containerId='project_table' projects={projects} projectStats={projectStats} deleteHandle={showDeleteModalHandle} editHandle={showConfigModalHandle} />
                         </Card.Body>
                     </Card></Col>
                 </Row>

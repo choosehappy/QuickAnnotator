@@ -133,3 +133,9 @@ class TSVFields(enum.Enum):
     SPLIT = 'split'
 
 RAY_TASK_RETURN_LIMIT = 30
+
+
+# Tissue mask computation constants
+MASK_THUMBNAIL_WIDTH = 1024
+MASK_REMOVE_SMALL_OBJECTS_MIN_SIZE = 125
+MASK_REMOVE_SMALL_HOLES_MIN_SIZE = 1250
