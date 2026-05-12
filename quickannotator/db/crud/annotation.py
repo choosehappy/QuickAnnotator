@@ -231,7 +231,7 @@ class AnnotationStore:
                     geojson_feature = {
                         "type": "Feature",
                         "geometry": json.loads(feature.GetField(field_name)),    # NOTE: Could alternatively use geom.ExportToJson(), but this would require a modified query without AS_GeoJSON(). NOTE: potentially optimize using orjson.loads
-                        "properties": feature.items()
+                        "properties": {}
                     }
 
                     if not first:
@@ -426,6 +426,19 @@ def table_exists(table_name: str) -> bool:
     """
     inspector = inspect(engine)
     return table_name in inspector.get_table_names()
+
+
+def get_annotation_count(image_id: int, annotation_class_id: int, is_gt: bool) -> int:
+    """
+    Returns the number of annotations in the specified annotation table.
+    Returns 0 if the table does not exist.
+    """
+    table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
+    if not table_exists(table_name):
+        return 0
+    from sqlalchemy import text
+    result = db_session.execute(text(f'SELECT COUNT(*) FROM "{table_name}"')).scalar()
+    return result
 
 
 def build_export_filepath(image_id: int, annotation_class_id: int, is_gt: bool, extension: constants.ExportFormatExtensions, relative: bool, timestamp: datetime = None) -> str:

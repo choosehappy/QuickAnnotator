@@ -24,3 +24,5 @@ class PutAnnClassArgsSchema(GetAnnClassArgsSchema):
 class SearchAnnClassArgsSchema(Schema):
     name = fields.Str(required=False)
     project_id = fields.Int(required=False)
+
+

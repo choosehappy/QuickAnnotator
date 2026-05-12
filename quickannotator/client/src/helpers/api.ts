@@ -205,6 +205,36 @@ export const deleteAnnotationClass = async (annotation_class_id: number) => {
     return await remove(`/class/?${query}`);
 }
 
+// Project stats
+export interface AnnotationStat {
+    group_id: number;
+    group_label: string;
+    stats: {
+        count: number;
+    };
+}
+
+export const fetchProjectAnnotationStats = async (project_id: number, group_by: 'annotation_class' | 'image' = 'annotation_class', annotation_class_ids?: number[], image_ids?: number[]) => {
+    const query = new URLSearchParams({ group_by });
+    if (annotation_class_ids?.length) query.set('annotation_class_ids', annotation_class_ids.join(','));
+    if (image_ids?.length) query.set('image_ids', image_ids.join(','));
+    return await get<AnnotationStat[]>(`/project/${project_id}/annotations/stats/?${query}`);
+};
+
+export interface ProjectCount {
+    stats: {
+        count: number;
+    };
+}
+
+export const fetchProjectAnnotationClassStats = async (project_id: number) => {
+    return await get<ProjectCount>(`/project/${project_id}/annotation_class/stats`);
+};
+
+export const fetchProjectImageStats = async (project_id: number) => {
+    return await get<ProjectCount>(`/project/${project_id}/image/stats`);
+};
+
 // Search tile IDs by bounding box
 export const searchTileRefsByBbox = async (image_id: number, annotation_class_id: number, x1: number, y1: number, x2: number, y2: number, hasgt=false, downsample_level=0) => {
     const query = new URLSearchParams({
@@ -345,6 +375,11 @@ export const getAnnotationPageURL = (project_id: number, image_id: number) => `/
 export const getImageThumbnailURL = (image_id: number) =>`/api/v1/image/${image_id}/1/file`
 
 export const UploadImageURL = () =>`/api/v1/image/upload`;
+
+// Tissue mask helpers
+export const generateTissueMask = async (image_id: number) => {
+    return await post<null, { message: string; count?: number }>(`/annotation/${image_id}/mask/generate`, null);
+};
 
 // Ray cluster / task helpers
 // Fetch a single Ray task by its task id

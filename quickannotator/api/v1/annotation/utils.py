@@ -28,6 +28,13 @@ from shapely.geometry.base import BaseGeometry
 from shapely.geometry import Polygon, MultiPolygon
 from werkzeug.datastructures import FileStorage
 import logging
+import numpy as np
+import cv2
+from skimage.morphology import disk, remove_small_holes, remove_small_objects
+from skimage.filters import rank
+from skimage import color
+import large_image
+from quickannotator.dl.utils import contours_to_polygons
 # logger
 logger = logging.getLogger(constants.LoggerNames.FLASK.value)
 
@@ -320,3 +327,56 @@ class GeometryOperation:
         Convenience wrapper for difference operation.
         """
         return GeometryOperation.apply_operation(poly1, poly2, lambda a, b: a.difference(b), multipoly_func)
+
+
+def generate_tissue_mask(image_id: int, disk_size: int = 5, threshold: int = 210) -> list[Polygon]:
+    """
+    Auto-generate tissue mask polygons for the given image.
+
+    Generates a binary mask from a downsampled thumbnail using grayscale
+    thresholding, cleans it up with morphological operations, then extracts
+    contours as Shapely Polygons scaled to base image coordinates.
+
+    Args:
+        image_id: The database ID of the image.
+        disk_size: Radius of the disk structuring element for the minimum filter.
+        threshold: Grayscale intensity threshold (pixels below this are tissue).
+
+    Returns:
+        A list of Shapely Polygon objects in base image coordinate space.
+    """
+    image = get_image_by_id(image_id)
+    if image is None:
+        raise ValueError(f"Image with id {image_id} not found")
+
+    full_path = fsmanager.nas_read.relative_to_global(image.path)
+    slide = large_image.open(full_path)
+
+    # 1. Get a small downsample of the image
+    thumb_data, _ = slide.getThumbnail(width=constants.MASK_THUMBNAIL_WIDTH, format='numpy')
+    if thumb_data.shape[2] == 4:
+        thumb_data = thumb_data[:, :, :3]  # drop alpha channel
+
+    thumb_h, thumb_w = thumb_data.shape[:2]
+    scale_x = image.base_width / thumb_w
+    scale_y = image.base_height / thumb_h
+
+    # 2. Generate binary mask
+    img_gray = color.rgb2gray(thumb_data)
+    img_gray = (img_gray * 255).astype(np.uint8)
+    selem = disk(disk_size)
+    imgfilt = rank.minimum(img_gray, selem)
+    binary_mask = imgfilt < threshold
+
+    # 3. Process mask: clean up small holes/objects
+    binary_mask = remove_small_objects(binary_mask, constants.MASK_REMOVE_SMALL_OBJECTS_MIN_SIZE)
+    if constants.MASK_DILATION > 0:
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+        binary_mask = cv2.dilate(binary_mask.astype(np.uint8), kernel, iterations=constants.MASK_DILATION).astype(bool)
+    binary_mask = remove_small_holes(binary_mask, constants.MASK_REMOVE_SMALL_HOLES_MIN_SIZE)
+
+    # 4. Convert mask to polygons using OpenCV contours
+    mask_uint8 = binary_mask.astype(np.uint8) * 255
+    contours, _ = cv2.findContours(mask_uint8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    return contours_to_polygons(contours, scale_x=scale_x, scale_y=scale_y)

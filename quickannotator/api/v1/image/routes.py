@@ -8,6 +8,7 @@ import quickannotator.db.models as db_models
 from quickannotator.db import db_session
 from quickannotator.db.fsmanager import fsmanager
 from quickannotator.db.crud.image import get_image_by_id
+from quickannotator.db.crud.image import get_images_by_project_id
 from quickannotator.api.v1.annotation.utils import import_annotation_from_json
 from quickannotator.api.v1.image.utils import delete_image_and_related_data, import_image_from_wsi
 from quickannotator.api.v1.project.utils import import_from_tabular
