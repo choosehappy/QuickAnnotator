@@ -63,6 +63,10 @@ class Image(Base):
     # relationships
     notifications = relationship("Notification", backref='image', lazy=True)
 
+    __table_args__ = (
+        UniqueConstraint('project_id', 'name', name='uq_image_project_name'),
+    )
+
 
 class AnnotationClass(Base):
     __tablename__ = 'annotation_class'
