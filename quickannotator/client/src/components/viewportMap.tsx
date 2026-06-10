@@ -52,6 +52,8 @@ const ViewportMap = (props: Props) => {
     const [searchParams, setSearchParams] = useSearchParams();
     const lastBrushState = useRef<{ stateId: number, coords: [Position] } | null>(null);
     const downsampleLevel = useRef<number>(0);
+    const currentToolRef = useRef<string | null>(props.currentTool);
+    useEffect(() => { currentToolRef.current = props.currentTool; }, [props.currentTool]);
 
     let zoomPanTimeout: any = null;
 
@@ -233,7 +235,7 @@ const ViewportMap = (props: Props) => {
         const clickedAnnotation: Annotation = evt.data;
 
         // Ctrl+click: toggle annotation in multi-selection
-        if (isHotkeyPressed('ctrl') && props.currentTool === TOOLBAR_KEYS.POINTER) {
+        if (isHotkeyPressed('ctrl') && currentToolRef.current === TOOLBAR_KEYS.POINTER) {
             props.setMultiSelectedAnnotations((prev: Annotation[]) => {
                 const exists = prev.some(a => a.id === clickedAnnotation.id);
                 if (exists) {
