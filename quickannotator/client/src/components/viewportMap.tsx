@@ -411,6 +411,12 @@ const ViewportMap = (props: Props) => {
                 props.setGts(updatedGroundTruths);
                 redrawTileFeature(feature, { currentAnnotationId: currentState.id }, updatedData);
                 props.pushAnnotationStateToUndoStack(newState);
+                // NOTE: may want to instead have the operation endpoint update the annotation directly.
+                if (props.currentImage && props.currentAnnotationClass) {
+                    putAnnotation(props.currentImage.id, props.currentAnnotationClass.id, newState).then(() => {
+                        console.log(`Annotation id=${newState.id} updated via putAnnotation.`);
+                    });
+                }
             }
         });
     }
