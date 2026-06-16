@@ -83,27 +83,40 @@ Geojson features also support properties, however QuickAnnotator currently ignor
 ### 4.2. TSV Upload
 You can also upload existing annotations using a TSV file as described in [TSV Upload](#tsv-upload) above.
 
-## 5. Annotating images
+## 5. Adding annotation classes
+<iframe width="100%" height="560" src="https://www.youtube.com/embed/9N1PoJS4lkg?si=KNuph7N-zQYdn8o8" title="YouTube video player" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-<iframe width="100%" height="560" src="https://www.youtube.com/embed/wtL5vK_tj4c?si=xqfAk2AV0UaL_W33" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+## 6. Adding a tissue mask
+QuickAnnotator relies on a tissue mask to determine which regions of the image to provide annotation suggestions for. If your image does not have a tissue mask, you can add one manually or by selecting "auto-generate tissue mask".
 
-## 6. Using Deep Learning Assistance
+<iframe width="100%" height="560" src="https://www.youtube.com/embed/IEW_21a7pTc?si=7Hnsn6NKGP4U3qrY" title="YouTube video player" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+## 7. Annotating images
+
+<iframe width="100%" height="480" src="https://www.youtube.com/embed/15yz93HDMQY?si=taQBpqwiGokBXfF_" title="YouTube video player" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+## 8. Enable/disable viewport layers
+By default, QuickAnnotator displays three layers over the image in the viewport:
+1. Ground truth annotations (polygons with white borders)
+2. Predicted annotations (polygons without borders)
+3. Tile status (gray, yellow, and green squares, with yellow indicating regions where the predictions are currently pending, and green indicating regions where fresh predictions are available)
+
+You can toggle the visibility of each layer by clicking the respective toggle in the toolbar.
+<iframe width="100%" height="560" src="https://www.youtube.com/embed/f3XdvgLS4q8?si=ipIz8P34a25rrBdo" title="YouTube video player" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+
+## 9. Using Deep Learning Assistance
 QuickAnnotator's deep learning model will automatically start learning from your manual annotations and provide annotation suggestions as you work. To accept a suggested annotation, use the "Import Predictions" button from the toolbar. You can control whether to click or lasso select suggested annotations using the CTRL key.
 
-```{note}
-Video tutorial coming soon!
-```
+<iframe width="100%" height="560" src="https://www.youtube.com/embed/EaEEF3_AxrY?si=MH7uXxeMQOB0yiPM" title="YouTube video player" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-## 7. Adding annotation classes
-<iframe width="100%" height="560" src="https://www.youtube.com/embed/9N1PoJS4lkg?si=KNuph7N-zQYdn8o8" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
-## 8. Exporting annotations
+## 10. Exporting annotations
 QuickAnnotator provides multiple options for exporting annotations.
 
-### 8.1. Save Locally
-<iframe width="100%" height="560" src="https://www.youtube.com/embed/20r5xQaZ-6k?si=H2LWvHclC-RGTMvx" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+### 10.1. Save Locally
+<iframe width="100%" height="560" src="https://www.youtube.com/embed/20r5xQaZ-6k?si=H2LWvHclC-RGTMvx" title="YouTube video player" frameborder="0" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-### 8.2. Push to Digital Slide Archive (DSA)
+### 10.2. Push to Digital Slide Archive (DSA)
 
 ```{note}
 Video tutorial coming soon!
