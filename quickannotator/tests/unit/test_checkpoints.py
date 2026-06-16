@@ -50,3 +50,61 @@ def test_truncate_checkpoints():
         files = [f for f in os.listdir(savepath) if f.endswith(constants.CHECKPOINT_FILENAME)]
         assert len(files) == 5
         fsmanager.nas_write.base_path = orig_base
+
+
+def test_get_all_checkpoint_filenames():
+    annotation_class_id = 101
+    with tempfile.TemporaryDirectory() as temp_dir:
+        orig_base = fsmanager.nas_write.base_path
+        orig_full_path = fsmanager.nas_write.full_path
+        fsmanager.nas_write.base_path = temp_dir
+        fsmanager.nas_write.full_path = os.path.join(temp_dir, "nas_write")
+        # Test with no checkpoints
+        filenames = fsmanager.nas_write.get_all_checkpoint_filenames(annotation_class_id)
+        assert filenames == []
+        # Create 4 fake checkpoints with unique timestamps
+        checkpoint_names = [
+            "20260101_10-00-00_model.safetensors",
+            "20260102_11-00-00_model.safetensors",
+            "20260103_12-00-00_model.safetensors",
+            "20260104_13-00-00_model.safetensors",
+        ]
+        savepath = fsmanager.nas_write.get_class_checkpoint_path(annotation_class_id)
+        os.makedirs(savepath, exist_ok=True)
+        for name in checkpoint_names:
+            path = os.path.join(savepath, name)
+            with open(path, 'w') as f:
+                f.write(f"ckpt {name}")
+        filenames = fsmanager.nas_write.get_all_checkpoint_filenames(annotation_class_id)
+        assert len(filenames) == 4
+        assert filenames == sorted(filenames, reverse=True)
+        assert checkpoint_names[-1] == filenames[0]
+        fsmanager.nas_write.base_path = orig_base
+        fsmanager.nas_write.full_path = orig_full_path
+
+
+def test_get_checkpoint_filepath_by_filename():
+    annotation_class_id = 102
+    with tempfile.TemporaryDirectory() as temp_dir:
+        orig_base = fsmanager.nas_write.base_path
+        orig_full_path = fsmanager.nas_write.full_path
+        fsmanager.nas_write.base_path = temp_dir
+        fsmanager.nas_write.full_path = os.path.join(temp_dir, "nas_write")
+        # Test with no checkpoints directory
+        filepath = fsmanager.nas_write.get_checkpoint_filepath_by_filename(annotation_class_id, "20260101_10-00-00_model.safetensors")
+        assert filepath is None
+        # Create a fake checkpoint
+        checkpoint_name = "20260101_10-00-00_model.safetensors"
+        savepath = fsmanager.nas_write.get_class_checkpoint_path(annotation_class_id)
+        os.makedirs(savepath, exist_ok=True)
+        path = os.path.join(savepath, checkpoint_name)
+        with open(path, 'w') as f:
+            f.write("ckpt")
+        # Test finding existing checkpoint
+        filepath = fsmanager.nas_write.get_checkpoint_filepath_by_filename(annotation_class_id, checkpoint_name)
+        assert filepath == path
+        # Test with non-existent filename
+        filepath = fsmanager.nas_write.get_checkpoint_filepath_by_filename(annotation_class_id, "20260102_10-00-00_model.safetensors")
+        assert filepath is None
+        fsmanager.nas_write.base_path = orig_base
+        fsmanager.nas_write.full_path = orig_full_path

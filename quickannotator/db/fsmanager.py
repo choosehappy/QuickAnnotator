@@ -260,8 +260,31 @@ class NASWrite(FileStore):
         checkpoint_files = [os.path.basename(f) for f in glob.glob(os.path.join(savepath, f"*{constants.CHECKPOINT_FILENAME}"))]
         if not checkpoint_files:
             return None
-        latest_checkpoint = max(checkpoint_files, key=lambda f: os.path.getctime(os.path.join(savepath, f)))
+        latest_checkpoint = max(checkpoint_files)
         return os.path.join(savepath, latest_checkpoint)
+
+    def get_all_checkpoint_filenames(self, annotation_class_id: int):
+        """
+        Returns all available checkpoint filenames for the given annotation class ID, sorted by name (newest first).
+        """
+        savepath = self.get_class_checkpoint_path(annotation_class_id)
+        if not os.path.exists(savepath):
+            return []
+        checkpoint_files = [os.path.basename(f) for f in glob.glob(os.path.join(savepath, f"*{constants.CHECKPOINT_FILENAME}"))]
+        checkpoint_files.sort(reverse=True)
+        return checkpoint_files
+
+    def get_checkpoint_filepath_by_filename(self, annotation_class_id: int, filename: str):
+        """
+        Returns the full filepath for a checkpoint given its filename, or None if it doesn't exist.
+        """
+        savepath = self.get_class_checkpoint_path(annotation_class_id)
+        if not os.path.exists(savepath):
+            return None
+        checkpoint_files = [os.path.basename(f) for f in glob.glob(os.path.join(savepath, f"*{constants.CHECKPOINT_FILENAME}"))]
+        if filename in checkpoint_files:
+            return os.path.join(savepath, filename)
+        return None
 
     def get_new_checkpoint_filepath(self, annotation_class_id: int):
         """
@@ -271,7 +294,7 @@ class NASWrite(FileStore):
         savepath = self.get_class_checkpoint_path(annotation_class_id)
         if not os.path.exists(savepath):
             os.makedirs(savepath, exist_ok=True)
-        filename = datetime.datetime.now().strftime('%b%d_%H-%M-%S')
+        filename = datetime.datetime.now().strftime('%Y%m%d_%H-%M-%S')
         return os.path.join(savepath, filename + "_" + constants.CHECKPOINT_FILENAME)
 
     def truncate_checkpoints(self, annotation_class_id: int, max_checkpoints: int = 5):
@@ -284,7 +307,7 @@ class NASWrite(FileStore):
         checkpoint_files = [os.path.basename(f) for f in glob.glob(os.path.join(savepath, f"*{constants.CHECKPOINT_FILENAME}"))]
         if len(checkpoint_files) <= max_checkpoints:
             return
-        checkpoint_files.sort(key=lambda f: os.path.getctime(os.path.join(savepath, f)), reverse=True)
+        checkpoint_files.sort(reverse=True)
         for old_checkpoint in checkpoint_files[max_checkpoints:]:
             os.remove(os.path.join(savepath, old_checkpoint))
 
