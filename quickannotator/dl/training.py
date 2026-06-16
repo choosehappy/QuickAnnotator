@@ -36,7 +36,12 @@ def get_transforms_from_config(tile_size, dl_config: DLConfig = None):
         dl_config = get_default_config()
     return get_augmentation_transforms(tile_size, dl_config.augmentation)
 
-
+def save_checkpoint(model: torch.nn.Module, annotation_class_id: int):
+    """Save model checkpoint to NAS with a timestamped filename."""
+    checkpoint_path = fsmanager.nas_write.get_new_checkpoint_filepath(annotation_class_id)
+    save_file(model.state_dict(), checkpoint_path)
+    fsmanager.nas_write.truncate_checkpoints(annotation_class_id, max_checkpoints=constants.MAX_CHECKPOINTS_PER_CLASS)  # Keep only the latest 5 checkpoints to save space
+    return checkpoint_path
 
 def train_pred_loop(config):
     #---------AJ Place holder code - DO NOT REMOVE
@@ -328,10 +333,8 @@ def train_pred_loop(config):
                                  #but as well give the user in the front end a dropdown which enables them to select which model checkpoint they want to use? we had somethng similar in QAv1
                                  #that said, this is likely a more advanced features and not very "apple like" since it would require explaining to the user when/why/how they should use the different models
                                  #maybe suggest avoiduing for now --- lets just save the last one
-                checkpoint_path = fsmanager.nas_write.get_new_checkpoint_filepath(annotation_class_id)
-                save_file(model.state_dict(), checkpoint_path)
-                fsmanager.nas_write.truncate_checkpoints(annotation_class_id, max_checkpoints=constants.MAX_CHECKPOINTS_PER_CLASS)  # Keep only the latest 5 checkpoints to save space
 
+                save_checkpoint(model, annotation_class_id)
                 logger.info(f"Model checkpoint saved to {checkpoint_path}")
                 last_save = 0
         else:
