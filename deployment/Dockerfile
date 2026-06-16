@@ -1,4 +1,4 @@
-FROM rayproject/ray-ml:2.49.1.3fe06a-py310-cu121
+FROM rayproject/ray:2.49.1-py310-cu121
 SHELL ["/bin/bash", "-c"]
 
 USER root
@@ -50,7 +50,9 @@ WORKDIR /opt/QuickAnnotator
 # --mount is a feature that allows caching of pip downloads between builds.
 COPY --chown=ray:users ../pyproject.toml /opt/QuickAnnotator/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install -r pyproject.toml --system
+    uv pip install -r pyproject.toml --system \
+    --index-url https://download.pytorch.org/whl/cu121 \
+    --extra-index-url https://pypi.org/simple
 COPY --chown=ray:users ./ /opt/QuickAnnotator/
 # Install QuickAnnotator to the uv-managed environment
 RUN --mount=type=cache,target=/root/.cache/uv \

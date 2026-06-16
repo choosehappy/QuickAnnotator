@@ -43,9 +43,13 @@ services:
       - "${QA_PORT}:5000"
       - "${RAY_PORT}:8265"
       - "${TB_PORT}:6006"
-    command: >
-      tmux new-session -d -s server "quickannotator" &&
-      tmux new-session -d -s ui "npm run dev"
+    command:
+      - /bin/bash
+      - -lc
+      - |
+          tmux new-session -d -s server "quickannotator"
+          tmux new-session -d -s ui "npm run dev"
+          tail -f /dev/null
     stdin_open: true
     tty: true
     shm_size: '12gb'
