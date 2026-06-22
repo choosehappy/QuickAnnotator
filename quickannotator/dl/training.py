@@ -1,38 +1,28 @@
-import logging
-import segmentation_models_pytorch as smp
+import os
+import glob
+import datetime
+import time
+
 import torch
 from torch.utils.data import DataLoader
-import torch.nn as nn
 import torch.optim as optim
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, CosineAnnealingLR, LinearLR, SequentialLR
-
-from tqdm import tqdm
+from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts, LinearLR, SequentialLR
+from torch.utils.tensorboard import SummaryWriter
 import ray
+from safetensors.torch import save_file, load_file
 
-from torchsummary import summary
-import datetime
-from quickannotator.dl.inference import run_inference
+from .inference import run_inference
 from quickannotator.db.crud.tile import TileStoreFactory
 from quickannotator.db.crud.annotation_class import build_actor_name
+from quickannotator.db import dispose_engine
+from quickannotator.db.fsmanager import fsmanager
+from quickannotator.db.logging import LoggingManager
+import quickannotator.constants as constants
 from .dataset import TileDataset
-from .patcheddataset import PatchedDataset, compute_hv_map
-
+from .patcheddataset import PatchedDataset
 from .model import UNetMultiTask
 from .loss import MultiTaskLoss
 from .dl_config import DLConfig, get_default_config, get_augmentation_transforms
-import io
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
-import cv2
-from safetensors.torch import save_file, load_file
-from quickannotator.db import dispose_engine
-from quickannotator.db.fsmanager import fsmanager
-import quickannotator.constants as constants
-import os
-from quickannotator.db.logging import LoggingManager
-
-from torch.utils.tensorboard import SummaryWriter
-import time
 
 def _worker_init_fn(worker_id):
     """Dispose the SQLAlchemy engine in each DataLoader worker to prevent
@@ -46,7 +36,12 @@ def get_transforms_from_config(tile_size, dl_config: DLConfig = None):
         dl_config = get_default_config()
     return get_augmentation_transforms(tile_size, dl_config.augmentation)
 
-
+def save_checkpoint(model: torch.nn.Module, annotation_class_id: int):
+    """Save model checkpoint to NAS with a timestamped filename."""
+    checkpoint_path = fsmanager.nas_write.get_new_checkpoint_filepath(annotation_class_id)
+    save_file(model.state_dict(), checkpoint_path)
+    fsmanager.nas_write.truncate_checkpoints(annotation_class_id, max_checkpoints=constants.MAX_CHECKPOINTS_PER_CLASS)  # Keep only the latest 5 checkpoints to save space
+    return checkpoint_path
 
 def train_pred_loop(config):
     #---------AJ Place holder code - DO NOT REMOVE
@@ -133,8 +128,8 @@ def train_pred_loop(config):
     )
     
     # Load the model weights
-    checkpoint_path = get_checkpoint_filepath(annotation_class_id)
-    if os.path.exists(checkpoint_path):
+    checkpoint_path = fsmanager.nas_write.get_latest_checkpoint_filepath(annotation_class_id)
+    if checkpoint_path is not None and os.path.exists(checkpoint_path):
         logger.info(f"Loading model from {checkpoint_path}")
         try:
             checkpoint = load_file(checkpoint_path)  # Use safetensors to load the checkpoint
@@ -314,7 +309,7 @@ def train_pred_loop(config):
             #print ("losses:\t",loss_total,positive_mask.sum(),positive_loss,unlabeled_loss)
             
             last_save+=1
-            if last_save>50:
+            if last_save>constants.CHECKPOINT_PERIOD:
                 logger.info(f"niter_total [{niter_total}], Loss: {sum(running_loss)/len(running_loss)}")
                 logger.info(f"  - Segmentation: {_to_scalar(losses_dict['segmentation']):.4f}")
                 logger.info(f"    - BCE Pos: {_to_scalar(losses_dict['seg_bce_pos']):.4f}")
@@ -338,23 +333,14 @@ def train_pred_loop(config):
                                  #but as well give the user in the front end a dropdown which enables them to select which model checkpoint they want to use? we had somethng similar in QAv1
                                  #that said, this is likely a more advanced features and not very "apple like" since it would require explaining to the user when/why/how they should use the different models
                                  #maybe suggest avoiduing for now --- lets just save the last one
-                checkpoint_path = get_checkpoint_filepath(annotation_class_id)
-                save_file(model.state_dict(), checkpoint_path)
+
+                save_checkpoint(model, annotation_class_id)
                 logger.info(f"Model checkpoint saved to {checkpoint_path}")
                 last_save = 0
         else:
             logger.info("Training disabled.")
     logger.info("Exiting training!")
 
-
-def get_checkpoint_filepath(annotation_class_id: int):
-    """
-    Returns the path to the model checkpoint for the given annotation class ID.
-    """
-    savepath = fsmanager.nas_write.get_class_checkpoint_path(annotation_class_id)
-    if not os.path.exists(savepath):
-        os.makedirs(savepath, exist_ok=True)
-    return os.path.join(savepath, constants.CHECKPOINT_FILENAME)
 
 
 def get_log_filepath(annotation_class_id: int):
