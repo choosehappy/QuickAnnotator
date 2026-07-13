@@ -38,7 +38,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
 RUN add-apt-repository -y ppa:openslide/openslide && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        libopenslide0
+        libopenslide1
 
 # Install node and npm
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
