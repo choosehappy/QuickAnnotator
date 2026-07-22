@@ -13,7 +13,7 @@ from quickannotator.db.crud.annotation import build_export_filepath, AnnotationS
 from quickannotator.dsa_sdk import DSAClient
 from quickannotator.db import db_session
 from quickannotator import constants
-from quickannotator.db.crud.image import get_image_by_id, add_image_by_path, get_image_by_name_case_insensitive
+from quickannotator.db.crud.image import get_image_by_id, add_image_by_path, get_image_by_name_case_insensitive, is_dicom_tilesource
 from itertools import product
 from quickannotator.constants import IMPORT_ANNOTATION_BATCH_SIZE
 from quickannotator.db.logging import LoggingManager
@@ -150,13 +150,22 @@ class AnnotationImporter(ProgressTracker): # Inherit from ProgressTracker
             raise Exception(f"Slide path - {slide_path} not found")
         
         with get_session() as db_session:
-            image = get_image_by_name_case_insensitive(project_id, os.path.basename(slide_path))
+            # detect DICOM first to use the correct duplicate lookup key
+            full_path = fsmanager.nas_read.relative_to_global(slide_path)
+            slide = large_image.getTileSource(full_path)
+            is_dicom = is_dicom_tilesource(slide)
+            if is_dicom:
+                lookup_name = os.path.basename(os.path.dirname(slide_path))
+            else:
+                lookup_name = os.path.basename(slide_path)
+            
+            image = get_image_by_name_case_insensitive(project_id, lookup_name)
             if image:
                 image_id = image.id
                 self.logger.info(f"Image '{image_id}' already exists. Moving on to import annotations...")
             else:
                 # create the image
-                image = add_image_by_path(project_id, slide_path)
+                image = add_image_by_path(project_id, slide_path, is_dicom=is_dicom)
                 image_id = image.id
                 if image_id:
                     self.logger.info(f"Imported image '{image.name}' successfully")

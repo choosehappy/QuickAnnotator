@@ -9,6 +9,7 @@ interface Props {
     status: UploadStatus
     progress: number
     removeHandler: (file_name: string) => void;
+    folderName?: string | null;
 }
 
 const WSI_FILES_EXT: string[] = ['svs', 'tif', 'dcm', 'ndpi', 'vms', 'vmu', 'scn']
@@ -31,7 +32,14 @@ const FileProgressPanel = (props: Props) => {
                 <div className="file-icon">{ isWSIFile(props.name)?<FileEarmarkImage />:<FileEarmarkText />}</div>
                 <div className="file-info">
                     <div style={{ flex: 1 }}>
-                        <h6>{props.name}</h6>
+                        <h6 style={{ margin: '0 0 4px 0' }}>
+                            {props.name}
+                            {props.folderName && (
+                                <span style={{ fontSize: '0.8em', color: '#6c757d' }}>
+                                    {' (' + props.folderName + ')'}
+                                </span>
+                            )}
+                        </h6>
                         <ProgressBar now={props.progress} label={`${props.progress}%`} />
                     </div>
                     <div className="check-circle">
