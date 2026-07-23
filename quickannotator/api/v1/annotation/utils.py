@@ -119,21 +119,21 @@ def import_annotation_from_json(project_id: int, file: FileStorage):
 
 
 def _resolve_slide_and_lookup_name(full_path):
-    """Given a raw slide path, resolve the actual file to open and its lookup name,
+    """Given a raw slide path, resolve the relative filepath lookup name,
     handling the case where full_path is a directory containing DICOM files."""
     if os.path.isdir(full_path):
         largest_dicom = _find_largest_dicom_file(full_path)
         if largest_dicom is None:
             raise Exception(f"No valid DICOM files found in directory: {full_path}")
         lookup_name = os.path.basename(full_path.rstrip('/'))
-        return largest_dicom, lookup_name
+        return fsmanager.nas_read.global_to_relative(largest_dicom), lookup_name
 
     slide = large_image.getTileSource(full_path)
     if is_dicom_tilesource(slide):
         lookup_name = os.path.basename(os.path.dirname(full_path))
     else:
         lookup_name = os.path.basename(full_path)
-    return full_path, lookup_name
+    return fsmanager.nas_read.global_to_relative(full_path), lookup_name
 
 
 def _import_annotations_for_row(project_id, image_id, data, columns):
@@ -179,17 +179,17 @@ class AnnotationImporter(ProgressTracker): # Inherit from ProgressTracker
             raise Exception(f"Slide path - {full_path} not found")
 
         with get_session() as db_session:
-            slide_path, lookup_name = fsmanager.nas_read.global_to_relative(_resolve_slide_and_lookup_name(full_path))
+            relative_slide_path, lookup_name = _resolve_slide_and_lookup_name(full_path)
 
             image = get_image_by_name_case_insensitive(project_id, lookup_name)
             if image:
                 image_id = image.id
                 self.logger.info(f"Image '{image_id}' already exists. Moving on to import annotations...")
             else:
-                image = add_image_by_path(project_id, slide_path, name=lookup_name)
+                image = add_image_by_path(project_id, relative_slide_path, name=lookup_name)
                 if not image.id:
-                    self.logger.error(f"Failed to import image from path: {slide_path}")
-                    raise Exception(f"Failed to import image from path: {slide_path}")
+                    self.logger.error(f"Failed to import image from path: {relative_slide_path}")
+                    raise Exception(f"Failed to import image from path: {relative_slide_path}")
                 image_id = image.id
                 self.logger.info(f"Imported image '{image.name}' successfully")
 
