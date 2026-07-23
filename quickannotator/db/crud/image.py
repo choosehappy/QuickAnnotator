@@ -27,26 +27,20 @@ def is_dicom_tilesource(ts) -> bool:
     return False
 
 
-def add_image_by_path(project_id, relative_path, is_dicom=None):
+def add_image_by_path(project_id, relative_path, name=None):
     """
     Add an image to the database using its path.
     Args:
         project_id (int): The ID of the project to which the image belongs.
         path (str): The file path of the image. Assumed to be within mounts_path.
-        is_dicom (bool, optional): Whether the image is a DICOM WSI. If True, the image name
-            will be set to the parent folder name instead of the filename.
+        name (str, optional): The name of the image. If not provided, the name will be derived from the path.
     
     """
     fullpath = fsmanager.nas_read.relative_to_global(relative_path)
     slide = large_image.getTileSource(fullpath)
     
-    if is_dicom is None:
-        is_dicom = _is_dicom_tilesource(slide)
-    
-    if is_dicom:
+    if name is None:
         name = os.path.basename(os.path.dirname(fullpath))
-    else:
-        name = os.path.basename(fullpath)
     
     base_mag = float(slide.getMetadata()['magnification'])
 

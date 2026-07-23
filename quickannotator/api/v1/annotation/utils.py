@@ -14,6 +14,7 @@ from quickannotator.dsa_sdk import DSAClient
 from quickannotator.db import db_session
 from quickannotator import constants
 from quickannotator.db.crud.image import get_image_by_id, add_image_by_path, get_image_by_name_case_insensitive, is_dicom_tilesource
+from quickannotator.api.v1.image.utils import _find_largest_dicom_file
 from itertools import product
 from quickannotator.constants import IMPORT_ANNOTATION_BATCH_SIZE
 from quickannotator.db.logging import LoggingManager
@@ -152,20 +153,35 @@ class AnnotationImporter(ProgressTracker): # Inherit from ProgressTracker
         with get_session() as db_session:
             # detect DICOM first to use the correct duplicate lookup key
             full_path = fsmanager.nas_read.relative_to_global(slide_path)
-            slide = large_image.getTileSource(full_path)
-            is_dicom = is_dicom_tilesource(slide)
+            
+            # If slide_path is a directory, find the largest DICOM file within it
+            if os.path.isdir(full_path):
+                largest_dicom = _find_largest_dicom_file(full_path)
+                if largest_dicom is None:
+                    self.logger.error(f"No valid DICOM files found in directory: {slide_path}")
+                    raise Exception(f"No valid DICOM files found in directory: {slide_path}")
+                slide = large_image.getTileSource(largest_dicom)
+                is_dicom = True
+                slide_path = largest_dicom
+                full_path = largest_dicom
+            else:
+                slide = large_image.getTileSource(full_path)
+                is_dicom = is_dicom_tilesource(slide)
+
+            
             if is_dicom:
-                lookup_name = os.path.basename(os.path.dirname(slide_path))
+                lookup_name = os.path.basename(os.path.dirname(data[image_path_col_name].strip()))
             else:
                 lookup_name = os.path.basename(slide_path)
-            
+
+            # Check if the image already exists in the database
             image = get_image_by_name_case_insensitive(project_id, lookup_name)
             if image:
                 image_id = image.id
                 self.logger.info(f"Image '{image_id}' already exists. Moving on to import annotations...")
             else:
                 # create the image
-                image = add_image_by_path(project_id, slide_path, is_dicom=is_dicom)
+                image = add_image_by_path(project_id, slide_path, name=lookup_name)
                 image_id = image.id
                 if image_id:
                     self.logger.info(f"Imported image '{image.name}' successfully")

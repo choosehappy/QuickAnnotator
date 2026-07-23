@@ -31,8 +31,7 @@ def save_image_from_file(project_id: int, file: FileStorage) -> int:
         logger.info(f"Saving Image Error: An unexpected error occurred when saving {filename}: {e}")    
     
     # read image info and insert to image table
-    is_dicom = is_dicom_tilesource(large_image.getTileSource(temp_filepath))
-    new_image = add_image_by_path(project_id, temp_filepath, is_dicom=is_dicom)
+    new_image = add_image_by_path(project_id, temp_filepath)
     # move the actual slides file and update the slide path after create image in DB
     # image = db_session.query(db_models.Image).filter_by(name=name, path=temp_slide_path).first()
     image_id = new_image.id
@@ -132,7 +131,7 @@ def import_image_from_dicom_wsi(project_id: int, files: list[FileStorage], folde
         return {'type': 'dcm', 'name': folder_name}
 
     # Create image entry in DB
-    new_image = add_image_by_path(project_id, largest_filepath, is_dicom=True)
+    new_image = add_image_by_path(project_id, largest_filepath, name=folder_name)
     db_session.add(new_image)
     db_session.commit()
     image_id = new_image.id
@@ -158,6 +157,29 @@ def import_image_from_dicom_wsi(project_id: int, files: list[FileStorage], folde
     _import_annotations_from_temp(image_id, file_basename)
     
     return {'type': 'dcm', 'name': folder_name}
+
+
+def _find_largest_dicom_file(dir_path: str):
+    """Find the largest DICOM file in a directory.
+    
+    Returns the file path if the largest file is a valid DICOM tilesource,
+    otherwise returns None.
+    """
+    if not os.path.isdir(dir_path):
+        return None
+    saved_files = []
+    for fname in os.listdir(dir_path):
+        fpath = os.path.join(dir_path, fname)
+        if os.path.isfile(fpath):
+            saved_files.append((fname, fpath))
+    if not saved_files:
+        return None
+    largest_file = max(saved_files, key=lambda x: os.path.getsize(x[1]))
+    largest_filepath = largest_file[1]
+    slide = large_image.getTileSource(largest_filepath)
+    if is_dicom_tilesource(slide):
+        return largest_filepath
+    return None
 
 
 def import_image_from_wsi(project_id:int ,file: FileStorage):
