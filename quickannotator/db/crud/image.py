@@ -27,6 +27,29 @@ def is_dicom_tilesource(ts) -> bool:
     return False
 
 
+def _find_largest_dicom_file(dir_path: str):
+    """Find the largest DICOM file in a directory.
+
+    Returns the file path if the largest file is a valid DICOM tilesource,
+    otherwise returns None.
+    """
+    if not os.path.isdir(dir_path):
+        return None
+    saved_files = []
+    for fname in os.listdir(dir_path):
+        fpath = os.path.join(dir_path, fname)
+        if os.path.isfile(fpath):
+            saved_files.append((fname, fpath))
+    if not saved_files:
+        return None
+    largest_file = max(saved_files, key=lambda x: os.path.getsize(x[1]))
+    largest_filepath = largest_file[1]
+    slide = large_image.getTileSource(largest_filepath)
+    if is_dicom_tilesource(slide):
+        return largest_filepath
+    return None
+
+
 def add_image_by_path(project_id, relative_path, name=None):
     """
     Add an image to the database using its path.

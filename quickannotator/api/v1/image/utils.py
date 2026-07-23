@@ -7,7 +7,7 @@ from quickannotator.db.fsmanager import fsmanager
 import large_image
 
 
-from quickannotator.db.crud.image import delete_images, get_image_by_id, add_image_by_path, get_image_by_name_case_insensitive, is_dicom_tilesource
+from quickannotator.db.crud.image import delete_images, get_image_by_id, add_image_by_path, get_image_by_name_case_insensitive, is_dicom_tilesource, _find_largest_dicom_file
 from quickannotator.db.crud.tile import TileStoreFactory
 import logging
 from quickannotator.db.crud.annotation import AnnotationStore
@@ -113,22 +113,18 @@ def import_image_from_dicom_wsi(project_id: int, files: list[FileStorage], folde
         logger.info(f"No files were saved from folder {folder_name}")
         return {'type': 'dcm', 'name': folder_name}
     
-    # Find the largest file to use as the primary image file
-    largest_file = max(saved_files, key=lambda x: os.path.getsize(x[1]))
-    largest_filename = largest_file[0]
-    largest_filepath = largest_file[1]
-    
     # Check for duplicate by folder name
     existing_image = get_image_by_name_case_insensitive(project_id, folder_name)
     if existing_image:
         logger.info(f"Image '{folder_name}' already exists. Skipping folder upload")
         return {'type': 'dcm', 'name': folder_name}
     
-    # Check if the largest file is a valid DICOM WSI
-    slide = large_image.getTileSource(largest_filepath)
-    if not is_dicom_tilesource(slide):
-        logger.info(f"The largest file '{largest_filename}' is not a valid DICOM WSI. Skipping folder upload")
+    # Find the largest DICOM file in the saved files directory
+    largest_filepath = _find_largest_dicom_file(dicom_subfolder_path)
+    if largest_filepath is None:
+        logger.info(f"No valid DICOM WSI found in folder '{folder_name}'. Skipping folder upload")
         return {'type': 'dcm', 'name': folder_name}
+    largest_filename = os.path.basename(largest_filepath)
 
     # Create image entry in DB
     new_image = add_image_by_path(project_id, largest_filepath, name=folder_name)
@@ -157,29 +153,6 @@ def import_image_from_dicom_wsi(project_id: int, files: list[FileStorage], folde
     _import_annotations_from_temp(image_id, file_basename)
     
     return {'type': 'dcm', 'name': folder_name}
-
-
-def _find_largest_dicom_file(dir_path: str):
-    """Find the largest DICOM file in a directory.
-    
-    Returns the file path if the largest file is a valid DICOM tilesource,
-    otherwise returns None.
-    """
-    if not os.path.isdir(dir_path):
-        return None
-    saved_files = []
-    for fname in os.listdir(dir_path):
-        fpath = os.path.join(dir_path, fname)
-        if os.path.isfile(fpath):
-            saved_files.append((fname, fpath))
-    if not saved_files:
-        return None
-    largest_file = max(saved_files, key=lambda x: os.path.getsize(x[1]))
-    largest_filepath = largest_file[1]
-    slide = large_image.getTileSource(largest_filepath)
-    if is_dicom_tilesource(slide):
-        return largest_filepath
-    return None
 
 
 def import_image_from_wsi(project_id:int ,file: FileStorage):
