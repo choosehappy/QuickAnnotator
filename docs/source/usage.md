@@ -23,10 +23,24 @@ Projects in QuickAnnotator help organize your images and annotations into indepe
 <iframe width="100%" height="560" src="https://www.youtube.com/embed/7tDFsaEMzm0?si=6S0C8FjqsMKGylfU" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ## 3. Uploading images
-QuickAnnotator supports images in OpenSlide compatible formats. You can upload images directly from your local machine or mount an NAS share containing your images.
+QuickAnnotator supports images in OpenSlide compatible formats. See the [OpenSlide documentation](https://openslide.org/formats/) for a complete list of supported formats.
+
+```{note}
+QuickAnnotator currently requires base magnification metadata to be present and readable by OpenSlide. Please see [this blog post](https://andrewjanowczyk.com/converting-an-existing-image-into-an-openslide-compatible-format/) for more details.
+```
+
+```{note}
+OpenSlide 4.0.1 added support for DICOM Whole Slide Images (WSI): [OpenSlide DICOM Support](https://openslide.org/formats/dicom/). QuickAnnotator also supports DICOM WSI.
+```
+
+You can upload images directly from your local machine or mount an NAS share containing your images.
 
 ### 3.1. Manual Upload
 <iframe width="100%" height="560" src="https://www.youtube.com/embed/t2nWiaZHKjA?si=jUGXR9A_tPWPwPjL" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+```{note}
+Manually upload a DICOM WSI by dropping the containing folder into the dropzone. QuickAnnotator will automatically detect DICOM files and will save the image by the name of the folder.
+```
 
 ### 3.2. TSV Upload
 You can alternatively upload images using a TSV file. This is particularly useful when you have a large number of images to upload, or if you also wish to upload existing annotations alongside the images. The TSV file should have the following format, where each row corresponds to an image and its associated annotation files (if any):
@@ -38,6 +52,10 @@ You can alternatively upload images using a TSV file. This is particularly usefu
 
 ```{important}
 QuickAnnotator will only process annotation columns that match the format `CLASS_NAME_annotations`, where `CLASS_NAME` is an existing class within the current project. See [Adding Annotation Classes](#adding-annotation-classes) for more information.
+```
+
+```{note}
+DICOM images can also be uploaded using the TSV upload method file. The `filepath` column can point to either the folder containing the DICOM files or to one of the DICOM files within the folder.
 ```
 
 <iframe width="100%" height="560" src="https://www.youtube.com/embed/2zf_cC5FFV8?si=9JRhAfM2ez14LF9s" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
