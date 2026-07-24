@@ -419,7 +419,7 @@ const FileDropUploader = (props: any) => {
                     <Modal.Title>Confirm Folder Upload</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    Upload folder containing {pendingFolderFiles.length} files? Only confirm if the folder corresponds to a DICOM Whole Slide Image.
+                    Upload DICOM folder containing {pendingFolderFiles.length} files? Only confirm if the folder corresponds to a DICOM Whole Slide Image: https://openslide.org/formats/dicom/.
                 </Modal.Body>
                 <Modal.Footer>
                     <ModalButton variant="secondary" onClick={handleFolderCancel}>
