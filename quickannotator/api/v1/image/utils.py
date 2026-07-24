@@ -4,8 +4,10 @@ from werkzeug.datastructures import FileStorage
 from quickannotator import constants
 from quickannotator.db import db_session
 from quickannotator.db.fsmanager import fsmanager
+import large_image
 
-from quickannotator.db.crud.image import delete_images, get_image_by_id, add_image_by_path, get_image_by_name_case_insensitive
+
+from quickannotator.db.crud.image import delete_images, get_image_by_id, add_image_by_path, get_image_by_name_case_insensitive, is_dicom_tilesource, _find_largest_dicom_file
 from quickannotator.db.crud.tile import TileStoreFactory
 import logging
 from quickannotator.db.crud.annotation import AnnotationStore
@@ -74,6 +76,85 @@ def remove_image_folders(project_id: int, image_id: int):
         except OSError as e:
             print(f"Error deleting folder '{full_image_path}': {e}")
 
+def _import_annotations_from_temp(image_id, file_basename):
+    """Import any annotations found in the temp directory for the given image basename."""
+    annotation_classes = list(get_all_annotation_classes())
+    db_session.expunge_all()
+    for annot_cls in annotation_classes:
+        annot_cls_name = annot_cls.name
+        annot_cls_id = annot_cls.id
+        for fmt in constants.AnnotationFileFormats:
+            temp_path = fsmanager.nas_write.get_temp_path(relative=False)
+            annotation_filename = fsmanager.nas_write.construct_annotation_file_name(file_basename, annot_cls_name, fmt.value)
+            annot_filepath = os.path.join(temp_path, annotation_filename)
+            if os.path.exists(annot_filepath):
+                logger.info(f"Found image annotation file - {annot_filepath}")
+                import_annotations(image_id, annot_cls_id, True, annot_filepath)
+
+
+def import_image_from_dicom_wsi(project_id: int, files: list[FileStorage], folder_name: str) -> dict:
+    """Import a DICOM WSI folder as a single image entry."""
+    
+    temp_path = fsmanager.nas_write.get_temp_path(relative=False)
+    dicom_subfolder_path = os.path.join(temp_path, folder_name)
+    os.makedirs(dicom_subfolder_path, exist_ok=True)
+    
+    # Save all uploaded files to temp directory
+    saved_files = []
+    for file in files:
+        temp_filepath = os.path.join(dicom_subfolder_path, file.filename)
+        try:
+            file.save(temp_filepath)
+            saved_files.append((file.filename, temp_filepath))
+        except Exception as e:
+            logger.info(f"Error saving file {file.filename}: {e}")
+    
+    if not saved_files:
+        logger.info(f"No files were saved from folder {folder_name}")
+        return {'type': 'dcm', 'name': folder_name}
+    
+    # Check for duplicate by folder name
+    existing_image = get_image_by_name_case_insensitive(project_id, folder_name)
+    if existing_image:
+        logger.info(f"Image '{folder_name}' already exists. Skipping folder upload")
+        return {'type': 'dcm', 'name': folder_name}
+    
+    # Find the largest DICOM file in the saved files directory
+    largest_filepath = _find_largest_dicom_file(dicom_subfolder_path)
+    if largest_filepath is None:
+        logger.info(f"No valid DICOM WSI found in folder '{folder_name}'. Skipping folder upload")
+        return {'type': 'dcm', 'name': folder_name}
+    largest_filename = os.path.basename(largest_filepath)
+
+    # Create image entry in DB
+    new_image = add_image_by_path(project_id, largest_filepath, name=folder_name)
+    db_session.add(new_image)
+    db_session.commit()
+    image_id = new_image.id
+    
+    # Create the image folder and DICOM subdirectory
+    slide_folder_path = fsmanager.nas_write.get_project_image_path(project_id, image_id, relative=False)
+    dicom_subfolder_path = os.path.join(slide_folder_path, folder_name)
+    os.makedirs(dicom_subfolder_path, exist_ok=True)
+    
+    # Move all files from temp to the DICOM subdirectory
+    image_full_path = os.path.join(dicom_subfolder_path, largest_filename)
+    for filename, temp_filepath in saved_files:
+        dest_path = os.path.join(dicom_subfolder_path, filename)
+        shutil.move(temp_filepath, dest_path)
+    
+    # Update image path to point to the largest file
+    new_image.path = image_full_path
+    db_session.add(new_image)
+    db_session.commit()
+        
+    # Import annotations from temp dir (shared logic)
+    file_basename, _ = os.path.splitext(largest_filename)
+    _import_annotations_from_temp(image_id, file_basename)
+    
+    return {'type': 'dcm', 'name': folder_name}
+
+
 def import_image_from_wsi(project_id:int ,file: FileStorage):
     filename = file.filename
     # get file extension
@@ -84,18 +165,5 @@ def import_image_from_wsi(project_id:int ,file: FileStorage):
         return
     image_id = save_image_from_file(project_id, file)
 
-    # get all annotation class name
-    annotation_classes = list(get_all_annotation_classes())
-    db_session.expunge_all()
-    # import annotation if it exist in temp dir
-    for annot_cls in annotation_classes:
-        annot_cls_name = annot_cls.name
-        annot_cls_id = annot_cls.id
-        for format in constants.AnnotationFileFormats:
-            temp_path = fsmanager.nas_write.get_temp_path(relative=False)
-            annotation_filename = fsmanager.nas_write.construct_annotation_file_name(file_basename, annot_cls_name, format.value)
-            annot_filepath = os.path.join(temp_path, annotation_filename)
-            # for geojson
-            if os.path.exists(annot_filepath):
-                logger.info(f"Found image annotation file - {annot_filepath}")
-                import_annotations(image_id, annot_cls_id, True, annot_filepath)
+    # Import annotations from temp dir
+    _import_annotations_from_temp(image_id, file_basename)

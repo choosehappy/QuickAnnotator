@@ -320,7 +320,7 @@ export const WSI_EXTS = ['svs', 'tif','dcm','vms', 'vmu', 'ndpi',
     'scn', 'mrxs','tiff','svslide','bif','czi']
 
 // JSON file extension
-export const JSON_EXTS = ['json','geojosn']
+export const JSON_EXTS = ['json','geojson']
 
 // TSV bunch extension
 export const TABULAR_EXTS = ['tsv']

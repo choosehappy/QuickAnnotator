@@ -13,7 +13,7 @@ from quickannotator.db.crud.annotation import build_export_filepath, AnnotationS
 from quickannotator.dsa_sdk import DSAClient
 from quickannotator.db import db_session
 from quickannotator import constants
-from quickannotator.db.crud.image import get_image_by_id, add_image_by_path, get_image_by_name_case_insensitive
+from quickannotator.db.crud.image import get_image_by_id, add_image_by_path, get_image_by_name_case_insensitive, is_dicom_tilesource, _find_largest_dicom_file
 from itertools import product
 from quickannotator.constants import IMPORT_ANNOTATION_BATCH_SIZE
 from quickannotator.db.logging import LoggingManager
@@ -116,7 +116,37 @@ def import_annotation_from_json(project_id: int, file: FileStorage):
         logger.info(f"/tAnnotation json file '{temp_annotation_filepath}' deleted successfully.")
     except OSError as e:
         logger.error(f"Error deleting Annotation json file '{temp_annotation_filepath}': {e}")
-  
+
+
+def _resolve_slide_and_lookup_name(full_path):
+    """Given a raw slide path, resolve the relative filepath lookup name,
+    handling the case where full_path is a directory containing DICOM files."""
+    if os.path.isdir(full_path):
+        largest_dicom = _find_largest_dicom_file(full_path)
+        if largest_dicom is None:
+            raise Exception(f"No valid DICOM files found in directory: {full_path}")
+        lookup_name = os.path.basename(full_path.rstrip('/'))
+        return fsmanager.nas_read.global_to_relative(largest_dicom), lookup_name
+
+    slide = large_image.getTileSource(full_path)
+    if is_dicom_tilesource(slide):
+        lookup_name = os.path.basename(os.path.dirname(full_path))
+    else:
+        lookup_name = os.path.basename(full_path)
+    return fsmanager.nas_read.global_to_relative(full_path), lookup_name
+
+
+def _import_annotations_for_row(project_id, image_id, data, columns):
+    annot_class_names = [col for col in columns if col.endswith(constants.ANNOTATION_CLASS_SUFFIX)]
+    for name in annot_class_names:
+        class_name = name[:-len(constants.ANNOTATION_CLASS_SUFFIX)]
+        cls = get_annotation_class_by_name_case_insensitive(project_id, class_name)
+        if cls and data[name].strip():
+            import_annotations(
+                image_id, cls.id, True,
+                fsmanager.nas_read.relative_to_global(data[name].strip())
+            )
+
 class ProgressTracker:
     def __init__(self, total: int):
         self.total = total
@@ -142,39 +172,35 @@ class AnnotationImporter(ProgressTracker): # Inherit from ProgressTracker
         
 
     def import_from_tsv_row(self, project_id, data, columns, image_path_col_name=constants.TSVFields.FILE_PATH.value):
-        # get slide path
-        slide_path = data[image_path_col_name].strip()    
-        # create slide if the slide path exist
-        if not os.path.exists(fsmanager.nas_read.relative_to_global(slide_path)):
-            self.logger.error(f"Slide path - {slide_path} not found")
-            raise Exception(f"Slide path - {slide_path} not found")
-        
+        full_path = fsmanager.nas_read.relative_to_global(data[image_path_col_name].strip())
+
+        if not os.path.exists(full_path):
+            self.logger.error(f"Slide path - {full_path} not found")
+            raise Exception(f"Slide path - {full_path} not found")
+
         with get_session() as db_session:
-            image = get_image_by_name_case_insensitive(project_id, os.path.basename(slide_path))
+            relative_slide_path, lookup_name = _resolve_slide_and_lookup_name(full_path)
+
+            image = get_image_by_name_case_insensitive(project_id, lookup_name)
             if image:
                 image_id = image.id
                 self.logger.info(f"Image '{image_id}' already exists. Moving on to import annotations...")
             else:
-                # create the image
-                image = add_image_by_path(project_id, slide_path)
+                image = add_image_by_path(project_id, relative_slide_path, name=lookup_name)
+                if not image.id:
+                    self.logger.error(f"Failed to import image from path: {relative_slide_path}")
+                    raise Exception(f"Failed to import image from path: {relative_slide_path}")
                 image_id = image.id
-                if image_id:
-                    self.logger.info(f"Imported image '{image.name}' successfully")
-                else:
-                    self.logger.error(f"Failed to import image from path: {slide_path}")
-                    raise Exception(f"Failed to import image from path: {slide_path}")
+                self.logger.info(f"Imported image '{image.name}' successfully")
 
-            self.increment()
+            self._log_progress()
 
-            self.logger.info(f"Progress: {self.get_progress()}%")
-            # Filter annotation classes ending with '_annotations'
-            annot_class_names = [col for col in columns if col.endswith(constants.ANNOTATION_CLASS_SUFFIX)]
-            for name in annot_class_names:
-                class_name = name[:-len(constants.ANNOTATION_CLASS_SUFFIX)]
-                cls = get_annotation_class_by_name_case_insensitive(project_id, class_name)
-                if cls and data[name].strip():
-                    import_annotations(image_id, cls.id, True, fsmanager.nas_read.relative_to_global(data[name].strip()))  
+            _import_annotations_for_row(project_id, image_id, data, columns)
 
+        self._log_progress()
+
+
+    def _log_progress(self):
         self.increment()
         self.logger.info(f"Progress: {self.get_progress()}%")
 

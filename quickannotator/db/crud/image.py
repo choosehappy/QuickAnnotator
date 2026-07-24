@@ -9,17 +9,62 @@ from typing import List
 import os
 
 
-def add_image_by_path(project_id, relative_path):
+def is_dicom_tilesource(ts) -> bool:
+    """Check whether a large_image tilesource handle represents a DICOM image."""
+    try:
+        metadata = ts.getInternalMetadata() or {}
+    except Exception:
+        metadata = {}
+
+    if not isinstance(metadata, dict):
+        return False
+
+    openslide_meta = metadata.get('openslide', {})
+    if isinstance(openslide_meta, dict):
+        if openslide_meta.get('openslide.vendor', '').lower() == 'dicom':
+            return True
+
+    return False
+
+
+def _find_largest_dicom_file(dir_path: str):
+    """Find the largest DICOM file in a directory.
+
+    Returns the file path if the largest file is a valid DICOM tilesource,
+    otherwise returns None.
+    """
+    if not os.path.isdir(dir_path):
+        return None
+    saved_files = []
+    for fname in os.listdir(dir_path):
+        fpath = os.path.join(dir_path, fname)
+        if os.path.isfile(fpath):
+            saved_files.append((fname, fpath))
+    if not saved_files:
+        return None
+    largest_file = max(saved_files, key=lambda x: os.path.getsize(x[1]))
+    largest_filepath = largest_file[1]
+    slide = large_image.getTileSource(largest_filepath)
+    if is_dicom_tilesource(slide):
+        return largest_filepath
+    return None
+
+
+def add_image_by_path(project_id, relative_path, name=None):
     """
     Add an image to the database using its path.
     Args:
         project_id (int): The ID of the project to which the image belongs.
         path (str): The file path of the image. Assumed to be within mounts_path.
+        name (str, optional): The name of the image. If not provided, the name will be derived from the path.
     
     """
     fullpath = fsmanager.nas_read.relative_to_global(relative_path)
     slide = large_image.getTileSource(fullpath)
-    name = os.path.basename(fullpath)
+    
+    if name is None:
+        name = os.path.basename(os.path.dirname(fullpath))
+    
     base_mag = float(slide.getMetadata()['magnification'])
 
 

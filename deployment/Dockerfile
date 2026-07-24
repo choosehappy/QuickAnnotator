@@ -18,7 +18,6 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
         libsqlite3-mod-spatialite \
         libtk8.6 \
         procps \
-        libopenslide0 \
         curl \
         ffmpeg \
         libsm6 \
@@ -30,10 +29,16 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg:
         gdal-bin \
         python3-gdal \
         tmux \
+        software-properties-common \
         # development tools
         git \
         vim 
 
+# Add the OpenSlide PPA for the latest OpenSlide release, then install just the library
+RUN add-apt-repository -y ppa:openslide/openslide && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        libopenslide1
 
 # Install node and npm
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -

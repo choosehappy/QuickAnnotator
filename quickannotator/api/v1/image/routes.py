@@ -10,7 +10,7 @@ from quickannotator.db.fsmanager import fsmanager
 from quickannotator.db.crud.image import get_image_by_id
 from quickannotator.db.crud.image import get_images_by_project_id
 from quickannotator.api.v1.annotation.utils import import_annotation_from_json
-from quickannotator.api.v1.image.utils import delete_image_and_related_data, import_image_from_wsi
+from quickannotator.api.v1.image.utils import delete_image_and_related_data, import_image_from_wsi, import_image_from_dicom_wsi
 from quickannotator.api.v1.project.utils import import_from_tabular
 import large_image
 import os
@@ -89,15 +89,27 @@ class FileUpload(MethodView):
     @bp.arguments(server_models.UploadFileArgsSchema, location='form')
     @bp.response(200, server_models.UploadFileSchema)
     def post(self, args):
-        """Upload a file"""
-        file = request.files['file']
+        """Upload a file or folder of files"""
+        files = request.files.getlist('file')
         project_id = args["project_id"]
-        if file and project_id:
+        folder_name = args.get('folder_name')
+        
+        if not files or not project_id:
+            abort(404, message="No files or project id found in Args")
+        
+        # Handle DICOM folder upload
+        if folder_name:
+            resp = import_image_from_dicom_wsi(project_id, files, folder_name)
+            return resp, 200
+        
+        # Handle individual file uploads (existing behavior)
+        resp = {'type': '', 'name': ''}
+        for file in files:
             filename = file.filename
             # get file extension
             file_basename, file_ext = os.path.splitext(filename)
             file_ext = str(file_ext[1:]).lower()
-            resp = {'type':file_ext, 'name': filename}
+            resp = {'type': file_ext, 'name': filename}
             # handle image file
             if file_ext in WSI_extensions:
                 import_image_from_wsi(project_id, file)
@@ -108,10 +120,8 @@ class FileUpload(MethodView):
             if file_ext in TABULAR_extensions:
                 ref = import_from_tabular(project_id, file)
                 resp['ray_task_id'] = ref.task_id().hex()
-            
-            return resp, 200
-        else:
-            abort(404, message="No project id found in Args")
+        
+        return resp, 200
     
 @bp.route('/<int:image_id>/<int:file_type>/file', endpoint="file")
 class ImageFile(MethodView):
