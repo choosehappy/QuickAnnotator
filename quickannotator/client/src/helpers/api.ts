@@ -72,16 +72,14 @@ export const remove = async <T>(url: string, options: FetchOptions = {}): ApiRes
 
 // Fetch image by ID
 export const fetchImage = async (image_id: number) => {
-    const query = new URLSearchParams({ image_id: image_id.toString() });
-    return await get<Image>(`/image/?${query}`);
+    return await get<Image>(`/image/${image_id}`);
 }
 // Fetch image by ID
 export const fetchImagesByProjectId = async (project_id: number) => {
     return await get<Image[]>(`/image/${project_id}/search`);
 }
 export const removeImage = async (image_id: number) => {
-    const query = new URLSearchParams({image_id: image_id.toString() });
-    return await remove(`/image/?${query}`);
+    return await remove(`/image/${image_id}`);
 }
 
 // Fetch image metadata
@@ -375,6 +373,10 @@ export const getAnnotationPageURL = (project_id: number, image_id: number) => `/
 export const getImageThumbnailURL = (image_id: number) =>`/api/v1/image/${image_id}/1/file`
 
 export const UploadImageURL = () =>`/api/v1/image/upload`;
+
+export const updateImageComment = async (image_id: number, comment: string): Promise<{ data: Image, status: number }> => {
+    return await put<{ comment: string }, Image>(`/image/${image_id}`, { comment });
+}
 
 // Tissue mask helpers
 export const generateTissueMask = async (image_id: number) => {

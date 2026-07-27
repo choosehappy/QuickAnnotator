@@ -22,24 +22,22 @@ from flask_smorest import Blueprint
 logger = logging.getLogger(constants.LoggerNames.FLASK.value)
 
 bp = Blueprint('image', __name__, description='Image operations')
-@bp.route('/', endpoint="image")
+@bp.route('/<int:image_id>')
 class Image(MethodView):
-    @bp.arguments(server_models.GetImageArgsSchema, location='query')
     @bp.response(200, server_models.ImageRespSchema)
-    def get(self, args):
+    def get(self, image_id):
         """     returns an Image
         """
         result = db_session.query(
             *[getattr(db_models.Image, column.name) for column in db_models.Image.__table__.columns],
             func.ST_AsGeoJSON(db_models.Image.embedding_coord).label('embedding_coord')
-        ).filter(db_models.Image.id == args['image_id']).first()
+        ).filter(db_models.Image.id == image_id).first()
         if result is not None:
             return result, 200
         else:
             abort(404, message="Image not found")
 
-
-    @bp.arguments(server_models.PostImageArgsSchema, location='query')
+    @bp.arguments(server_models.PostImageArgsSchema, location='json')
     @bp.response(200, description="Image created")
     def post(self, args):
         """     upload an Image
@@ -49,18 +47,36 @@ class Image(MethodView):
 
         return 200
 
-    @bp.arguments(server_models.DeleteImageArgsSchema, location='query')
-    @bp.response(204, description="Image  deleted")
+    @bp.response(204, description="Image deleted")
     @bp.response(404, description="Image not found")
-    def delete(self, args):
+    def delete(self, image_id):
         """     delete an Image   """
 
-        image = get_image_by_id(args['image_id'])
+        image = get_image_by_id(image_id)
         if not image:
             abort(404, message="Image not found")
 
-        delete_image_and_related_data(args['image_id'])
+        delete_image_and_related_data(image_id)
         return {}, 204
+
+    @bp.arguments(server_models.UpdateImageCommentSchema, location='json')
+    @bp.response(200, server_models.ImageRespSchema)
+    @bp.response(404, description="Image not found")
+    def put(self, args, image_id):
+        """     update image comment   """
+
+        image = get_image_by_id(image_id)
+        if not image:
+            abort(404, message="Image not found")
+
+        image.comment = args['comment']
+        db_session.commit()
+
+        result = db_session.query(
+            *[getattr(db_models.Image, column.name) for column in db_models.Image.__table__.columns],
+            func.ST_AsGeoJSON(db_models.Image.embedding_coord).label('embedding_coord')
+        ).filter(db_models.Image.id == image_id).first()
+        return result, 200
 
 #################################################################################
 @bp.route('/<int:project_id>/search', endpoint="image_search")

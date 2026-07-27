@@ -37,5 +37,8 @@ class UploadFileArgsSchema(Schema):
     project_id = fields.Int(required=True)
     folder_name: str | None = fields.String(load_default=None, allow_none=True)
 
+class UpdateImageCommentSchema(Schema):
+    comment = fields.Str(required=True)
+
 class ImageMetadataRespSchema(Schema):
     mpp = fields.Float()

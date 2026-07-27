@@ -29,6 +29,7 @@ export interface Image extends IdNameElement{
     embeddingCoord: string;
     group_id: number;
     split: number;
+    comment: string;
     date: Date;
 }
 
@@ -132,6 +133,7 @@ export interface Image {
     embeddingCoord: string;
     group_id: number;
     split: number;
+    comment: string;
     date: Date;
 }
 
