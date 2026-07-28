@@ -4,6 +4,7 @@ from sqlalchemy import func, Table, MetaData, inspect
 import sqlalchemy
 from quickannotator import constants
 from quickannotator.db.crud.image import get_image_by_id
+from quickannotator.db.crud.annotation_class import get_annotation_class_by_id
 from quickannotator.db.fsmanager import fsmanager
 import quickannotator.db.models as db_models
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor, get_tilespace
@@ -444,11 +445,21 @@ def get_annotation_count(image_id: int, annotation_class_id: int, is_gt: bool) -
 def build_export_filepath(image_id: int, annotation_class_id: int, is_gt: bool, extension: constants.ExportFormatExtensions, relative: bool, timestamp: datetime = None) -> str:
     timestamp = datetime.now() if timestamp is None else timestamp
 
-    project_id = get_image_by_id(image_id).project_id
-    save_path = fsmanager.nas_write.get_project_image_path(project_id, image_id, relative)
+    image = get_image_by_id(image_id)
 
-    table_name = build_annotation_table_name(image_id, annotation_class_id, is_gt)
-    filename = f"{table_name}_{timestamp.strftime('%Y%m%d_%H%M%S')}.{extension.value}.gz"
+    annotation_class = get_annotation_class_by_id(annotation_class_id)
+
+
+    save_path = fsmanager.nas_write.get_project_image_path(image.project_id, image_id, relative)
+
+    filename = fsmanager.nas_write.construct_annotation_file_name(
+        image_name=image.name,
+        annotation_class_name=annotation_class.name,
+        image_id=image_id,
+        annotation_class_id=annotation_class_id,
+        timestamp=timestamp,
+        extension=extension
+    )
 
     filepath = os.path.join(save_path, filename)
     return filepath

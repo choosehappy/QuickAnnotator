@@ -3,7 +3,7 @@ import os
 
 # Imports for checkpoint management
 import glob
-import datetime
+from datetime import datetime
 
 
 
@@ -224,7 +224,7 @@ class NASWrite(FileStore):
         image_name, annotation_class_name = file_basename[0].rsplit('_', 1)
         return image_name, annotation_class_name
 
-    def construct_annotation_file_name(self, image_name: str, annotation_class_name: str, extension: str) -> str:
+    def construct_annotation_file_name(self, image_name: str, annotation_class_name: str, image_id: int = None, annotation_class_id: int = None, timestamp: datetime = None, extension = constants.ExportFormatExtensions.GEOJSON) -> str:
         """
         Construct the annotation file name from image name and annotation class name.
 
@@ -235,7 +235,18 @@ class NASWrite(FileStore):
         Returns:
             str: The constructed annotation file name.
         """
-        return f"{image_name}_{annotation_class_name}.{extension}"
+
+        timestamp = datetime.now() if timestamp is None else timestamp
+        datetime_str = timestamp.strftime('%Y%m%d_%H%M%S')
+
+        parts = [image_name, annotation_class_name]
+        if image_id is not None:
+            parts.append(str(image_id))
+        if annotation_class_id is not None:
+            parts.append(str(annotation_class_id))
+        parts.append(datetime_str)
+
+        return f"{'_'.join(parts)}.{extension}"
 
     def get_debug_path(self, relative: bool = False):
         """

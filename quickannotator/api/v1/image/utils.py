@@ -85,7 +85,10 @@ def _import_annotations_from_temp(image_id, file_basename):
         annot_cls_id = annot_cls.id
         for fmt in constants.AnnotationFileFormats:
             temp_path = fsmanager.nas_write.get_temp_path(relative=False)
-            annotation_filename = fsmanager.nas_write.construct_annotation_file_name(file_basename, annot_cls_name, fmt.value)
+            annotation_filename = fsmanager.nas_write.construct_annotation_file_name(
+                image_name=file_basename, 
+                annotation_class_name=annot_cls_name,
+                extension=fmt.value)
             annot_filepath = os.path.join(temp_path, annotation_filename)
             if os.path.exists(annot_filepath):
                 logger.info(f"Found image annotation file - {annot_filepath}")
