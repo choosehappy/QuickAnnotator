@@ -7,7 +7,7 @@ import quickannotator.constants as constants
 import quickannotator.db.models as db_models
 from quickannotator.db import db_session
 from quickannotator.db.fsmanager import fsmanager
-from quickannotator.db.crud.image import get_image_by_id
+from quickannotator.db.crud.image import get_image_by_id, get_image_query
 from quickannotator.db.crud.image import get_images_by_project_id
 from quickannotator.api.v1.annotation.utils import import_annotation_from_json
 from quickannotator.api.v1.image.utils import delete_image_and_related_data, import_image_from_wsi, import_image_from_dicom_wsi
@@ -28,10 +28,7 @@ class Image(MethodView):
     def get(self, image_id):
         """     returns an Image
         """
-        result = db_session.query(
-            *[getattr(db_models.Image, column.name) for column in db_models.Image.__table__.columns],
-            func.ST_AsGeoJSON(db_models.Image.embedding_coord).label('embedding_coord')
-        ).filter(db_models.Image.id == image_id).first()
+        result = get_image_query().filter(db_models.Image.id == image_id).first()
         if result is not None:
             return result, 200
         else:
@@ -61,7 +58,6 @@ class Image(MethodView):
 
     @bp.arguments(server_models.UpdateImageCommentSchema, location='json')
     @bp.response(200, server_models.ImageRespSchema)
-    @bp.response(404, description="Image not found")
     def put(self, args, image_id):
         """     update image comment   """
 
@@ -72,10 +68,7 @@ class Image(MethodView):
         image.comment = args['comment']
         db_session.commit()
 
-        result = db_session.query(
-            *[getattr(db_models.Image, column.name) for column in db_models.Image.__table__.columns],
-            func.ST_AsGeoJSON(db_models.Image.embedding_coord).label('embedding_coord')
-        ).filter(db_models.Image.id == image_id).first()
+        result = get_image_query().filter(db_models.Image.id == image_id).first()
         return result, 200
 
 #################################################################################
@@ -86,10 +79,7 @@ class ImageSearch(MethodView):
     def get(self, args, project_id):
         """     returns a list of Images
         """
-        images = db_session.query(
-            *[getattr(db_models.Image, column.name) for column in db_models.Image.__table__.columns],
-            func.ST_AsGeoJSON(db_models.Image.embedding_coord).label('embedding_coord')
-        ).filter(db_models.Image.project_id == project_id).all()
+        images = get_image_query().filter(db_models.Image.project_id == project_id).all()
         if images is not None:
             return images, 200
         else:
