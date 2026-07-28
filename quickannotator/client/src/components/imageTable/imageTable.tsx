@@ -170,7 +170,7 @@ export default class ImageTable extends React.PureComponent {
             { id: 'height', name: 'Height', field: 'height', sortable: true },
             { id: 'dz_tilesize', name: 'DZ Tile Size', field: 'dz_tilesize', sortable: true },
             { id: 'date', name: 'Date', field: 'date', sortable: true },
-            { id: 'comment', name: 'Comment', field: 'comment', editor: editor, type: 'string', editable: true },
+            { id: 'comment', name: 'Comment', field: 'comment', sortable: true, editor: editor, type: 'string', editable: true },
             ...this.getAnnotationClassColumns(),
             { id: 'action', name: '', field: 'action', sortable: true, formatter: actionFormatter }
         ];
