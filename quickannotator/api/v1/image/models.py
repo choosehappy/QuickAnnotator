@@ -21,6 +21,7 @@ class HTMLTagDetector(HTMLParser):
 def contains_html_tags(html_string: str) -> bool:
     detector = HTMLTagDetector()
     detector.feed(html_string)
+    detector.close()
     return detector.has_tags
 
 class ImageRespSchema(SQLAlchemyAutoSchema):
