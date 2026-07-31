@@ -9,6 +9,7 @@ from ray.util.state.common import TaskState
 from ray.util import state
 from ray.util.state.exception import ServerUnavailable
 from quickannotator.db.crud.annotation_class import build_actor_name
+from quickannotator.db.crud.tile import TileStoreFactory
 
 bp = Blueprint('ray', __name__, description='Ray operations')
 
@@ -79,6 +80,44 @@ class SetEnableDLResource(MethodView):
             return detailed_state, 200
         except ray.exceptions.GetTimeoutError:
             return abort(408)
+
+@bp.route('/train/threshold/<string:annotation_class_id>', endpoint='set_inference_threshold')
+class SetInferenceThresholdResource(MethodView):
+    @bp.arguments(server_models.SetInferenceThresholdArgsSchema, location='query')
+    @bp.response(200, server_models.GetDLActorStatusResponseSchema)
+    @bp.alt_response(404, schema=error_handler.ErrorSchema)
+    @bp.alt_response(408, schema=error_handler.ErrorSchema)
+    def post(self, args, annotation_class_id):
+        """
+        Handle POST requests to set the inference threshold for a specific annotation class.
+        """
+        actor_name = build_actor_name(int(annotation_class_id))
+        try:
+            actor = ray.get_actor(actor_name)
+        except ValueError:
+            return abort(404)
+        except ray.exceptions.GetTimeoutError:
+            return abort(408)
+        
+        ref = actor.set_inference_threshold.remote(args['threshold'])
+        try:
+            ray.get(ref, timeout=constants.RAY_GET_TIMEOUT)
+        except ray.exceptions.GetTimeoutError:
+            return abort(408)
+        
+        # Reset all PROCESSING tiles so new threshold applies on next inference pass
+        try:
+            tilestore = TileStoreFactory.get_tilestore()
+            tilestore.reset_all_PROCESSING_tiles(int(annotation_class_id))
+        except Exception:
+            pass
+        
+        try:
+            detailed_state = ray.get(actor.get_detailed_state.remote(), timeout=constants.RAY_GET_TIMEOUT)
+            return detailed_state, 200
+        except ray.exceptions.GetTimeoutError:
+            return abort(408)
+
 
 def get_actor_detailed_state(annotation_class_id):
     """

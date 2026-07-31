@@ -42,6 +42,7 @@ class DLActor:
         self.allow_pred = True  # --- don't know if we'll ever need this, so hard setting to true
         self.enable_training = True
         self.magnification = magnification
+        self.inference_threshold: float = 0.5
 
     def start_dlproc(self):
         if self.get_proc_running_since() is not None:
@@ -115,6 +116,13 @@ class DLActor:
     def set_enable_training(self, enable_training: bool):
         self.enable_training = enable_training
         return self.enable_training
+
+    def get_inference_threshold(self) -> float:
+        return self.inference_threshold
+
+    def set_inference_threshold(self, threshold: float) -> float:
+        self.inference_threshold = threshold
+        return self.inference_threshold
     
     def get_detailed_state(self) -> dict:
         state = {
@@ -122,6 +130,7 @@ class DLActor:
             'proc_running_since': self.proc_running_since,
             'allow_pred': self.allow_pred,
             'enable_training': self.enable_training,
+            'inference_threshold': self.inference_threshold,
         }
         return state
 
