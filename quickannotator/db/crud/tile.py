@@ -289,6 +289,18 @@ class TileStore(ABC):   # Only an ABC to prevent instantiation
         db_session.commit()
 
     @staticmethod
+    def reset_all_PROCESSING_and_DONEPROCESSING_tiles(annotation_class_id: int):
+        stmt = update(db_models.Tile).where(
+            db_models.Tile.annotation_class_id == annotation_class_id,
+            db_models.Tile.pred_status.in_([TileStatus.PROCESSING, TileStatus.DONEPROCESSING])
+        ).values(
+            pred_status=TileStatus.UNSEEN,
+            pred_datetime=None
+        )
+        db_session.execute(stmt)
+        db_session.commit()
+
+    @staticmethod
     @abstractmethod
     def get_pending_inference_tiles(annotation_class_id: int, batch_size_infer: int, dialect: Dialects) -> list[db_models.Tile]:
         subquery = (

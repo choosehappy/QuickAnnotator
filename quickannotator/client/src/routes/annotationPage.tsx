@@ -270,6 +270,7 @@ const AnnotationPage = () => {
                                             gtLayerVisible,
                                             predLayerVisible,
                                             tileStatusLayerVisible,
+                                            inferenceThreshold,
                                         }}
                                     />
                                     <Legend mouseCoords={mouseCoords}/>

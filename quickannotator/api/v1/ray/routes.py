@@ -108,7 +108,7 @@ class SetInferenceThresholdResource(MethodView):
         # Reset all PROCESSING tiles so new threshold applies on next inference pass
         try:
             tilestore = TileStoreFactory.get_tilestore()
-            tilestore.reset_all_PROCESSING_tiles(int(annotation_class_id))
+            tilestore.reset_all_PROCESSING_and_DONEPROCESSING_tiles(int(annotation_class_id))
         except Exception:
             pass
         

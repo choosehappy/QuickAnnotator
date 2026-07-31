@@ -2,7 +2,7 @@ import Card from 'react-bootstrap/Card';
 import { useState, useRef } from "react";
 import { Button, ListGroup, Modal, Spinner } from "react-bootstrap";
 import { AnnotationClass, DLActorStatus, Image, Project } from "../types.ts";
-import { Plus, Pencil, Trash, Target } from 'react-bootstrap-icons';
+import { Plus, Pencil, Trash, Sliders } from 'react-bootstrap-icons';
 import { MODAL_DATA, MASK_CLASS_ID } from '../helpers/config.tsx';
 import TrainingStatusButton from './TrainingStatusButton';
 import { fetchProjectAnnotationStats, generateTissueMask, setInferenceThreshold } from '../helpers/api.ts';
@@ -153,7 +153,7 @@ const ClassesPane = (props: Props) => {
                                                                 <Spinner animation="border" style={{ width: '1rem', height: '1rem' }} />
                                                             ) : (
                                                                 <>
-                                                                    <Target /> {props.inferenceThreshold?.toFixed(2) ?? '—'}
+                                                                    <Sliders /> {props.inferenceThreshold?.toFixed(2) ?? '—'}
                                                                 </>
                                                             )}
                                                         </Button>
