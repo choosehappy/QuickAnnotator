@@ -141,35 +141,71 @@ const ClassesPane = (props: Props) => {
                                                                 handleSaveThreshold(sliderValue);
                                                             }
                                                         }}
-                                                        style={{ position: 'relative', display: 'inline-block' }}
+                                                        className="ms-1 btn btn-outline-secondary btn-sm"
+                                                        style={{ 
+                                                            position: 'relative', 
+                                                            overflow: 'hidden',
+                                                            height: 31,
+                                                            width: showSlider && props.inferenceThreshold !== null ? 160 : 70,
+                                                            transition: 'width 0.25s ease',
+                                                            padding: '0 0.5rem',
+                                                            cursor: props.inferenceThreshold === null ? 'default' : 'pointer',
+                                                            opacity: props.inferenceThreshold === null ? 0.65 : 1,
+                                                        }}
                                                     >
-                                                        <Button 
-                                                            variant="outline-secondary" 
-                                                            size="sm"
-                                                            className="ms-1"
-                                                            disabled={props.inferenceThreshold === null}
+                                                        {/* Icon / value display */}
+                                                        <div 
+                                                            style={{ 
+                                                                position: 'absolute',
+                                                                top: 0,
+                                                                bottom: 0,
+                                                                left: 8,
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                whiteSpace: 'nowrap',
+                                                                lineHeight: 1,
+                                                                opacity: showSlider && props.inferenceThreshold !== null ? 0 : 1,
+                                                                transition: 'opacity 0.2s ease',
+                                                                pointerEvents: 'none',
+                                                            }}
                                                         >
                                                             {isSaving ? (
                                                                 <Spinner animation="border" style={{ width: '1rem', height: '1rem' }} />
                                                             ) : (
                                                                 <>
-                                                                    <Sliders /> {props.inferenceThreshold?.toFixed(2) ?? '—'}
+                                                                    <Sliders /> <span className="ms-1">{props.inferenceThreshold?.toFixed(2) ?? '—'}</span>
                                                                 </>
                                                             )}
-                                                        </Button>
-                                                        {showSlider && props.inferenceThreshold !== null && (
-                                                            <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 20, backgroundColor: 'white', padding: 8, borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
-                                                                <input 
-                                                                    type="range" 
-                                                                    min="0.01" 
-                                                                    max="0.99" 
-                                                                    step="0.01" 
-                                                                    value={sliderValue}
-                                                                    onChange={(e) => setSliderValue(parseFloat(e.target.value))}
-                                                                />
-                                                                <span>{sliderValue.toFixed(2)}</span>
-                                                            </div>
-                                                        )}
+                                                        </div>
+
+                                                        {/* Slider control */}
+                                                        <div
+                                                            style={{
+                                                                position: 'absolute',
+                                                                top: 0,
+                                                                bottom: 0,
+                                                                left: 8,
+                                                                right: 8,
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: 6,
+                                                                opacity: showSlider && props.inferenceThreshold !== null ? 1 : 0,
+                                                                transition: 'opacity 0.25s ease 0.1s',
+                                                                pointerEvents: showSlider ? 'auto' : 'none',
+                                                            }}
+                                                        >
+                                                            <input 
+                                                                type="range" 
+                                                                min="0.01" 
+                                                                max="0.99" 
+                                                                step="0.01" 
+                                                                value={sliderValue}
+                                                                onChange={(e) => setSliderValue(parseFloat(e.target.value))}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                style={{ flex: 1 }}
+                                                            />
+                                                            <span style={{ minWidth: 32, textAlign: 'right' }}>{sliderValue.toFixed(2)}</span>
+                                                        </div>
                                                     </div>
                                                     <Button 
                                                         variant="outline-danger" 
