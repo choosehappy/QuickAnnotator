@@ -2,7 +2,7 @@ import Card from 'react-bootstrap/Card';
 import { useState, useRef } from "react";
 import { Button, ListGroup, Modal, Spinner } from "react-bootstrap";
 import { AnnotationClass, DLActorStatus, Image, Project } from "../types.ts";
-import { Plus, Pencil, Trash, Sliders } from 'react-bootstrap-icons';
+import { Plus, Pencil, Trash } from 'react-bootstrap-icons';
 import { MODAL_DATA, MASK_CLASS_ID } from '../helpers/config.tsx';
 import TrainingStatusButton from './TrainingStatusButton';
 import { fetchProjectAnnotationStats, generateTissueMask, setInferenceThreshold } from '../helpers/api.ts';
@@ -107,6 +107,98 @@ const ClassesPane = (props: Props) => {
                     </Button>
                 </Card.Header>
                 <Card.Body>
+                    {props.currentAnnotationClass && props.currentAnnotationClass.id !== MASK_CLASS_ID && (
+                        <div className="d-flex align-items-center mb-3">
+                            <TrainingStatusButton
+                                currentDlActorStatus={props.currentDlActorStatus}
+                                setCurrentDlActorStatus={props.setCurrentDlActorStatus}
+                                annotationClassId={props.currentAnnotationClass.id}
+                            />
+                            <div 
+                                ref={sliderRef}
+                                onMouseEnter={() => {
+                                    setShowSlider(true);
+                                    setSliderValue(props.inferenceThreshold ?? 0.5);
+                                }}
+                                onMouseLeave={() => {
+                                    setShowSlider(false);
+                                    if (props.inferenceThreshold !== null && Math.abs(sliderValue - props.inferenceThreshold) > 0.001) {
+                                        handleSaveThreshold(sliderValue);
+                                    }
+                                }}
+                                className="ms-1 btn btn-outline-secondary btn-sm"
+                                style={{ 
+                                    position: 'relative', 
+                                    overflow: 'hidden',
+                                    height: 31,
+                                    width: showSlider && props.inferenceThreshold !== null ? 220 : 190,
+                                    transition: 'width 0.25s ease',
+                                    padding: '0 0.5rem',
+                                    fontSize: '0.8rem',
+                                    cursor: props.inferenceThreshold === null ? 'default' : 'pointer',
+                                    opacity: props.inferenceThreshold === null ? 0.65 : 1,
+                                }}
+                            >
+                                {/* Label / value display */}
+                                <div 
+                                    style={{ 
+                                        position: 'absolute',
+                                        top: 0,
+                                        bottom: 0,
+                                        left: 8,
+                                        right: 8,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: 6,
+                                        whiteSpace: 'nowrap',
+                                        lineHeight: 1,
+                                        opacity: showSlider && props.inferenceThreshold !== null ? 0 : 1,
+                                        transition: 'opacity 0.2s ease',
+                                        pointerEvents: 'none',
+                                    }}
+                                >
+                                    {isSaving ? (
+                                        <Spinner animation="border" style={{ width: '1rem', height: '1rem' }} />
+                                    ) : (
+                                        <>
+                                            <span>Inference Threshold:</span>
+                                            <span>{props.inferenceThreshold?.toFixed(2) ?? '—'}</span>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Slider control */}
+                                <div
+                                    style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        bottom: 0,
+                                        left: 8,
+                                        right: 8,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        opacity: showSlider && props.inferenceThreshold !== null ? 1 : 0,
+                                        transition: 'opacity 0.25s ease 0.1s',
+                                        pointerEvents: showSlider ? 'auto' : 'none',
+                                    }}
+                                >
+                                    <input 
+                                        type="range" 
+                                        min="0.01" 
+                                        max="0.99" 
+                                        step="0.01" 
+                                        value={sliderValue}
+                                        onChange={(e) => setSliderValue(parseFloat(e.target.value))}
+                                        onClick={(e) => e.stopPropagation()}
+                                        style={{ flex: 1 }}
+                                    />
+                                    <span style={{ minWidth: 32, textAlign: 'right' }}>{sliderValue.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                     <ListGroup 
                         defaultActiveKey={props.currentAnnotationClass?.id} 
                         style={{ maxHeight: '300px', overflowY: 'auto' }}
@@ -123,102 +215,17 @@ const ClassesPane = (props: Props) => {
                                         <span>{c.name}</span>
                                         <div className="d-flex align-items-center">
                                             {c.id !== MASK_CLASS_ID && c.id === props.currentAnnotationClass?.id && (
-                                                <>
-                                                    <TrainingStatusButton
-                                                        currentDlActorStatus={props.currentDlActorStatus}
-                                                        setCurrentDlActorStatus={props.setCurrentDlActorStatus}
-                                                        annotationClassId={c.id}
-                                                    />
-                                                    <div 
-                                                        ref={sliderRef}
-                                                        onMouseEnter={() => {
-                                                            setShowSlider(true);
-                                                            setSliderValue(props.inferenceThreshold ?? 0.5);
-                                                        }}
-                                                        onMouseLeave={() => {
-                                                            setShowSlider(false);
-                                                            if (props.inferenceThreshold !== null && Math.abs(sliderValue - props.inferenceThreshold) > 0.001) {
-                                                                handleSaveThreshold(sliderValue);
-                                                            }
-                                                        }}
-                                                        className="ms-1 btn btn-outline-secondary btn-sm"
-                                                        style={{ 
-                                                            position: 'relative', 
-                                                            overflow: 'hidden',
-                                                            height: 31,
-                                                            width: showSlider && props.inferenceThreshold !== null ? 160 : 70,
-                                                            transition: 'width 0.25s ease',
-                                                            padding: '0 0.5rem',
-                                                            cursor: props.inferenceThreshold === null ? 'default' : 'pointer',
-                                                            opacity: props.inferenceThreshold === null ? 0.65 : 1,
-                                                        }}
-                                                    >
-                                                        {/* Icon / value display */}
-                                                        <div 
-                                                            style={{ 
-                                                                position: 'absolute',
-                                                                top: 0,
-                                                                bottom: 0,
-                                                                left: 8,
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                whiteSpace: 'nowrap',
-                                                                lineHeight: 1,
-                                                                opacity: showSlider && props.inferenceThreshold !== null ? 0 : 1,
-                                                                transition: 'opacity 0.2s ease',
-                                                                pointerEvents: 'none',
-                                                            }}
-                                                        >
-                                                            {isSaving ? (
-                                                                <Spinner animation="border" style={{ width: '1rem', height: '1rem' }} />
-                                                            ) : (
-                                                                <>
-                                                                    <Sliders /> <span className="ms-1">{props.inferenceThreshold?.toFixed(2) ?? '—'}</span>
-                                                                </>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Slider control */}
-                                                        <div
-                                                            style={{
-                                                                position: 'absolute',
-                                                                top: 0,
-                                                                bottom: 0,
-                                                                left: 8,
-                                                                right: 8,
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: 6,
-                                                                opacity: showSlider && props.inferenceThreshold !== null ? 1 : 0,
-                                                                transition: 'opacity 0.25s ease 0.1s',
-                                                                pointerEvents: showSlider ? 'auto' : 'none',
-                                                            }}
-                                                        >
-                                                            <input 
-                                                                type="range" 
-                                                                min="0.01" 
-                                                                max="0.99" 
-                                                                step="0.01" 
-                                                                value={sliderValue}
-                                                                onChange={(e) => setSliderValue(parseFloat(e.target.value))}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                                style={{ flex: 1 }}
-                                                            />
-                                                            <span style={{ minWidth: 32, textAlign: 'right' }}>{sliderValue.toFixed(2)}</span>
-                                                        </div>
-                                                    </div>
-                                                    <Button 
-                                                        variant="outline-danger" 
-                                                        size="sm"
-                                                        className="ms-2"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            props.setActiveModal(MODAL_DATA.DELETE_CLASS.id);
-                                                        }}
-                                                    >
-                                                        <Trash />
-                                                    </Button>
-                                                </>
+                                                <Button 
+                                                    variant="outline-danger" 
+                                                    size="sm"
+                                                    className="ms-2"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        props.setActiveModal(MODAL_DATA.DELETE_CLASS.id);
+                                                    }}
+                                                >
+                                                    <Trash />
+                                                </Button>
                                             )}
                                             <Button 
                                                 disabled 
