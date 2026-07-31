@@ -24,6 +24,16 @@ Add a UI slider to control the inference threshold (currently hardcoded as `cons
   ```
 - Add `inference_threshold` to `get_detailed_state()` return dict
 
+**File:** `quickannotator/api/v1/ray/models.py`
+
+- Extend `GetDLActorStatusResponseSchema` to include `inference_threshold`:
+  ```python
+  inference_threshold = fields.Float(
+      load_default=None,
+      description="Current inference threshold value, or null if actor is not ready."
+  )
+  ```
+
 ---
 
 ## 2. Backend: Pass threshold into `train_pred_loop` and `run_inference`
@@ -69,6 +79,11 @@ Add a UI slider to control the inference threshold (currently hardcoded as `cons
 
 **File:** `quickannotator/api/v1/ray/routes.py`
 
+- Add import:
+  ```python
+  from quickannotator.db.crud.tile import TileStoreFactory
+  ```
+
 - Add new route class `SetInferenceThresholdResource`:
   ```python
   @bp.route('/train/threshold/<string:annotation_class_id>', endpoint='set_inference_threshold')
@@ -94,7 +109,8 @@ Add a UI slider to control the inference threshold (currently hardcoded as `cons
           
           # Reset all PROCESSING tiles so new threshold applies on next inference pass
           try:
-              actor.reset_all_processing_tiles.remote()
+              tilestore = TileStoreFactory.get_tilestore()
+              tilestore.reset_all_PROCESSING_tiles(int(annotation_class_id))
           except Exception:
               pass
           
@@ -107,12 +123,8 @@ Add a UI slider to control the inference threshold (currently hardcoded as `cons
 
 **File:** `quickannotator/db/crud/tile.py`
 
-- The `reset_all_PROCESSING_tiles` method already exists on line 280. We need a Ray-actor-callable wrapper. Add to `DLActor` in `ray_jackson.py`:
-  ```python
-  def reset_all_processing_tiles(self):
-      tilestore = TileStoreFactory.get_tilestore()
-      tilestore.reset_all_PROCESSING_tiles(self.annotation_class_id)
-  ```
+- No change needed — the `reset_all_PROCESSING_tiles` method already exists on line 280.
+  The route calls it directly on the TileStore instead of through an actor wrapper.
 
 ---
 
@@ -128,26 +140,86 @@ Add a UI slider to control the inference threshold (currently hardcoded as `cons
   };
   ```
 
+**File:** `quickannotator/client/src/types.ts`
+
+- Extend `DLActorStatus` interface:
+  ```typescript
+  export interface DLActorStatus {
+      annotation_class_id: number;
+      enable_training: boolean;
+      allow_pred: boolean;
+      proc_running_since: string | null;
+      inference_threshold: number | null;  // NEW
+  }
+  ```
+
 ---
 
 ## 5. Frontend: Threshold slider component in ClassesPane
 
 **File:** `quickannotator/client/src/components/classesPane.tsx`
 
+### Imports update
+
+- Add `useRef` to the React imports (only `useState` is currently imported):
+  ```typescript
+  import { useState, useRef } from 'react';
+  ```
+- Add `Target` to the `react-bootstrap-icons` import:
+  ```typescript
+  import { Plus, Pencil, Trash, Target } from 'react-bootstrap-icons';
+  ```
+
 ### State additions
 
-- Add `inferenceThreshold` state:
+- Add state for slider control:
   ```typescript
-  const [inferenceThreshold, setInferenceThreshold] = useState(0.5);
+  const [inferenceThreshold, setInferenceThreshold] = useState<number | null>(null);
   const [showSlider, setShowSlider] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [sliderValue, setSliderValue] = useState(0.5);
   const sliderRef = useRef<HTMLDivElement>(null);
   ```
 
-### Hover behavior
+- `inferenceThreshold` is `null` until the detailed actor state includes a threshold value (slider inactive).
+- `sliderValue` tracks the live slider position independently of the committed `inferenceThreshold`.
 
-- Wrap the threshold display + slider in a container with `onMouseEnter` / `onMouseLeave` handlers
-- On mouse enter: `setShowSlider(true)`
-- On mouse leave: `setShowSlider(false)`, then call `setInferenceThreshold` endpoint if value changed
+### Slider activation
+
+- The slider is **inactive** (disabled) until the `GetDLActorStatusResponseSchema` response includes a non-null `inference_threshold`.
+- Once `inferenceThreshold` is non-null, the slider icon renders the value and becomes hoverable.
+- On hover in: `setShowSlider(true)` and `setSliderValue(inferenceThreshold)`.
+- On hover out: if `sliderValue` differs from `inferenceThreshold`, POST the new value.
+
+### Hover behavior + save flow
+
+- On mouse leave:
+  ```typescript
+  onMouseLeave={() => {
+      setShowSlider(false);
+      if (Math.abs(sliderValue - inferenceThreshold) > 0.001) {
+          handleSaveThreshold(sliderValue);
+      }
+  }}
+  ```
+- `handleSaveThreshold` implementation:
+  ```typescript
+  const handleSaveThreshold = async (value: number) => {
+      setIsSaving(true);
+      try {
+          const response = await setInferenceThreshold(
+              props.currentAnnotationClass?.id,
+              value
+          );
+          // Refresh slider icon value and training status button states from response
+          setInferenceThreshold(response.data.inference_threshold);
+          // Callback to refresh training status button states
+          props.onStatusRefresh?.(response.data);
+      } finally {
+          setIsSaving(false);
+      }
+  };
+  ```
 
 ### UI placement
 
@@ -155,30 +227,43 @@ Add a UI slider to control the inference threshold (currently hardcoded as `cons
   ```tsx
   <div 
     ref={sliderRef}
-    onMouseEnter={() => setShowSlider(true)}
+    onMouseEnter={() => {
+        setShowSlider(true);
+        setSliderValue(inferenceThreshold ?? 0.5);
+    }}
     onMouseLeave={() => {
         setShowSlider(false);
-        // commit value if changed
-        if (inferenceThreshold !== defaultThreshold) {
-            setInferenceThreshold(props.currentAnnotationClass?.id, inferenceThreshold);
+        if (inferenceThreshold !== null && Math.abs(sliderValue - inferenceThreshold) > 0.001) {
+            handleSaveThreshold(sliderValue);
         }
     }}
     style={{ position: 'relative', display: 'inline-block' }}
   >
-      <Button variant="outline-secondary" size="sm" className="ms-1">
-          <TargetIcon /> {inferenceThreshold.toFixed(2)}
+      <Button 
+          variant="outline-secondary" 
+          size="sm" 
+          className="ms-1"
+          disabled={inferenceThreshold === null}
+      >
+          {isSaving ? (
+              <Spinner animation="border" style={{ width: '1rem', height: '1rem' }} />
+          ) : (
+              <>
+                  <Target /> {inferenceThreshold?.toFixed(2) ?? '—'}
+              </>
+          )}
       </Button>
-      {showSlider && (
+      {showSlider && inferenceThreshold !== null && (
           <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 20, backgroundColor: 'white', padding: 8, borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
               <input 
                   type="range" 
                   min="0.01" 
                   max="0.99" 
                   step="0.01" 
-                  value={inferenceThreshold}
-                  onChange={(e) => setInferenceThreshold(parseFloat(e.target.value))}
+                  value={sliderValue}
+                  onChange={(e) => setSliderValue(parseFloat(e.target.value))}
               />
-              <span>{inferenceThreshold.toFixed(2)}</span>
+              <span>{sliderValue.toFixed(2)}</span>
           </div>
       )}
   </div>
@@ -188,14 +273,12 @@ Add a UI slider to control the inference threshold (currently hardcoded as `cons
 
 - Add to `ClassesPane` interface:
   ```typescript
-  inferenceThreshold: number;
+  inferenceThreshold: number | null;
   setInferenceThreshold: (threshold: number) => void;
+  onStatusRefresh?: (status: DLActorStatus) => void;
   ```
+- `onStatusRefresh` allows the parent (`annotationPage.tsx`) to update the training status button states after a threshold change.
 - Pass from `annotationPage.tsx` (lift `inferenceThreshold` state up or keep local to `ClassesPane`)
-
-### Note on state lifting
-
-The simplest approach: keep `inferenceThreshold` state local to `ClassesPane`. On hover-away, POST the new value. The `DLActorStatus` response from the endpoint does not need to include the threshold in the current schema — we can extend `GetDLActorStatusResponseSchema` later if we want to sync back.
 
 ---
 
@@ -203,11 +286,29 @@ The simplest approach: keep `inferenceThreshold` state local to `ClassesPane`. O
 
 **File:** `quickannotator/client/src/routes/annotationPage.tsx`
 
-- Add state for `inferenceThreshold` (if not kept local to ClassesPane):
+- Add state for `inferenceThreshold` (extracted from actor status):
   ```typescript
-  const [inferenceThreshold, setInferenceThreshold] = useState(0.5);
+  const [inferenceThreshold, setInferenceThreshold] = useState<number | null>(null);
   ```
-- Pass as prop to `ClassesPane` on line 278-280
+
+- Extract `inference_threshold` from the `DLActorStatus` response when fetching actor status:
+  ```typescript
+  setInferenceThreshold(status.inference_threshold);
+  ```
+
+- Pass props to `ClassesPane`:
+  ```tsx
+  <ClassesPane
+      inferenceThreshold={inferenceThreshold}
+      setInferenceThreshold={setInferenceThreshold}
+      onStatusRefresh={(status) => {
+          // Update training status button states
+          // Update inference threshold from response
+          setInferenceThreshold(status.inference_threshold);
+      }}
+      // ... other props
+  />
+  ```
 
 ---
 
@@ -216,12 +317,13 @@ The simplest approach: keep `inferenceThreshold` state local to `ClassesPane`. O
 | File | Change |
 |------|--------|
 | `quickannotator/constants.py` | No change (keep as fallback default) |
-| `quickannotator/dl/ray_jackson.py` | Add `inference_threshold` attr, getter, setter, `reset_all_processing_tiles` method, include in `get_detailed_state` |
+| `quickannotator/dl/ray_jackson.py` | Add `inference_threshold` attr, getter, setter, include in `get_detailed_state` |
 | `quickannotator/dl/training.py` | Read threshold from actor, pass to `run_inference()` |
 | `quickannotator/dl/inference.py` | Add `inference_threshold` param to `run_inference()` and `postprocess_output()`, use it instead of `constants.INFERENCE_THRESHOLD` |
-| `quickannotator/api/v1/ray/models.py` | Add `SetInferenceThresholdArgsSchema` |
+| `quickannotator/api/v1/ray/models.py` | Add `SetInferenceThresholdArgsSchema`, extend `GetDLActorStatusResponseSchema` with `inference_threshold` field |
 | `quickannotator/api/v1/ray/routes.py` | Add `SetInferenceThresholdResource` endpoint |
 | `quickannotator/db/crud/tile.py` | No change (uses existing `reset_all_PROCESSING_tiles`) |
+| `quickannotator/client/src/types.ts` | Add `inference_threshold` to `DLActorStatus` interface |
 | `quickannotator/client/src/helpers/api.ts` | Add `setInferenceThreshold` API helper |
-| `quickannotator/client/src/components/classesPane.tsx` | Add threshold icon, slider, hover show/hide, commit on mouse leave |
-| `quickannotator/client/src/routes/annotationPage.tsx` | Pass `inferenceThreshold` state to `ClassesPane` |
+| `quickannotator/client/src/components/classesPane.tsx` | Add threshold icon, slider, hover show/hide, spinner on save, `onStatusRefresh` callback, slider inactive until threshold present |
+| `quickannotator/client/src/routes/annotationPage.tsx` | Extract `inference_threshold` from status, pass to `ClassesPane`, wire `onStatusRefresh` |
