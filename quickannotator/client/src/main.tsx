@@ -23,9 +23,10 @@ const router = createBrowserRouter([
 ])
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <CookiesProvider>
-        <RouterProvider router={router} />
-    </CookiesProvider>
-  </StrictMode>,
+    // Note: StrictMode should be removed in production because it causes double rendering of components.
+    <StrictMode>
+        <CookiesProvider>
+            <RouterProvider router={router} />
+        </CookiesProvider>
+    </StrictMode>,
 )
