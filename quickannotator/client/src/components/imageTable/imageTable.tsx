@@ -6,6 +6,7 @@ import './imageTable.css';
 import { AnnotationClass, Image, Project } from "../../types.ts";
 import {getAnnotationPageURL, getImageThumbnailURL, updateImageComment } from "../../helpers/api.ts";
 import ConfirmationModal from '../confirmationModal.tsx';
+import { toast } from "react-toastify";
 import { MODAL_DATA, COOKIE_NAMES } from '../../helpers/config.tsx';
 interface Props {
     project: Project;
@@ -39,12 +40,28 @@ export default class ImageTable extends React.PureComponent {
         this.defineGrid();
     }
 
+    syncGridStateWithProps() {
+        const dataset = this.getData(this.props.images);
+        this.state.reactGrid?.gridService.resetGrid();
+        this.setState(() => ({
+            ...this.state,
+            dataset,
+        }));
+    }
+
     saveComment = async (imageId: number, comment: string) => {
-        try {
-            await updateImageComment(imageId, comment);
-        } catch (err) {
-            console.error('Failed to save image comment:', err);
+        const result = await updateImageComment(imageId, comment);
+        if (result.status >= 400) {
+            toast.error('Failed to save comment. Check if your comment contains invalid characters or HTML ');
+            this.syncGridStateWithProps();
+            return;
         }
+        const dataset = this.state.dataset.map((item: any) =>
+            item.id === imageId ? { ...item, comment: result.data.comment } : item
+        );
+        this.setState({ dataset }, () => {
+            this.state.reactGrid?.gridService.resetGrid();
+        });
     }
     
     
@@ -66,12 +83,7 @@ export default class ImageTable extends React.PureComponent {
                 this.state.reactGrid?.slickGrid?.setColumns(columns);
             });
         } else if (prevProps.images !== this.props.images || prevProps.annotationCounts !== this.props.annotationCounts) {
-            const dataset = this.getData(this.props.images);
-            this.state.reactGrid?.gridService.resetGrid();
-            this.setState(() => ({
-                ...this.state,
-                dataset,
-            }));
+            this.syncGridStateWithProps();
         }
         if (prevProps.changed !== this.props.changed) {
             this?.gridRef?.current?.resizerService?.resizeGrid(5);
