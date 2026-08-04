@@ -1,11 +1,12 @@
 import * as React from 'react';
 import { Column, GridOption, SlickgridReactInstance, SlickgridReact } from "slickgrid-react";
-
+import { Editors } from "@slickgrid-universal/common";
 import '@slickgrid-universal/common/dist/styles/css/slickgrid-theme-bootstrap.css';
 import './imageTable.css';
 import { AnnotationClass, Image, Project } from "../../types.ts";
-import {getAnnotationPageURL, getImageThumbnailURL } from "../../helpers/api.ts";
+import {getAnnotationPageURL, getImageThumbnailURL, updateImageComment } from "../../helpers/api.ts";
 import ConfirmationModal from '../confirmationModal.tsx';
+import { toast } from "react-toastify";
 import { MODAL_DATA, COOKIE_NAMES } from '../../helpers/config.tsx';
 interface Props {
     project: Project;
@@ -38,6 +39,30 @@ export default class ImageTable extends React.PureComponent {
         // define the grid options & columns and then create the grid itself
         this.defineGrid();
     }
+
+    syncGridStateWithProps() {
+        const dataset = this.getData(this.props.images);
+        this.state.reactGrid?.gridService.resetGrid();
+        this.setState(() => ({
+            ...this.state,
+            dataset,
+        }));
+    }
+
+    saveComment = async (imageId: number, comment: string) => {
+        const result = await updateImageComment(imageId, comment);
+        if (result.status >= 400) {
+            toast.error('Failed to save comment. Check if your comment contains invalid characters or HTML ');
+            this.syncGridStateWithProps();
+            return;
+        }
+        const dataset = this.state.dataset.map((item: any) =>
+            item.id === imageId ? { ...item, comment: result.data.comment } : item
+        );
+        this.setState({ dataset }, () => {
+            this.state.reactGrid?.gridService.resetGrid();
+        });
+    }
     
     
     clickOnDelete(data: any) {
@@ -58,12 +83,7 @@ export default class ImageTable extends React.PureComponent {
                 this.state.reactGrid?.slickGrid?.setColumns(columns);
             });
         } else if (prevProps.images !== this.props.images || prevProps.annotationCounts !== this.props.annotationCounts) {
-            const dataset = this.getData(this.props.images);
-            this.state.reactGrid?.gridService.resetGrid();
-            this.setState(() => ({
-                ...this.state,
-                dataset,
-            }));
+            this.syncGridStateWithProps();
         }
         if (prevProps.changed !== this.props.changed) {
             this?.gridRef?.current?.resizerService?.resizeGrid(5);
@@ -80,9 +100,26 @@ export default class ImageTable extends React.PureComponent {
         this.setState({ reactGrid });
         reactGrid.slickGrid?.onClick.subscribe((e, args) => {
             if ((e.target as HTMLElement).closest('button')) return;
-            const item = reactGrid.slickGrid?.getDataItem(args.row);
+            if (!args.grid || args.cell == null) return;
+
+            const column = args.grid.getColumns()[args.cell];
+
+            if (column?.id === 'comment') {
+                console.log("comment column clicked");
+                return;
+            }
+
+            const item = args.grid.getDataItem(args.row);
             if (!item || this.props.project?.id == null) return;
             window.location.href = `..${getAnnotationPageURL(this.props.project.id, item.id)}`;
+        });
+
+        
+        reactGrid.slickGrid?.onCellChange.subscribe((e, args) => {
+            const dataContext = args?.item;
+            if (dataContext) {
+                this.saveComment(dataContext.id, dataContext.comment || '');
+            }
         });
     }
 
@@ -93,10 +130,12 @@ export default class ImageTable extends React.PureComponent {
             enableAutoResize: true,
             rowHeight: 64,
             forceFitColumns: true,
+            enableCellNavigation: true,
             autoResize: {
                 container: `#${this.props.containerId}`,
                 maxHeight: undefined,
             },
+            editable: true,
         };
 
         this.setState(() => ({
@@ -130,6 +169,11 @@ export default class ImageTable extends React.PureComponent {
             delBtn.addEventListener('click', ()=>{this.clickOnDelete(dataContext)})
             return delBtn
         }
+
+        const editor = {
+            model: Editors.longText
+        };
+        
         return [
             { id: 'thumbnail', name: '', field: 'id', sortable: true, formatter: thumbnailFormatter },
             { id: 'id', name: 'Id', field: 'id', sortable: true },
@@ -138,6 +182,7 @@ export default class ImageTable extends React.PureComponent {
             { id: 'height', name: 'Height', field: 'height', sortable: true },
             { id: 'dz_tilesize', name: 'DZ Tile Size', field: 'dz_tilesize', sortable: true },
             { id: 'date', name: 'Date', field: 'date', sortable: true },
+            { id: 'comment', name: 'Comment', field: 'comment', sortable: true, editor: editor, type: 'string', editable: true },
             ...this.getAnnotationClassColumns(),
             { id: 'action', name: '', field: 'action', sortable: true, formatter: actionFormatter }
         ];
@@ -176,6 +221,7 @@ export default class ImageTable extends React.PureComponent {
                 embeddingCoord: img.embeddingCoord,
                 group_id: img.group_id,
                 dz_tilesize: img.dz_tilesize,
+                comment: img.comment || '',
                 date: img.datetime,
             };
             const imgCounts = counts[img.id] || {};
