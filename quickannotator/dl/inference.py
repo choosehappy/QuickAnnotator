@@ -41,7 +41,7 @@ def preprocess_image(io_image, device):
     return io_image
 
 
-def postprocess_output(outputs, min_area = 100, dilate_kernel = 2): ## These should be defined as class level settings from the user
+def postprocess_output(outputs, min_area = 100, dilate_kernel = 2, inference_threshold: float = None):
     outputs = outputs.squeeze().detach().cpu().numpy()
 
 
@@ -61,7 +61,8 @@ def postprocess_output(outputs, min_area = 100, dilate_kernel = 2): ## These sho
         plt.close()
         logger.debug(f"Saved output plot to {output_path}")  # Log the save location
         
-    positive_mask = outputs> constants.INFERENCE_THRESHOLD
+    threshold = inference_threshold if inference_threshold is not None else constants.INFERENCE_THRESHOLD
+    positive_mask = outputs > threshold
     
     kernel = np.ones((dilate_kernel, dilate_kernel), np.uint8)
     positive_mask = cv2.dilate(positive_mask.astype(np.uint8), kernel, iterations=2)>0
@@ -72,7 +73,7 @@ def postprocess_output(outputs, min_area = 100, dilate_kernel = 2): ## These sho
     return polygons
 
 
-def run_inference(device, model, tiles):
+def run_inference(device, model, tiles, inference_threshold: float = None):
     img_cache_manager = ImageCacheManager()
 
     io_images = []
@@ -119,7 +120,7 @@ def run_inference(device, model, tiles):
             # cv2.imwrite("/opt/QuickAnnotator/output.png",oo) #TODO: remove- - for debug
             # np.save('/opt/QuickAnnotator/output.npy', oo)
             #---
-            polygons = postprocess_output(pred) #some parmaeters here should be added to the class level config -- see function prototype
+            polygons = postprocess_output(pred, inference_threshold=inference_threshold) #some parmaeters here should be added to the class level config -- see function prototype
             translated_polygons = [
                 shapely.affinity.translate(polygon, xoff=tiles[j].x, yoff=tiles[j].y) for polygon in polygons
             ]

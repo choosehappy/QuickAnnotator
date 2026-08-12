@@ -407,6 +407,12 @@ export const setEnableTraining = async (annotation_class_id: number, enable: boo
     return await post<null, DLActorStatus>(`/ray/train/${annotation_class_id}?${query}`, null);
 };
 
+// Set inference threshold for an annotation class
+export const setInferenceThreshold = async (annotation_class_id: number, threshold: number): Promise<{ data: DLActorStatus, status: number }> => {
+    const query = new URLSearchParams({ threshold: threshold.toString() });
+    return await post<null, DLActorStatus>(`/ray/train/threshold/${annotation_class_id}?${query}`, null);
+};
+
 // Get the DL actor status for a single annotation class
 export const getDLActorStatus = async (annotation_class_id: number): Promise<{ data: DLActorStatus, status: number }> => {
     return await get<DLActorStatus>(`/ray/train/status/${annotation_class_id}`);

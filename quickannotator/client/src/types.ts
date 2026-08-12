@@ -289,6 +289,7 @@ export interface DLActorStatus {
     enable_training: boolean;
     allow_pred: boolean;
     proc_running_since: string | null;
+    inference_threshold: number | null;
 }
 
 export interface PredictTilesRequest {
