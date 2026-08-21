@@ -8,6 +8,26 @@ import large_image
 from typing import List
 import os
 
+def get_image_query():
+    """Return a SQLAlchemy query for the Image model."""
+    model = db_models.Image
+    query = db_session.query(
+        model.id,
+        model.project_id,
+        model.name,
+        model.path,
+        model.base_height,
+        model.base_width,
+        model.base_mag,
+        model.dz_tilesize,
+        func.ST_AsGeoJSON(model.embedding_coord).label('embedding_coord'),
+        model.group_id,
+        model.split,
+        model.comment,
+        model.datetime
+    )
+
+    return query
 
 def is_dicom_tilesource(ts) -> bool:
     """Check whether a large_image tilesource handle represents a DICOM image."""

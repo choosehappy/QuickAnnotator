@@ -72,16 +72,14 @@ export const remove = async <T>(url: string, options: FetchOptions = {}): ApiRes
 
 // Fetch image by ID
 export const fetchImage = async (image_id: number) => {
-    const query = new URLSearchParams({ image_id: image_id.toString() });
-    return await get<Image>(`/image/?${query}`);
+    return await get<Image>(`/image/${image_id}`);
 }
 // Fetch image by ID
 export const fetchImagesByProjectId = async (project_id: number) => {
     return await get<Image[]>(`/image/${project_id}/search`);
 }
 export const removeImage = async (image_id: number) => {
-    const query = new URLSearchParams({image_id: image_id.toString() });
-    return await remove(`/image/?${query}`);
+    return await remove(`/image/${image_id}`);
 }
 
 // Fetch image metadata
@@ -376,6 +374,10 @@ export const getImageThumbnailURL = (image_id: number) =>`/api/v1/image/${image_
 
 export const UploadImageURL = () =>`/api/v1/image/upload`;
 
+export const updateImageComment = async (image_id: number, comment: string): Promise<{ data: Image, status: number }> => {
+    return await put<{ comment: string }, Image>(`/image/${image_id}`, { comment });
+}
+
 // Tissue mask helpers
 export const generateTissueMask = async (image_id: number) => {
     return await post<null, { message: string; count?: number }>(`/annotation/${image_id}/mask/generate`, null);
@@ -403,6 +405,12 @@ export const getChildRayTasks = async (parent_task_id: string) => {
 export const setEnableTraining = async (annotation_class_id: number, enable: boolean): Promise<{ data: DLActorStatus, status: number }> => {
     const query = new URLSearchParams({ enable: enable.toString() });
     return await post<null, DLActorStatus>(`/ray/train/${annotation_class_id}?${query}`, null);
+};
+
+// Set inference threshold for an annotation class
+export const setInferenceThreshold = async (annotation_class_id: number, threshold: number): Promise<{ data: DLActorStatus, status: number }> => {
+    const query = new URLSearchParams({ threshold: threshold.toString() });
+    return await post<null, DLActorStatus>(`/ray/train/threshold/${annotation_class_id}?${query}`, null);
 };
 
 // Get the DL actor status for a single annotation class
