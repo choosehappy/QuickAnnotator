@@ -63,7 +63,7 @@ def add_image_by_path(project_id, relative_path, name=None):
     slide = large_image.getTileSource(fullpath)
     
     if name is None:
-        name = os.path.basename(os.path.dirname(fullpath))
+        name = os.path.basename(fullpath)
     
     base_mag = float(slide.getMetadata()['magnification'])
 
