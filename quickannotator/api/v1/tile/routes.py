@@ -39,10 +39,26 @@ class PredictTiles(MethodView):
     def post(self, args, image_id, annotation_class_id):
         """     stage a tile for DL processing     """
         tilestore: TileStore = TileStoreFactory.get_tilestore()
+
+        # Only stage tiles that intersect the tissue mask. Saving ground truth
+        # (annotation/routes.py) and tile search (below) both already do this;
+        # without it, inference runs wherever the client asks and writes
+        # predictions onto background glass, which no inference threshold can
+        # remove. The mask class itself is exempt, as it defines the mask.
+        requested_tile_ids = args['tile_ids']
+        if annotation_class_id != MASK_CLASS_ID:
+            tile_ids_in_mask, _, _ = tilestore.get_tile_ids_intersecting_mask(image_id, annotation_class_id)
+            staged_tile_ids = sorted(set(requested_tile_ids) & set(tile_ids_in_mask))
+        else:
+            staged_tile_ids = requested_tile_ids
+
+        if not staged_tile_ids:
+            return [], 200
+
         result = tilestore.upsert_pred_tiles(
             image_id=image_id,
             annotation_class_id=annotation_class_id,
-            tile_ids=args['tile_ids'],
+            tile_ids=staged_tile_ids,
             pred_status=TileStatus.STARTPROCESSING,
             process_owns_tile=False
         )
