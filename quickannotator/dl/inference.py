@@ -2,15 +2,19 @@ import cv2
 
 import torch
 import numpy as np
+import json
 import shapely.wkb
 import shapely.geometry
 import shapely.affinity
+import shapely.ops
 import matplotlib.pyplot as plt
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 
-from quickannotator.db.crud.annotation import AnnotationStore
+from quickannotator.db.crud.annotation import AnnotationStore, build_annotation_table_name, table_exists
+from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
 from quickannotator.db.models import Tile
 from quickannotator.db import get_session
+from quickannotator.db import db_session as _db_session
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 
 from quickannotator.constants import TileStatus
@@ -23,6 +27,100 @@ import logging
 import os
 
 logger = logging.getLogger(constants.LoggerNames.RAY.value)
+
+# Cache of tissue-mask geometry per (image_id, annotation_class_id), expressed in the
+# annotation class's working-magnification space so it can be compared directly with
+# predicted polygons. Each entry carries a fingerprint of the image's Tissue Mask table and
+# is rebuilt when that changes: the Ray actor is long-lived, and a cache that never
+# refreshed kept clipping to the mask as it was when first read, so predictions on tissue
+# added to the mask afterwards were all dropped.
+_TISSUE_MASK_CACHE = {}
+
+
+def _tissue_mask_fingerprint(image_id: int):
+    """Cheap signature of the image's Tissue Mask annotations; None if there are none.
+
+    Row count, newest id, total area and newest datetime change whenever a mask polygon is
+    added, deleted or edited. One aggregate query (a few ms), run once per inference batch.
+    """
+    table = build_annotation_table_name(image_id, constants.MASK_CLASS_ID, is_gt=True)
+    if not table_exists(table):
+        return None
+    # a plain read on the shared session, as AnnotationStore does below (get_session() would
+    # commit and remove it as a side effect)
+    row = _db_session.execute(
+        text(f'SELECT count(*), max(id), sum(area), max(datetime) FROM "{table}"')).one()
+    return None if row[0] == 0 else tuple(row)
+
+
+def get_tissue_mask_geometry(image_id: int, annotation_class_id: int):
+    """Union of the Tissue Mask annotations, in this class's working magnification.
+
+    Tile gating is coarse: a tile is processed if ANY part of it touches tissue, so the
+    model still runs over the blank portion of edge tiles (and, with MASK_DILATION, over
+    whole blank tiles next to tissue). On background it tends to emit a confident,
+    tile-shaped blob. Clipping predictions to the tissue mask removes those at source.
+
+    Returns None if no mask exists, in which case predictions are left untouched.
+    """
+    key = (image_id, annotation_class_id)
+    try:
+        fingerprint = _tissue_mask_fingerprint(image_id)
+    except Exception:
+        logger.exception(f"Could not fingerprint the tissue mask of image {image_id}; reloading it.")
+        fingerprint = object()          # never equal to a cached one: always rebuild
+    cached = _TISSUE_MASK_CACHE.get(key)
+    if cached is not None and cached[0] == fingerprint:
+        return cached[1]
+    if cached is not None:
+        logger.info(f"Tissue mask of image {image_id} changed; reloading it for clipping.")
+
+    geom = None
+    try:
+        store = AnnotationStore(image_id, constants.MASK_CLASS_ID, is_gt=True, in_work_mag=False)
+        parts = []
+        for ann in store.get_all_annotations():          # scaled to base magnification
+            g = shapely.geometry.shape(json.loads(ann.polygon))
+            if not g.is_valid:
+                g = g.buffer(0)
+            if not g.is_empty:
+                parts.append(g)
+        if parts:
+            # base magnification -> this class's working magnification
+            r = base_to_work_scaling_factor(image_id, annotation_class_id)
+            union = shapely.ops.unary_union(parts)
+            geom = shapely.affinity.scale(union, xfact=r, yfact=r, origin=(0, 0))
+    except Exception:
+        logger.exception(f"Could not build tissue mask for image {image_id}; "
+                         f"predictions will not be clipped.")
+        geom = None
+
+    _TISSUE_MASK_CACHE[key] = (fingerprint, geom)
+    return geom
+
+
+def clip_polygons_to_tissue(polygons, image_id: int, annotation_class_id: int):
+    """Drop predicted polygons that do not touch tissue, and trim those that straddle it."""
+    mask = get_tissue_mask_geometry(image_id, annotation_class_id)
+    if mask is None or not polygons:
+        return polygons
+
+    kept = []
+    for poly in polygons:
+        try:
+            if not poly.intersects(mask):
+                continue
+            clipped = poly.intersection(mask)
+            if clipped.is_empty:
+                continue
+            # intersection can yield a collection; keep the polygonal parts
+            geoms = getattr(clipped, "geoms", [clipped])
+            for g in geoms:
+                if g.geom_type == "Polygon" and not g.is_empty and g.area > 0:
+                    kept.append(g)
+        except Exception:
+            kept.append(poly)       # never lose a prediction to a geometry error
+    return kept
 
 def preprocess_image(io_image, device):
     """
@@ -124,6 +222,13 @@ def run_inference(device, model, tiles, inference_threshold: float = None):
             translated_polygons = [
                 shapely.affinity.translate(polygon, xoff=tiles[j].x, yoff=tiles[j].y) for polygon in polygons
             ]
+            before_clip = len(translated_polygons)
+            translated_polygons = clip_polygons_to_tissue(
+                translated_polygons, tiles[j].image_id, tiles[j].annotation_class_id
+            )
+            if before_clip != len(translated_polygons):
+                logger.info(f'Tissue clip on tile {tiles[j].tile_id}: '
+                            f'{before_clip} -> {len(translated_polygons)} polygons.')
             logger.info(f'Saving annotations for tile {tiles[j].tile_id}.')
             with get_session() as db_session:
                 store = AnnotationStore(tiles[j].image_id, tiles[j].annotation_class_id, is_gt=False, in_work_mag=True)

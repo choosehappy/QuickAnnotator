@@ -27,7 +27,11 @@ def serve_quickannotator(app):
         print("QA application terminated by user")
 
 def serve_quickannotator_dev(app):
-    app.run(debug=True, host='0.0.0.0', port=config.getint('flask', 'port', fallback=5000), threaded=True)
+    # use_reloader=False: the reloader forks a second process and BOTH call
+    # ray.init(), creating two independent Ray clusters. The DL actor then
+    # lives in one while the request handler looks in the other, so the
+    # training status endpoint 404s and the UI shows 'training unavailable'.
+    app.run(debug=True, use_reloader=False, host='0.0.0.0', port=config.getint('flask', 'port', fallback=5000), threaded=True)
 
 def main():
     parser = argparse.ArgumentParser()
