@@ -5,7 +5,7 @@ from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 from quickannotator.tests.conftest import assert_geojson_equal
 from shapely.geometry import mapping
 import geojson
-from quickannotator.constants import TileStatus, TILE_PRED_EXPIRE
+from quickannotator.constants import TileStatus, TILE_PRED_EXPIRE, TILE_PROCESSING_EXPIRE
 from quickannotator.db import models
 from datetime import datetime, timedelta
 
@@ -341,6 +341,46 @@ def insert_stale_doneprocessing_tile(db_session):
     return tile
 
 
+@pytest.fixture(scope="function")
+def insert_stale_processing_tile(db_session):
+    # Claimed by an inference actor that then crashed or was killed.
+    tile_id = 9995
+    image_id = 1
+    annotation_class_id = 2
+
+    tile = models.Tile(
+        image_id=image_id,
+        annotation_class_id=annotation_class_id,
+        tile_id=tile_id,
+        pred_status=TileStatus.PROCESSING,
+        pred_datetime=datetime.now() - timedelta(minutes=(TILE_PROCESSING_EXPIRE + 1))
+    )
+    db_session.add(tile)
+    db_session.commit()
+
+    return tile
+
+
+@pytest.fixture(scope="function")
+def insert_recent_processing_tile(db_session):
+    # Claimed by an inference actor moments ago, as get_pending_inference_tiles does.
+    tile_id = 9996
+    image_id = 1
+    annotation_class_id = 2
+
+    tile = models.Tile(
+        image_id=image_id,
+        annotation_class_id=annotation_class_id,
+        tile_id=tile_id,
+        pred_status=TileStatus.PROCESSING,
+        pred_datetime=datetime.now()
+    )
+    db_session.add(tile)
+    db_session.commit()
+
+    return tile
+
+
 def test_insert_gt_tiles_with_empty_list(db_session):
     # Arrange
     image_id = 1
@@ -500,6 +540,42 @@ def test_DONEPROCESSING_to_STARTPROCESSING(insert_doneprocessing_tile: models.Ti
     new_tile = result[0]
     assert new_tile.pred_status == tile.pred_status  # Should not change
     assert new_tile.pred_datetime == initial_pred_datetime  # Should not change
+
+
+def test_stale_PROCESSING_to_STARTPROCESSING(insert_stale_processing_tile: models.Tile):
+    # Arrange
+    tile = insert_stale_processing_tile
+    tilestore: TileStore = TileStoreFactory.get_tilestore()
+    new_status = TileStatus.STARTPROCESSING
+    assert tile.pred_status == TileStatus.PROCESSING
+    initial_pred_datetime = tile.pred_datetime
+
+    # Act
+    result = tilestore.upsert_pred_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=new_status)
+
+    # Assert
+    assert len(result) == 1
+    new_tile = result[0]
+    assert new_tile.pred_status == new_status  # Abandoned: re-staged
+    assert new_tile.pred_datetime != initial_pred_datetime
+
+
+def test_recent_PROCESSING_to_STARTPROCESSING(insert_recent_processing_tile: models.Tile):
+    # Arrange
+    tile = insert_recent_processing_tile
+    tilestore: TileStore = TileStoreFactory.get_tilestore()
+    new_status = TileStatus.STARTPROCESSING
+    assert tile.pred_status == TileStatus.PROCESSING
+    initial_pred_datetime = tile.pred_datetime
+
+    # Act
+    result = tilestore.upsert_pred_tiles(tile.image_id, tile.annotation_class_id, [tile.tile_id], pred_status=new_status)
+
+    # Assert
+    assert len(result) == 1
+    new_tile = result[0]
+    assert new_tile.pred_status == tile.pred_status  # Still owned by its actor: should not change
+    assert new_tile.pred_datetime == initial_pred_datetime
 
 
 def test_stale_DONEPROCESSING_to_STARTPROCESSING(insert_stale_doneprocessing_tile: models.Tile):

@@ -42,6 +42,8 @@ MOUNTS_PATH = os.path.join(BASE_PATH, 'quickannotator/mounts')
 
 
 TILE_PRED_EXPIRE = 1 # minutes
+TILE_PROCESSING_EXPIRE = 10 # minutes; a tile still PROCESSING this long after it was claimed was
+                            # abandoned by an inference actor that crashed or was killed
 
 MAX_ACTORS_PROCESSING = 1   # TODO: app setting
 MAX_RETRIES_TRUNCATE_ACTORS = 50
