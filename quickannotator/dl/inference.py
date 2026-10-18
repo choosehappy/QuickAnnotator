@@ -8,12 +8,13 @@ import shapely.geometry
 import shapely.affinity
 import shapely.ops
 import matplotlib.pyplot as plt
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 
-from quickannotator.db.crud.annotation import AnnotationStore
+from quickannotator.db.crud.annotation import AnnotationStore, build_annotation_table_name, table_exists
 from quickannotator.api.v1.utils.coordinate_space import base_to_work_scaling_factor
 from quickannotator.db.models import Tile
 from quickannotator.db import get_session
+from quickannotator.db import db_session as _db_session
 from quickannotator.db.crud.tile import TileStoreFactory, TileStore
 
 from quickannotator.constants import TileStatus
@@ -29,8 +30,27 @@ logger = logging.getLogger(constants.LoggerNames.RAY.value)
 
 # Cache of tissue-mask geometry per (image_id, annotation_class_id), expressed in the
 # annotation class's working-magnification space so it can be compared directly with
-# predicted polygons.
+# predicted polygons. Each entry carries a fingerprint of the image's Tissue Mask table and
+# is rebuilt when that changes: the Ray actor is long-lived, and a cache that never
+# refreshed kept clipping to the mask as it was when first read, so predictions on tissue
+# added to the mask afterwards were all dropped.
 _TISSUE_MASK_CACHE = {}
+
+
+def _tissue_mask_fingerprint(image_id: int):
+    """Cheap signature of the image's Tissue Mask annotations; None if there are none.
+
+    Row count, newest id, total area and newest datetime change whenever a mask polygon is
+    added, deleted or edited. One aggregate query (a few ms), run once per inference batch.
+    """
+    table = build_annotation_table_name(image_id, constants.MASK_CLASS_ID, is_gt=True)
+    if not table_exists(table):
+        return None
+    # a plain read on the shared session, as AnnotationStore does below (get_session() would
+    # commit and remove it as a side effect)
+    row = _db_session.execute(
+        text(f'SELECT count(*), max(id), sum(area), max(datetime) FROM "{table}"')).one()
+    return None if row[0] == 0 else tuple(row)
 
 
 def get_tissue_mask_geometry(image_id: int, annotation_class_id: int):
@@ -44,8 +64,16 @@ def get_tissue_mask_geometry(image_id: int, annotation_class_id: int):
     Returns None if no mask exists, in which case predictions are left untouched.
     """
     key = (image_id, annotation_class_id)
-    if key in _TISSUE_MASK_CACHE:
-        return _TISSUE_MASK_CACHE[key]
+    try:
+        fingerprint = _tissue_mask_fingerprint(image_id)
+    except Exception:
+        logger.exception(f"Could not fingerprint the tissue mask of image {image_id}; reloading it.")
+        fingerprint = object()          # never equal to a cached one: always rebuild
+    cached = _TISSUE_MASK_CACHE.get(key)
+    if cached is not None and cached[0] == fingerprint:
+        return cached[1]
+    if cached is not None:
+        logger.info(f"Tissue mask of image {image_id} changed; reloading it for clipping.")
 
     geom = None
     try:
@@ -67,7 +95,7 @@ def get_tissue_mask_geometry(image_id: int, annotation_class_id: int):
                          f"predictions will not be clipped.")
         geom = None
 
-    _TISSUE_MASK_CACHE[key] = geom
+    _TISSUE_MASK_CACHE[key] = (fingerprint, geom)
     return geom
 
 
