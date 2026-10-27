@@ -15,11 +15,23 @@ interface Props {
     changed: boolean;
     containerId: string;
     deleteHandler: (imageId: number)=>void;
+    initialSort?: { columnId: string; direction: 'asc' | 'desc' }[];
+    initialScroll?: number;
+    onTableStateChange?: (state: { sort: { columnId: string; direction: 'asc' | 'desc' }[], scroll: number }) => void;
 }
 
+const SCROLL_END_DELAY = 200;
+
 export default class ImageTable extends React.PureComponent {
+    scrollTimeout: ReturnType<typeof setTimeout> | undefined;
+    // Sort and scroll from the URL, applied once the data is in the grid.
+    pendingSort: { columnId: string; direction: 'asc' | 'desc' }[] | null;
+    pendingScrollRow: number | null;
+
     constructor(public props: Props) {
         super(props);
+        this.pendingSort = props.initialSort?.length ? props.initialSort : null;
+        this.pendingScrollRow = props.initialScroll ? props.initialScroll : null;
         this.gridRef = React.createRef();
         this.state = {
             gridOptions: undefined,
@@ -40,6 +52,47 @@ export default class ImageTable extends React.PureComponent {
     }
     
     
+    componentWillUnmount() {
+        if (this.scrollTimeout) clearTimeout(this.scrollTimeout);
+    }
+
+    getCurrentSort() {
+        const grid = this.state.reactGrid?.slickGrid;
+        return (grid?.getSortColumns() ?? []).map((c) => ({
+            columnId: String(c.columnId),
+            direction: (c.sortAsc ? 'asc' : 'desc') as 'asc' | 'desc',
+        }));
+    }
+
+    emitTableState() {
+        const grid = this.state.reactGrid?.slickGrid;
+        if (!grid || !this.props.onTableStateChange) return;
+        this.props.onTableStateChange({
+            scroll: grid.getViewport().top,
+            sort: this.getCurrentSort(),
+        });
+    }
+
+    // Applies the sort and scroll read from the URL. Sort is skipped for unknown columns.
+    applyPendingState() {
+        const reactGrid = this.state.reactGrid;
+        const grid = reactGrid?.slickGrid;
+        if (!reactGrid || !grid) return;
+        if (this.pendingSort) {
+            const known = new Set(grid.getColumns().map((c) => String(c.id)));
+            const sorters = this.pendingSort.filter((s) => known.has(s.columnId));
+            if (sorters.length) {
+                reactGrid.sortService.updateSorting(sorters, false, false);
+            }
+            this.pendingSort = null;
+        }
+        if (this.pendingScrollRow !== null) {
+            const row = Math.min(this.pendingScrollRow, grid.getDataLength() - 1);
+            if (row > 0) grid.scrollRowToTop(row);
+            this.pendingScrollRow = null;
+        }
+    }
+
     clickOnDelete(data: any) {
         console.log('deleted', data.id)
         this.setState({...this.state, activeModal: MODAL_DATA.DELETE_IMAGE.id, deletedImageId: data.id, deletedImageName: data.name})
@@ -59,11 +112,15 @@ export default class ImageTable extends React.PureComponent {
             });
         } else if (prevProps.images !== this.props.images || prevProps.annotationCounts !== this.props.annotationCounts) {
             const dataset = this.getData(this.props.images);
+            // resetGrid clears the sort, so remember it and reapply it.
+            if (!this.pendingSort) this.pendingSort = this.getCurrentSort();
             this.state.reactGrid?.gridService.resetGrid();
             this.setState(() => ({
                 ...this.state,
                 dataset,
-            }));
+            }), () => {
+                if (dataset.length > 0) this.applyPendingState();
+            });
         }
         if (prevProps.changed !== this.props.changed) {
             this?.gridRef?.current?.resizerService?.resizeGrid(5);
@@ -78,6 +135,13 @@ export default class ImageTable extends React.PureComponent {
 
     reactGridReady(reactGrid: SlickgridReactInstance) {
         this.setState({ reactGrid });
+        reactGrid.slickGrid?.onSort.subscribe(() => {
+            this.emitTableState();
+        });
+        reactGrid.slickGrid?.onScroll.subscribe(() => {
+            if (this.scrollTimeout) clearTimeout(this.scrollTimeout);
+            this.scrollTimeout = setTimeout(() => this.emitTableState(), SCROLL_END_DELAY);
+        });
         reactGrid.slickGrid?.onClick.subscribe((e, args) => {
             if ((e.target as HTMLElement).closest('button')) return;
             const item = reactGrid.slickGrid?.getDataItem(args.row);
