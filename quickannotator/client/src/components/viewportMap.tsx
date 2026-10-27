@@ -40,6 +40,7 @@ interface Props {
     gtLayerVisible: boolean;
     predLayerVisible: boolean;
     tileStatusLayerVisible: boolean;
+    inferenceThreshold: number | null;
 }
 
 const ViewportMap = (props: Props) => {
@@ -1050,6 +1051,17 @@ const ViewportMap = (props: Props) => {
 
         return () => clearInterval(interval);
     }, [props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage, props.currentAnnotationClass]);
+
+    // Re-render predictions when the inference threshold changes
+    useEffect(() => {
+        if (geojs_map.current && props.currentImage && props.currentAnnotationClass) {
+            if (props.predLayerVisible || props.tileStatusLayerVisible) {
+                viewportRender(false, props.predLayerVisible, props.tileStatusLayerVisible, props.currentImage.id, props.currentAnnotationClass.id).then(() => {
+                    console.log("Completed viewport render triggered by threshold change.");
+                });
+            }
+        }
+    }, [props.inferenceThreshold]);
 
     return (
         <div ref={viewRef} style={

@@ -34,11 +34,15 @@ class GetRayTasksArgsSchema(Schema):
 class SetEnableDLArgsSchema(Schema):
     enable = fields.Bool(required=True, description="Boolean value to enable (true) or disable (false) deep learning training.")
 
+class SetInferenceThresholdArgsSchema(Schema):
+    threshold = fields.Float(required=True, description="Inference threshold value between 0 and 1.")
+
 class GetDLActorStatusResponseSchema(Schema):
     annotation_class_id = fields.Int(required=True, description="The ID of the annotation class.")
     enable_training = fields.Bool(required=True, description="Indicates if deep learning training is enabled.")
     allow_pred = fields.Bool(required=True, description="Indicates if predictions are allowed.")
     proc_running_since = fields.DateTime(required=False, allow_none=True, description="Timestamp of when processing started, or null if not processing.")
+    inference_threshold = fields.Float(load_default=None, description="Current inference threshold value, or null if actor is not ready.")
 
 
 class GetDLActorsStatusArgsSchema(Schema):

@@ -39,6 +39,7 @@ const AnnotationPage = () => {
     const [mouseCoords, setMouseCoords] = useState<{ x: number, y: number }>({x: 0, y: 0});
     const [annotationClasses, setAnnotationClasses] = useState<AnnotationClass[]>([]);
     const [currentDlActorStatus, setCurrentDlActorStatus] = useState<DLActorStatus | null>(null);
+    const [inferenceThreshold, setInferenceThreshold] = useState<number | null>(null);
 
     // Layer visibility states
     const [gtLayerVisible, setGtLayerVisible] = useState<boolean>(true);
@@ -178,8 +179,10 @@ const AnnotationPage = () => {
                 const resp = await getDLActorStatus(currentAnnotationClassId);
                 if (resp.status === 200) {
                     setCurrentDlActorStatus(resp.data);
+                    setInferenceThreshold(resp.data.inference_threshold);
                 } else {
                     setCurrentDlActorStatus(null);
+                    setInferenceThreshold(null);
                 }
             } catch (error) {
                 console.error("Error fetching DL actor status:", error);
@@ -267,6 +270,7 @@ const AnnotationPage = () => {
                                             gtLayerVisible,
                                             predLayerVisible,
                                             tileStatusLayerVisible,
+                                            inferenceThreshold,
                                         }}
                                     />
                                     <Legend mouseCoords={mouseCoords}/>
@@ -276,7 +280,11 @@ const AnnotationPage = () => {
                         <Col xs={3}>
                             <Stack gap={3}>
                                 <ClassesPane
-                                    {...{ currentAnnotationClass, setcurrentAnnotationClass: setCurrentAnnotationClass, setActiveModal, annotationClasses, setAnnotationClasses, currentDlActorStatus, setCurrentDlActorStatus, currentImage, currentProject }}
+                                    {...{ currentAnnotationClass, setcurrentAnnotationClass: setCurrentAnnotationClass, setActiveModal, annotationClasses, setAnnotationClasses, currentDlActorStatus, setCurrentDlActorStatus, currentImage, currentProject, inferenceThreshold, setInferenceThreshold }}
+                                    onStatusRefresh={(status) => {
+                                        setCurrentDlActorStatus(status);
+                                        setInferenceThreshold(status.inference_threshold);
+                                    }}
                                 />
                                 <GroundTruthPane
                                     {...{ gts, setGts, currentAnnotation, setCurrentAnnotation, annotationClasses, setActiveModal, gtLayerVisible }}

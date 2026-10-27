@@ -58,6 +58,7 @@ class Image(Base):
     embedding_coord = Column(Geometry('POINT'))
     group_id = Column(Integer)
     split = Column(Integer)
+    comment = Column(Text, nullable=True)
     datetime = Column(DateTime, default=datetime.now)
 
     # relationships
