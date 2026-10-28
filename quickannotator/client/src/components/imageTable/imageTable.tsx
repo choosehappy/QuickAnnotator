@@ -52,13 +52,22 @@ export default class ImageTable extends React.PureComponent {
         this.defineGrid();
     }
 
-    syncGridStateWithProps() {
-        const dataset = this.getData(this.props.images);
+    // resetGrid clears the sort, so remember the sort and scroll position and reapply them.
+    updateDatasetPreservingState(dataset: any[]) {
+        const grid = this.state.reactGrid?.slickGrid;
+        if (!this.pendingSort) this.pendingSort = this.getCurrentSort();
+        if (this.pendingScrollRow === null && grid) this.pendingScrollRow = grid.getViewport().top;
         this.state.reactGrid?.gridService.resetGrid();
         this.setState(() => ({
             ...this.state,
             dataset,
-        }));
+        }), () => {
+            if (dataset.length > 0) this.applyPendingState();
+        });
+    }
+
+    syncGridStateWithProps() {
+        this.updateDatasetPreservingState(this.getData(this.props.images));
     }
 
     saveComment = async (imageId: number, comment: string) => {
@@ -71,9 +80,7 @@ export default class ImageTable extends React.PureComponent {
         const dataset = this.state.dataset.map((item: any) =>
             item.id === imageId ? { ...item, comment: result.data.comment } : item
         );
-        this.setState({ dataset }, () => {
-            this.state.reactGrid?.gridService.resetGrid();
-        });
+        this.updateDatasetPreservingState(dataset);
     }
     
     
@@ -136,16 +143,6 @@ export default class ImageTable extends React.PureComponent {
                 this.state.reactGrid?.slickGrid?.setColumns(columns);
             });
         } else if (prevProps.images !== this.props.images || prevProps.annotationCounts !== this.props.annotationCounts) {
-            const dataset = this.getData(this.props.images);
-            // resetGrid clears the sort, so remember it and reapply it.
-            if (!this.pendingSort) this.pendingSort = this.getCurrentSort();
-            this.state.reactGrid?.gridService.resetGrid();
-            this.setState(() => ({
-                ...this.state,
-                dataset,
-            }), () => {
-                if (dataset.length > 0) this.applyPendingState();
-            });
             this.syncGridStateWithProps();
         }
         if (prevProps.changed !== this.props.changed) {
