@@ -131,11 +131,20 @@ class TileStore(ABC):   # Only an ABC to prevent instantiation
             update_fields = insert_fields
         else:
             expiration_thresh = current_time - timedelta(minutes=constants.TILE_PRED_EXPIRE)
+            processing_expiration_thresh = current_time - timedelta(minutes=constants.TILE_PROCESSING_EXPIRE)
 
             tile_is_unseen_or_stale = case((db_models.Tile.pred_status == TileStatus.UNSEEN, 1),
                 (
                     (db_models.Tile.pred_status == TileStatus.DONEPROCESSING) & 
                     (db_models.Tile.pred_datetime <= expiration_thresh), 1
+                ),
+                # A tile claimed by an inference actor that crashed or was killed stays
+                # PROCESSING forever and would never be predicted again. get_pending_inference_tiles
+                # stamps pred_datetime when it claims a tile, so one still PROCESSING after
+                # TILE_PROCESSING_EXPIRE has been abandoned: re-stage it like a stale tile.
+                (
+                    (db_models.Tile.pred_status == TileStatus.PROCESSING) &
+                    (db_models.Tile.pred_datetime <= processing_expiration_thresh), 1
                 ),
                 else_=0
             )
