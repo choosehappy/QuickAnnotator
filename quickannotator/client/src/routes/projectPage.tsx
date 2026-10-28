@@ -1,6 +1,6 @@
 import Nav from 'react-bootstrap/Nav';
-import { Link, useOutletContext, useParams } from "react-router-dom";
-import { useEffect, useState } from 'react';
+import { Link, useOutletContext, useParams, useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, Container, Row, Col, Card, ButtonToolbar, ButtonGroup, Button, ListGroup } from "react-bootstrap";
 import { Fullscreen, CloudArrowUp, GearFill, Download, AspectRatioFill, Brush, Magic, Eraser, Heptagon, CurrencyBitcoin } from 'react-bootstrap-icons';
 
@@ -11,15 +11,48 @@ import ImageTable from '../components/imageTable/imageTable.tsx';
 import FileDropUploader from '../components/fileDropUploader/fileDropUploader.tsx'
 import ExportAnnotationsModal from '../components/exportAnnotationsModal/exportAnnotationsModal.tsx'
 
+export interface TableSort { columnId: string; direction: 'asc' | 'desc'; }
+
+const parseSortParam = (value: string | null): TableSort[] => {
+    if (!value) return [];
+    return value.split(',').flatMap((part) => {
+        const [columnId, direction] = part.split(':');
+        return columnId && (direction === 'asc' || direction === 'desc') ? [{ columnId, direction }] : [];
+    });
+};
+
 const ProjectPage = () => {
     const { projectid } = useParams();
     const { currentProject, setCurrentProject, currentImage, setCurrentImage } = useOutletContext<OutletContextType>();
+    const [searchParams, setSearchParams] = useSearchParams();
+    // Read once on load; later URL changes come from the table itself.
+    const initialTableState = useRef<{ sort: TableSort[], scroll: number }>({
+        sort: parseSortParam(searchParams.get('sort')),
+        scroll: Math.max(0, parseInt(searchParams.get('scroll') ?? '', 10) || 0),
+    });
     const [images, setImages] = useState<Image[]>([])
     const [annotationClasses, setAnnotationClasses] = useState<AnnotationClass[]>([])
     const [annotationCounts, setAnnotationCounts] = useState<Record<number, Record<number, number>> | null>(null)
     const [settingShow, setSettingShow] = useState<boolean>(false)
     const [embeddingShow, setEmbeddingShow] = useState<boolean>(false)
     const [exportAnnotationsShow, setExportAnnotationsShow] = useState<boolean>(false)
+
+    const handleTableStateChange = useCallback((state: { sort: TableSort[], scroll: number }) => {
+        setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            if (state.scroll > 0) {
+                next.set('scroll', state.scroll.toString());
+            } else {
+                next.delete('scroll');
+            }
+            if (state.sort.length) {
+                next.set('sort', state.sort.map((s) => `${s.columnId}:${s.direction}`).join(','));
+            } else {
+                next.delete('sort');
+            }
+            return next;
+        }, { replace: true });
+    }, [setSearchParams]);
 
     useEffect(() => {
         setCurrentImage(null);
@@ -158,7 +191,7 @@ const ProjectPage = () => {
                                 <FileDropUploader project_id={projectid} reloadHandler={reloadImages} />
                             </Card.Header>
                             <Card.Body id='img_table' className="p-0">
-                                <ImageTable containerId='img_table' project={currentProject} images={images} annotationClasses={annotationClasses} annotationCounts={annotationCounts} changed={(!embeddingShow && !settingShow)} deleteHandler={deleteImageHandle} />
+                                <ImageTable containerId='img_table' project={currentProject} images={images} annotationClasses={annotationClasses} annotationCounts={annotationCounts} changed={(!embeddingShow && !settingShow)} deleteHandler={deleteImageHandle} initialSort={initialTableState.current.sort} initialScroll={initialTableState.current.scroll} onTableStateChange={handleTableStateChange} />
                             </Card.Body>
 
                         </Card>
